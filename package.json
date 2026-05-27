@@ -1,0 +1,80 @@
+{
+  "name": "cursor-quota",
+  "displayName": "Cursor Quota",
+  "description": "Shows Cursor plan quota usage in the status bar without opening Settings.",
+  "version": "0.1.0",
+  "publisher": "vypdev",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22",
+    "vscode": "^1.85.0"
+  },
+  "packageManager": "pnpm@10.0.0",
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "cursorQuota.refresh",
+        "title": "Cursor Quota: Refresh Now",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "cursorQuota.openUsage",
+        "title": "Cursor Quota: Open Usage in Settings"
+      }
+    ],
+    "configuration": {
+      "title": "Cursor Quota",
+      "properties": {
+        "cursorQuota.refresh.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically refresh quota data from Cursor."
+        },
+        "cursorQuota.refresh.intervalSeconds": {
+          "type": "number",
+          "default": 60,
+          "minimum": 30,
+          "maximum": 300,
+          "description": "Polling interval in seconds (30–300)."
+        },
+        "cursorQuota.statusBar.showIncluded": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show included quota usage progress in the status bar."
+        },
+        "cursorQuota.statusBar.showTotal": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show total plan usage percentage in the status bar."
+        },
+        "cursorQuota.statusBar.showAccountEmail": {
+          "type": "boolean",
+          "default": false,
+          "description": "Append logged-in email (read from local Cursor auth cache) to tooltips."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "tsc -p ./",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "tsc -p ./ --noEmit",
+    "test": "node --test out/test/*.test.js",
+    "pretest": "tsc -p ./",
+    "package": "vsce package --allow-missing-repository --no-rewrite-relative-links"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.2.1",
+    "typescript": "^5.5.0"
+  }
+}

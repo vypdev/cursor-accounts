@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+
+# Lockfiles (pnpm is the package manager; keep pnpm-lock.yaml)
+package-lock.json
+yarn.lock
+
+# Build output
+out/
+dist/
+*.tsbuildinfo
+
+# Extension package
+*.vsix
+
+# VS Code extension host test runner
+.vscode-test/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Test coverage and reports
+coverage/
+.nyc_output/
+
+# Logs and debug
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors / IDE (keep shared .vscode launch & tasks)
+.cursor/
+.idea/
+
+# Optional local VS Code settings (machine-specific)
+.vscode/settings.json
