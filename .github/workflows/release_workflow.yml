@@ -127,8 +127,12 @@ jobs:
             target: darwin-x64
           - os: [self-hosted, Linux, X64]
             target: linux-x64
+          - os: ubuntu-24.04-arm
+            target: linux-arm64
           - os: [self-hosted, Windows, X64]
             target: win32-x64
+          - os: [self-hosted, Windows, X64]
+            target: win32-arm64
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -150,6 +154,11 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Verify bundled binaries
+        if: ${{ !contains(matrix.os, 'Windows') }}
+        shell: bash
+        run: bash scripts/verify-binaries.sh
 
       - name: Prepare target binary
         run: node scripts/prepare-bin-for-target.mjs ${{ matrix.target }}

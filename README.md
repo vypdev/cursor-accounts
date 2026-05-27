@@ -87,12 +87,22 @@ Community “account switcher” extensions swap SQLite snapshots of `state.vscd
 
 ## Platform Support
 
-This extension includes pre-compiled SQLite binaries for all supported platforms:
-- macOS (Intel and Apple Silicon)
-- Linux (x64)
-- Windows (x64 and ARM64)
+This extension includes pre-compiled SQLite 3.53.1 binaries for all supported platforms:
+
+- macOS Intel (`darwin-x64`) and Apple Silicon (`darwin-arm64`)
+- Linux x64 (`linux-x64`) and ARM64 (`linux-arm64`)
+- Windows x64 (`win32-x64`) and ARM64 (`win32-arm64`)
 
 No additional installation or configuration required.
+
+To regenerate the Linux ARM64 binary (no official precompiled CLI from SQLite):
+
+```bash
+docker run --rm --platform linux/arm64 -v "$PWD:/project" -w /project ubuntu:24.04 \
+  bash -c 'apt-get update && apt-get install -y build-essential curl file && bash scripts/build-linux-arm64-sqlite.sh'
+```
+
+Validate all bundled binaries with `bash scripts/verify-binaries.sh`.
 
 ## Privacy
 
