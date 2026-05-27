@@ -69,7 +69,13 @@
     "lint": "tsc -p ./ --noEmit",
     "test": "node --test out/test/*.test.js",
     "pretest": "tsc -p ./",
-    "package": "vsce package --allow-missing-repository --no-rewrite-relative-links"
+    "package": "node scripts/prepare-bin-for-target.mjs $(node -p \"process.platform + '-' + process.arch\") && vsce package --allow-missing-repository --no-rewrite-relative-links; node scripts/restore-bin.mjs",
+    "package:all": "pnpm run package:darwin-arm64 && pnpm run package:darwin-x64 && pnpm run package:linux-x64 && pnpm run package:win32-x64 && pnpm run package:win32-arm64",
+    "package:darwin-arm64": "node scripts/prepare-bin-for-target.mjs darwin-arm64 && vsce package --target darwin-arm64 --allow-missing-repository --no-rewrite-relative-links && node scripts/restore-bin.mjs",
+    "package:darwin-x64": "node scripts/prepare-bin-for-target.mjs darwin-x64 && vsce package --target darwin-x64 --allow-missing-repository --no-rewrite-relative-links && node scripts/restore-bin.mjs",
+    "package:linux-x64": "node scripts/prepare-bin-for-target.mjs linux-x64 && vsce package --target linux-x64 --allow-missing-repository --no-rewrite-relative-links && node scripts/restore-bin.mjs",
+    "package:win32-x64": "node scripts/prepare-bin-for-target.mjs win32-x64 && vsce package --target win32-x64 --allow-missing-repository --no-rewrite-relative-links && node scripts/restore-bin.mjs",
+    "package:win32-arm64": "node scripts/prepare-bin-for-target.mjs win32-arm64 && vsce package --target win32-arm64 --allow-missing-repository --no-rewrite-relative-links && node scripts/restore-bin.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

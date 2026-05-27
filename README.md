@@ -83,7 +83,16 @@ Community “account switcher” extensions swap SQLite snapshots of `state.vscd
 | `Quota unavailable` | Confirm **Cursor Settings → Usage** works natively; sign in again |
 | Stuck on loading | Run **Cursor Quota: Refresh Now** from the Command Palette |
 | Wrong percentages | Cursor may show included vs credits separately; compare with Settings UI |
-| DB read errors | Requires the system `sqlite3` CLI (included on macOS/Linux). On Windows, install SQLite and ensure `sqlite3` is on PATH |
+| DB read errors | Uses bundled SQLite binary (no installation required). If issues persist, check Extension Host log |
+
+## Platform Support
+
+This extension includes pre-compiled SQLite binaries for all supported platforms:
+- macOS (Intel and Apple Silicon)
+- Linux (x64)
+- Windows (x64 and ARM64)
+
+No additional installation or configuration required.
 
 ## Privacy
 

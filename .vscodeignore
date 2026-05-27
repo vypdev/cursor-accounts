@@ -11,3 +11,8 @@ pnpm-lock.yaml
 .node-version
 .npmrc
 docs/**
+scripts/**
+.tmp/**
+.bin-all-backup/**
+# Ensure bundled SQLite binaries are included in the VSIX
+!bin/**

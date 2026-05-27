@@ -5,6 +5,7 @@ import {
   CURSOR_AUTH_KEYS,
   getCursorStateDbPath,
 } from './cursorPaths';
+import { getSqlite3Binary } from './sqliteBinary';
 
 /** Strip JSON-encoded string values from VS Code SQLite ItemTable. */
 export function parseStoredValue(raw: string | null | undefined): string | undefined {
@@ -22,22 +23,16 @@ export function parseStoredValue(raw: string | null | undefined): string | undef
   return trimmed;
 }
 
-function resolveSqlite3Path(): string {
-  if (process.platform === 'win32') {
-    return 'sqlite3';
-  }
-  if (process.platform === 'darwin') {
-    return '/usr/bin/sqlite3';
-  }
-  return 'sqlite3';
-}
-
-function readKeyFromDb(dbPath: string, key: string): string | undefined {
+function readKeyFromDb(
+  dbPath: string,
+  key: string,
+  extensionPath: string
+): string | undefined {
   const escapedKey = key.replace(/'/g, "''");
   const sql = `SELECT value FROM ItemTable WHERE key = '${escapedKey}' LIMIT 1;`;
   const args = ['-readonly', dbPath, sql];
 
-  const output = execFileSync(resolveSqlite3Path(), args, {
+  const output = execFileSync(getSqlite3Binary(extensionPath), args, {
     encoding: 'utf8',
     timeout: 30_000,
     maxBuffer: 10 * 1024 * 1024,
@@ -45,22 +40,34 @@ function readKeyFromDb(dbPath: string, key: string): string | undefined {
   return parseStoredValue(output.trim() || undefined);
 }
 
-export function readAuthFromStateDb(_extensionPath: string): CursorAuthTokens | null {
+export function readAuthFromStateDb(extensionPath: string): CursorAuthTokens | null {
   const dbPath = getCursorStateDbPath();
   if (!fs.existsSync(dbPath)) {
     return null;
   }
 
   try {
-    const accessToken = readKeyFromDb(dbPath, CURSOR_AUTH_KEYS.accessToken);
+    const accessToken = readKeyFromDb(
+      dbPath,
+      CURSOR_AUTH_KEYS.accessToken,
+      extensionPath
+    );
     if (!accessToken) {
       return null;
     }
 
     return {
       accessToken,
-      refreshToken: readKeyFromDb(dbPath, CURSOR_AUTH_KEYS.refreshToken),
-      email: readKeyFromDb(dbPath, CURSOR_AUTH_KEYS.cachedEmail),
+      refreshToken: readKeyFromDb(
+        dbPath,
+        CURSOR_AUTH_KEYS.refreshToken,
+        extensionPath
+      ),
+      email: readKeyFromDb(
+        dbPath,
+        CURSOR_AUTH_KEYS.cachedEmail,
+        extensionPath
+      ),
     };
   } catch {
     return null;

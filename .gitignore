@@ -8,6 +8,8 @@ yarn.lock
 # Build output
 out/
 dist/
+.tmp/
+.bin-all-backup/
 *.tsbuildinfo
 
 # Extension package
