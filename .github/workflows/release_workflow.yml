@@ -24,12 +24,18 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: write
+
 jobs:
-  prepare-version-files:
-    name: Prepare files for release
+  release:
+    name: Prepare release
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT }}
 
       - name: Validate inputs
         env:
@@ -57,27 +63,31 @@ jobs:
           fi
           [[ $err -eq 0 ]] || exit 1
 
-      # Example: generic step to perform the version update or compilation (uncomment and adjust as needed)
-      # - name: Generic step
-      #   uses: whatever/action@v2 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
 
-      - name: Commit updated package.json and dist directory
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Bump version in package.json
+        run: node scripts/bump-version.js "${{ github.event.inputs.version }}"
+
+      - name: Commit and push version bump
         uses: EndBug/add-and-commit@v9
         with:
-          add: './build/ ./package.json'
+          add: './package.json'
           committer_name: GitHub Actions
           committer_email: actions@github.com
           default_author: user_info
-          message: 'gh-action: updated compiled files and bumped version to ${{ github.event.inputs.version }} (release)'
+          message: 'gh-action: bumped version to ${{ github.event.inputs.version }} (release)'
+          push: true
 
-  tag:
-    name: Publish version
-    runs-on: ubuntu-latest
-    needs: [ prepare-version-files ]
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-        
       - name: Copilot - Create Tag
         uses: vypdev/copilot@v2
         if: ${{ success() }}
@@ -87,7 +97,7 @@ jobs:
           single-action-issue: '${{ github.event.inputs.issue }}'
           single-action-version: '${{ github.event.inputs.version }}'
           token: ${{ secrets.PAT }}
-  
+
       - name: Copilot - Create Release
         uses: vypdev/copilot@v2
         if: ${{ success() }}
@@ -100,13 +110,61 @@ jobs:
           single-action-changelog: '${{ github.event.inputs.changelog }}'
           token: ${{ secrets.PAT }}
 
-      # Example: generic step to perform the deployment (uncomment and adjust as needed)
-      # - name: Generic step
-      #   uses: whatever/action@v2 
+  publish-openvsx:
+    name: Publish (${{ matrix.target }})
+    needs: release
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: ${{ contains(matrix.os, 'Windows') && 'cmd' || 'bash' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: [self-hosted, macOS, ARM64]
+            target: darwin-arm64
+          - os: [self-hosted, macOS, X64]
+            target: darwin-x64
+          - os: [self-hosted, Linux, X64]
+            target: linux-x64
+          - os: [self-hosted, Windows, X64]
+            target: win32-x64
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          token: ${{ secrets.PAT }}
 
+      - name: Pull latest version bump
+        run: git pull --rebase origin "${{ github.ref_name }}"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prepare target binary
+        run: node scripts/prepare-bin-for-target.mjs ${{ matrix.target }}
+
+      - name: Publish to Open VSX Registry
+        run: pnpm dlx ovsx publish --target ${{ matrix.target }} --allow-missing-repository --no-rewrite-relative-links -p "${{ secrets.OVSX_PAT }}"
+
+  notify:
+    name: Deploy notification
+    needs: publish-openvsx
+    runs-on: ubuntu-latest
+    if: ${{ success() }}
+    steps:
       - name: Copilot - Deploy success notification
         uses: vypdev/copilot@v2
-        if: ${{ success() }}
         with:
           debug: ${{ vars.DEBUG }}
           single-action: 'deployed_action'
