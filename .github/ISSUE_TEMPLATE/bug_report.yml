@@ -1,5 +1,5 @@
 name: 🐛 Bug Report
-description: Report a bug on copilot
+description: Report a bug in Cursor Quota
 title: "<YOUR TITLE HERE>"
 labels: ["bug", "bugfix", "priority: high"]
 body:
@@ -20,12 +20,17 @@ body:
   - type: dropdown
     id: plugins
     attributes:
-      label: Which actions are affected?
+      label: Which parts of Cursor Quota are affected?
       multiple: true
       options:
-        - Issue
-        - Pull Request
-        - Commits
+        - Status bar display
+        - Auto-refresh / polling
+        - Quota data / API
+        - Authentication / session
+        - Commands (Refresh / Open Usage)
+        - Configuration
+        - Installation / VSIX
+        - Cursor / VS Code compatibility
 
   - type: dropdown
     id: platforms
@@ -68,9 +73,9 @@ body:
 
   - type: input
     attributes:
-      label: copilot Version
-      description: What version of copilot is being used?
-      placeholder: "master"
+      label: Cursor Quota Version
+      description: What version of cursor-quota is installed? (from Extensions or package.json)
+      placeholder: "0.1.0"
     validations:
       required: true
 

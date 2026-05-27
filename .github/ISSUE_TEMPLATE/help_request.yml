@@ -23,10 +23,13 @@ body:
       label: What area do you need help with?
       multiple: false
       options:
-        - Code or implementation
-        - Build or setup
+        - Installation / VSIX / dev setup
+        - Status bar or quota display
+        - Authentication / login / tokens
+        - Configuration (cursorQuota.*)
+        - Refresh or quota API errors
         - Documentation or usage
-        - Workflow or CI/CD
+        - Cursor / VS Code compatibility
         - Other
 
   - type: markdown

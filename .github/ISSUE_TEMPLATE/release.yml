@@ -1,5 +1,5 @@
 name: 🚀 Release Issue
-description: Request a new release for copilot (only team members)
+description: Request a new release for Cursor Quota (only team members)
 title: "<YOUR TITLE HERE>"
 labels: ["release", "branched", "priority: medium"]
 body:
@@ -7,7 +7,7 @@ body:
     attributes:
       value: |
         ### ⚠️ Disclaimer
-        > **Only members of the copilot team can create release issues.**
+        > **Only members of the vypdev team can create release issues.**
         > Any release issue created by someone outside the team will be closed automatically.
 
         ---

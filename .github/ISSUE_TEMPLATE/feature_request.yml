@@ -1,5 +1,5 @@
 name: ✨ Feature Request
-description: Propose an idea or improvement for copilot
+description: Propose an idea or improvement for Cursor Quota
 title: "<YOUR TITLE HERE>"
 labels: ["enhancement", "feature", "priority: low"]
 body:
@@ -23,21 +23,30 @@ body:
       label: What area does this improvement affect?
       multiple: false
       options:
-        - User Interface
-        - Performance
-        - New Feature
+        - Status bar / tooltips
+        - Refresh / polling
+        - Quota data / API
+        - Authentication / session
+        - Configuration
+        - Commands
         - Documentation
+        - Performance
         - Other
 
   - type: dropdown
     id: feature_actions
     attributes:
-      label: What actions does this improvement affect?
+      label: Which parts of Cursor Quota does this affect?
       multiple: true
       options:
-        - Issue
-        - Pull Request
-        - Commit
+        - Status bar display
+        - Auto-refresh / polling
+        - Quota data / API
+        - Authentication / session
+        - Commands (Refresh / Open Usage)
+        - Configuration
+        - Installation / VSIX
+        - Cursor / VS Code compatibility
 
   - type: markdown
     attributes:
@@ -92,10 +101,10 @@ body:
 
   - type: input
     attributes:
-      label: Version of copilot
+      label: Cursor Quota Version
       description: |
-        What version of copilot are you using, or does this proposal apply to all versions?
-      placeholder: "master"
+        What version of cursor-quota are you using, or does this proposal apply to all versions?
+      placeholder: "0.1.0"
     validations:
       required: false
 

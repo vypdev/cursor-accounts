@@ -24,9 +24,10 @@ body:
       multiple: false
       options:
         - README.md
-        - Wiki
-        - API Documentation
-        - Inline Code Comments
+        - docs/ (e.g. RESEARCH.md)
+        - Extension settings / package.json descriptions
+        - Inline code comments
+        - CHANGELOG / release notes
         - Other
 
   - type: markdown

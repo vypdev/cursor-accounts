@@ -24,9 +24,10 @@ body:
       multiple: false
       options:
         - CI/CD
-        - Dependencies
-        - Code Refactoring
-        - Repository Configuration
+        - Dependencies (pnpm / Node)
+        - Extension packaging / native binaries
+        - Code refactoring
+        - Repository configuration
         - Other
 
   - type: markdown
