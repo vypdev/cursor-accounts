@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 interface AddProfileFormProps {
   onSubmit: (
@@ -8,17 +8,32 @@ interface AddProfileFormProps {
     color?: string
   ) => void;
   onCancel: () => void;
+  suggestedEmail?: string;
+  suggestedDisplayName?: string;
+  notice?: string;
 }
 
 export const AddProfileForm: React.FC<AddProfileFormProps> = ({
   onSubmit,
   onCancel,
+  suggestedEmail,
+  suggestedDisplayName,
+  notice,
 }) => {
-  const [email, setEmail] = useState('');
-  const [displayName, setDisplayName] = useState('');
+  const [email, setEmail] = useState(suggestedEmail || '');
+  const [displayName, setDisplayName] = useState(suggestedDisplayName || '');
   const [theme, setTheme] = useState('');
   const [color, setColor] = useState('#3b82f6');
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (suggestedEmail) {
+      setEmail(suggestedEmail);
+    }
+    if (suggestedDisplayName) {
+      setDisplayName(suggestedDisplayName);
+    }
+  }, [suggestedEmail, suggestedDisplayName]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,6 +77,18 @@ export const AddProfileForm: React.FC<AddProfileFormProps> = ({
         </div>
 
         <form onSubmit={handleSubmit}>
+          {notice && (
+            <div className="notice-banner" role="status">
+              {notice}
+            </div>
+          )}
+
+          {suggestedEmail && (
+            <div className="info-banner">
+              Detected current account: {suggestedEmail}
+            </div>
+          )}
+
           <div className="form-group">
             <label htmlFor="email">Email *</label>
             <input

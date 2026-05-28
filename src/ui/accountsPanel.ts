@@ -1,5 +1,7 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
+import { getProfileStateDbPath } from '../auth/cursorPaths';
+import { readAuthFromStateDb } from '../auth/tokenReader';
 import {
   instanceMapToRecord,
   InstanceDetector,
@@ -22,6 +24,7 @@ import {
   MultiProfileQuotaService,
   quotaMapToRecord,
 } from '../services/multiProfileQuotaService';
+import { buildSuggestedProfileResponse } from './suggestedProfile';
 
 export class AccountsPanelProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'cursorQuota.accountsPanel';
@@ -213,6 +216,10 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
           await this.handleImport(message.data, message.options);
           break;
 
+        case 'requestSuggestedProfile':
+          await this.handleRequestSuggestedProfile();
+          break;
+
         default: {
           const unknown = message as { type?: string };
           console.warn('Unknown message type:', unknown.type);
@@ -296,6 +303,33 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
 
     const uri = vscode.Uri.file(profile.userDataDir);
     await vscode.commands.executeCommand('revealFileInOS', uri);
+  }
+
+  private async handleRequestSuggestedProfile(): Promise<void> {
+    try {
+      const userDataDir = this.profileDetector.getCurrentUserDataDir();
+      const stateDbPath = getProfileStateDbPath(userDataDir);
+
+      const tokens = await readAuthFromStateDb(
+        stateDbPath,
+        this.context.extensionPath
+      );
+
+      const existing = tokens?.email
+        ? await this.profileManager.findProfileByEmail(tokens.email)
+        : undefined;
+
+      await this.postMessage(
+        buildSuggestedProfileResponse(tokens?.email, existing)
+      );
+    } catch (error) {
+      console.warn('Failed to detect current profile email:', error);
+      await this.postMessage({
+        type: 'suggestedProfile',
+        email: undefined,
+        displayName: undefined,
+      });
+    }
   }
 
   private async handleExport(

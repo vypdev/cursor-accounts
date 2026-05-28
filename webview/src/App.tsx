@@ -25,6 +25,11 @@ export const App: React.FC = () => {
     persisted?.showAddForm ?? false
   );
   const [showImportDialog, setShowImportDialog] = useState(false);
+  const [suggestedEmail, setSuggestedEmail] = useState<string | undefined>();
+  const [suggestedDisplayName, setSuggestedDisplayName] = useState<
+    string | undefined
+  >();
+  const [suggestedNotice, setSuggestedNotice] = useState<string | undefined>();
   const [editingProfileId, setEditingProfileId] = useState<string | null>(
     persisted?.editingProfileId ?? null
   );
@@ -89,6 +94,18 @@ export const App: React.FC = () => {
           URL.revokeObjectURL(url);
           break;
         }
+
+        case 'suggestedProfile':
+          if (message.notice) {
+            setSuggestedEmail(undefined);
+            setSuggestedDisplayName(undefined);
+            setSuggestedNotice(message.notice);
+          } else {
+            setSuggestedEmail(message.email);
+            setSuggestedDisplayName(message.displayName);
+            setSuggestedNotice(undefined);
+          }
+          break;
       }
     });
 
@@ -142,11 +159,15 @@ export const App: React.FC = () => {
 
   const openAddForm = useCallback(() => {
     setShowAddForm(true);
+    vscodeApi.requestSuggestedProfile();
     persistUiState(true, editingProfileId);
   }, [editingProfileId, persistUiState]);
 
   const closeAddForm = useCallback(() => {
     setShowAddForm(false);
+    setSuggestedEmail(undefined);
+    setSuggestedDisplayName(undefined);
+    setSuggestedNotice(undefined);
     persistUiState(false, editingProfileId);
   }, [editingProfileId, persistUiState]);
 
@@ -255,7 +276,13 @@ export const App: React.FC = () => {
       )}
 
       {showAddForm && (
-        <AddProfileForm onSubmit={handleAddProfile} onCancel={closeAddForm} />
+        <AddProfileForm
+          onSubmit={handleAddProfile}
+          onCancel={closeAddForm}
+          suggestedEmail={suggestedEmail}
+          suggestedDisplayName={suggestedDisplayName}
+          notice={suggestedNotice}
+        />
       )}
 
       {editingProfile && (

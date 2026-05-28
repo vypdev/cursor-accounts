@@ -114,6 +114,26 @@ body {
   font-size: 13px;
 }
 
+.info-banner {
+  padding: 8px 12px;
+  background: var(--vscode-editorInfo-background);
+  color: var(--vscode-editorInfo-foreground);
+  border-left: 3px solid var(--vscode-editorInfo-border);
+  border-radius: 4px;
+  font-size: 12px;
+  margin-bottom: 12px;
+}
+
+.notice-banner {
+  padding: 8px 12px;
+  background: var(--vscode-inputValidation-infoBackground, var(--bg-secondary));
+  color: var(--vscode-inputValidation-infoForeground, var(--fg-primary));
+  border-left: 3px solid var(--vscode-inputValidation-infoBorder, var(--border-color));
+  border-radius: 4px;
+  font-size: 12px;
+  margin-bottom: 12px;
+}
+
 .loading {
   display: flex;
   flex-direction: column;

@@ -241,7 +241,8 @@ export type ToWebviewMessage =
   | { type: 'runningInstances'; data: InstanceInfoMap }
   | { type: 'error'; message: string }
   | { type: 'success'; message: string }
-  | { type: 'exportData'; data: string; filename: string };
+  | { type: 'exportData'; data: string; filename: string }
+  | { type: 'suggestedProfile'; email?: string; displayName?: string; notice?: string };
 
 /**
  * Messages sent from webview to extension.
@@ -261,7 +262,8 @@ export type FromWebviewMessage =
   | { type: 'delete'; profileId: string }
   | { type: 'showInExplorer'; profileId: string }
   | { type: 'export'; profileIds: string[]; includeSettings: boolean }
-  | { type: 'import'; data: string; options: ImportOptions };
+  | { type: 'import'; data: string; options: ImportOptions }
+  | { type: 'requestSuggestedProfile' };
 
 /**
  * Initial data sent when webview loads.

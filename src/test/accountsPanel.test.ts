@@ -259,6 +259,22 @@ describe('AccountsPanelProvider', () => {
     }
   });
 
+  it('responds to requestSuggestedProfile when no auth is available', async () => {
+    resolvePanel();
+    mockWebview.postedMessages = [];
+
+    await emitMessage({ type: 'requestSuggestedProfile' });
+
+    const suggested = mockWebview.postedMessages.find(
+      (m) => m.type === 'suggestedProfile'
+    );
+    assert.ok(suggested);
+    if (suggested?.type === 'suggestedProfile') {
+      assert.equal(suggested.email, undefined);
+      assert.equal(suggested.displayName, undefined);
+    }
+  });
+
   it('handles edit message', async () => {
     const profile = await manager.createProfile({
       email: 'edit@example.com',

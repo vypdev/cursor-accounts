@@ -81,6 +81,10 @@ class VSCodeAPI {
     this.postMessage({ type: 'import', data, options });
   }
 
+  requestSuggestedProfile(): void {
+    this.postMessage({ type: 'requestSuggestedProfile' });
+  }
+
   saveState(state: Omit<WebviewPersistedState, 'version'>): void {
     vscode.setState({
       version: WEBVIEW_STATE_VERSION,
