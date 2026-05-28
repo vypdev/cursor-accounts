@@ -8,6 +8,7 @@ export interface CursorQuotaConfig {
   showIncluded: boolean;
   showTotal: boolean;
   showAccountEmail: boolean;
+  showProfileInStatusBar: boolean;
 }
 
 export function getCursorQuotaConfig(): CursorQuotaConfig {
@@ -18,6 +19,10 @@ export function getCursorQuotaConfig(): CursorQuotaConfig {
     showIncluded: cfg.get<boolean>('statusBar.showIncluded', true),
     showTotal: cfg.get<boolean>('statusBar.showTotal', true),
     showAccountEmail: cfg.get<boolean>('statusBar.showAccountEmail', false),
+    showProfileInStatusBar: cfg.get<boolean>(
+      'profiles.showProfileInStatusBar',
+      true
+    ),
   };
 }
 

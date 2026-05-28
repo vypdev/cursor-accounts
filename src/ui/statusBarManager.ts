@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { QuotaUsage } from '../api/types';
 import { getCursorQuotaConfig } from '../config';
+import { ProfileDetector } from '../profiles/profileDetector';
 import {
   clampPercent,
   formatBillingDate,
@@ -9,14 +10,30 @@ import {
   renderProgressBar,
 } from '../utils/formatters';
 
+const PROFILE_PRIORITY = 102;
 const INCLUDED_PRIORITY = 101;
 const TOTAL_PRIORITY = 100;
 
 export class StatusBarManager {
+  private readonly profileItem?: vscode.StatusBarItem;
   private readonly includedItem: vscode.StatusBarItem;
   private readonly totalItem: vscode.StatusBarItem;
 
-  constructor(private readonly context: vscode.ExtensionContext) {
+  constructor(
+    private readonly context: vscode.ExtensionContext,
+    private readonly profileDetector?: ProfileDetector
+  ) {
+    if (profileDetector) {
+      this.profileItem = vscode.window.createStatusBarItem(
+        vscode.StatusBarAlignment.Right,
+        PROFILE_PRIORITY
+      );
+      this.profileItem.name = 'cursorQuota.profile';
+      this.profileItem.command = 'cursorQuota.showCurrentProfile';
+      this.profileItem.tooltip = 'Click to see current profile details';
+      context.subscriptions.push(this.profileItem);
+    }
+
     this.includedItem = vscode.window.createStatusBarItem(
       vscode.StatusBarAlignment.Right,
       INCLUDED_PRIORITY
@@ -35,6 +52,8 @@ export class StatusBarManager {
   }
 
   showOnActivate(): void {
+    void this.updateProfileIndicator();
+
     const cached = this.readCache();
     if (cached) {
       this.render(cached);
@@ -117,11 +136,43 @@ export class StatusBarManager {
   }
 
   applyVisibilityFromConfig(): void {
+    void this.updateProfileIndicator();
+
     const cached = this.readCache();
     if (cached) {
       this.render(cached);
     } else {
       this.showLoading();
+    }
+  }
+
+  async updateProfileIndicator(): Promise<void> {
+    if (!this.profileDetector || !this.profileItem) {
+      return;
+    }
+
+    try {
+      const profile = await this.profileDetector.detectCurrentProfile();
+      const cfg = getCursorQuotaConfig();
+
+      if (!cfg.showProfileInStatusBar) {
+        this.profileItem.hide();
+        return;
+      }
+
+      if (profile) {
+        this.profileItem.text = `$(account) ${profile.displayName}`;
+        this.profileItem.tooltip = `Profile: ${profile.displayName}\nEmail: ${profile.email}\n\nClick for details`;
+        this.profileItem.show();
+      } else {
+        this.profileItem.text = '$(account) Default';
+        this.profileItem.tooltip =
+          'Using default Cursor profile\n\nClick for details';
+        this.profileItem.show();
+      }
+    } catch (error) {
+      console.error('Failed to update profile indicator:', error);
+      this.profileItem.hide();
     }
   }
 

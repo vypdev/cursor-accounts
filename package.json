@@ -27,6 +27,29 @@
       {
         "command": "cursorQuota.openUsage",
         "title": "Cursor Quota: Open Usage in Settings"
+      },
+      {
+        "command": "cursorQuota.addProfile",
+        "title": "Cursor Quota: Add Profile",
+        "icon": "$(add)"
+      },
+      {
+        "command": "cursorQuota.launchProfile",
+        "title": "Cursor Quota: Launch Profile",
+        "icon": "$(rocket)"
+      },
+      {
+        "command": "cursorQuota.listProfiles",
+        "title": "Cursor Quota: List Profiles"
+      },
+      {
+        "command": "cursorQuota.deleteProfile",
+        "title": "Cursor Quota: Delete Profile",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "cursorQuota.showCurrentProfile",
+        "title": "Cursor Quota: Show Current Profile"
       }
     ],
     "configuration": {
@@ -58,6 +81,23 @@
           "type": "boolean",
           "default": false,
           "description": "Append logged-in email (read from local Cursor auth cache) to tooltips."
+        },
+        "cursorQuota.profiles.autoDetectRunning": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically detect running Cursor instances for each profile."
+        },
+        "cursorQuota.profiles.showProfileInStatusBar": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show current profile name in the status bar."
+        },
+        "cursorQuota.profiles.refreshAllInterval": {
+          "type": "number",
+          "default": 300,
+          "minimum": 60,
+          "maximum": 3600,
+          "description": "Interval in seconds for refreshing all profile quotas."
         }
       }
     }

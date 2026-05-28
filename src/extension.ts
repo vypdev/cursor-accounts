@@ -1,14 +1,33 @@
 import * as vscode from 'vscode';
 import { QuotaClient } from './api/quotaClient';
 import { TokenService } from './auth/tokenRefresh';
+import { registerProfileCommands } from './commands/profileCommands';
 import { affectsCursorQuotaConfig } from './config';
+import { ProfileDetector } from './profiles/profileDetector';
+import { ProfileLauncher } from './profiles/profileLauncher';
+import { ProfileManager } from './profiles/profileManager';
 import { RefreshService } from './services/refreshService';
 import { StatusBarManager } from './ui/statusBarManager';
 
 let refreshService: RefreshService | undefined;
 
 export function activate(context: vscode.ExtensionContext): void {
-  const statusBar = new StatusBarManager(context);
+  const profileManager = new ProfileManager();
+  const profileDetector = new ProfileDetector(profileManager, context);
+  const profileLauncher = new ProfileLauncher(profileManager);
+
+  void profileManager.initialize().catch((err) => {
+    console.error('Failed to initialize ProfileManager:', err);
+  });
+
+  registerProfileCommands(
+    context,
+    profileManager,
+    profileLauncher,
+    profileDetector
+  );
+
+  const statusBar = new StatusBarManager(context, profileDetector);
   statusBar.showOnActivate();
 
   const tokenService = new TokenService(context);
