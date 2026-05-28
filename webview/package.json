@@ -2,6 +2,7 @@
   "name": "cursor-quota-webview",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@10.0.0",
   "scripts": {
     "build": "node esbuild.config.js",
     "watch": "node esbuild.config.js --watch"

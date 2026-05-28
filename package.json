@@ -122,10 +122,10 @@
   },
   "scripts": {
     "vscode:prepublish": "pnpm run compile",
-    "compile": "tsc -p ./ && cd webview && npm run build",
-    "compile:webview": "cd webview && npm run build",
+    "compile": "tsc -p ./ && pnpm --dir webview run build",
+    "compile:webview": "pnpm --dir webview run build",
     "watch": "tsc -watch -p ./",
-    "watch:webview": "cd webview && npm run watch",
+    "watch:webview": "pnpm --dir webview run watch",
     "lint": "tsc -p ./ --noEmit",
     "test": "node --test out/test/*.test.js",
     "pretest": "tsc -p ./",

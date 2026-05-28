@@ -26,9 +26,11 @@ Use **pnpm only** for this repo—do not mix `npm install` with `pnpm-lock.yaml`
 
 ```bash
 nvm use 22
-pnpm install
+pnpm install   # installs extension + webview workspace packages
 pnpm run compile
 ```
+
+`pnpm run compile:webview` builds only the Accounts panel bundle; `pnpm run watch:webview` watches the webview.
 
 Press **F5** in Cursor/VS Code to launch an Extension Development Host, or package:
 
@@ -121,9 +123,10 @@ Validate all bundled binaries with `bash scripts/verify-binaries.sh`.
 
 ```bash
 nvm use 22
-pnpm run watch    # compile on save
-pnpm test         # unit tests
-pnpm run lint     # typecheck
+pnpm run watch         # extension TypeScript on save
+pnpm run watch:webview # Accounts panel webview on save
+pnpm test              # unit tests
+pnpm run lint          # typecheck
 ```
 
 ## License

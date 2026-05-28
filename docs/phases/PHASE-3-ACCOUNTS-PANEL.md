@@ -1382,8 +1382,9 @@ Update `package.json` to add view container:
     }
   },
   "scripts": {
-    "compile": "tsc -p ./ && cd webview && npm run build",
-    "watch": "tsc -watch -p ./ & cd webview && npm run watch"
+    "compile": "tsc -p ./ && pnpm --dir webview run build",
+    "watch": "tsc -watch -p ./",
+    "watch:webview": "pnpm --dir webview run watch"
   }
 }
 ```
@@ -1437,7 +1438,7 @@ webview/esbuild.config.js
 
 The build process must execute in this order:
 
-1. **Webview build**: `cd webview && npm run build` → produces `webview-dist/`
+1. **Webview build**: `pnpm --dir webview run build` → produces `webview-dist/`
 2. **Extension compile**: `tsc -p ./` → produces `out/`
 3. **Package**: `vsce package` → bundles both into `.vsix`
 
@@ -1446,19 +1447,18 @@ The `package.json` scripts handle this correctly:
 ```json
 {
   "scripts": {
-    "compile": "tsc -p ./ && cd webview && npm run build",
-    "watch": "tsc -watch -p ./ & cd webview && npm run watch",
-    "package": "npm run compile && vsce package"
+    "compile": "tsc -p ./ && pnpm --dir webview run build",
+    "watch": "tsc -watch -p ./",
+    "watch:webview": "pnpm --dir webview run watch",
+    "package": "pnpm run compile && vsce package"
   }
 }
 ```
 
 ### Initial Setup
 ```bash
-# Install webview dependencies
-cd webview
-npm install
-cd ..
+# Install all workspace dependencies (extension + webview)
+pnpm install
 
 # Build everything
 pnpm run compile
@@ -1469,12 +1469,11 @@ ls webview-dist/  # Should show bundle.js and bundle.css
 
 ### Development Workflow
 ```bash
-# Terminal 1: Watch TypeScript
+# Terminal 1: Watch extension TypeScript
 pnpm run watch
 
 # Terminal 2: Watch webview
-cd webview
-npm run watch
+pnpm run watch:webview
 ```
 
 ### Testing

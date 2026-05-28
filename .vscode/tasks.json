@@ -21,6 +21,16 @@
       "command": "pnpm run compile",
       "problemMatcher": "$tsc",
       "group": "build"
+    },
+    {
+      "label": "watch:webview",
+      "type": "shell",
+      "command": "pnpm run watch:webview",
+      "isBackground": true,
+      "presentation": {
+        "reveal": "never"
+      },
+      "group": "build"
     }
   ]
 }
