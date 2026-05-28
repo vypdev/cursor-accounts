@@ -159,9 +159,19 @@ export const App: React.FC = () => {
 
   const openAddForm = useCallback(() => {
     setShowAddForm(true);
-    vscodeApi.requestSuggestedProfile();
+
+    if (!loading) {
+      vscodeApi.requestSuggestedProfile();
+
+      setTimeout(() => {
+        setSuggestedEmail(undefined);
+        setSuggestedDisplayName(undefined);
+        setSuggestedNotice(undefined);
+      }, 2000);
+    }
+
     persistUiState(true, editingProfileId);
-  }, [editingProfileId, persistUiState]);
+  }, [editingProfileId, persistUiState, loading]);
 
   const closeAddForm = useCallback(() => {
     setShowAddForm(false);

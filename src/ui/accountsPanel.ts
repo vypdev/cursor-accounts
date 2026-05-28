@@ -27,10 +27,24 @@ import {
 } from '../services/multiProfileQuotaService';
 import { buildSuggestedProfileResponse } from './suggestedProfile';
 
+/** Activity bar container id (must match package.json viewsContainers). */
+export const ACCOUNTS_VIEW_CONTAINER = 'cursorQuota';
+/** Webview view id (must match package.json views). */
+export const ACCOUNTS_SIDEBAR_VIEW_ID = 'cursorQuota.accountsPanel';
+
 export class AccountsPanelProvider implements vscode.WebviewViewProvider {
-  public static readonly viewType = 'cursorQuota.accountsPanel';
+  public static readonly viewType = ACCOUNTS_SIDEBAR_VIEW_ID;
 
   private view?: vscode.WebviewView;
+  private panel?: vscode.WebviewPanel;
+
+  public hasResolvedView(): boolean {
+    return this.view !== undefined || this.panel !== undefined;
+  }
+
+  private getActiveWebview(): vscode.Webview | undefined {
+    return this.view?.webview ?? this.panel?.webview;
+  }
 
   constructor(
     private readonly context: vscode.ExtensionContext,
@@ -57,7 +71,6 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
     _context: vscode.WebviewViewResolveContext,
     _token: vscode.CancellationToken
   ): void {
-    console.log('[AccountsPanel] Resolving webview view');
     this.view = webviewView;
 
     webviewView.webview.options = {
@@ -69,30 +82,68 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
       ],
     };
 
-    webviewView.webview.html = this.getHtmlContent(webviewView.webview);
+    this.attachWebviewMessageListener(webviewView.webview);
 
-    webviewView.webview.onDidReceiveMessage(
-      (message: FromWebviewMessage) => {
-        void this.handleMessage(message);
-      },
-      undefined,
-      this.context.subscriptions
-    );
+    try {
+      webviewView.webview.html = this.getHtmlContent(webviewView.webview);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unknown error';
+      vscode.window.showErrorMessage(
+        `Cursor Quota: failed to load Accounts panel (${message})`
+      );
+      throw error;
+    }
 
     webviewView.onDidChangeVisibility(() => {
       if (webviewView.visible) {
         void this.refresh();
       }
     });
+  }
 
-    console.log('[AccountsPanel] Webview view resolved, HTML set');
+  /** Fallback when the sidebar webview never resolves (Cursor/VS Code race). */
+  public openAsEditorPanel(): void {
+    if (this.panel) {
+      this.panel.reveal(undefined, true);
+      void this.refresh();
+      return;
+    }
+
+    const distRoot = vscode.Uri.file(
+      path.join(this.context.extensionPath, 'webview-dist')
+    );
+
+    this.panel = vscode.window.createWebviewPanel(
+      ACCOUNTS_SIDEBAR_VIEW_ID,
+      'Cursor Accounts',
+      vscode.ViewColumn.Active,
+      {
+        enableScripts: true,
+        retainContextWhenHidden: true,
+        localResourceRoots: [distRoot],
+      }
+    );
+
+    this.attachWebviewMessageListener(this.panel.webview);
+    this.panel.webview.html = this.getHtmlContent(this.panel.webview);
+
+    this.panel.onDidDispose(() => {
+      this.panel = undefined;
+    });
+  }
+
+  private attachWebviewMessageListener(webview: vscode.Webview): void {
+    webview.onDidReceiveMessage((message: FromWebviewMessage) => {
+      void this.handleMessage(message);
+    });
   }
 
   /**
    * Refresh webview data.
    */
   public async refresh(): Promise<void> {
-    if (!this.view) {
+    if (!this.getActiveWebview()) {
       return;
     }
 
@@ -126,7 +177,7 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
 
   /** Refresh only running instance data. */
   public async refreshInstances(): Promise<void> {
-    if (!this.view) {
+    if (!this.getActiveWebview()) {
       return;
     }
 
@@ -140,7 +191,7 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
 
   /** Fetch fresh quota data and push to webview. */
   public async refreshQuotas(): Promise<void> {
-    if (!this.view) {
+    if (!this.getActiveWebview()) {
       return;
     }
 
@@ -155,7 +206,7 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
   private async postQuotas(
     quotas: Map<string, ProfileQuota>
   ): Promise<void> {
-    if (!this.view) {
+    if (!this.getActiveWebview()) {
       return;
     }
 
@@ -168,7 +219,7 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
   private async postRunningInstances(
     instances: Map<string, InstanceInfo>
   ): Promise<void> {
-    if (!this.view) {
+    if (!this.getActiveWebview()) {
       return;
     }
 
@@ -185,7 +236,6 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
     try {
       switch (message.type) {
         case 'ready':
-          console.log('[AccountsPanel] Webview ready, sending initial data');
           await this.refresh();
           break;
 
@@ -311,6 +361,10 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
   }
 
   private async handleRequestSuggestedProfile(): Promise<void> {
+    if (!this.getActiveWebview()) {
+      return;
+    }
+
     try {
       const userDataDir = this.profileDetector.getCurrentUserDataDir();
       const stateDbPath = getProfileStateDbPath(userDataDir);
@@ -328,12 +382,15 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
         buildSuggestedProfileResponse(tokens?.email, existing)
       );
     } catch (error) {
-      console.warn('Failed to detect current profile email:', error);
-      await this.postMessage({
-        type: 'suggestedProfile',
-        email: undefined,
-        displayName: undefined,
-      });
+      console.error('Failed to detect current profile email:', error);
+
+      if (this.getActiveWebview()) {
+        await this.postMessage({
+          type: 'suggestedProfile',
+          email: undefined,
+          displayName: undefined,
+        });
+      }
     }
   }
 
@@ -396,8 +453,9 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
   }
 
   private async postMessage(message: ToWebviewMessage): Promise<void> {
-    if (this.view) {
-      await this.view.webview.postMessage(message);
+    const webview = this.getActiveWebview();
+    if (webview) {
+      await webview.postMessage(message);
     }
   }
 
@@ -410,7 +468,7 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
     }
 
     const scriptUri = webview.asWebviewUri(
-      vscode.Uri.file(path.join(distDir, 'bundle.js'))
+      vscode.Uri.file(bundleJsPath)
     );
 
     const styleUri = webview.asWebviewUri(
@@ -424,13 +482,25 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src ${webview.cspSource} 'nonce-${nonce}'; font-src ${webview.cspSource}; img-src ${webview.cspSource};">
   <link rel="stylesheet" href="${styleUri}">
   <title>Cursor Accounts</title>
 </head>
 <body>
-  <div id="root"></div>
-  <script nonce="${nonce}" src="${scriptUri}"></script>
+  <div id="root">
+    <p style="padding: 12px; color: var(--vscode-foreground, #ccc); font-family: var(--vscode-font-family, sans-serif);">
+      Loading Cursor Accounts…
+    </p>
+  </div>
+  <script nonce="${nonce}">
+    window.__cursorQuotaReportScriptError = function() {
+      var root = document.getElementById('root');
+      if (root) {
+        root.innerHTML = '<p style="padding:12px;color:var(--vscode-errorForeground,#f88);">Failed to load Cursor Accounts UI script.</p>';
+      }
+    };
+  </script>
+  <script nonce="${nonce}" src="${scriptUri}" onerror="window.__cursorQuotaReportScriptError && window.__cursorQuotaReportScriptError()"></script>
 </body>
 </html>`;
   }

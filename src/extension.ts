@@ -9,11 +9,50 @@ import { ProfileLauncher } from './profiles/profileLauncher';
 import { ProfileManager } from './profiles/profileManager';
 import { MultiProfileQuotaService } from './services/multiProfileQuotaService';
 import { RefreshService } from './services/refreshService';
-import { AccountsPanelProvider } from './ui/accountsPanel';
+import {
+  ACCOUNTS_SIDEBAR_VIEW_ID,
+  ACCOUNTS_VIEW_CONTAINER,
+  AccountsPanelProvider,
+} from './ui/accountsPanel';
 import { StatusBarManager } from './ui/statusBarManager';
 
 let refreshService: RefreshService | undefined;
 let multiProfileQuotaService: MultiProfileQuotaService | undefined;
+
+async function delay(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function focusAccountsSidebar(
+  accountsPanel: AccountsPanelProvider,
+  options: { allowEditorFallback?: boolean } = {}
+): Promise<void> {
+  if (accountsPanel.hasResolvedView()) {
+    return;
+  }
+
+  const focusCommands = [
+    `${ACCOUNTS_SIDEBAR_VIEW_ID}.focus`,
+    `workbench.view.extension.${ACCOUNTS_VIEW_CONTAINER}`,
+  ];
+
+  for (const command of focusCommands) {
+    try {
+      await vscode.commands.executeCommand(command);
+      await delay(200);
+    } catch {
+      // Command may not exist in all hosts.
+    }
+
+    if (accountsPanel.hasResolvedView()) {
+      return;
+    }
+  }
+
+  if (options.allowEditorFallback) {
+    accountsPanel.openAsEditorPanel();
+  }
+}
 
 export function activate(context: vscode.ExtensionContext): void {
   const profileManager = new ProfileManager();
@@ -21,8 +60,34 @@ export function activate(context: vscode.ExtensionContext): void {
   const instanceDetector = new InstanceDetector(profileManager);
   const profileLauncher = new ProfileLauncher(profileManager, instanceDetector);
 
+  multiProfileQuotaService = new MultiProfileQuotaService(
+    context,
+    profileManager
+  );
+
+  const accountsPanel = new AccountsPanelProvider(
+    context,
+    profileManager,
+    profileLauncher,
+    profileDetector,
+    multiProfileQuotaService,
+    instanceDetector
+  );
+
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(
+      ACCOUNTS_SIDEBAR_VIEW_ID,
+      accountsPanel,
+      {
+        webviewOptions: {
+          retainContextWhenHidden: true,
+        },
+      }
+    )
+  );
+
   void profileManager.initialize().catch((err) => {
-    console.error('Failed to initialize ProfileManager:', err);
+    console.error('ProfileManager initialization failed:', err);
   });
 
   registerProfileCommands(
@@ -30,11 +95,6 @@ export function activate(context: vscode.ExtensionContext): void {
     profileManager,
     profileLauncher,
     profileDetector
-  );
-
-  multiProfileQuotaService = new MultiProfileQuotaService(
-    context,
-    profileManager
   );
 
   const profilesConfig = vscode.workspace.getConfiguration(
@@ -54,27 +114,13 @@ export function activate(context: vscode.ExtensionContext): void {
     instanceDetector.startAutoDetection(detectionIntervalSeconds * 1000);
   }
 
-  const accountsPanel = new AccountsPanelProvider(
-    context,
-    profileManager,
-    profileLauncher,
-    profileDetector,
-    multiProfileQuotaService,
-    instanceDetector
-  );
+  context.subscriptions.push({
+    dispose: () => multiProfileQuotaService?.stop(),
+  });
 
-  context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider(
-      AccountsPanelProvider.viewType,
-      accountsPanel
-    ),
-    {
-      dispose: () => multiProfileQuotaService?.stop(),
-    },
-    {
-      dispose: () => instanceDetector.stopAutoDetection(),
-    }
-  );
+  context.subscriptions.push({
+    dispose: () => instanceDetector.stopAutoDetection(),
+  });
 
   const statusBar = new StatusBarManager(context, profileDetector);
   statusBar.showOnActivate();
@@ -95,6 +141,11 @@ export function activate(context: vscode.ExtensionContext): void {
         statusBar.applyVisibilityFromConfig();
       }
     }),
+    vscode.commands.registerCommand('cursorQuota.openAccounts', async () => {
+      await focusAccountsSidebar(accountsPanel, {
+        allowEditorFallback: true,
+      });
+    }),
     vscode.commands.registerCommand('cursorQuota.refresh', async () => {
       await refreshService?.tickNow();
     }),
@@ -110,6 +161,8 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   refreshService.start();
+
+  void focusAccountsSidebar(accountsPanel);
 }
 
 export function deactivate(): void {

@@ -2,7 +2,7 @@
   "name": "cursor-quota",
   "displayName": "Cursor Quota",
   "description": "Shows Cursor plan quota usage in the status bar without opening Settings.",
-  "version": "0.1.0",
+  "version": "0.1.10",
   "publisher": "vypdev",
   "license": "MIT",
   "engines": {
@@ -14,7 +14,11 @@
     "Other"
   ],
   "activationEvents": [
-    "onStartupFinished"
+    "onStartupFinished",
+    "onView:cursorQuota.accountsPanel"
+  ],
+  "extensionKind": [
+    "ui"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -37,6 +41,11 @@
       ]
     },
     "commands": [
+      {
+        "command": "cursorQuota.openAccounts",
+        "title": "Cursor Quota: Open Accounts Panel",
+        "icon": "$(account)"
+      },
       {
         "command": "cursorQuota.refresh",
         "title": "Cursor Quota: Refresh Now",
@@ -148,6 +157,7 @@
     "pretest": "tsc -p ./",
     "build:all": "pnpm run compile && pnpm run package:all:fast",
     "verify:vsix": "node scripts/verify-vsix.mjs",
+    "verify:installed": "node scripts/verify-installed-extension.mjs",
     "package": "node scripts/prepare-bin-for-target.mjs $(node -p \"process.platform + '-' + process.arch\") && vsce package --allow-missing-repository --no-rewrite-relative-links; node scripts/restore-bin.mjs",
     "package:all": "pnpm run compile && pnpm run package:all:fast",
     "package:all:fast": "pnpm run package:fast:darwin-arm64 && pnpm run package:fast:darwin-x64 && pnpm run package:fast:linux-x64 && pnpm run package:fast:linux-arm64 && pnpm run package:fast:win32-x64 && pnpm run package:fast:win32-arm64",
@@ -158,7 +168,7 @@
     "package:linux-arm64": "node scripts/prepare-bin-for-target.mjs linux-arm64 && vsce package --target linux-arm64 --allow-missing-repository --no-rewrite-relative-links && node scripts/restore-bin.mjs",
     "package:win32-x64": "node scripts/prepare-bin-for-target.mjs win32-x64 && vsce package --target win32-x64 --allow-missing-repository --no-rewrite-relative-links && node scripts/restore-bin.mjs",
     "package:win32-arm64": "node scripts/prepare-bin-for-target.mjs win32-arm64 && vsce package --target win32-arm64 --allow-missing-repository --no-rewrite-relative-links && node scripts/restore-bin.mjs",
-    "package:fast:darwin-arm64": "node scripts/prepare-bin-for-target.mjs darwin-arm64 && SKIP_PREPUBLISH=1 vsce package --target darwin-arm64 --allow-missing-repository --no-rewrite-relative-links && node scripts/restore-bin.mjs",
+    "package:fast:darwin-arm64": "node scripts/prepare-bin-for-target.mjs darwin-arm64 && SKIP_PREPUBLISH=1 vsce package --target darwin-arm64 --allow-missing-repository --allow-star-activation --no-rewrite-relative-links && node scripts/restore-bin.mjs",
     "package:fast:darwin-x64": "node scripts/prepare-bin-for-target.mjs darwin-x64 && SKIP_PREPUBLISH=1 vsce package --target darwin-x64 --allow-missing-repository --no-rewrite-relative-links && node scripts/restore-bin.mjs",
     "package:fast:linux-x64": "node scripts/prepare-bin-for-target.mjs linux-x64 && SKIP_PREPUBLISH=1 vsce package --target linux-x64 --allow-missing-repository --no-rewrite-relative-links && node scripts/restore-bin.mjs",
     "package:fast:linux-arm64": "node scripts/prepare-bin-for-target.mjs linux-arm64 && SKIP_PREPUBLISH=1 vsce package --target linux-arm64 --allow-missing-repository --no-rewrite-relative-links && node scripts/restore-bin.mjs",

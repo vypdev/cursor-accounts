@@ -193,14 +193,18 @@ describe('AccountsPanelProvider', () => {
     );
   });
 
-  it('generates HTML with CSP nonce and bundle references', () => {
+  it('generates HTML with CSP and bundle references', () => {
     resolvePanel();
 
     assert.ok(mockWebview.html.includes('Content-Security-Policy'));
-    assert.ok(mockWebview.html.includes("script-src 'nonce-"));
+    assert.ok(
+      mockWebview.html.includes(`script-src ${mockWebview.cspSource}`)
+    );
     assert.ok(mockWebview.html.includes('bundle.js'));
     assert.ok(mockWebview.html.includes('bundle.css'));
     assert.ok(mockWebview.html.includes('id="root"'));
+    assert.ok(mockWebview.html.includes('Loading Cursor Accounts'));
+    assert.ok(mockWebview.html.includes("'nonce-"));
   });
 
   it('sends init message on ready with empty profiles', async () => {

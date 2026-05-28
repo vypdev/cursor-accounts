@@ -13,6 +13,31 @@ const vscodeMock = {
   },
   window: {
     registerWebviewViewProvider: () => ({ dispose: () => undefined }),
+    createWebviewPanel: () => ({
+      webview: {
+        html: '',
+        cspSource: 'https://webview.vscode-cdn.net',
+        options: {},
+        postedMessages: [] as unknown[],
+        asWebviewUri(uri: { fsPath: string }) {
+          return { toString: () => `https://webview.local/${uri.fsPath}` };
+        },
+        postMessage: async () => true,
+        onDidReceiveMessage: () => ({ dispose: () => undefined }),
+      },
+      reveal: () => undefined,
+      onDidDispose: () => ({ dispose: () => undefined }),
+    }),
+    createOutputChannel: () => ({
+      appendLine: () => undefined,
+      append: () => undefined,
+      replace: () => undefined,
+      clear: () => undefined,
+      show: () => undefined,
+      hide: () => undefined,
+      dispose: () => undefined,
+      name: 'Cursor Quota',
+    }),
   },
   commands: {
     executeCommand: async () => undefined,

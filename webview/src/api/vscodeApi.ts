@@ -13,12 +13,15 @@ declare function acquireVsCodeApi(): {
   setState(state: WebviewPersistedState): void;
 };
 
-const vscode = acquireVsCodeApi();
+function getVsCodeApi() {
+  return acquireVsCodeApi();
+}
 
 type MessageHandler = (message: ToWebviewMessage) => void;
 
 class VSCodeAPI {
   private handlers: MessageHandler[] = [];
+  private vscodeApi?: ReturnType<typeof getVsCodeApi>;
 
   constructor() {
     window.addEventListener('message', (event) => {
@@ -29,6 +32,13 @@ class VSCodeAPI {
     });
   }
 
+  private get vscode() {
+    if (!this.vscodeApi) {
+      this.vscodeApi = getVsCodeApi();
+    }
+    return this.vscodeApi;
+  }
+
   onMessage(handler: MessageHandler): () => void {
     this.handlers.push(handler);
     return () => {
@@ -37,7 +47,7 @@ class VSCodeAPI {
   }
 
   postMessage(message: FromWebviewMessage): void {
-    vscode.postMessage(message);
+    this.vscode.postMessage(message);
   }
 
   ready(): void {
@@ -86,14 +96,14 @@ class VSCodeAPI {
   }
 
   saveState(state: Omit<WebviewPersistedState, 'version'>): void {
-    vscode.setState({
+    this.vscode.setState({
       version: WEBVIEW_STATE_VERSION,
       ...state,
     });
   }
 
   getState(): WebviewPersistedState | undefined {
-    const state = vscode.getState();
+    const state = this.vscode.getState();
     if (!state || state.version !== WEBVIEW_STATE_VERSION) {
       return undefined;
     }
