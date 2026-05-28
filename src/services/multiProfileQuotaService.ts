@@ -1,5 +1,11 @@
 import * as vscode from 'vscode';
+import {
+  defaultLeaderboardPeriod,
+  fetchUsageLeaderboard,
+} from '../api/analyticsLeaderboardClient';
 import { QuotaClient } from '../api/quotaClient';
+import { fetchDashboardTeams } from '../api/teamMetadataClient';
+import { isEnterpriseUsage, ActivityLeaderboardSnapshot } from '../api/types';
 import * as extensionLog from '../logging/extensionLog';
 import { getProfileStateDbPath } from '../auth/cursorPaths';
 import { StaticTokenProvider } from '../auth/tokenProvider';
@@ -9,7 +15,9 @@ import { Profile, ProfileQuota } from '../profiles/types';
 import { validateUserDataPath } from '../utils/pathUtils';
 
 const QUOTA_CACHE_KEY = 'multiProfileQuotaCache';
+const LEADERBOARD_CACHE_KEY = 'multiProfileLeaderboardCache';
 const CACHE_VALIDITY_MS = 5 * 60 * 1000;
+const LEADERBOARD_CACHE_VALIDITY_MS = 15 * 60 * 1000;
 
 export class MultiProfileQuotaServiceError extends Error {
   constructor(
@@ -127,9 +135,18 @@ export class MultiProfileQuotaService {
       const quotaClient = new QuotaClient(tokenProvider);
       const quota = await quotaClient.getUsage();
 
+      let activityLeaderboard = null;
+      if (quota && isEnterpriseUsage(quota)) {
+        activityLeaderboard = await this.fetchActivityLeaderboard(
+          tokens.accessToken,
+          profile.id
+        );
+      }
+
       return {
         profileId: profile.id,
         quota,
+        activityLeaderboard,
         fetchedAt: Date.now(),
       };
     } catch (error) {
@@ -204,6 +221,90 @@ export class MultiProfileQuotaService {
   /** Clear all cached quotas. */
   async clearCache(): Promise<void> {
     await this.context.globalState.update(QUOTA_CACHE_KEY, undefined);
+    await this.context.globalState.update(LEADERBOARD_CACHE_KEY, undefined);
+  }
+
+  private async getCachedLeaderboard(
+    profileId: string
+  ): Promise<ActivityLeaderboardSnapshot | undefined> {
+    const cached = this.context.globalState.get<
+      Record<string, ActivityLeaderboardSnapshot>
+    >(LEADERBOARD_CACHE_KEY);
+    const snapshot = cached?.[profileId];
+    if (!snapshot) {
+      return undefined;
+    }
+    const age = Date.now() - snapshot.fetchedAt;
+    if (age > LEADERBOARD_CACHE_VALIDITY_MS) {
+      return undefined;
+    }
+    return snapshot;
+  }
+
+  private async saveLeaderboardCache(
+    profileId: string,
+    snapshot: ActivityLeaderboardSnapshot
+  ): Promise<void> {
+    const existing =
+      this.context.globalState.get<Record<string, ActivityLeaderboardSnapshot>>(
+        LEADERBOARD_CACHE_KEY
+      ) ?? {};
+    existing[profileId] = snapshot;
+    await this.context.globalState.update(LEADERBOARD_CACHE_KEY, existing);
+  }
+
+  private async fetchActivityLeaderboard(
+    accessToken: string,
+    profileId: string
+  ): Promise<ActivityLeaderboardSnapshot> {
+    const cached = await this.getCachedLeaderboard(profileId);
+    if (cached) {
+      return cached;
+    }
+
+    try {
+      const team = await fetchDashboardTeams(
+        accessToken,
+        AbortSignal.timeout(15_000)
+      );
+      if (!team?.teamId) {
+        return {
+          entries: [],
+          periodStart: '',
+          periodEnd: '',
+          fetchedAt: Date.now(),
+          error: 'Team not found',
+        };
+      }
+
+      const { startDate, endDate } = defaultLeaderboardPeriod();
+      const snapshot = await fetchUsageLeaderboard(
+        accessToken,
+        {
+          teamId: team.teamId,
+          startDate,
+          endDate,
+          pageSize: 10,
+        },
+        AbortSignal.timeout(15_000)
+      );
+      await this.saveLeaderboardCache(profileId, snapshot);
+      return snapshot;
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unknown error';
+      extensionLog.debug(
+        `[MultiProfileQuotaService] Activity leaderboard failed: ${message}`
+      );
+      const { startDate, endDate } = defaultLeaderboardPeriod();
+      return {
+        entries: [],
+        periodStart: startDate,
+        periodEnd: endDate,
+        fetchedAt: Date.now(),
+        error: message,
+      };
+    }
   }
 
   private toAuthErrorMessage(message: string): string {

@@ -17,12 +17,14 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '..');
 
 function parseArgs(argv) {
-  const args = { userDataDir: undefined, email: undefined };
+  const args = { userDataDir: undefined, email: undefined, analytics: false };
   for (let i = 2; i < argv.length; i += 1) {
     if (argv[i] === '--user-data-dir' && argv[i + 1]) {
       args.userDataDir = argv[++i].replace(/^~/, os.homedir());
     } else if (argv[i] === '--email' && argv[i + 1]) {
       args.email = argv[++i];
+    } else if (argv[i] === '--analytics') {
+      args.analytics = true;
     }
   }
   return args;
@@ -177,6 +179,42 @@ async function main() {
     const mapped = mapUsageSummaryResponse(summary.body, email);
     console.log('\n=== mapUsageSummaryResponse ===');
     console.log(JSON.stringify(mapped, null, 2));
+  }
+
+  if (args.analytics) {
+    const teams = await fetchJson('https://cursor.com/api/dashboard/teams', {
+      headers: { Cookie: cookie, Accept: 'application/json' },
+    });
+    console.log('\n=== dashboard/teams', teams.status, '===');
+    console.log(JSON.stringify(teams.body, null, 2));
+
+    const teamId = teams.body?.teams?.[0]?.id;
+    if (teamId) {
+      const end = new Date();
+      const start = new Date(end);
+      start.setDate(start.getDate() - 30);
+      const fmt = (d) => {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      };
+      const startDate = fmt(start);
+      const endDate = fmt(end);
+      const lbUrl =
+        'https://cursor.com/api/v2/analytics/team/leaderboard?' +
+        new URLSearchParams({
+          startDate,
+          endDate,
+          teamId: String(teamId),
+          pageSize: '10',
+        }).toString();
+      const leaderboard = await fetchJson(lbUrl, {
+        headers: { Cookie: cookie, Accept: 'application/json' },
+      });
+      console.log('\n=== v2 analytics leaderboard', leaderboard.status, '===');
+      console.log(JSON.stringify(leaderboard.body, null, 2));
+    }
   }
 }
 

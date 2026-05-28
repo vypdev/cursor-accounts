@@ -1,4 +1,9 @@
-import { ProfileAccountView, QuotaUsage, getEffectiveUsagePercent } from '../api/types';
+import {
+  ActivityLeaderboardSnapshot,
+  ProfileAccountView,
+  QuotaUsage,
+  getEffectiveUsagePercent,
+} from '../api/types';
 
 /**
  * Represents a single Cursor account profile.
@@ -194,6 +199,8 @@ export interface ImportValidationResult {
 export interface ProfileQuota {
   profileId: string;
   quota: QuotaUsage | null;
+  /** Top team AI activity (enterprise analytics leaderboard). */
+  activityLeaderboard?: ActivityLeaderboardSnapshot | null;
   error?: string;
   fetchedAt: number;
 }

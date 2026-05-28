@@ -53,9 +53,27 @@ export interface QuotaUsage {
   dataSource?: UsageDataSource;
 }
 
+export interface ActivityLeaderboardEntry {
+  rank: number;
+  displayName: string;
+  email: string;
+  composerLinesAccepted: number;
+  favoriteModel?: string;
+}
+
+export interface ActivityLeaderboardSnapshot {
+  entries: ActivityLeaderboardEntry[];
+  totalRankedUsers?: number;
+  periodStart: string;
+  periodEnd: string;
+  fetchedAt: number;
+  error?: string;
+}
+
 export interface ProfileQuota {
   profileId: string;
   quota: QuotaUsage | null;
+  activityLeaderboard?: ActivityLeaderboardSnapshot | null;
   error?: string;
   fetchedAt: number;
 }
@@ -196,6 +214,20 @@ function formatCents(cents: number): string {
     return '$0.00';
   }
   return `$${(cents / 100).toFixed(2)}`;
+}
+
+/** Compact number for leaderboard metrics (e.g. 456728 → 457k). */
+export function formatCompactNumber(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) {
+    return '0';
+  }
+  if (value >= 1_000_000) {
+    return `${(value / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
+  }
+  if (value >= 1_000) {
+    return `${Math.round(value / 1_000)}k`;
+  }
+  return String(Math.round(value));
 }
 
 /** Format monthly spend for profile card display. */

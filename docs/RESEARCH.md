@@ -105,6 +105,19 @@ This extension **does not** implement SQLite snapshot switching.
 - Enterprise **Monthly Usage** depends on the undocumented web `usage-summary` endpoint when the IDE API returns empty plan data.
 - Team Admin API (`api.cursor.com`) is not used — requires separate admin API keys.
 
+### Analytics leaderboard (enterprise, session cookie)
+
+The dashboard at `cursor.com/dashboard/analytics` loads team AI activity rankings via:
+
+```
+GET https://cursor.com/api/v2/analytics/team/leaderboard
+  ?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD&teamId=<id>&pageSize=10
+```
+
+Auth: `WorkosCursorSessionToken` cookie (same as usage-summary). Response includes `composer_leaderboard.data[]` with `rank`, `display_name`, `email`, `total_composer_lines_accepted`. This is **usage activity**, not dollar spend. `teamId` comes from `GET /api/dashboard/teams`.
+
+The Accounts panel fetches this for enterprise profiles (30-day window) and shows the top 10 under each profile card.
+
 ## References
 
 - [Cursor API docs](https://cursor.com/docs/api)

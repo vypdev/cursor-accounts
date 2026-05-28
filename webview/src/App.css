@@ -562,6 +562,76 @@ form {
   border-top: 1px solid var(--border-color);
 }
 
+.leaderboard-section {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+.leaderboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+  gap: 8px;
+}
+
+.leaderboard-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--fg-secondary);
+}
+
+.leaderboard-period {
+  font-size: 11px;
+  color: var(--fg-secondary);
+}
+
+.leaderboard-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.leaderboard-item {
+  display: grid;
+  grid-template-columns: 2rem 1fr auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.3;
+  padding: 2px 0;
+}
+
+.leaderboard-item.self {
+  font-weight: 600;
+  color: var(--fg-primary);
+}
+
+.leaderboard-item .rank {
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-secondary);
+}
+
+.leaderboard-item.self .rank {
+  color: var(--button-bg);
+}
+
+.leaderboard-item .name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.leaderboard-item .metric {
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-secondary);
+  white-space: nowrap;
+}
+
 .quota-bar {
   height: 6px;
   background: var(--bg-primary);

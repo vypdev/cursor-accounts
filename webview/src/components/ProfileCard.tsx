@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { getEffectiveUsagePercent, getQuotaStatus, formatEnterpriseUsageLabel, formatMonthlySpendLabel, isEnterpriseUsage, Profile, ProfileAccountView, ProfileQuota } from '../types';
+import { getEffectiveUsagePercent, getQuotaStatus, formatEnterpriseUsageLabel, formatMonthlySpendLabel, formatCompactNumber, isEnterpriseUsage, Profile, ProfileAccountView, ProfileQuota } from '../types';
 
 interface ProfileCardProps {
   profile: Profile;
@@ -266,6 +266,33 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
           )}
         </div>
       )}
+
+      {isEnterprise && quota?.activityLeaderboard?.entries?.length ? (
+        <div className="leaderboard-section">
+          <div className="leaderboard-header">
+            <span className="leaderboard-title">Top AI activity</span>
+            <span className="leaderboard-period">30d</span>
+          </div>
+          <ol className="leaderboard-list">
+            {quota.activityLeaderboard.entries.map((entry) => (
+              <li
+                key={entry.email}
+                className={
+                  entry.email.toLowerCase() === profile.email.toLowerCase()
+                    ? 'leaderboard-item self'
+                    : 'leaderboard-item'
+                }
+              >
+                <span className="rank">#{entry.rank}</span>
+                <span className="name">{entry.displayName}</span>
+                <span className="metric">
+                  {formatCompactNumber(entry.composerLinesAccepted)} lines
+                </span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      ) : null}
 
       <div className="profile-actions">
         <button
