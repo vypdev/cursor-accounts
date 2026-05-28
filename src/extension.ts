@@ -6,11 +6,13 @@ import { affectsCursorQuotaConfig } from './config';
 import { ProfileDetector } from './profiles/profileDetector';
 import { ProfileLauncher } from './profiles/profileLauncher';
 import { ProfileManager } from './profiles/profileManager';
+import { MultiProfileQuotaService } from './services/multiProfileQuotaService';
 import { RefreshService } from './services/refreshService';
 import { AccountsPanelProvider } from './ui/accountsPanel';
 import { StatusBarManager } from './ui/statusBarManager';
 
 let refreshService: RefreshService | undefined;
+let multiProfileQuotaService: MultiProfileQuotaService | undefined;
 
 export function activate(context: vscode.ExtensionContext): void {
   const profileManager = new ProfileManager();
@@ -28,18 +30,36 @@ export function activate(context: vscode.ExtensionContext): void {
     profileDetector
   );
 
+  multiProfileQuotaService = new MultiProfileQuotaService(
+    context,
+    profileManager
+  );
+
+  const profilesConfig = vscode.workspace.getConfiguration(
+    'cursorQuota.profiles'
+  );
+  const refreshAllInterval = profilesConfig.get<number>(
+    'refreshAllInterval',
+    300
+  );
+  multiProfileQuotaService.start(refreshAllInterval);
+
   const accountsPanel = new AccountsPanelProvider(
     context,
     profileManager,
     profileLauncher,
-    profileDetector
+    profileDetector,
+    multiProfileQuotaService
   );
 
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(
       AccountsPanelProvider.viewType,
       accountsPanel
-    )
+    ),
+    {
+      dispose: () => multiProfileQuotaService?.stop(),
+    }
   );
 
   const statusBar = new StatusBarManager(context, profileDetector);
@@ -80,4 +100,6 @@ export function activate(context: vscode.ExtensionContext): void {
 
 export function deactivate(): void {
   refreshService = undefined;
+  multiProfileQuotaService?.stop();
+  multiProfileQuotaService = undefined;
 }

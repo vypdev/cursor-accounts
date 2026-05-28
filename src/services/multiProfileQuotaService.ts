@@ -1,0 +1,231 @@
+import * as vscode from 'vscode';
+import { QuotaClient } from '../api/quotaClient';
+import { getProfileStateDbPath } from '../auth/cursorPaths';
+import { StaticTokenProvider } from '../auth/tokenProvider';
+import { readAuthFromStateDb } from '../auth/tokenReader';
+import { ProfileManager } from '../profiles/profileManager';
+import { Profile, ProfileQuota } from '../profiles/types';
+import { validateUserDataPath } from '../utils/pathUtils';
+
+const QUOTA_CACHE_KEY = 'multiProfileQuotaCache';
+const CACHE_VALIDITY_MS = 5 * 60 * 1000;
+
+export class MultiProfileQuotaServiceError extends Error {
+  constructor(
+    message: string,
+    public readonly cause?: Error
+  ) {
+    super(message);
+    this.name = 'MultiProfileQuotaServiceError';
+  }
+}
+
+export class MultiProfileQuotaService {
+  private refreshTimer: NodeJS.Timeout | undefined;
+  private inFlight = false;
+  private onRefreshCallbacks: Array<
+    (quotas: Map<string, ProfileQuota>) => void
+  > = [];
+
+  constructor(
+    private readonly context: vscode.ExtensionContext,
+    private readonly profileManager: ProfileManager
+  ) {}
+
+  /** Register callback for background quota updates (e.g. Accounts panel). */
+  onRefresh(callback: (quotas: Map<string, ProfileQuota>) => void): void {
+    this.onRefreshCallbacks.push(callback);
+  }
+
+  /** Start background refresh. */
+  start(intervalSeconds = 300): void {
+    this.stop();
+
+    void this.refreshAll();
+
+    this.refreshTimer = setInterval(() => {
+      void this.refreshAll();
+    }, intervalSeconds * 1000);
+  }
+
+  /** Stop background refresh. */
+  stop(): void {
+    if (this.refreshTimer) {
+      clearInterval(this.refreshTimer);
+      this.refreshTimer = undefined;
+    }
+  }
+
+  /** Fetch quotas for all profiles in parallel. */
+  async fetchAllQuotas(): Promise<Map<string, ProfileQuota>> {
+    const profiles = await this.profileManager.getProfiles();
+
+    if (profiles.length === 0) {
+      return new Map();
+    }
+
+    const results = await Promise.allSettled(
+      profiles.map((profile) => this.fetchQuotaForProfile(profile))
+    );
+
+    const quotaMap = new Map<string, ProfileQuota>();
+
+    for (let i = 0; i < profiles.length; i++) {
+      const profile = profiles[i];
+      const result = results[i];
+
+      if (result.status === 'fulfilled') {
+        quotaMap.set(profile.id, result.value);
+      } else {
+        quotaMap.set(profile.id, {
+          profileId: profile.id,
+          quota: null,
+          error: result.reason?.message ?? 'Failed to fetch quota',
+          fetchedAt: Date.now(),
+        });
+      }
+    }
+
+    await this.saveCache(quotaMap);
+    return quotaMap;
+  }
+
+  /** Fetch quota for a single profile. */
+  async fetchQuotaForProfile(profile: Profile): Promise<ProfileQuota> {
+    try {
+      const pathValidation = validateUserDataPath(profile.userDataDir);
+      if (!pathValidation.valid) {
+        return {
+          profileId: profile.id,
+          quota: null,
+          error: pathValidation.error ?? 'Invalid profile path',
+          fetchedAt: Date.now(),
+        };
+      }
+
+      const stateDbPath = getProfileStateDbPath(profile.userDataDir);
+      const tokens = await readAuthFromStateDb(
+        stateDbPath,
+        this.context.extensionPath
+      );
+
+      if (!tokens?.accessToken) {
+        return {
+          profileId: profile.id,
+          quota: null,
+          error: 'No authentication tokens found. Launch profile to sign in.',
+          fetchedAt: Date.now(),
+        };
+      }
+
+      const tokenProvider = new StaticTokenProvider(tokens);
+      const quotaClient = new QuotaClient(tokenProvider);
+      const quota = await quotaClient.getUsage();
+
+      return {
+        profileId: profile.id,
+        quota,
+        fetchedAt: Date.now(),
+      };
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unknown error';
+      const authMessage = this.toAuthErrorMessage(message);
+
+      return {
+        profileId: profile.id,
+        quota: null,
+        error: authMessage,
+        fetchedAt: Date.now(),
+      };
+    }
+  }
+
+  /** Refresh all quotas (with deduplication). */
+  async refreshAll(): Promise<Map<string, ProfileQuota>> {
+    if (this.inFlight) {
+      return this.loadCache();
+    }
+
+    try {
+      this.inFlight = true;
+      const quotas = await this.fetchAllQuotas();
+      for (const callback of this.onRefreshCallbacks) {
+        callback(quotas);
+      }
+      return quotas;
+    } finally {
+      this.inFlight = false;
+    }
+  }
+
+  /** Get cached quota for a profile if still valid. */
+  async getCachedQuota(profileId: string): Promise<ProfileQuota | undefined> {
+    const cache = await this.loadCache();
+    const cached = cache.get(profileId);
+
+    if (!cached) {
+      return undefined;
+    }
+
+    const age = Date.now() - cached.fetchedAt;
+    if (age > CACHE_VALIDITY_MS) {
+      return undefined;
+    }
+
+    return cached;
+  }
+
+  /** Get all cached quotas regardless of age. */
+  async getAllCachedQuotas(): Promise<Map<string, ProfileQuota>> {
+    return this.loadCache();
+  }
+
+  /** Clear all cached quotas. */
+  async clearCache(): Promise<void> {
+    await this.context.globalState.update(QUOTA_CACHE_KEY, undefined);
+  }
+
+  private toAuthErrorMessage(message: string): string {
+    const lower = message.toLowerCase();
+    if (
+      lower.includes('401') ||
+      lower.includes('expired') ||
+      lower.includes('unauthorized')
+    ) {
+      return 'Authentication expired. Launch profile to sign in again.';
+    }
+    if (lower.includes('not signed in') || lower.includes('sign in')) {
+      return 'Launch this profile and sign in to see quota.';
+    }
+    return message;
+  }
+
+  private async saveCache(quotas: Map<string, ProfileQuota>): Promise<void> {
+    const array = Array.from(quotas.entries()).map(([id, quota]) => ({
+      id,
+      quota,
+    }));
+
+    await this.context.globalState.update(QUOTA_CACHE_KEY, array);
+  }
+
+  private async loadCache(): Promise<Map<string, ProfileQuota>> {
+    const cached = this.context.globalState.get<
+      Array<{ id: string; quota: ProfileQuota }>
+    >(QUOTA_CACHE_KEY);
+
+    if (!cached) {
+      return new Map();
+    }
+
+    return new Map(cached.map((item) => [item.id, item.quota]));
+  }
+}
+
+/** Convert quota Map to JSON-safe Record for webview messaging. */
+export function quotaMapToRecord(
+  quotas: Map<string, ProfileQuota>
+): Record<string, ProfileQuota> {
+  return Object.fromEntries(quotas.entries());
+}

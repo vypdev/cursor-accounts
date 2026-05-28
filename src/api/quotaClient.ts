@@ -1,3 +1,4 @@
+import { TokenProvider } from '../auth/tokenProvider';
 import { TokenService } from '../auth/tokenRefresh';
 import {
   GetCurrentPeriodUsageResponse,
@@ -73,10 +74,10 @@ export async function fetchCurrentPeriodUsage(
 }
 
 export class QuotaClient {
-  constructor(private readonly tokenService: TokenService) {}
+  constructor(private readonly tokenProvider: TokenProvider) {}
 
   async getUsage(signal?: AbortSignal): Promise<QuotaUsage> {
-    const tokens = await this.tokenService.getValidTokens(signal);
+    const tokens = await this.tokenProvider.getValidTokens(signal);
 
     try {
       const raw = await fetchCurrentPeriodUsage(tokens.accessToken, signal);
@@ -85,9 +86,10 @@ export class QuotaClient {
       if (
         error instanceof QuotaApiError &&
         error.statusCode === 401 &&
-        tokens.refreshToken
+        tokens.refreshToken &&
+        this.tokenProvider instanceof TokenService
       ) {
-        const refreshed = await this.tokenService.refreshTokens(
+        const refreshed = await this.tokenProvider.refreshTokens(
           tokens.refreshToken,
           signal
         );

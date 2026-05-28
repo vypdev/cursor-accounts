@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { CursorAuthTokens } from '../api/types';
-import { SECRETS_KEYS } from './cursorPaths';
+import { getCursorStateDbPath, SECRETS_KEYS } from './cursorPaths';
 import { isTokenExpired, readAuthFromStateDb } from './tokenReader';
 
 const OAUTH_TOKEN_URL = 'https://api2.cursor.sh/oauth/token';
@@ -26,7 +26,10 @@ export class TokenService {
       return fromSecrets;
     }
 
-    const fromDb = readAuthFromStateDb(this.extensionPath);
+    const fromDb = await readAuthFromStateDb(
+      getCursorStateDbPath(),
+      this.extensionPath
+    );
     if (!fromDb?.accessToken) {
       throw new Error(
         'Cursor is not signed in. Sign in via Cursor Settings, then reload the window.'

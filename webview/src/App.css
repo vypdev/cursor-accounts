@@ -398,3 +398,124 @@ form {
 .form-actions button[type='button']:hover {
   background: var(--bg-primary);
 }
+
+.quota-section {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+.quota-bar {
+  height: 6px;
+  background: var(--bg-primary);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.quota-fill {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.quota-fill.ok {
+  background: #10b981;
+}
+
+.quota-fill.warning {
+  background: #f59e0b;
+}
+
+.quota-fill.critical {
+  background: #ef4444;
+}
+
+.quota-fill.unavailable {
+  background: var(--fg-secondary);
+}
+
+.quota-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.quota-text .percent {
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.quota-text .label {
+  color: var(--fg-secondary);
+}
+
+.quota-text .warning-icon,
+.quota-text .error-icon {
+  margin-left: auto;
+}
+
+.quota-details {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--fg-secondary);
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.quota-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  background: var(--error-bg);
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.quota-unavailable {
+  text-align: center;
+  color: var(--fg-secondary);
+  font-size: 12px;
+  padding: 8px;
+}
+
+.quota-auth-required {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background: var(--error-bg);
+  border-radius: 4px;
+  text-align: center;
+  font-size: 12px;
+}
+
+.quota-auth-required .icon {
+  font-size: 24px;
+}
+
+.quota-auth-required button {
+  padding: 6px 12px;
+  background: var(--button-bg);
+  color: var(--button-fg);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.quota-auth-required button:hover {
+  background: var(--button-hover);
+}
+
+.profile-card.quota-critical {
+  border-left-color: #ef4444 !important;
+}
+
+.profile-card.quota-warning {
+  border-left-color: #f59e0b !important;
+}

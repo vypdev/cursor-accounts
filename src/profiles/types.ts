@@ -1,3 +1,5 @@
+import { QuotaUsage } from '../api/types';
+
 /**
  * Represents a single Cursor account profile.
  */
@@ -120,12 +122,46 @@ export const DEFAULT_PROFILE_SETTINGS: ProfileSettings = {
 export const PROFILE_DIR_PREFIX = '.cursor-';
 
 /**
+ * Quota information for a specific profile.
+ */
+export interface ProfileQuota {
+  profileId: string;
+  quota: QuotaUsage | null;
+  error?: string;
+  fetchedAt: number;
+}
+
+/** Status category for quota thresholds. */
+export type QuotaStatus = 'ok' | 'warning' | 'critical' | 'unavailable';
+
+/** Determine quota status from usage data. */
+export function getQuotaStatus(quota: QuotaUsage | null): QuotaStatus {
+  if (!quota) {
+    return 'unavailable';
+  }
+
+  const percent = quota.totalPercentUsed;
+
+  if (percent >= 95) {
+    return 'critical';
+  }
+  if (percent >= 85) {
+    return 'warning';
+  }
+  return 'ok';
+}
+
+/** Serialized quota map for webview messaging (JSON-safe). */
+export type ProfileQuotaMap = Record<string, ProfileQuota>;
+
+/**
  * Messages sent from extension to webview.
  */
 export type ToWebviewMessage =
   | { type: 'init'; data: InitData }
   | { type: 'profiles'; data: Profile[] }
   | { type: 'currentProfile'; data: Profile | null }
+  | { type: 'quotas'; data: ProfileQuotaMap }
   | { type: 'error'; message: string }
   | { type: 'success'; message: string };
 
@@ -153,6 +189,7 @@ export type FromWebviewMessage =
 export interface InitData {
   profiles: Profile[];
   currentProfile: Profile | null;
+  quotas: ProfileQuotaMap;
 }
 
 /** Schema version for webview persisted state */

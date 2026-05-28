@@ -1,10 +1,9 @@
 import { execFileSync } from 'child_process';
-import * as fs from 'fs';
+import * as fs from 'fs/promises';
+import * as os from 'os';
+import * as path from 'path';
 import { CursorAuthTokens } from '../api/types';
-import {
-  CURSOR_AUTH_KEYS,
-  getCursorStateDbPath,
-} from './cursorPaths';
+import { CURSOR_AUTH_KEYS } from './cursorPaths';
 import { getSqlite3Binary } from './sqliteBinary';
 
 /** Strip JSON-encoded string values from VS Code SQLite ItemTable. */
@@ -21,6 +20,37 @@ export function parseStoredValue(raw: string | null | undefined): string | undef
     }
   }
   return trimmed;
+}
+
+/**
+ * Validate that a state.vscdb path is safe to read.
+ * Path must be within the user's home directory and not a system directory.
+ */
+export function validateStateDbPath(dbPath: string): void {
+  const normalized = path.normalize(path.resolve(dbPath));
+  const home = path.normalize(os.homedir());
+
+  if (!normalized.startsWith(home)) {
+    throw new Error('Database path must be within user home directory');
+  }
+
+  const systemDirs =
+    process.platform === 'win32'
+      ? ['C:\\Windows', 'C:\\Program Files', 'C:\\Program Files (x86)']
+      : ['/', '/System', '/usr', '/bin', '/sbin', '/etc'];
+
+  for (const sysDir of systemDirs) {
+    const normalizedSysDir = path.normalize(sysDir);
+    if (normalizedSysDir === path.sep) {
+      if (normalized === path.sep) {
+        throw new Error('Cannot read from system directory');
+      }
+      continue;
+    }
+    if (normalized.startsWith(normalizedSysDir)) {
+      throw new Error('Cannot read from system directory');
+    }
+  }
 }
 
 function readKeyFromDb(
@@ -40,15 +70,27 @@ function readKeyFromDb(
   return parseStoredValue(output.trim() || undefined);
 }
 
-export function readAuthFromStateDb(extensionPath: string): CursorAuthTokens | null {
-  const dbPath = getCursorStateDbPath();
-  if (!fs.existsSync(dbPath)) {
+/**
+ * Read authentication tokens from a specific state.vscdb file.
+ *
+ * @param stateDbPath Absolute path to state.vscdb
+ * @param extensionPath Extension path (used to locate bundled sqlite3 binary)
+ */
+export async function readAuthFromStateDb(
+  stateDbPath: string,
+  extensionPath: string
+): Promise<CursorAuthTokens | null> {
+  validateStateDbPath(stateDbPath);
+
+  try {
+    await fs.access(stateDbPath, fs.constants.R_OK);
+  } catch {
     return null;
   }
 
   try {
     const accessToken = readKeyFromDb(
-      dbPath,
+      stateDbPath,
       CURSOR_AUTH_KEYS.accessToken,
       extensionPath
     );
@@ -59,12 +101,12 @@ export function readAuthFromStateDb(extensionPath: string): CursorAuthTokens | n
     return {
       accessToken,
       refreshToken: readKeyFromDb(
-        dbPath,
+        stateDbPath,
         CURSOR_AUTH_KEYS.refreshToken,
         extensionPath
       ),
       email: readKeyFromDb(
-        dbPath,
+        stateDbPath,
         CURSOR_AUTH_KEYS.cachedEmail,
         extensionPath
       ),

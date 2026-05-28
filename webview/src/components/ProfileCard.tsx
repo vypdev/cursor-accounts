@@ -1,18 +1,58 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Profile } from '../types';
+import { getQuotaStatus, Profile, ProfileQuota } from '../types';
 
 interface ProfileCardProps {
   profile: Profile;
   isCurrent: boolean;
+  quota?: ProfileQuota;
   onLaunch: (id: string) => void;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
   onShowInExplorer: (id: string) => void;
 }
 
+function formatResetDate(isoString: string): string {
+  if (!isoString) {
+    return 'Unknown';
+  }
+
+  const numeric = Number(isoString);
+  const date = Number.isFinite(numeric)
+    ? new Date(numeric)
+    : new Date(isoString);
+
+  if (Number.isNaN(date.getTime())) {
+    return 'Unknown';
+  }
+
+  const now = new Date();
+  const days = Math.ceil(
+    (date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+  );
+
+  if (days <= 0) {
+    return 'Today';
+  }
+  if (days === 1) {
+    return 'Tomorrow';
+  }
+  return `${days} days`;
+}
+
+function isAuthError(error: string): boolean {
+  const lower = error.toLowerCase();
+  return (
+    lower.includes('authentication') ||
+    lower.includes('token') ||
+    lower.includes('sign in') ||
+    lower.includes('expired')
+  );
+}
+
 export const ProfileCard: React.FC<ProfileCardProps> = ({
   profile,
   isCurrent,
+  quota,
   onLaunch,
   onEdit,
   onDelete,
@@ -20,6 +60,10 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
 }) => {
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const quotaStatus = quota?.quota
+    ? getQuotaStatus(quota.quota)
+    : 'unavailable';
 
   useEffect(() => {
     if (!showMenu) {
@@ -51,7 +95,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
 
   return (
     <div
-      className={`profile-card ${isCurrent ? 'current' : ''}`}
+      className={`profile-card ${isCurrent ? 'current' : ''} quota-${quotaStatus}`}
       style={{ borderLeftColor: borderColor }}
       role="listitem"
     >
@@ -74,6 +118,66 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
           <span className="last-launched">
             Last launched: {new Date(profile.lastLaunched).toLocaleDateString()}
           </span>
+        </div>
+      )}
+
+      {quota && (
+        <div className="quota-section">
+          {quota.error ? (
+            isAuthError(quota.error) ? (
+              <div className="quota-auth-required">
+                <span className="icon" aria-hidden="true">
+                  🔒
+                </span>
+                <span>{quota.error}</span>
+                <button type="button" onClick={handleLaunch}>
+                  Sign In
+                </button>
+              </div>
+            ) : (
+              <div className="quota-error" role="alert">
+                <span className="icon" aria-hidden="true">
+                  ⚠️
+                </span>
+                <span>{quota.error}</span>
+              </div>
+            )
+          ) : quota.quota ? (
+            <>
+              <div className="quota-bar" aria-hidden="true">
+                <div
+                  className={`quota-fill ${quotaStatus}`}
+                  style={{
+                    width: `${Math.min(100, Math.max(0, quota.quota.totalPercentUsed))}%`,
+                  }}
+                />
+              </div>
+              <div className="quota-text">
+                <span className="percent">
+                  {quota.quota.totalPercentUsed.toFixed(0)}%
+                </span>
+                <span className="label">used</span>
+                {quotaStatus === 'warning' && (
+                  <span className="warning-icon" aria-label="Warning">
+                    ⚠️
+                  </span>
+                )}
+                {quotaStatus === 'critical' && (
+                  <span className="error-icon" aria-label="Critical">
+                    🔴
+                  </span>
+                )}
+              </div>
+              <div className="quota-details">
+                <span>
+                  Remaining: ${(quota.quota.remaining / 100).toFixed(2)}
+                </span>
+                <span>Resets: {formatResetDate(quota.quota.billingCycleEnd)}</span>
+              </div>
+            </>
+          ) : (
+            <div className="quota-unavailable">Quota data unavailable</div>
+          )}
         </div>
       )}
 

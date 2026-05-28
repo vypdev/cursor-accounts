@@ -7,8 +7,13 @@ import {
   FromWebviewMessage,
   InitData,
   Profile,
+  ProfileQuota,
   ToWebviewMessage,
 } from '../profiles/types';
+import {
+  MultiProfileQuotaService,
+  quotaMapToRecord,
+} from '../services/multiProfileQuotaService';
 
 export class AccountsPanelProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'cursorQuota.accountsPanel';
@@ -19,8 +24,13 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
     private readonly context: vscode.ExtensionContext,
     private readonly profileManager: ProfileManager,
     private readonly profileLauncher: ProfileLauncher,
-    private readonly profileDetector: ProfileDetector
-  ) {}
+    private readonly profileDetector: ProfileDetector,
+    private readonly quotaService: MultiProfileQuotaService
+  ) {
+    this.quotaService.onRefresh((quotas) => {
+      void this.postQuotas(quotas);
+    });
+  }
 
   /**
    * Called when webview becomes visible.
@@ -69,13 +79,18 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
     try {
       const profiles = await this.profileManager.getProfiles();
       const currentProfile = await this.profileDetector.detectCurrentProfile();
+      const cachedQuotas = await this.quotaService.getAllCachedQuotas();
+      const quotas = quotaMapToRecord(cachedQuotas);
 
       const initData: InitData = {
         profiles,
         currentProfile,
+        quotas,
       };
 
       await this.postMessage({ type: 'init', data: initData });
+
+      void this.refreshQuotas();
     } catch (error) {
       console.error('Failed to refresh accounts panel:', error);
       await this.postMessage({
@@ -83,6 +98,33 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
         message: 'Failed to load profiles',
       });
     }
+  }
+
+  /** Fetch fresh quota data and push to webview. */
+  public async refreshQuotas(): Promise<void> {
+    if (!this.view) {
+      return;
+    }
+
+    try {
+      const quotaMap = await this.quotaService.fetchAllQuotas();
+      await this.postQuotas(quotaMap);
+    } catch (error) {
+      console.error('Failed to refresh quotas:', error);
+    }
+  }
+
+  private async postQuotas(
+    quotas: Map<string, ProfileQuota>
+  ): Promise<void> {
+    if (!this.view) {
+      return;
+    }
+
+    await this.postMessage({
+      type: 'quotas',
+      data: quotaMapToRecord(quotas),
+    });
   }
 
   /**

@@ -1,6 +1,11 @@
 import * as os from 'os';
 import * as path from 'path';
 
+/** Path to `state.vscdb` for a profile's user data directory. */
+export function getProfileStateDbPath(userDataDir: string): string {
+  return path.join(userDataDir, 'User', 'globalStorage', 'state.vscdb');
+}
+
 /** Global Cursor `state.vscdb` path for the current platform. */
 export function getCursorStateDbPath(): string {
   const home = os.homedir();

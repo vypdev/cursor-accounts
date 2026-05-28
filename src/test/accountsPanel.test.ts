@@ -9,6 +9,7 @@ import { ProfileLauncher } from '../profiles/profileLauncher';
 import { ProfileManager } from '../profiles/profileManager';
 import { ProfileStorage } from '../profiles/profileStorage';
 import { FromWebviewMessage, ToWebviewMessage } from '../profiles/types';
+import { MultiProfileQuotaService } from '../services/multiProfileQuotaService';
 import { AccountsPanelProvider } from '../ui/accountsPanel';
 
 interface MockWebview {
@@ -33,6 +34,18 @@ interface MockExtensionContext {
   extensionPath: string;
   subscriptions: { dispose: () => void }[];
   globalStorageUri: { fsPath: string };
+  globalState: {
+    get: () => undefined;
+    update: () => Promise<void>;
+  };
+}
+
+function createMockQuotaService(): MultiProfileQuotaService {
+  return {
+    fetchAllQuotas: async () => new Map(),
+    getAllCachedQuotas: async () => new Map(),
+    onRefresh: () => undefined,
+  } as unknown as MultiProfileQuotaService;
 }
 
 function createMockWebview(): MockWebview {
@@ -80,6 +93,10 @@ function createMockContext(extensionPath: string): MockExtensionContext {
     globalStorageUri: {
       fsPath: path.join(extensionPath, 'User', 'globalStorage', 'ext'),
     },
+    globalState: {
+      get: () => undefined,
+      update: async () => undefined,
+    },
   };
 }
 
@@ -90,6 +107,7 @@ describe('AccountsPanelProvider', () => {
   let manager: ProfileManager;
   let launcher: ProfileLauncher;
   let detector: ProfileDetector;
+  let quotaService: MultiProfileQuotaService;
   let provider: AccountsPanelProvider;
   let mockView: MockWebviewView;
   let mockWebview: MockWebview;
@@ -115,11 +133,14 @@ describe('AccountsPanelProvider', () => {
       createMockContext(extensionPath) as never
     );
 
+    quotaService = createMockQuotaService();
+
     provider = new AccountsPanelProvider(
       createMockContext(extensionPath) as never,
       manager,
       launcher,
-      detector
+      detector,
+      quotaService
     );
 
     mockWebview = createMockWebview();
@@ -176,6 +197,7 @@ describe('AccountsPanelProvider', () => {
     if (initMessage?.type === 'init') {
       assert.deepEqual(initMessage.data.profiles, []);
       assert.equal(initMessage.data.currentProfile, null);
+      assert.deepEqual(initMessage.data.quotas, {});
     }
   });
 
@@ -292,7 +314,8 @@ describe('AccountsPanelProvider', () => {
       createMockContext(extensionPath) as never,
       manager,
       failingLauncher,
-      detector
+      detector,
+      quotaService
     );
 
     failingProvider.resolveWebviewView(

@@ -25,15 +25,59 @@ export interface ProfileMetadata {
   [key: string]: unknown;
 }
 
+export interface QuotaUsage {
+  totalPercentUsed: number;
+  autoPercentUsed: number;
+  apiPercentUsed: number;
+  totalSpend: number;
+  includedSpend: number;
+  remaining: number;
+  limit: number;
+  billingCycleStart: string;
+  billingCycleEnd: string;
+  displayMessage?: string;
+  accountEmail?: string;
+  fetchedAt: number;
+}
+
+export interface ProfileQuota {
+  profileId: string;
+  quota: QuotaUsage | null;
+  error?: string;
+  fetchedAt: number;
+}
+
+export type QuotaStatus = 'ok' | 'warning' | 'critical' | 'unavailable';
+
+export function getQuotaStatus(quota: QuotaUsage | null): QuotaStatus {
+  if (!quota) {
+    return 'unavailable';
+  }
+
+  const percent = quota.totalPercentUsed;
+
+  if (percent >= 95) {
+    return 'critical';
+  }
+  if (percent >= 85) {
+    return 'warning';
+  }
+  return 'ok';
+}
+
+export type ProfileQuotaMap = Record<string, ProfileQuota>;
+
 export interface InitData {
   profiles: Profile[];
   currentProfile: Profile | null;
+  quotas: ProfileQuotaMap;
 }
 
 export type ToWebviewMessage =
   | { type: 'init'; data: InitData }
   | { type: 'profiles'; data: Profile[] }
   | { type: 'currentProfile'; data: Profile | null }
+  | { type: 'quotas'; data: ProfileQuotaMap }
   | { type: 'error'; message: string }
   | { type: 'success'; message: string };
 
