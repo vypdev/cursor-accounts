@@ -293,6 +293,19 @@ export class InstanceDetector {
   }
 
   /**
+   * Find a main Cursor process using the given user data directory.
+   */
+  async findProcessByUserDataDir(
+    userDataDir: string
+  ): Promise<CursorProcess | undefined> {
+    const processes = await this.getCursorProcesses();
+    return processes.find(
+      (proc) =>
+        proc.userDataDir != null && pathsEqual(proc.userDataDir, userDataDir)
+    );
+  }
+
+  /**
    * Get last detected instances (cached).
    */
   getLastDetection(): Map<string, InstanceInfo> {

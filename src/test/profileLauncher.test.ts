@@ -4,7 +4,12 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
 import { InstanceDetector } from '../profiles/instanceDetector';
-import { ProfileLauncher } from '../profiles/profileLauncher';
+import {
+  buildManualLaunchCommand,
+  buildSpawnEnv,
+  ProfileLauncher,
+  SPAWN_ENV_STRIP_KEYS,
+} from '../profiles/profileLauncher';
 import { ProfileManager } from '../profiles/profileManager';
 import { ProfileStorage } from '../profiles/profileStorage';
 
@@ -53,6 +58,77 @@ describe('ProfileLauncher', () => {
 
       assert.ok(args.includes('--user-data-dir'));
       assert.ok(args.includes('/test/path'));
+    });
+  });
+
+  describe('buildSpawnEnv', () => {
+    it('removes Electron extension-host variables', () => {
+      const saved: Record<string, string | undefined> = {};
+      for (const key of SPAWN_ENV_STRIP_KEYS) {
+        saved[key] = process.env[key];
+        process.env[key] = '1';
+      }
+
+      try {
+        const env = buildSpawnEnv();
+        for (const key of SPAWN_ENV_STRIP_KEYS) {
+          assert.equal(env[key], undefined);
+        }
+      } finally {
+        for (const key of SPAWN_ENV_STRIP_KEYS) {
+          if (saved[key] === undefined) {
+            delete process.env[key];
+          } else {
+            process.env[key] = saved[key];
+          }
+        }
+      }
+    });
+  });
+
+  describe('buildManualLaunchCommand', () => {
+    it('includes user-data-dir path', () => {
+      const command = buildManualLaunchCommand('/tmp/cursor-profile-test');
+      assert.match(command, /--user-data-dir=/);
+      assert.match(command, /cursor-profile-test/);
+    });
+  });
+
+  describe('waitForInstance', () => {
+    it('returns pid when process appears', async () => {
+      const profile = await manager.createProfile({
+        email: 'wait@example.com',
+      });
+
+      const instanceDetector = new InstanceDetector(manager, async () => [
+        { pid: 9001, userDataDir: profile.userDataDir },
+      ]);
+      const guardedLauncher = new ProfileLauncher(manager, instanceDetector);
+
+      const pid = await guardedLauncher.waitForInstance(
+        profile.userDataDir,
+        1000,
+        50
+      );
+
+      assert.equal(pid, 9001);
+    });
+
+    it('returns undefined when process never appears', async () => {
+      const profile = await manager.createProfile({
+        email: 'timeout@example.com',
+      });
+
+      const instanceDetector = new InstanceDetector(manager, async () => []);
+      const guardedLauncher = new ProfileLauncher(manager, instanceDetector);
+
+      const pid = await guardedLauncher.waitForInstance(
+        profile.userDataDir,
+        200,
+        50
+      );
+
+      assert.equal(pid, undefined);
     });
   });
 
@@ -120,7 +196,13 @@ describe('ProfileLauncher', () => {
       const guardedLauncher = new ProfileLauncher(manager, instanceDetector);
       const result = await guardedLauncher.forceLaunch(profile.id);
 
-      assert.notEqual(result.success, undefined);
+      const validation = await guardedLauncher.validateExecutable();
+      if (process.platform === 'darwin' && validation.valid) {
+        assert.equal(result.success, true, result.error);
+        assert.ok(result.pid != null || result.success);
+      } else {
+        assert.equal(typeof result.success, 'boolean');
+      }
     });
   });
 });

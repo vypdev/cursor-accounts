@@ -1,6 +1,7 @@
 import { ChildProcess, spawn } from 'child_process';
 import * as path from 'path';
 import * as extensionLog from '../logging/extensionLog';
+import { ensureDirectory } from '../utils/pathUtils';
 import { InstanceDetector } from './instanceDetector';
 import { ProfileManager } from './profileManager';
 import { Profile } from './types';
@@ -16,6 +17,16 @@ export interface LaunchOptions {
   force?: boolean;
 }
 
+/** Environment variables that break GUI launch when inherited from the extension host. */
+export const SPAWN_ENV_STRIP_KEYS = [
+  'ELECTRON_RUN_AS_NODE',
+  'ELECTRON_NO_ASAR',
+  'ELECTRON_NO_ATTACH_CONSOLE',
+] as const;
+
+const LAUNCH_VERIFY_TIMEOUT_MS = 5000;
+const LAUNCH_VERIFY_INTERVAL_MS = 500;
+
 export class ProfileLauncherError extends Error {
   constructor(
     message: string,
@@ -24,6 +35,38 @@ export class ProfileLauncherError extends Error {
     super(message);
     this.name = 'ProfileLauncherError';
   }
+}
+
+/**
+ * Build a clean environment for spawning Cursor outside the extension host.
+ */
+export function buildSpawnEnv(): NodeJS.ProcessEnv {
+  const env = { ...process.env };
+  for (const key of SPAWN_ENV_STRIP_KEYS) {
+    delete env[key];
+  }
+  return env;
+}
+
+/** Manual launch command shown when automated launch verification fails. */
+export function buildManualLaunchCommand(userDataDir: string): string {
+  switch (process.platform) {
+    case 'darwin':
+      return `open -na "/Applications/Cursor.app" --args --user-data-dir="${userDataDir}"`;
+    case 'win32': {
+      const localAppData = process.env.LOCALAPPDATA;
+      const execPath = localAppData
+        ? path.join(localAppData, 'Programs', 'Cursor', 'Cursor.exe')
+        : 'Cursor.exe';
+      return `"${execPath}" --user-data-dir="${userDataDir}"`;
+    }
+    default:
+      return `cursor --user-data-dir="${userDataDir}"`;
+  }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export class ProfileLauncher {
@@ -100,10 +143,32 @@ export class ProfileLauncher {
    */
   async launchWithPath(userDataDir: string): Promise<LaunchResult> {
     try {
+      await ensureDirectory(userDataDir);
+
       const execPath = this.getExecutablePath();
       const args = this.buildLaunchArgs(userDataDir);
 
-      const proc = await this.spawnProcess(execPath, args);
+      extensionLog.info(
+        `[ProfileLauncher] Spawn: ${this.formatSpawnCommand(execPath, args)}`
+      );
+
+      await this.spawnProcess(execPath, args);
+
+      let pid: number | undefined;
+      if (this.instanceDetector) {
+        pid = await this.waitForInstance(userDataDir);
+      }
+
+      if (this.instanceDetector && pid == null) {
+        const manualCmd = buildManualLaunchCommand(userDataDir);
+        extensionLog.warn(
+          `[ProfileLauncher] Cursor did not start for ${userDataDir}`
+        );
+        return {
+          success: false,
+          error: `Cursor did not start. Try launching manually from Terminal:\n${manualCmd}`,
+        };
+      }
 
       const profile = await this.profileManager.findProfileByPath(userDataDir);
       if (profile) {
@@ -113,11 +178,11 @@ export class ProfileLauncher {
       }
 
       extensionLog.info(
-        `[ProfileLauncher] Started Cursor (pid ${proc.pid ?? 'unknown'})`
+        `[ProfileLauncher] Instance detected (pid ${pid ?? 'unknown'})`
       );
       return {
         success: true,
-        pid: proc.pid,
+        pid,
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
@@ -130,12 +195,63 @@ export class ProfileLauncher {
   }
 
   /**
+   * Poll until a Cursor process with the given user data directory appears.
+   */
+  async waitForInstance(
+    userDataDir: string,
+    timeoutMs = LAUNCH_VERIFY_TIMEOUT_MS,
+    intervalMs = LAUNCH_VERIFY_INTERVAL_MS
+  ): Promise<number | undefined> {
+    if (!this.instanceDetector) {
+      return undefined;
+    }
+
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      const proc =
+        await this.instanceDetector.findProcessByUserDataDir(userDataDir);
+      if (proc) {
+        return proc.pid;
+      }
+      await sleep(intervalMs);
+    }
+
+    return undefined;
+  }
+
+  /**
+   * Get Cursor .app bundle path (macOS `open` target).
+   */
+  getAppBundlePath(): string {
+    switch (process.platform) {
+      case 'darwin':
+        return '/Applications/Cursor.app';
+      case 'win32': {
+        const localAppData = process.env.LOCALAPPDATA;
+        if (localAppData) {
+          return path.join(localAppData, 'Programs', 'Cursor');
+        }
+        throw new ProfileLauncherError(
+          'LOCALAPPDATA environment variable not set'
+        );
+      }
+      default:
+        return '/usr/bin/cursor';
+    }
+  }
+
+  /**
    * Get Cursor executable path for current platform.
    */
   getExecutablePath(): string {
     switch (process.platform) {
       case 'darwin':
-        return '/Applications/Cursor.app/Contents/MacOS/Cursor';
+        return path.join(
+          this.getAppBundlePath(),
+          'Contents',
+          'MacOS',
+          'Cursor'
+        );
       case 'win32': {
         const localAppData = process.env.LOCALAPPDATA;
         if (localAppData) {
@@ -190,6 +306,15 @@ export class ProfileLauncher {
     return await this.launchWithPath(profile.userDataDir);
   }
 
+  private formatSpawnCommand(execPath: string, args: string[]): string {
+    if (process.platform === 'darwin') {
+      const appPath = this.getAppBundlePath();
+      return `open -na ${JSON.stringify(appPath)} --args ${args.map((arg) => JSON.stringify(arg)).join(' ')}`;
+    }
+
+    return [execPath, ...args.map((arg) => JSON.stringify(arg))].join(' ');
+  }
+
   /**
    * Spawn Cursor process (platform-specific implementation).
    */
@@ -197,32 +322,68 @@ export class ProfileLauncher {
     execPath: string,
     args: string[]
   ): Promise<ChildProcess> {
+    const spawnEnv = buildSpawnEnv();
+
     return new Promise((resolve, reject) => {
       try {
         let proc: ChildProcess;
 
         if (process.platform === 'darwin') {
-          proc = spawn('open', ['-na', execPath, '--args', ...args], {
+          const appPath = this.getAppBundlePath();
+          proc = spawn('open', ['-na', appPath, '--args', ...args], {
             detached: true,
             stdio: 'ignore',
+            env: spawnEnv,
           });
         } else if (process.platform === 'win32') {
           proc = spawn(execPath, args, {
             detached: true,
             stdio: 'ignore',
             shell: true,
+            env: spawnEnv,
           });
         } else {
           proc = spawn(execPath, args, {
             detached: true,
             stdio: 'ignore',
+            env: spawnEnv,
           });
+        }
+
+        proc.on('error', (error) => {
+          reject(
+            new ProfileLauncherError(
+              'Failed to spawn process',
+              error instanceof Error ? error : undefined
+            )
+          );
+        });
+
+        if (process.platform === 'darwin') {
+          // `open` exits 0 after handing off to LaunchServices; that is success.
+          proc.on('exit', (code) => {
+            if (code === 0) {
+              resolve(proc);
+            } else {
+              reject(
+                new ProfileLauncherError(
+                  code != null
+                    ? `Failed to open Cursor (exit ${code})`
+                    : 'Process failed to start'
+                )
+              );
+            }
+          });
+          return;
         }
 
         proc.unref();
 
         setTimeout(() => {
-          if (proc.killed || proc.exitCode !== null) {
+          if (
+            proc.killed ||
+            (proc.exitCode != null && proc.exitCode !== 0)
+          ) {
             reject(new ProfileLauncherError('Process failed to start'));
           } else {
             resolve(proc);

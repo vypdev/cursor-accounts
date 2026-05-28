@@ -43,6 +43,7 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
   private view?: vscode.WebviewView;
   private panel?: vscode.WebviewPanel;
   private accountsFetchInFlight = false;
+  private launchInFlight = new Set<string>();
 
   public hasResolvedView(): boolean {
     return this.view !== undefined || this.panel !== undefined;
@@ -356,22 +357,36 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
   }
 
   private async handleLaunch(profileId: string): Promise<void> {
-    extensionLog.info(`[AccountsPanel] Launch requested for profile ${profileId}`);
-    const result = await this.profileLauncher.launch(profileId);
+    if (this.launchInFlight.has(profileId)) {
+      extensionLog.debug(
+        `[AccountsPanel] Launch ignored for ${profileId} (already in flight)`
+      );
+      return;
+    }
 
-    if (result.success) {
-      const profile = await this.profileManager.getProfile(profileId);
-      await this.postMessage({
-        type: 'success',
-        message: `Launching ${profile?.displayName ?? 'profile'}...`,
-      });
-      await this.refresh();
-      void this.refreshInstances();
-    } else {
-      await this.postMessage({
-        type: 'error',
-        message: result.error ?? 'Failed to launch profile',
-      });
+    this.launchInFlight.add(profileId);
+    try {
+      extensionLog.info(
+        `[AccountsPanel] Launch requested for profile ${profileId}`
+      );
+      const result = await this.profileLauncher.launch(profileId);
+
+      if (result.success) {
+        const profile = await this.profileManager.getProfile(profileId);
+        await this.postMessage({
+          type: 'success',
+          message: `Launched ${profile?.displayName ?? 'profile'}`,
+        });
+        await this.refresh();
+        void this.refreshInstances();
+      } else {
+        await this.postMessage({
+          type: 'error',
+          message: result.error ?? 'Failed to launch profile',
+        });
+      }
+    } finally {
+      this.launchInFlight.delete(profileId);
     }
   }
 
