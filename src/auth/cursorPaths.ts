@@ -1,3 +1,4 @@
+import { createHash } from 'crypto';
 import * as os from 'os';
 import * as path from 'path';
 
@@ -51,6 +52,23 @@ export const SECRETS_KEYS = {
   accessToken: 'cursorAccounts.accessToken',
   refreshToken: 'cursorAccounts.refreshToken',
 } as const;
+
+/** Stable short hash for scoping secrets to a profile user-data directory. */
+export function hashUserDataDir(userDataDir: string): string {
+  return createHash('sha256').update(userDataDir).digest('hex').slice(0, 16);
+}
+
+/** Profile-scoped secret keys (avoids mixing OAuth tokens across profiles). */
+export function getProfileSecretsKeys(userDataDir: string): {
+  accessToken: string;
+  refreshToken: string;
+} {
+  const suffix = hashUserDataDir(userDataDir);
+  return {
+    accessToken: `${SECRETS_KEYS.accessToken}.${suffix}`,
+    refreshToken: `${SECRETS_KEYS.refreshToken}.${suffix}`,
+  };
+}
 
 /** Legacy secret keys from the Cursor Quota extension (pre-rename). */
 export const LEGACY_SECRETS_KEYS = {

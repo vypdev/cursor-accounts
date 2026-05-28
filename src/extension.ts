@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { LEGACY_SECRETS_KEYS, SECRETS_KEYS } from './auth/cursorPaths';
 import { QuotaClient } from './api/quotaClient';
+import { QuotaUsage } from './api/types';
 import { TokenService } from './auth/tokenRefresh';
 import { registerProfileCommands } from './commands/profileCommands';
 import { affectsCursorAccountsConfig } from './config';
@@ -260,7 +261,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const statusBar = new StatusBarManager(context, profileDetector);
   statusBar.showOnActivate();
 
-  const tokenService = new TokenService(context);
+  const tokenService = new TokenService(context, profileDetector);
   const quotaClient = new QuotaClient(tokenService);
 
   refreshService = new RefreshService(
@@ -285,6 +286,18 @@ export function activate(context: vscode.ExtensionContext): void {
       await refreshService?.tickNow();
     }),
     vscode.commands.registerCommand('cursorAccounts.openUsage', async () => {
+      const cached = context.globalState.get<QuotaUsage>('lastQuota');
+      const isEnterprise =
+        cached?.membershipType === 'enterprise' ||
+        cached?.displayMode === 'monthlySpend';
+
+      if (isEnterprise) {
+        await vscode.env.openExternal(
+          vscode.Uri.parse('https://cursor.com/dashboard/usage')
+        );
+        return;
+      }
+
       await vscode.commands.executeCommand(
         'workbench.action.openSettings',
         '@id:cursor'

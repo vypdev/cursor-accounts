@@ -14,18 +14,31 @@ Cursor staff (forum, 2026) state there is **no public personal usage API** for i
 
 ### What this extension uses
 
-| Source | Endpoint | Auth |
-|--------|----------|------|
-| IDE backend (Connect RPC) | `POST https://api2.cursor.sh/aiserver.v1.DashboardService/GetCurrentPeriodUsage` | Bearer JWT from `cursorAuth/accessToken` |
+| Source | Endpoint | Auth | When |
+|--------|----------|------|------|
+| IDE backend (Connect RPC) | `POST https://api2.cursor.sh/aiserver.v1.DashboardService/GetCurrentPeriodUsage` | Bearer JWT from `cursorAuth/accessToken` | Pro/Ultra; also attempted for enterprise |
+| Web dashboard | `GET https://cursor.com/api/usage-summary` | `WorkosCursorSessionToken` cookie (derived from JWT) | Enterprise / team accounts; fallback when IDE data is empty |
 
-**Response fields used:**
+**IDE response fields used:**
 
 - `planUsage.totalPercentUsed` — total plan usage %
 - `planUsage.apiPercentUsed` — included/API pool % (shown as “included” bar)
 - `planUsage.autoPercentUsed` — Auto mode % (tooltip)
 - Spend fields in **cents**: `totalSpend`, `includedSpend`, `remaining`, `limit`
+- `spendLimitUsage` — on-demand / team pool spend (mapped to **Monthly Usage** when present)
 - `billingCycleStart` / `billingCycleEnd` (ms strings)
 - `displayMessage` (optional)
+
+**Web usage-summary fields used (enterprise parity):**
+
+- `membershipType`, `limitType`
+- `individualUsage.onDemand.used` / `.limit` — monthly on-demand spend (cents)
+- `teamUsage.onDemand` — team pool spend (cents)
+- `billingCycleStart` / `billingCycleEnd` — ISO 8601 timestamps
+
+### Multi-profile token resolution
+
+The status bar reads tokens from the **active window’s** `state.vscdb` (respects `--user-data-dir`), not a global default path. OAuth refresh tokens are stored in VS Code Secret Storage **scoped per user-data directory** to avoid mixing accounts across profiles.
 
 ### Authentication discovery path
 
@@ -39,8 +52,7 @@ Cursor staff (forum, 2026) state there is **no public personal usage API** for i
 | API | Notes |
 |-----|--------|
 | `GET api2.cursor.sh/auth/usage` | Legacy GPT-4 request counters |
-| `GET cursor.com/api/usage-summary` | Requires `WorkosCursorSessionToken` cookie |
-| Enterprise Admin API | Team-wide; not for personal IDE quota |
+| Enterprise Admin API (`api.cursor.com`) | Team-wide admin analytics; requires team API keys (out of scope) |
 
 ### Refresh strategy
 
@@ -50,7 +62,7 @@ Cursor staff (forum, 2026) state there is **no public personal usage API** for i
 - **AbortSignal.timeout(15s)** per request.
 - **Exponential backoff** on failures (max 5 minutes).
 - **Cache** — `globalState.lastQuota` for instant display on activation.
-- **Token refresh** — `POST api2.cursor.sh/oauth/token` with `refresh_token`; new tokens stored in `context.secrets` only.
+- **Token refresh** — `POST api2.cursor.sh/oauth/token` with `refresh_token`; new tokens stored in profile-scoped `context.secrets` (not written back to `state.vscdb`).
 
 ## 2. VS Code / Cursor extension API limits
 
@@ -90,7 +102,8 @@ This extension **does not** implement SQLite snapshot switching.
 - Reverse-engineered endpoints may change on Cursor updates.
 - `state.vscdb` can be large or locked; extension copies to temp when needed.
 - Included vs on-demand vs credits pools may not match a single percentage in all plan types.
-- Enterprise billing requires different API keys and endpoints (out of scope for v0.1).
+- Enterprise **Monthly Usage** depends on the undocumented web `usage-summary` endpoint when the IDE API returns empty plan data.
+- Team Admin API (`api.cursor.com`) is not used — requires separate admin API keys.
 
 ## References
 

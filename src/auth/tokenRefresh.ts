@@ -1,7 +1,12 @@
 import * as vscode from 'vscode';
 import { CursorAuthTokens } from '../api/types';
 import * as extensionLog from '../logging/extensionLog';
-import { getCursorStateDbPath, SECRETS_KEYS } from './cursorPaths';
+import { ProfileDetector } from '../profiles/profileDetector';
+import {
+  getProfileSecretsKeys,
+  getProfileStateDbPath,
+  SECRETS_KEYS,
+} from './cursorPaths';
 import { isTokenExpired, readAuthFromStateDb } from './tokenReader';
 
 const OAUTH_TOKEN_URL = 'https://api2.cursor.sh/oauth/token';
@@ -17,80 +22,112 @@ interface OAuthTokenResponse {
 export class TokenService {
   private readonly extensionPath: string;
 
-  constructor(private readonly context: vscode.ExtensionContext) {
+  constructor(
+    private readonly context: vscode.ExtensionContext,
+    private readonly profileDetector: ProfileDetector
+  ) {
     this.extensionPath = context.extensionPath;
   }
 
-  async getValidTokens(signal?: AbortSignal): Promise<CursorAuthTokens> {
-    const fromSecrets = await this.readFromSecrets();
-    if (fromSecrets?.accessToken && !isTokenExpired(fromSecrets.accessToken)) {
-      extensionLog.debug('[TokenService] Using access token from extension secrets');
-      return fromSecrets;
-    }
+  /** Resolve state.vscdb for the active Cursor window (respects --user-data-dir). */
+  getActiveStateDbPath(): string {
+    const userDataDir = this.profileDetector.getCurrentUserDataDir();
+    return getProfileStateDbPath(userDataDir);
+  }
 
-    const fromDb = await readAuthFromStateDb(
-      getCursorStateDbPath(),
-      this.extensionPath
-    );
+  async getValidTokens(signal?: AbortSignal): Promise<CursorAuthTokens> {
+    const userDataDir = this.profileDetector.getCurrentUserDataDir();
+    const stateDbPath = getProfileStateDbPath(userDataDir);
+    const profileSecrets = getProfileSecretsKeys(userDataDir);
+
+    const fromDb = await readAuthFromStateDb(stateDbPath, this.extensionPath);
     if (!fromDb?.accessToken) {
+      const fromSecrets = await this.readFromSecrets(profileSecrets);
+      if (fromSecrets?.accessToken) {
+        extensionLog.debug(
+          '[TokenService] Using access token from profile-scoped secrets (no DB tokens)'
+        );
+        return fromSecrets;
+      }
+
+      const legacySecrets = await this.readFromSecrets(SECRETS_KEYS);
+      if (legacySecrets?.accessToken && !isTokenExpired(legacySecrets.accessToken)) {
+        extensionLog.debug(
+          '[TokenService] Using access token from legacy global secrets'
+        );
+        return legacySecrets;
+      }
+
       throw new Error(
         'Cursor is not signed in. Sign in via Cursor Settings, then reload the window.'
       );
     }
 
     if (!isTokenExpired(fromDb.accessToken)) {
-      extensionLog.debug('[TokenService] Loaded valid tokens from Cursor state database');
-      await this.persistTokens(fromDb);
+      extensionLog.debug(
+        '[TokenService] Loaded valid tokens from active profile state database'
+      );
+      await this.persistTokens(fromDb, profileSecrets);
       return fromDb;
     }
 
-    if (!fromDb.refreshToken) {
-      const refreshed = await this.readFromSecrets();
-      if (refreshed?.refreshToken) {
-        fromDb.refreshToken = refreshed.refreshToken;
-      }
+    const fromProfileSecrets = await this.readFromSecrets(profileSecrets);
+    if (
+      fromProfileSecrets?.accessToken &&
+      !isTokenExpired(fromProfileSecrets.accessToken)
+    ) {
+      extensionLog.debug(
+        '[TokenService] Using refreshed access token from profile-scoped secrets'
+      );
+      return {
+        ...fromProfileSecrets,
+        email: fromDb.email ?? fromProfileSecrets.email,
+      };
     }
 
-    if (!fromDb.refreshToken) {
+    let refreshToken = fromDb.refreshToken;
+    if (!refreshToken) {
+      refreshToken =
+        fromProfileSecrets?.refreshToken ??
+        (await this.readFromSecrets(SECRETS_KEYS))?.refreshToken;
+    }
+
+    if (!refreshToken) {
       throw new Error(
         'Cursor session expired. Sign in again via Cursor Settings.'
       );
     }
 
     extensionLog.debug('[TokenService] Access token expired; refreshing via OAuth');
-    const refreshed = await this.refreshTokens(fromDb.refreshToken, signal);
-    await this.persistTokens(refreshed);
-    return refreshed;
+    const refreshed = await this.refreshTokens(refreshToken, profileSecrets, signal);
+    return { ...refreshed, email: fromDb.email ?? refreshed.email };
   }
 
-  private async readFromSecrets(): Promise<CursorAuthTokens | null> {
-    const accessToken = await this.context.secrets.get(
-      SECRETS_KEYS.accessToken
-    );
+  private async readFromSecrets(keys: {
+    accessToken: string;
+    refreshToken: string;
+  }): Promise<CursorAuthTokens | null> {
+    const accessToken = await this.context.secrets.get(keys.accessToken);
     if (!accessToken) {
       return null;
     }
-    const refreshToken = await this.context.secrets.get(
-      SECRETS_KEYS.refreshToken
-    );
+    const refreshToken = await this.context.secrets.get(keys.refreshToken);
     return { accessToken, refreshToken };
   }
 
-  private async persistTokens(tokens: CursorAuthTokens): Promise<void> {
-    await this.context.secrets.store(
-      SECRETS_KEYS.accessToken,
-      tokens.accessToken
-    );
+  private async persistTokens(
+    tokens: CursorAuthTokens,
+    keys: { accessToken: string; refreshToken: string }
+  ): Promise<void> {
+    await this.context.secrets.store(keys.accessToken, tokens.accessToken);
     if (tokens.refreshToken) {
-      await this.context.secrets.store(
-        SECRETS_KEYS.refreshToken,
-        tokens.refreshToken
-      );
+      await this.context.secrets.store(keys.refreshToken, tokens.refreshToken);
     }
   }
 
   async refreshTokens(
     refreshToken: string,
+    profileSecrets?: { accessToken: string; refreshToken: string },
     signal?: AbortSignal
   ): Promise<CursorAuthTokens> {
     const response = await fetch(OAUTH_TOKEN_URL, {
@@ -117,7 +154,11 @@ export class TokenService {
       accessToken: body.access_token,
       refreshToken: body.refresh_token ?? refreshToken,
     };
-    await this.persistTokens(tokens);
+
+    const secretsKeys =
+      profileSecrets ??
+      getProfileSecretsKeys(this.profileDetector.getCurrentUserDataDir());
+    await this.persistTokens(tokens, secretsKeys);
     extensionLog.info('[TokenService] OAuth token refresh succeeded');
     return tokens;
   }

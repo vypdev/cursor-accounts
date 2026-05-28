@@ -1,4 +1,4 @@
-import { ProfileAccountView, QuotaUsage } from '../api/types';
+import { ProfileAccountView, QuotaUsage, getEffectiveUsagePercent } from '../api/types';
 
 /**
  * Represents a single Cursor account profile.
@@ -207,7 +207,7 @@ export function getQuotaStatus(quota: QuotaUsage | null): QuotaStatus {
     return 'unavailable';
   }
 
-  const percent = quota.totalPercentUsed;
+  const percent = getEffectiveUsagePercent(quota);
 
   if (percent >= 95) {
     return 'critical';

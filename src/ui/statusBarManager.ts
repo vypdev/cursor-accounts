@@ -1,12 +1,13 @@
 import * as vscode from 'vscode';
 import * as extensionLog from '../logging/extensionLog';
-import { QuotaUsage } from '../api/types';
+import { QuotaUsage, getEffectiveUsagePercent, isEnterpriseUsage } from '../api/types';
 import { getCursorAccountsConfig } from '../config';
 import { ProfileDetector } from '../profiles/profileDetector';
 import {
   clampPercent,
   formatBillingDate,
   formatCents,
+  formatMonthlySpend,
   formatPercent,
   renderProgressBar,
 } from '../utils/formatters';
@@ -65,7 +66,10 @@ export class StatusBarManager {
 
   showLoading(): void {
     const cfg = getCursorAccountsConfig();
-    if (cfg.showIncluded) {
+    const cached = this.readCache();
+    const hideIncluded = isEnterpriseUsage(cached);
+
+    if (cfg.showIncluded && !hideIncluded) {
       this.includedItem.text = '$(sync~spin) Included quota…';
       this.includedItem.tooltip = 'Loading Cursor included quota usage…';
       this.includedItem.backgroundColor = undefined;
@@ -75,8 +79,12 @@ export class StatusBarManager {
     }
 
     if (cfg.showTotal) {
-      this.totalItem.text = '$(sync~spin) Plan quota…';
-      this.totalItem.tooltip = 'Loading Cursor plan quota usage…';
+      this.totalItem.text = hideIncluded
+        ? '$(sync~spin) Monthly usage…'
+        : '$(sync~spin) Plan quota…';
+      this.totalItem.tooltip = hideIncluded
+        ? 'Loading Cursor monthly usage…'
+        : 'Loading Cursor plan quota usage…';
       this.totalItem.backgroundColor = undefined;
       this.totalItem.show();
     } else {
@@ -86,11 +94,14 @@ export class StatusBarManager {
 
   render(usage: QuotaUsage): void {
     const cfg = getCursorAccountsConfig();
+    const isEnterprise = isEnterpriseUsage(usage);
+    const isMonthlySpend = usage.displayMode === 'monthlySpend';
+    const effectivePct = clampPercent(getEffectiveUsagePercent(usage));
     const includedPct = clampPercent(usage.apiPercentUsed);
     const totalPct = clampPercent(usage.totalPercentUsed);
     const tooltip = this.buildTooltip(usage, cfg.showAccountEmail);
 
-    if (cfg.showIncluded) {
+    if (cfg.showIncluded && !isEnterprise) {
       const bar = renderProgressBar(includedPct);
       this.includedItem.text = `$(graph) ${bar} ${formatPercent(includedPct)} included`;
       this.includedItem.tooltip = tooltip;
@@ -101,10 +112,24 @@ export class StatusBarManager {
     }
 
     if (cfg.showTotal) {
-      const bar = renderProgressBar(totalPct);
-      this.totalItem.text = `$(pulse) ${bar} ${formatPercent(totalPct)} plan`;
+      const bar = renderProgressBar(isEnterprise || isMonthlySpend ? effectivePct : totalPct);
+
+      if (isEnterprise && isMonthlySpend) {
+        const spend = usage.monthlySpend ?? usage.totalSpend;
+        const limit = usage.monthlyLimit;
+        this.totalItem.text = `$(pulse) ${bar} ${formatPercent(effectivePct)} · ${formatMonthlySpend(spend, limit)}`;
+      } else if (isMonthlySpend) {
+        const spend = usage.monthlySpend ?? usage.totalSpend;
+        const limit = usage.monthlyLimit;
+        this.totalItem.text = `$(pulse) ${bar} ${formatMonthlySpend(spend, limit)} monthly`;
+      } else {
+        this.totalItem.text = `$(pulse) ${bar} ${formatPercent(totalPct)} plan`;
+      }
+
       this.totalItem.tooltip = tooltip;
-      this.totalItem.backgroundColor = backgroundForPercent(totalPct);
+      this.totalItem.backgroundColor = backgroundForPercent(
+        isEnterprise || isMonthlySpend ? effectivePct : totalPct
+      );
       this.totalItem.show();
     } else {
       this.totalItem.hide();
@@ -116,8 +141,10 @@ export class StatusBarManager {
   showError(message: string): void {
     const cfg = getCursorAccountsConfig();
     const text = `$(warning) Quota unavailable`;
+    const cached = this.readCache();
+    const hideIncluded = isEnterpriseUsage(cached);
 
-    if (cfg.showIncluded) {
+    if (cfg.showIncluded && !hideIncluded) {
       this.includedItem.text = text;
       this.includedItem.tooltip = message;
       this.includedItem.backgroundColor = new vscode.ThemeColor(
@@ -190,28 +217,54 @@ export class StatusBarManager {
     const md = new vscode.MarkdownString('', true);
     md.isTrusted = true;
 
-    md.appendMarkdown('### Cursor plan quota\n\n');
+    const isMonthlySpend = usage.displayMode === 'monthlySpend';
+    const title = isMonthlySpend ? 'Cursor Monthly Usage' : 'Cursor plan quota';
+    md.appendMarkdown(`### ${title}\n\n`);
+
     if (showEmail && usage.accountEmail) {
       md.appendMarkdown(`**Account:** ${usage.accountEmail}\n\n`);
     }
 
-    md.appendMarkdown(
-      `| | |\n|---|---|\n` +
-        `| **Total plan used** | ${formatPercent(usage.totalPercentUsed)} |\n` +
-        `| **Included (API) used** | ${formatPercent(usage.apiPercentUsed)} |\n` +
-        `| **Auto mode used** | ${formatPercent(usage.autoPercentUsed)} |\n` +
-        `| **Spend** | ${formatCents(usage.totalSpend)} / ${formatCents(usage.limit)} |\n` +
-        `| **Included spend** | ${formatCents(usage.includedSpend)} |\n` +
-        `| **Remaining** | ${formatCents(usage.remaining)} |\n` +
-        `| **Billing cycle** | ${formatBillingDate(usage.billingCycleStart)} → ${formatBillingDate(usage.billingCycleEnd)} |\n`
-    );
+    if (usage.membershipType) {
+      md.appendMarkdown(`**Plan:** ${usage.membershipType}\n\n`);
+    }
+
+    if (isMonthlySpend) {
+      const spend = usage.monthlySpend ?? usage.totalSpend;
+      const limit = usage.monthlyLimit;
+      md.appendMarkdown(
+        `| | |\n|---|---|\n` +
+          `| **Monthly spend** | ${formatMonthlySpend(spend, limit)} |\n` +
+          `| **Used (on-demand)** | ${formatCents(spend)} |\n` +
+          `| **Limit** | ${limit == null ? 'unlimited' : formatCents(limit)} |\n` +
+          `| **Remaining** | ${formatCents(usage.remaining)} |\n` +
+          `| **Billing cycle** | ${formatBillingDate(usage.billingCycleStart)} → ${formatBillingDate(usage.billingCycleEnd)} |\n`
+      );
+
+      if (usage.teamMonthlySpend != null) {
+        md.appendMarkdown(
+          `| **Team pool spend** | ${formatMonthlySpend(usage.teamMonthlySpend, usage.teamMonthlyLimit)} |\n`
+        );
+      }
+    } else {
+      md.appendMarkdown(
+        `| | |\n|---|---|\n` +
+          `| **Total plan used** | ${formatPercent(usage.totalPercentUsed)} |\n` +
+          `| **Included (API) used** | ${formatPercent(usage.apiPercentUsed)} |\n` +
+          `| **Auto mode used** | ${formatPercent(usage.autoPercentUsed)} |\n` +
+          `| **Spend** | ${formatCents(usage.totalSpend)} / ${formatCents(usage.limit)} |\n` +
+          `| **Included spend** | ${formatCents(usage.includedSpend)} |\n` +
+          `| **Remaining** | ${formatCents(usage.remaining)} |\n` +
+          `| **Billing cycle** | ${formatBillingDate(usage.billingCycleStart)} → ${formatBillingDate(usage.billingCycleEnd)} |\n`
+      );
+    }
 
     if (usage.displayMessage) {
       md.appendMarkdown(`\n_${usage.displayMessage}_\n`);
     }
 
     md.appendMarkdown(
-      '\n\nClick to open **Cursor Settings → Usage**. Use **Cursor Accounts: Refresh Now** to update.'
+      '\n\nClick to open usage details. Use **Cursor Accounts: Refresh Now** to update.'
     );
     return md;
   }

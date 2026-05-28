@@ -27,18 +27,36 @@ export function formatCents(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
-/** Parse ms timestamp strings from Cursor API responses. */
-export function formatBillingDate(msString: string | undefined): string {
-  if (!msString) {
+/** Parse ms timestamp strings or ISO 8601 dates from Cursor API responses. */
+export function formatBillingDate(dateString: string | undefined): string {
+  if (!dateString) {
     return '—';
   }
-  const ms = Number(msString);
-  if (!Number.isFinite(ms)) {
+
+  const ms = Number(dateString);
+  const date = Number.isFinite(ms)
+    ? new Date(ms)
+    : new Date(dateString);
+
+  if (Number.isNaN(date.getTime())) {
     return '—';
   }
-  return new Date(ms).toLocaleDateString(undefined, {
+
+  return date.toLocaleDateString(undefined, {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
   });
+}
+
+/** Format monthly spend with optional unlimited limit. */
+export function formatMonthlySpend(
+  spendCents: number,
+  limitCents: number | null | undefined
+): string {
+  const spend = formatCents(spendCents);
+  if (limitCents == null) {
+    return `${spend} / unlimited`;
+  }
+  return `${spend} / ${formatCents(limitCents)}`;
 }

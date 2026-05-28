@@ -2,7 +2,7 @@
   "name": "cursor-accounts",
   "displayName": "Cursor Accounts",
   "description": "Manage Cursor accounts and show plan quota usage in the status bar without opening Settings.",
-  "version": "0.1.14",
+  "version": "0.1.17",
   "publisher": "vypdev",
   "license": "MIT",
   "engines": {
@@ -148,6 +148,7 @@
   },
   "scripts": {
     "vscode:prepublish": "node scripts/prepublish.mjs",
+    "debug:usage": "node scripts/debug-usage.mjs",
     "compile": "tsc -p ./ && pnpm --dir webview run build",
     "compile:webview": "pnpm --dir webview run build",
     "watch": "tsc -watch -p ./",

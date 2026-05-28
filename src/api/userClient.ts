@@ -1,5 +1,7 @@
-import { decodeJwtPayload } from '../auth/tokenReader';
+import { buildWorkosSessionCookie } from '../auth/sessionCookie';
 import { CursorAccountInfo } from './types';
+
+export { buildWorkosSessionCookie };
 
 const AUTH_ME_ENDPOINT = 'https://cursor.com/api/auth/me';
 
@@ -11,18 +13,6 @@ export class UserApiError extends Error {
     super(message);
     this.name = 'UserApiError';
   }
-}
-
-/** Build WorkOS session cookie required by cursor.com web endpoints. */
-export function buildWorkosSessionCookie(accessToken: string): string {
-  const payload = decodeJwtPayload(accessToken);
-  const sub = payload?.sub;
-  if (typeof sub !== 'string' || !sub) {
-    throw new UserApiError('Access token missing sub claim');
-  }
-
-  const userId = sub.includes('|') ? sub.split('|').pop()! : sub;
-  return `WorkosCursorSessionToken=${userId}%3A%3A${accessToken}`;
 }
 
 export function mapAccountInfoResponse(

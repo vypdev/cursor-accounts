@@ -5,12 +5,12 @@ Cursor extension that shows **plan quota usage** in the IDE status bar after act
 ## Features
 
 - Two status bar indicators (visible on activation):
-  1. **Included quota usage** — API/included pool (`apiPercentUsed`) with progress bar and percentage
-  2. **Plan quota usage** — total plan usage (`totalPercentUsed`) with progress bar and percentage
+  1. **Included quota usage** — API/included pool (`apiPercentUsed`) with progress bar and percentage (Pro/Ultra)
+  2. **Plan quota usage** — total plan usage (`totalPercentUsed`) or **Monthly Usage** spend for enterprise (`$94.00 / $600.00 monthly`)
 - Separates **Auto mode** vs included/API usage in tooltips
 - Auto-refresh (default 60s, configurable)
 - Cached last-known usage on startup while fetching
-- Click status bar → guidance to open **Cursor Settings → Usage**
+- Click status bar → **Cursor Settings → Usage** (Pro/Ultra) or **cursor.com/dashboard/usage** (enterprise)
 - Command: **Cursor Accounts: Refresh Now**
 
 ## Prerequisites
@@ -60,10 +60,12 @@ The extension was renamed to **Cursor Accounts** (`vypdev.cursor-accounts`). Uni
 
 ## How it works
 
-1. Reads the Cursor session from local `state.vscdb` (`cursorAuth/accessToken`, `cursorAuth/refreshToken`).
-2. Calls the same reverse-engineered endpoint the IDE uses:  
+1. Reads the Cursor session from the **active window’s** local `state.vscdb` (`cursorAuth/accessToken`, `cursorAuth/refreshToken`) — respects `--user-data-dir` for multi-profile setups.
+2. Calls the reverse-engineered IDE endpoint:  
    `POST https://api2.cursor.sh/aiserver.v1.DashboardService/GetCurrentPeriodUsage`
-3. Refreshes expired tokens via `https://api2.cursor.sh/oauth/token` and stores them in VS Code **Secret Storage** (does not write back to `state.vscdb`).
+3. For **enterprise / team** accounts (or when IDE data is empty), also calls the web dashboard endpoint:  
+   `GET https://cursor.com/api/usage-summary` (session cookie derived from the same JWT)
+4. Refreshes expired tokens via `https://api2.cursor.sh/oauth/token` and stores them in VS Code **Secret Storage** scoped per profile (does not write back to `state.vscdb`).
 
 See [docs/RESEARCH.md](docs/RESEARCH.md) for data sources, limitations, and account-switching investigation.
 
@@ -89,6 +91,8 @@ Community “account switcher” extensions swap SQLite snapshots of `state.vscd
 | `Quota unavailable` | Confirm **Cursor Settings → Usage** works natively; sign in again |
 | Stuck on loading | Run **Cursor Accounts: Refresh Now** from the Command Palette |
 | Wrong percentages | Cursor may show included vs credits separately; compare with Settings UI |
+| Wrong account in status bar | Ensure each profile uses a separate `--user-data-dir`; enable `showAccountEmail` to verify |
+| Enterprise shows 0% | Compare with [cursor.com/dashboard/usage](https://cursor.com/dashboard/usage); run **Refresh Now** |
 | DB read errors | Uses bundled SQLite binary (no installation required). If issues persist, check Extension Host log |
 
 ## Platform Support
@@ -113,14 +117,14 @@ Validate all bundled binaries with `bash scripts/verify-binaries.sh`.
 ## Privacy
 
 - Reads auth tokens from your local Cursor install (same data the IDE already uses).
-- Network requests go only to `api2.cursor.sh` (Cursor).
+- Network requests go to `api2.cursor.sh` and `cursor.com` (Cursor) only.
 - No third-party servers.
 
 ## Known limitations
 
 - **Unofficial API** — may change without notice when Cursor updates.
-- **Enterprise teams** — Admin/Analytics APIs at `api.cursor.com` are not used (team keys required).
-- **Credits vs included pool** — UI follows `GetCurrentPeriodUsage`; “100% included” in Settings can still allow usage via credits.
+- **Enterprise teams** — Monthly Usage uses the web dashboard API; team Admin/Analytics APIs at `api.cursor.com` are not used (admin API keys required).
+- **Credits vs included pool** — UI follows combined IDE + web sources; “100% included” in Settings can still allow usage via credits.
 - **Cursor-only** — built for Cursor; standard VS Code may lack `state.vscdb` auth keys.
 
 ## Development

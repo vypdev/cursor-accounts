@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { getQuotaStatus, Profile, ProfileAccountView, ProfileQuota } from '../types';
+import { getEffectiveUsagePercent, getQuotaStatus, formatEnterpriseUsageLabel, formatMonthlySpendLabel, isEnterpriseUsage, Profile, ProfileAccountView, ProfileQuota } from '../types';
 
 interface ProfileCardProps {
   profile: Profile;
@@ -80,6 +80,13 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
   const quotaStatus = quota?.quota
     ? getQuotaStatus(quota.quota)
     : 'unavailable';
+
+  const usagePercent = quota?.quota
+    ? getEffectiveUsagePercent(quota.quota)
+    : 0;
+
+  const isMonthlySpend = quota?.quota?.displayMode === 'monthlySpend';
+  const isEnterprise = isEnterpriseUsage(quota?.quota);
 
   const accountName = account?.accountName ?? profile.email;
   const showAvatar = account?.pictureUrl && !avatarError;
@@ -199,15 +206,33 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
                 <div
                   className={`quota-fill ${quotaStatus}`}
                   style={{
-                    width: `${Math.min(100, Math.max(0, quota.quota.totalPercentUsed))}%`,
+                    width: `${Math.min(100, Math.max(0, usagePercent))}%`,
                   }}
                 />
               </div>
               <div className="quota-text">
-                <span className="percent">
-                  {quota.quota.totalPercentUsed.toFixed(0)}%
-                </span>
-                <span className="label">used</span>
+                {isEnterprise && isMonthlySpend ? (
+                  <>
+                    <span className="percent">
+                      {formatEnterpriseUsageLabel(quota.quota!)}
+                    </span>
+                    <span className="label">used</span>
+                  </>
+                ) : isMonthlySpend ? (
+                  <>
+                    <span className="percent">
+                      {formatMonthlySpendLabel(quota.quota!)}
+                    </span>
+                    <span className="label">monthly</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="percent">
+                      {quota.quota!.totalPercentUsed.toFixed(0)}%
+                    </span>
+                    <span className="label">used</span>
+                  </>
+                )}
                 {quotaStatus === 'warning' && (
                   <span className="warning-icon" aria-label="Warning">
                     ⚠️
@@ -220,10 +245,20 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
                 )}
               </div>
               <div className="quota-details">
-                <span>
-                  Remaining: ${(quota.quota.remaining / 100).toFixed(2)}
-                </span>
-                <span>Resets: {formatResetDate(quota.quota.billingCycleEnd)}</span>
+                {isEnterprise && isMonthlySpend ? (
+                  <span>
+                    Used: {formatEnterpriseUsageLabel(quota.quota!)}
+                  </span>
+                ) : isMonthlySpend ? (
+                  <span>
+                    Monthly: {formatMonthlySpendLabel(quota.quota!)}
+                  </span>
+                ) : (
+                  <span>
+                    Remaining: ${(quota.quota!.remaining / 100).toFixed(2)}
+                  </span>
+                )}
+                <span>Resets: {formatResetDate(quota.quota!.billingCycleEnd)}</span>
               </div>
             </>
           ) : (

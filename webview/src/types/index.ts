@@ -1,9 +1,13 @@
 /**
  * Mirror of extension-side types for webview consumption.
  *
- * IMPORTANT: Keep in sync with src/profiles/types.ts
+ * IMPORTANT: Keep in sync with src/api/types.ts and src/profiles/types.ts
  * These are duplicated because webview cannot import from extension code.
  */
+
+export type AccountMembership = 'pro' | 'ultra' | 'enterprise' | string;
+export type UsageDisplayMode = 'percent' | 'monthlySpend';
+export type UsageDataSource = 'ide' | 'web';
 
 export interface Profile {
   id: string;
@@ -39,6 +43,14 @@ export interface QuotaUsage {
   displayMessage?: string;
   accountEmail?: string;
   fetchedAt: number;
+  membershipType?: AccountMembership;
+  limitType?: 'user' | 'team';
+  displayMode?: UsageDisplayMode;
+  monthlySpend?: number;
+  monthlyLimit?: number | null;
+  teamMonthlySpend?: number;
+  teamMonthlyLimit?: number | null;
+  dataSource?: UsageDataSource;
 }
 
 export interface ProfileQuota {
@@ -59,12 +71,36 @@ export interface ProfileAccountView {
 
 export type QuotaStatus = 'ok' | 'warning' | 'critical' | 'unavailable';
 
+export function isEnterpriseUsage(quota: QuotaUsage | null | undefined): boolean {
+  if (!quota) {
+    return false;
+  }
+  return quota.membershipType === 'enterprise' || quota.limitType === 'team';
+}
+
+export function getEffectiveUsagePercent(quota: QuotaUsage | null): number {
+  if (!quota) {
+    return 0;
+  }
+
+  if (quota.displayMode === 'monthlySpend') {
+    const spend = quota.monthlySpend ?? 0;
+    const limit = quota.monthlyLimit;
+    if (limit != null && limit > 0) {
+      return Math.min(100, Math.max(0, (spend / limit) * 100));
+    }
+    return 0;
+  }
+
+  return quota.totalPercentUsed;
+}
+
 export function getQuotaStatus(quota: QuotaUsage | null): QuotaStatus {
   if (!quota) {
     return 'unavailable';
   }
 
-  const percent = quota.totalPercentUsed;
+  const percent = getEffectiveUsagePercent(quota);
 
   if (percent >= 95) {
     return 'critical';
@@ -153,4 +189,27 @@ export interface WebviewPersistedState {
   version: number;
   showAddForm?: boolean;
   editingProfileId?: string | null;
+}
+
+function formatCents(cents: number): string {
+  if (!Number.isFinite(cents)) {
+    return '$0.00';
+  }
+  return `$${(cents / 100).toFixed(2)}`;
+}
+
+/** Format monthly spend for profile card display. */
+export function formatMonthlySpendLabel(quota: QuotaUsage): string {
+  const spend = quota.monthlySpend ?? quota.totalSpend ?? 0;
+  const limit = quota.monthlyLimit;
+  if (limit == null) {
+    return `${formatCents(spend)} / unlimited`;
+  }
+  return `${formatCents(spend)} / ${formatCents(limit)}`;
+}
+
+/** Format enterprise usage as percent + spend (e.g. "16% · $94.00/$600.00"). */
+export function formatEnterpriseUsageLabel(quota: QuotaUsage): string {
+  const percent = Math.round(getEffectiveUsagePercent(quota));
+  return `${percent}% · ${formatMonthlySpendLabel(quota)}`;
 }
