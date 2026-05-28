@@ -23,7 +23,7 @@ describe('ProfileImporter', () => {
 
   beforeEach(async () => {
     tempDir = await fs.mkdtemp(
-      path.join(os.tmpdir(), 'cursor-quota-import-test-')
+      path.join(os.tmpdir(), 'cursor-accounts-import-test-')
     );
     const storage = new ProfileStorage(tempDir);
     manager = new ProfileManager(storage);

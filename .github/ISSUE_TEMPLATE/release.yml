@@ -1,5 +1,5 @@
 name: 🚀 Release Issue
-description: Request a new release for Cursor Quota (only team members)
+description: Request a new release for Cursor Accounts (only team members)
 title: "<YOUR TITLE HERE>"
 labels: ["release", "branched", "priority: medium"]
 body:

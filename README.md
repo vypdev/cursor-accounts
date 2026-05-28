@@ -1,4 +1,4 @@
-# Cursor Quota
+# Cursor Accounts
 
 Cursor extension that shows **plan quota usage** in the IDE status bar after activation—no need to open **Settings** manually.
 
@@ -11,7 +11,7 @@ Cursor extension that shows **plan quota usage** in the IDE status bar after act
 - Auto-refresh (default 60s, configurable)
 - Cached last-known usage on startup while fetching
 - Click status bar → guidance to open **Cursor Settings → Usage**
-- Command: **Cursor Quota: Refresh Now**
+- Command: **Cursor Accounts: Refresh Now**
 
 ## Prerequisites
 
@@ -44,15 +44,19 @@ Then in Cursor: **Extensions** → **⋯** → **Install from VSIX…** → sele
 
 Reload the window if prompted. Status bar items appear automatically on startup (`onStartupFinished`)—no manual setup.
 
+### Upgrading from Cursor Quota (`vypdev.cursor-quota`)
+
+The extension was renamed to **Cursor Accounts** (`vypdev.cursor-accounts`). Uninstall the old **Cursor Quota** extension before installing the new VSIX to avoid duplicate sidebar entries. Settings and cached tokens from `cursorQuota.*` are migrated automatically on first activation.
+
 ## Configuration
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `cursorQuota.refresh.enabled` | `true` | Enable automatic polling |
-| `cursorQuota.refresh.intervalSeconds` | `60` | Poll interval (30–300 seconds) |
-| `cursorQuota.statusBar.showIncluded` | `true` | Show included usage indicator |
-| `cursorQuota.statusBar.showTotal` | `true` | Show total plan percentage indicator |
-| `cursorQuota.statusBar.showAccountEmail` | `false` | Show cached email in tooltips |
+| `cursorAccounts.refresh.enabled` | `true` | Enable automatic polling |
+| `cursorAccounts.refresh.intervalSeconds` | `60` | Poll interval (30–300 seconds) |
+| `cursorAccounts.statusBar.showIncluded` | `true` | Show included usage indicator |
+| `cursorAccounts.statusBar.showTotal` | `true` | Show total plan percentage indicator |
+| `cursorAccounts.statusBar.showAccountEmail` | `false` | Show cached email in tooltips |
 
 ## How it works
 
@@ -74,7 +78,7 @@ open -na "/Applications/Cursor.app" \
   --args --user-data-dir="$HOME/.cursor-profile-work"
 ```
 
-Optional: enable `cursorQuota.statusBar.showAccountEmail` to display the cached login email in tooltips and avoid using the wrong account.
+Optional: enable `cursorAccounts.statusBar.showAccountEmail` to display the cached login email in tooltips and avoid using the wrong account.
 
 Community “account switcher” extensions swap SQLite snapshots of `state.vscdb`—unsupported, fragile, and a security risk. This project does **not** implement that.
 
@@ -83,7 +87,7 @@ Community “account switcher” extensions swap SQLite snapshots of `state.vscd
 | Symptom | Action |
 |---------|--------|
 | `Quota unavailable` | Confirm **Cursor Settings → Usage** works natively; sign in again |
-| Stuck on loading | Run **Cursor Quota: Refresh Now** from the Command Palette |
+| Stuck on loading | Run **Cursor Accounts: Refresh Now** from the Command Palette |
 | Wrong percentages | Cursor may show included vs credits separately; compare with Settings UI |
 | DB read errors | Uses bundled SQLite binary (no installation required). If issues persist, check Extension Host log |
 

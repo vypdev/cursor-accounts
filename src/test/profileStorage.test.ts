@@ -15,7 +15,7 @@ describe('ProfileStorage', () => {
 
   beforeEach(async () => {
     tempDir = await fs.mkdtemp(
-      path.join(os.tmpdir(), 'cursor-quota-test-')
+      path.join(os.tmpdir(), 'cursor-accounts-test-')
     );
     storage = new ProfileStorage(tempDir);
   });

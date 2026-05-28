@@ -36,7 +36,7 @@ const vscodeMock = {
       show: () => undefined,
       hide: () => undefined,
       dispose: () => undefined,
-      name: 'Cursor Quota',
+      name: 'Cursor Accounts',
     }),
   },
   commands: {

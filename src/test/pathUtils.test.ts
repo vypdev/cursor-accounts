@@ -107,7 +107,7 @@ describe('pathUtils', () => {
     it('creates directory if it does not exist', async () => {
       const fs = await import('fs/promises');
       const tempDir = await fs.mkdtemp(
-        path.join(os.tmpdir(), 'cursor-quota-pathutils-')
+        path.join(os.tmpdir(), 'cursor-accounts-pathutils-')
       );
       const newDir = path.join(tempDir, 'nested', 'dir');
 
@@ -124,7 +124,7 @@ describe('pathUtils', () => {
       const fs = await import('fs/promises');
       const tempFile = path.join(
         os.tmpdir(),
-        `cursor-quota-pathutils-${Date.now()}.txt`
+        `cursor-accounts-pathutils-${Date.now()}.txt`
       );
 
       try {

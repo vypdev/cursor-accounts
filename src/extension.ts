@@ -1,8 +1,9 @@
 import * as vscode from 'vscode';
+import { LEGACY_SECRETS_KEYS, SECRETS_KEYS } from './auth/cursorPaths';
 import { QuotaClient } from './api/quotaClient';
 import { TokenService } from './auth/tokenRefresh';
 import { registerProfileCommands } from './commands/profileCommands';
-import { affectsCursorQuotaConfig } from './config';
+import { affectsCursorAccountsConfig } from './config';
 import { InstanceDetector } from './profiles/instanceDetector';
 import { ProfileDetector } from './profiles/profileDetector';
 import { ProfileLauncher } from './profiles/profileLauncher';
@@ -18,6 +19,85 @@ import { StatusBarManager } from './ui/statusBarManager';
 
 let refreshService: RefreshService | undefined;
 let multiProfileQuotaService: MultiProfileQuotaService | undefined;
+
+const LEGACY_SETTINGS_KEYS = [
+  'refresh.enabled',
+  'refresh.intervalSeconds',
+  'statusBar.showIncluded',
+  'statusBar.showTotal',
+  'statusBar.showAccountEmail',
+  'profiles.autoDetectRunning',
+  'profiles.showProfileInStatusBar',
+  'profiles.refreshAllInterval',
+  'profiles.instanceDetectionInterval',
+] as const;
+
+function migrateSettingsFromCursorQuota(): void {
+  const oldSection = vscode.workspace.getConfiguration('cursorQuota');
+  const newSection = vscode.workspace.getConfiguration('cursorAccounts');
+
+  for (const key of LEGACY_SETTINGS_KEYS) {
+    const oldInspect = oldSection.inspect<unknown>(key);
+    const newInspect = newSection.inspect<unknown>(key);
+    if (!oldInspect) {
+      continue;
+    }
+
+    if (
+      newInspect?.globalValue === undefined &&
+      oldInspect.globalValue !== undefined
+    ) {
+      void newSection.update(
+        key,
+        oldInspect.globalValue,
+        vscode.ConfigurationTarget.Global
+      );
+    }
+
+    if (
+      newInspect?.workspaceValue === undefined &&
+      oldInspect.workspaceValue !== undefined
+    ) {
+      void newSection.update(
+        key,
+        oldInspect.workspaceValue,
+        vscode.ConfigurationTarget.Workspace
+      );
+    }
+
+    if (
+      newInspect?.workspaceFolderValue === undefined &&
+      oldInspect.workspaceFolderValue !== undefined
+    ) {
+      void newSection.update(
+        key,
+        oldInspect.workspaceFolderValue,
+        vscode.ConfigurationTarget.WorkspaceFolder
+      );
+    }
+  }
+}
+
+async function migrateSecretsFromCursorQuota(
+  context: vscode.ExtensionContext
+): Promise<void> {
+  const newAccess = await context.secrets.get(SECRETS_KEYS.accessToken);
+  if (newAccess) {
+    return;
+  }
+
+  const oldAccess = await context.secrets.get(LEGACY_SECRETS_KEYS.accessToken);
+  const oldRefresh = await context.secrets.get(
+    LEGACY_SECRETS_KEYS.refreshToken
+  );
+
+  if (oldAccess) {
+    await context.secrets.store(SECRETS_KEYS.accessToken, oldAccess);
+  }
+  if (oldRefresh) {
+    await context.secrets.store(SECRETS_KEYS.refreshToken, oldRefresh);
+  }
+}
 
 async function delay(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
@@ -55,6 +135,9 @@ async function focusAccountsSidebar(
 }
 
 export function activate(context: vscode.ExtensionContext): void {
+  migrateSettingsFromCursorQuota();
+  void migrateSecretsFromCursorQuota(context);
+
   const profileManager = new ProfileManager();
   const profileDetector = new ProfileDetector(profileManager, context);
   const instanceDetector = new InstanceDetector(profileManager);
@@ -98,7 +181,7 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   const profilesConfig = vscode.workspace.getConfiguration(
-    'cursorQuota.profiles'
+    'cursorAccounts.profiles'
   );
   const refreshAllInterval = profilesConfig.get<number>(
     'refreshAllInterval',
@@ -137,19 +220,19 @@ export function activate(context: vscode.ExtensionContext): void {
 
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((event) => {
-      if (affectsCursorQuotaConfig(event)) {
+      if (affectsCursorAccountsConfig(event)) {
         statusBar.applyVisibilityFromConfig();
       }
     }),
-    vscode.commands.registerCommand('cursorQuota.openAccounts', async () => {
+    vscode.commands.registerCommand('cursorAccounts.openAccounts', async () => {
       await focusAccountsSidebar(accountsPanel, {
         allowEditorFallback: true,
       });
     }),
-    vscode.commands.registerCommand('cursorQuota.refresh', async () => {
+    vscode.commands.registerCommand('cursorAccounts.refresh', async () => {
       await refreshService?.tickNow();
     }),
-    vscode.commands.registerCommand('cursorQuota.openUsage', async () => {
+    vscode.commands.registerCommand('cursorAccounts.openUsage', async () => {
       await vscode.commands.executeCommand(
         'workbench.action.openSettings',
         '@id:cursor'

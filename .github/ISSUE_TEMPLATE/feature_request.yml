@@ -1,5 +1,5 @@
 name: ✨ Feature Request
-description: Propose an idea or improvement for Cursor Quota
+description: Propose an idea or improvement for Cursor Accounts
 title: "<YOUR TITLE HERE>"
 labels: ["enhancement", "feature", "priority: low"]
 body:
@@ -36,7 +36,7 @@ body:
   - type: dropdown
     id: feature_actions
     attributes:
-      label: Which parts of Cursor Quota does this affect?
+      label: Which parts of Cursor Accounts does this affect?
       multiple: true
       options:
         - Status bar display
@@ -101,9 +101,9 @@ body:
 
   - type: input
     attributes:
-      label: Cursor Quota Version
+      label: Cursor Accounts Version
       description: |
-        What version of cursor-quota are you using, or does this proposal apply to all versions?
+        What version of cursor-accounts are you using, or does this proposal apply to all versions?
       placeholder: "0.1.0"
     validations:
       required: false

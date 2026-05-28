@@ -47,7 +47,7 @@ describe('MultiProfileQuotaService', () => {
 
   beforeEach(async () => {
     tempDir = await fs.mkdtemp(
-      path.join(os.tmpdir(), 'cursor-quota-multi-profile-')
+      path.join(os.tmpdir(), 'cursor-accounts-multi-profile-')
     );
     configDir = path.join(tempDir, 'config');
     extensionPath = path.join(tempDir, 'extension');

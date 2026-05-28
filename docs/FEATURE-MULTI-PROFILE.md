@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document provides the complete specification for the Multi-Profile Account Management feature in the `cursor-quota` extension. This feature enables users to manage multiple Cursor accounts (personal, work, client accounts) through separate `--user-data-dir` profiles, with integrated quota monitoring, visual profile management UI, and profile export/import capabilities.
+This document provides the complete specification for the Multi-Profile Account Management feature in the `cursor-accounts` extension. This feature enables users to manage multiple Cursor accounts (personal, work, client accounts) through separate `--user-data-dir` profiles, with integrated quota monitoring, visual profile management UI, and profile export/import capabilities.
 
 ## Goals
 
@@ -919,7 +919,7 @@ To ensure consistency across documentation, code, and UI:
 
 ### Implementation:
 - Code: Always use "profile" (`profileId`, `ProfileManager`)
-- Commands: Use "profile" (`cursorQuota.addProfile`)
+- Commands: Use "profile" (`cursorAccounts.addProfile`)
 - UI Labels: Use "account" for user-facing text ("Accounts Panel", "Add Account")
 - Documentation: Use "profile" in technical docs, "account" in user-facing docs
 
@@ -936,6 +936,6 @@ To ensure consistency across documentation, code, and UI:
 
 ## Conclusion
 
-This feature transforms `cursor-quota` from a single-account quota monitor into a comprehensive multi-account management tool. By leveraging the officially supported `--user-data-dir` approach and providing an intuitive UI, we enable users to work seamlessly across multiple Cursor accounts while maintaining full quota visibility.
+This feature transforms `cursor-accounts` from a single-account quota monitor into a comprehensive multi-account management tool. By leveraging the officially supported `--user-data-dir` approach and providing an intuitive UI, we enable users to work seamlessly across multiple Cursor accounts while maintaining full quota visibility.
 
 The phased implementation approach allows for iterative development and testing, ensuring each component is solid before building on top of it. The architecture is designed for maintainability, performance, and future extensibility.

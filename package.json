@@ -1,8 +1,8 @@
 {
-  "name": "cursor-quota",
-  "displayName": "Cursor Quota",
-  "description": "Shows Cursor plan quota usage in the status bar without opening Settings.",
-  "version": "0.1.10",
+  "name": "cursor-accounts",
+  "displayName": "Cursor Accounts",
+  "description": "Manage Cursor accounts and show plan quota usage in the status bar without opening Settings.",
+  "version": "0.1.11",
   "publisher": "vypdev",
   "license": "MIT",
   "engines": {
@@ -15,7 +15,7 @@
   ],
   "activationEvents": [
     "onStartupFinished",
-    "onView:cursorQuota.accountsPanel"
+    "onView:cursorAccounts.accountsPanel"
   ],
   "extensionKind": [
     "ui"
@@ -25,118 +25,118 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "cursorQuota",
-          "title": "Cursor Quota",
+          "id": "cursorAccounts",
+          "title": "Cursor Accounts",
           "icon": "$(account)"
         }
       ]
     },
     "views": {
-      "cursorQuota": [
+      "cursorAccounts": [
         {
           "type": "webview",
-          "id": "cursorQuota.accountsPanel",
+          "id": "cursorAccounts.accountsPanel",
           "name": "Accounts"
         }
       ]
     },
     "commands": [
       {
-        "command": "cursorQuota.openAccounts",
-        "title": "Cursor Quota: Open Accounts Panel",
+        "command": "cursorAccounts.openAccounts",
+        "title": "Cursor Accounts: Open Accounts Panel",
         "icon": "$(account)"
       },
       {
-        "command": "cursorQuota.refresh",
-        "title": "Cursor Quota: Refresh Now",
+        "command": "cursorAccounts.refresh",
+        "title": "Cursor Accounts: Refresh Now",
         "icon": "$(refresh)"
       },
       {
-        "command": "cursorQuota.openUsage",
-        "title": "Cursor Quota: Open Usage in Settings"
+        "command": "cursorAccounts.openUsage",
+        "title": "Cursor Accounts: Open Usage in Settings"
       },
       {
-        "command": "cursorQuota.addProfile",
-        "title": "Cursor Quota: Add Profile",
+        "command": "cursorAccounts.addProfile",
+        "title": "Cursor Accounts: Add Profile",
         "icon": "$(add)"
       },
       {
-        "command": "cursorQuota.launchProfile",
-        "title": "Cursor Quota: Launch Profile",
+        "command": "cursorAccounts.launchProfile",
+        "title": "Cursor Accounts: Launch Profile",
         "icon": "$(rocket)"
       },
       {
-        "command": "cursorQuota.listProfiles",
-        "title": "Cursor Quota: List Profiles"
+        "command": "cursorAccounts.listProfiles",
+        "title": "Cursor Accounts: List Profiles"
       },
       {
-        "command": "cursorQuota.deleteProfile",
-        "title": "Cursor Quota: Delete Profile",
+        "command": "cursorAccounts.deleteProfile",
+        "title": "Cursor Accounts: Delete Profile",
         "icon": "$(trash)"
       },
       {
-        "command": "cursorQuota.showCurrentProfile",
-        "title": "Cursor Quota: Show Current Profile"
+        "command": "cursorAccounts.showCurrentProfile",
+        "title": "Cursor Accounts: Show Current Profile"
       },
       {
-        "command": "cursorQuota.exportProfiles",
-        "title": "Cursor Quota: Export Profiles",
+        "command": "cursorAccounts.exportProfiles",
+        "title": "Cursor Accounts: Export Profiles",
         "icon": "$(export)"
       },
       {
-        "command": "cursorQuota.importProfiles",
-        "title": "Cursor Quota: Import Profiles",
+        "command": "cursorAccounts.importProfiles",
+        "title": "Cursor Accounts: Import Profiles",
         "icon": "$(folder-opened)"
       }
     ],
     "configuration": {
-      "title": "Cursor Quota",
+      "title": "Cursor Accounts",
       "properties": {
-        "cursorQuota.refresh.enabled": {
+        "cursorAccounts.refresh.enabled": {
           "type": "boolean",
           "default": true,
           "description": "Automatically refresh quota data from Cursor."
         },
-        "cursorQuota.refresh.intervalSeconds": {
+        "cursorAccounts.refresh.intervalSeconds": {
           "type": "number",
           "default": 60,
           "minimum": 30,
           "maximum": 300,
           "description": "Polling interval in seconds (30–300)."
         },
-        "cursorQuota.statusBar.showIncluded": {
+        "cursorAccounts.statusBar.showIncluded": {
           "type": "boolean",
           "default": true,
           "description": "Show included quota usage progress in the status bar."
         },
-        "cursorQuota.statusBar.showTotal": {
+        "cursorAccounts.statusBar.showTotal": {
           "type": "boolean",
           "default": true,
           "description": "Show total plan usage percentage in the status bar."
         },
-        "cursorQuota.statusBar.showAccountEmail": {
+        "cursorAccounts.statusBar.showAccountEmail": {
           "type": "boolean",
           "default": false,
           "description": "Append logged-in email (read from local Cursor auth cache) to tooltips."
         },
-        "cursorQuota.profiles.autoDetectRunning": {
+        "cursorAccounts.profiles.autoDetectRunning": {
           "type": "boolean",
           "default": true,
           "description": "Automatically detect running Cursor instances for each profile."
         },
-        "cursorQuota.profiles.showProfileInStatusBar": {
+        "cursorAccounts.profiles.showProfileInStatusBar": {
           "type": "boolean",
           "default": true,
           "description": "Show current profile name in the status bar."
         },
-        "cursorQuota.profiles.refreshAllInterval": {
+        "cursorAccounts.profiles.refreshAllInterval": {
           "type": "number",
           "default": 300,
           "minimum": 60,
           "maximum": 3600,
           "description": "Interval in seconds for refreshing all profile quotas."
         },
-        "cursorQuota.profiles.instanceDetectionInterval": {
+        "cursorAccounts.profiles.instanceDetectionInterval": {
           "type": "number",
           "default": 30,
           "minimum": 15,

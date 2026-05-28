@@ -2,8 +2,8 @@ import * as vscode from 'vscode';
 import { QuotaUsage } from '../api/types';
 import { QuotaClient } from '../api/quotaClient';
 import {
-  affectsCursorQuotaConfig,
-  getCursorQuotaConfig,
+  affectsCursorAccountsConfig,
+  getCursorAccountsConfig,
 } from '../config';
 
 const GLOBAL_CACHE_KEY = 'lastQuota';
@@ -25,7 +25,7 @@ export class RefreshService {
   ) {
     context.subscriptions.push(
       vscode.workspace.onDidChangeConfiguration((event) => {
-        if (affectsCursorQuotaConfig(event)) {
+        if (affectsCursorAccountsConfig(event)) {
           this.restart();
         }
       }),
@@ -35,7 +35,7 @@ export class RefreshService {
 
   start(): void {
     this.stop();
-    const cfg = getCursorQuotaConfig();
+    const cfg = getCursorAccountsConfig();
     if (!cfg.refreshEnabled) {
       return;
     }

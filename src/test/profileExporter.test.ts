@@ -18,7 +18,7 @@ describe('ProfileExporter', () => {
 
   beforeEach(async () => {
     tempDir = await fs.mkdtemp(
-      path.join(os.tmpdir(), 'cursor-quota-export-test-')
+      path.join(os.tmpdir(), 'cursor-accounts-export-test-')
     );
     const storage = new ProfileStorage(tempDir);
     manager = new ProfileManager(storage);

@@ -119,7 +119,7 @@ import {
 } from '../profiles/types';
 
 export class AccountsPanelProvider implements vscode.WebviewViewProvider {
-  public static readonly viewType = 'cursorQuota.accountsPanel';
+  public static readonly viewType = 'cursorAccounts.accountsPanel';
   
   private view?: vscode.WebviewView;
 
@@ -388,7 +388,7 @@ function getNonce(): string {
 
 ```json
 {
-  "name": "cursor-quota-webview",
+  "name": "cursor-accounts-webview",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -1365,17 +1365,17 @@ Update `package.json` to add view container:
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "cursorQuota",
-          "title": "Cursor Quota",
+          "id": "cursorAccounts",
+          "title": "Cursor Accounts",
           "icon": "$(account)"
         }
       ]
     },
     "views": {
-      "cursorQuota": [
+      "cursorAccounts": [
         {
           "type": "webview",
-          "id": "cursorQuota.accountsPanel",
+          "id": "cursorAccounts.accountsPanel",
           "name": "Accounts"
         }
       ]
@@ -1396,7 +1396,7 @@ Update `package.json` to add view container:
 **CRITICAL**: The webview bundle must be included in the VSIX package. The build produces two output directories:
 
 ```
-cursor-quota/
+cursor-accounts/
 ├── out/                    # Extension TypeScript output
 │   ├── extension.js
 │   ├── profiles/

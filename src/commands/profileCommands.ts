@@ -16,7 +16,7 @@ export function registerProfileCommands(
   profileDetector: ProfileDetector
 ): void {
   context.subscriptions.push(
-    vscode.commands.registerCommand('cursorQuota.addProfile', async () => {
+    vscode.commands.registerCommand('cursorAccounts.addProfile', async () => {
       try {
         const email = await vscode.window.showInputBox({
           prompt: 'Enter Cursor account email',
@@ -76,7 +76,7 @@ export function registerProfileCommands(
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('cursorQuota.launchProfile', async () => {
+    vscode.commands.registerCommand('cursorAccounts.launchProfile', async () => {
       try {
         const profiles = await profileManager.getProfiles();
 
@@ -86,7 +86,7 @@ export function registerProfileCommands(
             'Create Profile'
           );
           if (create) {
-            await vscode.commands.executeCommand('cursorQuota.addProfile');
+            await vscode.commands.executeCommand('cursorAccounts.addProfile');
           }
           return;
         }
@@ -135,14 +135,14 @@ export function registerProfileCommands(
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('cursorQuota.listProfiles', async () => {
+    vscode.commands.registerCommand('cursorAccounts.listProfiles', async () => {
       try {
         const profiles = await profileManager.getProfiles();
         const current = await profileDetector.detectCurrentProfile();
 
         if (profiles.length === 0) {
           vscode.window.showInformationMessage(
-            'No profiles configured. Use "Cursor Quota: Add Profile" to create one.'
+            'No profiles configured. Use "Cursor Accounts: Add Profile" to create one.'
           );
           return;
         }
@@ -175,7 +175,7 @@ export function registerProfileCommands(
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('cursorQuota.deleteProfile', async () => {
+    vscode.commands.registerCommand('cursorAccounts.deleteProfile', async () => {
       try {
         const profiles = await profileManager.getProfiles();
 
@@ -224,7 +224,7 @@ export function registerProfileCommands(
 
   context.subscriptions.push(
     vscode.commands.registerCommand(
-      'cursorQuota.showCurrentProfile',
+      'cursorAccounts.showCurrentProfile',
       async () => {
         try {
           const current = await profileDetector.detectCurrentProfile();
@@ -249,7 +249,7 @@ export function registerProfileCommands(
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('cursorQuota.exportProfiles', async () => {
+    vscode.commands.registerCommand('cursorAccounts.exportProfiles', async () => {
       try {
         const profiles = await profileManager.getProfiles();
 
@@ -317,7 +317,7 @@ export function registerProfileCommands(
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('cursorQuota.importProfiles', async () => {
+    vscode.commands.registerCommand('cursorAccounts.importProfiles', async () => {
       try {
         const uris = await vscode.window.showOpenDialog({
           canSelectMany: false,

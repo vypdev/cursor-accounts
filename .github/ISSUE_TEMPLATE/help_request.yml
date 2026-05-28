@@ -26,7 +26,7 @@ body:
         - Installation / VSIX / dev setup
         - Status bar or quota display
         - Authentication / login / tokens
-        - Configuration (cursorQuota.*)
+        - Configuration (cursorAccounts.*)
         - Refresh or quota API errors
         - Documentation or usage
         - Cursor / VS Code compatibility

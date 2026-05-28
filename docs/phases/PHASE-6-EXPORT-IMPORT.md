@@ -573,7 +573,7 @@ export class ProfileImporter {
 ```typescript
 // Add export command
 context.subscriptions.push(
-  vscode.commands.registerCommand('cursorQuota.exportProfiles', async () => {
+  vscode.commands.registerCommand('cursorAccounts.exportProfiles', async () => {
     try {
       const profiles = await profileManager.getProfiles();
 
@@ -648,7 +648,7 @@ context.subscriptions.push(
 
 // Add import command
 context.subscriptions.push(
-  vscode.commands.registerCommand('cursorQuota.importProfiles', async () => {
+  vscode.commands.registerCommand('cursorAccounts.importProfiles', async () => {
     try {
       // Choose import file
       const uris = await vscode.window.showOpenDialog({
@@ -910,13 +910,13 @@ Add export button:
   "contributes": {
     "commands": [
       {
-        "command": "cursorQuota.exportProfiles",
-        "title": "Cursor Quota: Export Profiles",
+        "command": "cursorAccounts.exportProfiles",
+        "title": "Cursor Accounts: Export Profiles",
         "icon": "$(export)"
       },
       {
-        "command": "cursorQuota.importProfiles",
-        "title": "Cursor Quota: Import Profiles",
+        "command": "cursorAccounts.importProfiles",
+        "title": "Cursor Accounts: Import Profiles",
         "icon": "$(folder-opened)"
       }
     ]
@@ -929,7 +929,7 @@ Add export button:
 ### Exporting Profiles
 
 1. User opens Command Palette
-2. Types "Cursor Quota: Export Profiles"
+2. Types "Cursor Accounts: Export Profiles"
 3. Selects which profiles to export (or "Export All")
 4. Chooses whether to include settings.json
 5. Selects save location
@@ -938,7 +938,7 @@ Add export button:
 ### Importing Profiles
 
 1. User opens Command Palette
-2. Types "Cursor Quota: Import Profiles"
+2. Types "Cursor Accounts: Import Profiles"
 3. Selects import file
 4. Extension validates and shows warnings if duplicates
 5. User confirms import

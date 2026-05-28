@@ -677,7 +677,7 @@ export function registerProfileCommands(
   
   // Command: Add new profile
   context.subscriptions.push(
-    vscode.commands.registerCommand('cursorQuota.addProfile', async () => {
+    vscode.commands.registerCommand('cursorAccounts.addProfile', async () => {
       try {
         const email = await vscode.window.showInputBox({
           prompt: 'Enter Cursor account email',
@@ -741,7 +741,7 @@ export function registerProfileCommands(
 
   // Command: Launch profile
   context.subscriptions.push(
-    vscode.commands.registerCommand('cursorQuota.launchProfile', async () => {
+    vscode.commands.registerCommand('cursorAccounts.launchProfile', async () => {
       try {
         const profiles = await profileManager.getProfiles();
 
@@ -751,7 +751,7 @@ export function registerProfileCommands(
             'Create Profile'
           );
           if (create) {
-            await vscode.commands.executeCommand('cursorQuota.addProfile');
+            await vscode.commands.executeCommand('cursorAccounts.addProfile');
           }
           return;
         }
@@ -802,14 +802,14 @@ export function registerProfileCommands(
 
   // Command: List profiles
   context.subscriptions.push(
-    vscode.commands.registerCommand('cursorQuota.listProfiles', async () => {
+    vscode.commands.registerCommand('cursorAccounts.listProfiles', async () => {
       try {
         const profiles = await profileManager.getProfiles();
         const current = await profileDetector.detectCurrentProfile();
 
         if (profiles.length === 0) {
           vscode.window.showInformationMessage(
-            'No profiles configured. Use "Cursor Quota: Add Profile" to create one.'
+            'No profiles configured. Use "Cursor Accounts: Add Profile" to create one.'
           );
           return;
         }
@@ -842,7 +842,7 @@ export function registerProfileCommands(
 
   // Command: Delete profile
   context.subscriptions.push(
-    vscode.commands.registerCommand('cursorQuota.deleteProfile', async () => {
+    vscode.commands.registerCommand('cursorAccounts.deleteProfile', async () => {
       try {
         const profiles = await profileManager.getProfiles();
 
@@ -892,7 +892,7 @@ export function registerProfileCommands(
 
   // Command: Show current profile
   context.subscriptions.push(
-    vscode.commands.registerCommand('cursorQuota.showCurrentProfile', async () => {
+    vscode.commands.registerCommand('cursorAccounts.showCurrentProfile', async () => {
       try {
         const current = await profileDetector.detectCurrentProfile();
 
@@ -942,8 +942,8 @@ constructor(
       vscode.StatusBarAlignment.Right,
       102  // Higher priority than quota items
     );
-    this.profileItem.name = 'cursorQuota.profile';
-    this.profileItem.command = 'cursorQuota.showCurrentProfile';
+    this.profileItem.name = 'cursorAccounts.profile';
+    this.profileItem.command = 'cursorAccounts.showCurrentProfile';
     this.profileItem.tooltip = 'Click to see current profile details';
     context.subscriptions.push(this.profileItem);
   }
@@ -957,7 +957,7 @@ async updateProfileIndicator(): Promise<void> {
 
   try {
     const profile = await this.profileDetector.detectCurrentProfile();
-    const config = getCursorQuotaConfig();
+    const config = getCursorAccountsConfig();
 
     if (!config.showProfileInStatusBar) {
       this.profileItem.hide();
@@ -992,12 +992,12 @@ showOnActivate(): void {
 Add profile-related settings.
 
 ```typescript
-export interface CursorQuotaConfig {
+export interface CursorAccountsConfig {
   // Existing fields...
   showProfileInStatusBar: boolean;  // NEW
 }
 
-export function getCursorQuotaConfig(): CursorQuotaConfig {
+export function getCursorAccountsConfig(): CursorAccountsConfig {
   const cfg = vscode.workspace.getConfiguration(SECTION);
   return {
     // Existing fields...
@@ -1052,32 +1052,32 @@ Add new commands to `package.json`:
   "contributes": {
     "commands": [
       {
-        "command": "cursorQuota.addProfile",
-        "title": "Cursor Quota: Add Profile",
+        "command": "cursorAccounts.addProfile",
+        "title": "Cursor Accounts: Add Profile",
         "icon": "$(add)"
       },
       {
-        "command": "cursorQuota.launchProfile",
-        "title": "Cursor Quota: Launch Profile",
+        "command": "cursorAccounts.launchProfile",
+        "title": "Cursor Accounts: Launch Profile",
         "icon": "$(rocket)"
       },
       {
-        "command": "cursorQuota.listProfiles",
-        "title": "Cursor Quota: List Profiles"
+        "command": "cursorAccounts.listProfiles",
+        "title": "Cursor Accounts: List Profiles"
       },
       {
-        "command": "cursorQuota.deleteProfile",
-        "title": "Cursor Quota: Delete Profile",
+        "command": "cursorAccounts.deleteProfile",
+        "title": "Cursor Accounts: Delete Profile",
         "icon": "$(trash)"
       },
       {
-        "command": "cursorQuota.showCurrentProfile",
-        "title": "Cursor Quota: Show Current Profile"
+        "command": "cursorAccounts.showCurrentProfile",
+        "title": "Cursor Accounts: Show Current Profile"
       }
     ],
     "configuration": {
       "properties": {
-        "cursorQuota.profiles.showProfileInStatusBar": {
+        "cursorAccounts.profiles.showProfileInStatusBar": {
           "type": "boolean",
           "default": true,
           "description": "Show current profile name in the status bar."
@@ -1093,7 +1093,7 @@ Add new commands to `package.json`:
 ### Workflow 1: First-Time Profile Creation
 
 1. User opens Command Palette (Cmd+Shift+P)
-2. Types "Cursor Quota: Add Profile"
+2. Types "Cursor Accounts: Add Profile"
 3. Enters email: `work@company.com`
 4. Enters display name: `Work`
 5. Extension creates profile and offers to launch
@@ -1104,7 +1104,7 @@ Add new commands to `package.json`:
 
 1. User currently in Personal profile window
 2. Opens Command Palette
-3. Types "Cursor Quota: Launch Profile"
+3. Types "Cursor Accounts: Launch Profile"
 4. Sees list: Personal, Work, Client
 5. Selects "Work"
 6. New window opens with Work profile
@@ -1178,7 +1178,7 @@ describe('ProfileDetector Integration', () => {
    ```
    
    **Verification Steps**:
-   - Run command "Cursor Quota: Show Current Profile"
+   - Run command "Cursor Accounts: Show Current Profile"
    - Check status bar shows correct profile name
    - Verify detection works immediately on extension activation
    - Test that detection persists across window reloads
@@ -1242,7 +1242,7 @@ describe('ProfileDetector Integration', () => {
 ### Profile not detected
 - Check `--user-data-dir` in process args
 - Verify path matches profile config
-- Try `Cursor Quota: Show Current Profile` command
+- Try `Cursor Accounts: Show Current Profile` command
 
 ### Launch fails silently
 - Check Console for error messages

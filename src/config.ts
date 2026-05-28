@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
 
-const SECTION = 'cursorQuota';
+const SECTION = 'cursorAccounts';
 
-export interface CursorQuotaConfig {
+export interface CursorAccountsConfig {
   refreshEnabled: boolean;
   refreshIntervalSeconds: number;
   showIncluded: boolean;
@@ -11,7 +11,7 @@ export interface CursorQuotaConfig {
   showProfileInStatusBar: boolean;
 }
 
-export function getCursorQuotaConfig(): CursorQuotaConfig {
+export function getCursorAccountsConfig(): CursorAccountsConfig {
   const cfg = vscode.workspace.getConfiguration(SECTION);
   return {
     refreshEnabled: cfg.get<boolean>('refresh.enabled', true),
@@ -26,7 +26,7 @@ export function getCursorQuotaConfig(): CursorQuotaConfig {
   };
 }
 
-export function affectsCursorQuotaConfig(
+export function affectsCursorAccountsConfig(
   event: vscode.ConfigurationChangeEvent
 ): boolean {
   return event.affectsConfiguration(SECTION);

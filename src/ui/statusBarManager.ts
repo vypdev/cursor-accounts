@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { QuotaUsage } from '../api/types';
-import { getCursorQuotaConfig } from '../config';
+import { getCursorAccountsConfig } from '../config';
 import { ProfileDetector } from '../profiles/profileDetector';
 import {
   clampPercent,
@@ -28,8 +28,8 @@ export class StatusBarManager {
         vscode.StatusBarAlignment.Right,
         PROFILE_PRIORITY
       );
-      this.profileItem.name = 'cursorQuota.profile';
-      this.profileItem.command = 'cursorQuota.showCurrentProfile';
+      this.profileItem.name = 'cursorAccounts.profile';
+      this.profileItem.command = 'cursorAccounts.showCurrentProfile';
       this.profileItem.tooltip = 'Click to see current profile details';
       context.subscriptions.push(this.profileItem);
     }
@@ -38,15 +38,15 @@ export class StatusBarManager {
       vscode.StatusBarAlignment.Right,
       INCLUDED_PRIORITY
     );
-    this.includedItem.name = 'cursorQuota.included';
-    this.includedItem.command = 'cursorQuota.openUsage';
+    this.includedItem.name = 'cursorAccounts.included';
+    this.includedItem.command = 'cursorAccounts.openUsage';
 
     this.totalItem = vscode.window.createStatusBarItem(
       vscode.StatusBarAlignment.Right,
       TOTAL_PRIORITY
     );
-    this.totalItem.name = 'cursorQuota.total';
-    this.totalItem.command = 'cursorQuota.openUsage';
+    this.totalItem.name = 'cursorAccounts.total';
+    this.totalItem.command = 'cursorAccounts.openUsage';
 
     context.subscriptions.push(this.includedItem, this.totalItem);
   }
@@ -63,7 +63,7 @@ export class StatusBarManager {
   }
 
   showLoading(): void {
-    const cfg = getCursorQuotaConfig();
+    const cfg = getCursorAccountsConfig();
     if (cfg.showIncluded) {
       this.includedItem.text = '$(sync~spin) Included quota…';
       this.includedItem.tooltip = 'Loading Cursor included quota usage…';
@@ -84,7 +84,7 @@ export class StatusBarManager {
   }
 
   render(usage: QuotaUsage): void {
-    const cfg = getCursorQuotaConfig();
+    const cfg = getCursorAccountsConfig();
     const includedPct = clampPercent(usage.apiPercentUsed);
     const totalPct = clampPercent(usage.totalPercentUsed);
     const tooltip = this.buildTooltip(usage, cfg.showAccountEmail);
@@ -113,7 +113,7 @@ export class StatusBarManager {
   }
 
   showError(message: string): void {
-    const cfg = getCursorQuotaConfig();
+    const cfg = getCursorAccountsConfig();
     const text = `$(warning) Quota unavailable`;
 
     if (cfg.showIncluded) {
@@ -153,7 +153,7 @@ export class StatusBarManager {
 
     try {
       const profile = await this.profileDetector.detectCurrentProfile();
-      const cfg = getCursorQuotaConfig();
+      const cfg = getCursorAccountsConfig();
 
       if (!cfg.showProfileInStatusBar) {
         this.profileItem.hide();
@@ -208,7 +208,7 @@ export class StatusBarManager {
     }
 
     md.appendMarkdown(
-      '\n\nClick to open **Cursor Settings → Usage**. Use **Cursor Quota: Refresh Now** to update.'
+      '\n\nClick to open **Cursor Settings → Usage**. Use **Cursor Accounts: Refresh Now** to update.'
     );
     return md;
   }

@@ -20,7 +20,7 @@ function createMockContext(userDataDir: string): MockExtensionContext {
         userDataDir,
         'User',
         'globalStorage',
-        'vypdev.cursor-quota'
+        'vypdev.cursor-accounts'
       ),
     },
   };
@@ -34,7 +34,7 @@ describe('ProfileDetector', () => {
 
   beforeEach(async () => {
     tempDir = await fs.mkdtemp(
-      path.join(os.tmpdir(), 'cursor-quota-detector-')
+      path.join(os.tmpdir(), 'cursor-accounts-detector-')
     );
     const storage = new ProfileStorage(tempDir);
     manager = new ProfileManager(storage);

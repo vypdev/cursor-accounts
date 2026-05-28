@@ -1,6 +1,6 @@
 name: 🔥 Hotfix Issue
 
-description: Request a new hotfix for Cursor Quota (only team members)
+description: Request a new hotfix for Cursor Accounts (only team members)
 title: "<YOUR TITLE HERE>"
 labels: [ "hotfix", "branched", "priority: high" ]
 body:

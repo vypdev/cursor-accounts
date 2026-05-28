@@ -18,7 +18,7 @@ describe('InstanceDetector', () => {
 
   beforeEach(async () => {
     tempDir = await fs.mkdtemp(
-      path.join(os.tmpdir(), 'cursor-quota-instance-detector-')
+      path.join(os.tmpdir(), 'cursor-accounts-instance-detector-')
     );
     const storage = new ProfileStorage(tempDir);
     manager = new ProfileManager(storage);

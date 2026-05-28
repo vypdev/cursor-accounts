@@ -18,7 +18,7 @@ describe('ProfileManager', () => {
 
   beforeEach(async () => {
     tempDir = await fs.mkdtemp(
-      path.join(os.tmpdir(), 'cursor-quota-test-')
+      path.join(os.tmpdir(), 'cursor-accounts-test-')
     );
     const storage = new ProfileStorage(tempDir);
     manager = new ProfileManager(storage);

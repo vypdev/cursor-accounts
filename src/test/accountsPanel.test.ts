@@ -127,7 +127,7 @@ describe('AccountsPanelProvider', () => {
 
   beforeEach(async () => {
     tempDir = await fs.mkdtemp(
-      path.join(os.tmpdir(), 'cursor-quota-accounts-panel-')
+      path.join(os.tmpdir(), 'cursor-accounts-accounts-panel-')
     );
     configDir = path.join(tempDir, 'config');
     extensionPath = path.join(tempDir, 'extension');

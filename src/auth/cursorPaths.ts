@@ -48,6 +48,12 @@ export const CURSOR_AUTH_KEYS = {
 } as const;
 
 export const SECRETS_KEYS = {
+  accessToken: 'cursorAccounts.accessToken',
+  refreshToken: 'cursorAccounts.refreshToken',
+} as const;
+
+/** Legacy secret keys from the Cursor Quota extension (pre-rename). */
+export const LEGACY_SECRETS_KEYS = {
   accessToken: 'cursorQuota.accessToken',
   refreshToken: 'cursorQuota.refreshToken',
 } as const;

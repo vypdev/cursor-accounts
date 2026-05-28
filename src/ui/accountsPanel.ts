@@ -28,9 +28,9 @@ import {
 import { buildSuggestedProfileResponse } from './suggestedProfile';
 
 /** Activity bar container id (must match package.json viewsContainers). */
-export const ACCOUNTS_VIEW_CONTAINER = 'cursorQuota';
+export const ACCOUNTS_VIEW_CONTAINER = 'cursorAccounts';
 /** Webview view id (must match package.json views). */
-export const ACCOUNTS_SIDEBAR_VIEW_ID = 'cursorQuota.accountsPanel';
+export const ACCOUNTS_SIDEBAR_VIEW_ID = 'cursorAccounts.accountsPanel';
 
 export class AccountsPanelProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = ACCOUNTS_SIDEBAR_VIEW_ID;
@@ -90,7 +90,7 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
       const message =
         error instanceof Error ? error.message : 'Unknown error';
       vscode.window.showErrorMessage(
-        `Cursor Quota: failed to load Accounts panel (${message})`
+        `Cursor Accounts: failed to load Accounts panel (${message})`
       );
       throw error;
     }
@@ -493,14 +493,14 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
     </p>
   </div>
   <script nonce="${nonce}">
-    window.__cursorQuotaReportScriptError = function() {
+    window.__cursorAccountsReportScriptError = function() {
       var root = document.getElementById('root');
       if (root) {
         root.innerHTML = '<p style="padding:12px;color:var(--vscode-errorForeground,#f88);">Failed to load Cursor Accounts UI script.</p>';
       }
     };
   </script>
-  <script nonce="${nonce}" src="${scriptUri}" onerror="window.__cursorQuotaReportScriptError && window.__cursorQuotaReportScriptError()"></script>
+  <script nonce="${nonce}" src="${scriptUri}" onerror="window.__cursorAccountsReportScriptError && window.__cursorAccountsReportScriptError()"></script>
 </body>
 </html>`;
   }

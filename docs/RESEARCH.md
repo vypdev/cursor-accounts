@@ -1,4 +1,4 @@
-# Research Summary — Cursor Quota Extension
+# Research Summary — Cursor Accounts Extension
 
 This document records how quota data is obtained, refresh behavior, API limits, and account-switching feasibility. Implementation choices follow these findings; undocumented APIs are not assumed.
 
@@ -80,7 +80,7 @@ Cursor staff (forum, 2026) state there is **no public personal usage API** for i
 ### Closest viable alternatives
 
 1. Separate Cursor instances per account (`--user-data-dir`).
-2. Read-only email in tooltip (`cursorQuota.statusBar.showAccountEmail`).
+2. Read-only email in tooltip (`cursorAccounts.statusBar.showAccountEmail`).
 3. Document limitations in README (implemented).
 
 This extension **does not** implement SQLite snapshot switching.

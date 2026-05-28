@@ -1005,7 +1005,7 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   // Start background refresh (default 5 minutes)
-  const config = vscode.workspace.getConfiguration('cursorQuota.profiles');
+  const config = vscode.workspace.getConfiguration('cursorAccounts.profiles');
   const refreshInterval = config.get<number>('refreshAllInterval', 300);
   multiProfileQuotaService.start(refreshInterval);
 
@@ -1034,7 +1034,7 @@ Add settings for quota refresh:
   "contributes": {
     "configuration": {
       "properties": {
-        "cursorQuota.profiles.refreshAllInterval": {
+        "cursorAccounts.profiles.refreshAllInterval": {
           "type": "number",
           "default": 300,
           "minimum": 60,
@@ -1137,7 +1137,7 @@ pnpm test
 
 ### Quota shows stale data
 - Wait for next background refresh
-- Or run "Cursor Quota: Refresh All Profiles" command
+- Or run "Cursor Accounts: Refresh All Profiles" command
 - Check cache validity period (5 min default)
 
 ### Performance slow

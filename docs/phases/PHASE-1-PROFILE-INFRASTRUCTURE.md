@@ -876,7 +876,7 @@ describe('ProfileStorage', () => {
 
   beforeEach(async () => {
     // Create temp directory for tests
-    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'cursor-quota-test-'));
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'cursor-accounts-test-'));
     storage = new ProfileStorage(tempDir);
   });
 
@@ -1311,7 +1311,7 @@ describe('ProfileManager', () => {
   let manager: ProfileManager;
 
   beforeEach(async () => {
-    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'cursor-quota-test-'));
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'cursor-accounts-test-'));
     const storage = new ProfileStorage(tempDir);
     manager = new ProfileManager(storage);
     await manager.initialize();
@@ -1587,19 +1587,19 @@ Update `package.json` to add profile-related settings:
 {
   "contributes": {
     "configuration": {
-      "title": "Cursor Quota",
+      "title": "Cursor Accounts",
       "properties": {
-        "cursorQuota.profiles.autoDetectRunning": {
+        "cursorAccounts.profiles.autoDetectRunning": {
           "type": "boolean",
           "default": true,
           "description": "Automatically detect running Cursor instances for each profile."
         },
-        "cursorQuota.profiles.showProfileInStatusBar": {
+        "cursorAccounts.profiles.showProfileInStatusBar": {
           "type": "boolean",
           "default": true,
           "description": "Show current profile name in the status bar."
         },
-        "cursorQuota.profiles.refreshAllInterval": {
+        "cursorAccounts.profiles.refreshAllInterval": {
           "type": "number",
           "default": 300,
           "minimum": 60,
@@ -1706,7 +1706,7 @@ Once Phase 1 is complete and tested, proceed to **Phase 2: Profile Launcher**, w
 
 ### Tests failing
 - Ensure Node.js 22 is active: `node --version`
-- Clear temp directories: `rm -rf /tmp/cursor-quota-test-*`
+- Clear temp directories: `rm -rf /tmp/cursor-accounts-test-*`
 - Run TypeScript compiler: `pnpm run compile`
 
 ## References

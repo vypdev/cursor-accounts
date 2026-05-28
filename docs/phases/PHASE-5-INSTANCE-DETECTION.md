@@ -987,7 +987,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const instanceDetector = new InstanceDetector(profileManager);
 
   // Start auto-detection if enabled
-  const config = vscode.workspace.getConfiguration('cursorQuota.profiles');
+  const config = vscode.workspace.getConfiguration('cursorAccounts.profiles');
   if (config.get<boolean>('autoDetectRunning', true)) {
     instanceDetector.startAutoDetection(30000); // 30 seconds
   }
@@ -1287,12 +1287,12 @@ describe('InstanceDetector Integration', () => {
    
 3. **Disable auto-detection** (zero overhead):
    - Only launch profiles, never need status indicators
-   - Set `cursorQuota.profiles.autoDetectRunning: false`
+   - Set `cursorAccounts.profiles.autoDetectRunning: false`
 
 **Configuration**: Add to VS Code settings:
 ```json
 {
-  "cursorQuota.profiles.instanceDetectionInterval": 30
+  "cursorAccounts.profiles.instanceDetectionInterval": 30
 }
 ```
 
