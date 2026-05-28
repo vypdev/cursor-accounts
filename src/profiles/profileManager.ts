@@ -146,6 +146,7 @@ export class ProfileManager {
       created: new Date().toISOString(),
       theme: options.theme,
       color: options.color ?? this.generateRandomColor(),
+      emoji: options.emoji,
       metadata: {
         source: 'manual',
         notes: options.notes,

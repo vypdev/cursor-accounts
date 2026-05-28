@@ -2,7 +2,7 @@
   "name": "cursor-accounts",
   "displayName": "Cursor Accounts",
   "description": "Manage Cursor accounts and show plan quota usage in the status bar without opening Settings.",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "publisher": "vypdev",
   "license": "MIT",
   "engines": {

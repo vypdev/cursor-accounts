@@ -1,4 +1,4 @@
-import { QuotaUsage } from '../api/types';
+import { ProfileAccountView, QuotaUsage } from '../api/types';
 
 /**
  * Represents a single Cursor account profile.
@@ -33,6 +33,9 @@ export interface Profile {
 
   /** Hex color code for UI identification (#rrggbb) */
   color?: string;
+
+  /** User-chosen emoji for visual identification */
+  emoji?: string;
 
   /** Additional metadata */
   metadata?: ProfileMetadata;
@@ -99,6 +102,7 @@ export interface CreateProfileOptions {
   displayName?: string;
   theme?: string;
   color?: string;
+  emoji?: string;
   notes?: string;
   tags?: string[];
 }
@@ -132,6 +136,7 @@ export interface ExportedProfile {
   displayName: string;
   theme?: string;
   color?: string;
+  emoji?: string;
   settings?: Record<string, unknown>;
   metadata?: ProfileMetadata;
 }
@@ -216,6 +221,9 @@ export function getQuotaStatus(quota: QuotaUsage | null): QuotaStatus {
 /** Serialized quota map for webview messaging (JSON-safe). */
 export type ProfileQuotaMap = Record<string, ProfileQuota>;
 
+/** Serialized live account map for webview messaging (JSON-safe). */
+export type ProfileAccountMap = Record<string, ProfileAccountView>;
+
 /**
  * Information about a running Cursor instance.
  */
@@ -238,6 +246,9 @@ export type ToWebviewMessage =
   | { type: 'profiles'; data: Profile[] }
   | { type: 'currentProfile'; data: Profile | null }
   | { type: 'quotas'; data: ProfileQuotaMap }
+  | { type: 'profileAccounts'; data: ProfileAccountMap }
+  | { type: 'activeAccount'; data: ProfileAccountView | null }
+  | { type: 'accountsLoading'; data: boolean }
   | { type: 'runningInstances'; data: InstanceInfoMap }
   | { type: 'error'; message: string }
   | { type: 'success'; message: string }
@@ -257,6 +268,7 @@ export type FromWebviewMessage =
       displayName?: string;
       theme?: string;
       color?: string;
+      emoji?: string;
     }
   | { type: 'edit'; profileId: string; updates: Partial<Profile> }
   | { type: 'delete'; profileId: string }
@@ -272,6 +284,8 @@ export interface InitData {
   profiles: Profile[];
   currentProfile: Profile | null;
   quotas: ProfileQuotaMap;
+  profileAccounts: ProfileAccountMap;
+  activeAccount?: ProfileAccountView | null;
   runningInstances: InstanceInfoMap;
 }
 

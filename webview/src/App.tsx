@@ -8,6 +8,8 @@ import { ProfileList } from './components/ProfileList';
 import {
   ImportOptions,
   Profile,
+  ProfileAccountMap,
+  ProfileAccountView,
   ProfileQuotaMap,
   InstanceInfoMap,
   ToWebviewMessage,
@@ -20,6 +22,11 @@ export const App: React.FC = () => {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [currentProfile, setCurrentProfile] = useState<Profile | null>(null);
   const [quotas, setQuotas] = useState<ProfileQuotaMap>({});
+  const [profileAccounts, setProfileAccounts] = useState<ProfileAccountMap>({});
+  const [activeAccount, setActiveAccount] = useState<ProfileAccountView | null>(
+    null
+  );
+  const [accountsLoading, setAccountsLoading] = useState(false);
   const [runningInstances, setRunningInstances] = useState<InstanceInfoMap>({});
   const [showAddForm, setShowAddForm] = useState(
     persisted?.showAddForm ?? false
@@ -54,6 +61,8 @@ export const App: React.FC = () => {
           setProfiles(message.data.profiles);
           setCurrentProfile(message.data.currentProfile);
           setQuotas(message.data.quotas ?? {});
+          setProfileAccounts(message.data.profileAccounts ?? {});
+          setActiveAccount(message.data.activeAccount ?? null);
           setRunningInstances(message.data.runningInstances ?? {});
           setLoading(false);
           break;
@@ -64,6 +73,18 @@ export const App: React.FC = () => {
 
         case 'quotas':
           setQuotas(message.data);
+          break;
+
+        case 'profileAccounts':
+          setProfileAccounts(message.data);
+          break;
+
+        case 'activeAccount':
+          setActiveAccount(message.data);
+          break;
+
+        case 'accountsLoading':
+          setAccountsLoading(message.data);
           break;
 
         case 'runningInstances':
@@ -148,9 +169,10 @@ export const App: React.FC = () => {
       email: string,
       displayName?: string,
       theme?: string,
-      color?: string
+      color?: string,
+      emoji?: string
     ) => {
-      vscodeApi.addProfile(email, displayName, theme, color);
+      vscodeApi.addProfile(email, displayName, theme, color, emoji);
       setShowAddForm(false);
       persistUiState(false, editingProfileId);
     },
@@ -202,6 +224,22 @@ export const App: React.FC = () => {
     ? profiles.find((p) => p.id === editingProfileId)
     : undefined;
 
+  const activeAccountLabel = (() => {
+    if (accountsLoading && !activeAccount?.accountName) {
+      return 'Loading account…';
+    }
+    if (activeAccount?.accountName) {
+      return activeAccount.accountName;
+    }
+    if (currentProfile) {
+      return currentProfile.displayName;
+    }
+    return 'Default Profile';
+  })();
+
+  const showActiveFooter =
+    accountsLoading || activeAccount != null || currentProfile != null;
+
   if (loading) {
     return (
       <div className="loading">
@@ -213,69 +251,81 @@ export const App: React.FC = () => {
 
   return (
     <div className="app">
-      <div className="header">
-        <h2>Cursor Accounts</h2>
-        <div className="header-actions">
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={() => setShowImportDialog(true)}
-            title="Import profiles"
-          >
-            Import
-          </button>
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={() => vscodeApi.refresh()}
-            title="Refresh profiles"
-          >
-            ↻
-          </button>
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={openAddForm}
-            title="Add new profile"
-          >
-            + Add
-          </button>
+      <div className="app-main">
+        <div className="header">
+          <h2>Cursor Accounts</h2>
+          <div className="header-actions">
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setShowImportDialog(true)}
+              title="Import profiles"
+            >
+              Import
+            </button>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => vscodeApi.refresh()}
+              title="Refresh profiles"
+            >
+              ↻
+            </button>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={openAddForm}
+              title="Add new profile"
+            >
+              + Add
+            </button>
+          </div>
         </div>
+
+        {error && (
+          <div className="error-banner" role="alert">
+            {error}
+          </div>
+        )}
+
+        {success && (
+          <div className="success-banner" role="status">
+            {success}
+          </div>
+        )}
+
+        {profiles.length === 0 ? (
+          <EmptyState onAddProfile={openAddForm} />
+        ) : (
+          <ProfileList
+            profiles={profiles}
+            currentProfileId={currentProfile?.id}
+            profileAccounts={profileAccounts}
+            quotas={quotas}
+            runningInstances={runningInstances}
+            onLaunch={handleLaunch}
+            onEdit={handleEditOpen}
+            onDelete={handleDelete}
+            onShowInExplorer={handleShowInExplorer}
+            onExport={handleExport}
+          />
+        )}
       </div>
 
-      {error && (
-        <div className="error-banner" role="alert">
-          {error}
-        </div>
-      )}
-
-      {success && (
-        <div className="success-banner" role="status">
-          {success}
-        </div>
-      )}
-
-      {currentProfile && (
-        <div className="current-profile">
-          <span className="label">Current:</span>
-          <span className="profile-name">{currentProfile.displayName}</span>
-        </div>
-      )}
-
-      {profiles.length === 0 ? (
-        <EmptyState onAddProfile={openAddForm} />
-      ) : (
-        <ProfileList
-          profiles={profiles}
-          currentProfileId={currentProfile?.id}
-          quotas={quotas}
-          runningInstances={runningInstances}
-          onLaunch={handleLaunch}
-          onEdit={handleEditOpen}
-          onDelete={handleDelete}
-          onShowInExplorer={handleShowInExplorer}
-          onExport={handleExport}
-        />
+      {showActiveFooter && (
+        <button
+          type="button"
+          className="active-account-footer"
+          disabled
+          aria-label="Active account"
+        >
+          {currentProfile?.emoji && (
+            <span className="active-account-emoji" aria-hidden="true">
+              {currentProfile.emoji}
+            </span>
+          )}
+          <span className="active-account-name">{activeAccountLabel}</span>
+        </button>
       )}
 
       {showImportDialog && (

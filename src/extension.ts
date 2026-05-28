@@ -10,6 +10,7 @@ import { ProfileDetector } from './profiles/profileDetector';
 import { ProfileLauncher } from './profiles/profileLauncher';
 import { ProfileManager } from './profiles/profileManager';
 import { MultiProfileQuotaService } from './services/multiProfileQuotaService';
+import { ProfileAccountFetcher } from './services/profileAccountFetcher';
 import { RefreshService } from './services/refreshService';
 import {
   ACCOUNTS_SIDEBAR_VIEW_ID,
@@ -179,12 +180,15 @@ export function activate(context: vscode.ExtensionContext): void {
     profileManager
   );
 
+  const profileAccountFetcher = new ProfileAccountFetcher(context);
+
   const accountsPanel = new AccountsPanelProvider(
     context,
     profileManager,
     profileLauncher,
     profileDetector,
     multiProfileQuotaService,
+    profileAccountFetcher,
     instanceDetector
   );
 

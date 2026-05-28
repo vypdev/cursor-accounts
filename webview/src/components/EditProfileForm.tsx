@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Profile } from '../types';
+import { DEFAULT_PROFILE_EMOJI, EmojiPicker } from './EmojiPicker';
 
 interface EditProfileFormProps {
   profile: Profile;
@@ -15,6 +16,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
   const [displayName, setDisplayName] = useState(profile.displayName);
   const [theme, setTheme] = useState(profile.theme ?? '');
   const [color, setColor] = useState(profile.color ?? '#3b82f6');
+  const [emoji, setEmoji] = useState(profile.emoji ?? DEFAULT_PROFILE_EMOJI);
   const [notes, setNotes] = useState(profile.metadata?.notes ?? '');
   const [error, setError] = useState('');
 
@@ -30,6 +32,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
       displayName: displayName.trim(),
       theme: theme.trim() || undefined,
       color,
+      emoji,
       metadata: {
         ...profile.metadata,
         notes: notes.trim() || undefined,
@@ -79,6 +82,11 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
               autoFocus
               required
             />
+          </div>
+
+          <div className="form-group">
+            <label>Emoji</label>
+            <EmojiPicker value={emoji} onChange={setEmoji} />
           </div>
 
           <div className="form-group">

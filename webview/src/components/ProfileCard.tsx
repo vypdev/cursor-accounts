@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { getQuotaStatus, Profile, ProfileQuota } from '../types';
+import { getQuotaStatus, Profile, ProfileAccountView, ProfileQuota } from '../types';
 
 interface ProfileCardProps {
   profile: Profile;
   isCurrent: boolean;
+  account?: ProfileAccountView;
   quota?: ProfileQuota;
   isRunning: boolean;
   onLaunch: (id: string) => void;
@@ -50,9 +51,21 @@ function isAuthError(error: string): boolean {
   );
 }
 
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) {
+    return '?';
+  }
+  if (parts.length === 1) {
+    return parts[0].charAt(0).toUpperCase();
+  }
+  return `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
+}
+
 export const ProfileCard: React.FC<ProfileCardProps> = ({
   profile,
   isCurrent,
+  account,
   quota,
   isRunning,
   onLaunch,
@@ -61,11 +74,19 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
   onShowInExplorer,
 }) => {
   const [showMenu, setShowMenu] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const quotaStatus = quota?.quota
     ? getQuotaStatus(quota.quota)
     : 'unavailable';
+
+  const accountName = account?.accountName ?? profile.email;
+  const showAvatar = account?.pictureUrl && !avatarError;
+
+  useEffect(() => {
+    setAvatarError(false);
+  }, [account?.pictureUrl]);
 
   useEffect(() => {
     if (!showMenu) {
@@ -108,8 +129,31 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
               ●
             </span>
           )}
-          <h3>{profile.displayName}</h3>
-          <span className="email">{profile.email}</span>
+          <div className="profile-identity">
+            <div className="profile-avatar-wrap">
+              {showAvatar ? (
+                <img
+                  className="profile-avatar"
+                  src={account!.pictureUrl}
+                  alt=""
+                  onError={() => setAvatarError(true)}
+                />
+              ) : (
+                <span className="profile-avatar profile-avatar-fallback" aria-hidden="true">
+                  {getInitials(accountName)}
+                </span>
+              )}
+              {profile.emoji && (
+                <span className="profile-emoji-badge" aria-hidden="true">
+                  {profile.emoji}
+                </span>
+              )}
+            </div>
+            <div className="profile-text">
+              <h3>{accountName}</h3>
+              <span className="email">{profile.email}</span>
+            </div>
+          </div>
         </div>
         {isCurrent && <span className="badge">Active</span>}
       </div>

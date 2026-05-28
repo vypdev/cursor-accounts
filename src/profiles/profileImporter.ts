@@ -217,6 +217,7 @@ export class ProfileImporter {
       displayName: exported.displayName,
       theme: exported.theme,
       color: exported.color,
+      emoji: exported.emoji,
       notes: exported.metadata?.notes,
       tags: exported.metadata?.tags,
     });
@@ -244,6 +245,7 @@ export class ProfileImporter {
       displayName: exported.displayName,
       theme: exported.theme,
       color: exported.color,
+      emoji: exported.emoji,
       metadata: {
         ...exported.metadata,
         source: 'imported',

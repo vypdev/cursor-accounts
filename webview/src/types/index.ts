@@ -15,6 +15,7 @@ export interface Profile {
   lastLaunched?: string;
   theme?: string;
   color?: string;
+  emoji?: string;
   metadata?: ProfileMetadata;
 }
 
@@ -47,6 +48,15 @@ export interface ProfileQuota {
   fetchedAt: number;
 }
 
+/** Live API account data (not persisted). */
+export interface ProfileAccountView {
+  profileId: string;
+  accountName?: string;
+  pictureUrl?: string;
+  error?: string;
+  fetchedAt: number;
+}
+
 export type QuotaStatus = 'ok' | 'warning' | 'critical' | 'unavailable';
 
 export function getQuotaStatus(quota: QuotaUsage | null): QuotaStatus {
@@ -66,6 +76,7 @@ export function getQuotaStatus(quota: QuotaUsage | null): QuotaStatus {
 }
 
 export type ProfileQuotaMap = Record<string, ProfileQuota>;
+export type ProfileAccountMap = Record<string, ProfileAccountView>;
 
 export interface InstanceInfo {
   profileId: string;
@@ -82,6 +93,7 @@ export interface ExportedProfile {
   displayName: string;
   theme?: string;
   color?: string;
+  emoji?: string;
   settings?: Record<string, unknown>;
   metadata?: ProfileMetadata;
 }
@@ -97,6 +109,8 @@ export interface InitData {
   profiles: Profile[];
   currentProfile: Profile | null;
   quotas: ProfileQuotaMap;
+  profileAccounts: ProfileAccountMap;
+  activeAccount?: ProfileAccountView | null;
   runningInstances: InstanceInfoMap;
 }
 
@@ -105,6 +119,9 @@ export type ToWebviewMessage =
   | { type: 'profiles'; data: Profile[] }
   | { type: 'currentProfile'; data: Profile | null }
   | { type: 'quotas'; data: ProfileQuotaMap }
+  | { type: 'profileAccounts'; data: ProfileAccountMap }
+  | { type: 'activeAccount'; data: ProfileAccountView | null }
+  | { type: 'accountsLoading'; data: boolean }
   | { type: 'runningInstances'; data: InstanceInfoMap }
   | { type: 'error'; message: string }
   | { type: 'success'; message: string }
@@ -121,6 +138,7 @@ export type FromWebviewMessage =
       displayName?: string;
       theme?: string;
       color?: string;
+      emoji?: string;
     }
   | { type: 'edit'; profileId: string; updates: Partial<Profile> }
   | { type: 'delete'; profileId: string }

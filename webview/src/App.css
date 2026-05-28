@@ -29,6 +29,15 @@ body {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  min-height: calc(100vh - 32px);
+}
+
+.app-main {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
 }
 
 .header {
@@ -87,6 +96,103 @@ body {
   background: var(--bg-secondary);
   border-radius: 4px;
   font-size: 12px;
+}
+
+.profile-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.profile-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.profile-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+
+.profile-avatar-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  color: var(--fg-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.profile-emoji-badge {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  font-size: 14px;
+  line-height: 1;
+  background: var(--bg-secondary);
+  border-radius: 50%;
+  padding: 1px;
+}
+
+.profile-text h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.emoji-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.emoji-option {
+  width: 32px;
+  height: 32px;
+  font-size: 18px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  cursor: pointer;
+  padding: 0;
+}
+
+.emoji-option.selected {
+  border-color: var(--button-bg);
+  background: var(--bg-secondary);
+}
+
+.active-account-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: auto;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  color: var(--fg-primary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: default;
+}
+
+.active-account-emoji {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.active-account-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .current-profile .label {
@@ -195,14 +301,16 @@ body {
   gap: 8px;
 }
 
-.profile-info h3 {
+.profile-info h3,
+.profile-text h3 {
   font-size: 14px;
   font-weight: 600;
   margin-bottom: 4px;
   word-break: break-word;
 }
 
-.profile-info .email {
+.profile-info .email,
+.profile-text .email {
   font-size: 12px;
   color: var(--fg-secondary);
   word-break: break-all;

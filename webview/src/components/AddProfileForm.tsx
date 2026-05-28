@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
+import { DEFAULT_PROFILE_EMOJI, EmojiPicker } from './EmojiPicker';
 
 interface AddProfileFormProps {
   onSubmit: (
     email: string,
     displayName?: string,
     theme?: string,
-    color?: string
+    color?: string,
+    emoji?: string
   ) => void;
   onCancel: () => void;
   suggestedEmail?: string;
@@ -24,6 +26,7 @@ export const AddProfileForm: React.FC<AddProfileFormProps> = ({
   const [displayName, setDisplayName] = useState(suggestedDisplayName || '');
   const [theme, setTheme] = useState('');
   const [color, setColor] = useState('#3b82f6');
+  const [emoji, setEmoji] = useState(DEFAULT_PROFILE_EMOJI);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -52,7 +55,8 @@ export const AddProfileForm: React.FC<AddProfileFormProps> = ({
       email.trim(),
       displayName.trim() || undefined,
       theme.trim() || undefined,
-      color
+      color,
+      emoji
     );
   };
 
@@ -111,6 +115,11 @@ export const AddProfileForm: React.FC<AddProfileFormProps> = ({
               onChange={(e) => setDisplayName(e.target.value)}
               placeholder="e.g., Work, Personal"
             />
+          </div>
+
+          <div className="form-group">
+            <label>Emoji</label>
+            <EmojiPicker value={emoji} onChange={setEmoji} />
           </div>
 
           <div className="form-group">

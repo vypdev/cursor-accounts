@@ -26,6 +26,10 @@ import {
   MultiProfileQuotaService,
   quotaMapToRecord,
 } from '../services/multiProfileQuotaService';
+import {
+  accountMapToRecord,
+  ProfileAccountFetcher,
+} from '../services/profileAccountFetcher';
 import { buildSuggestedProfileResponse } from './suggestedProfile';
 
 /** Activity bar container id (must match package.json viewsContainers). */
@@ -38,6 +42,7 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
 
   private view?: vscode.WebviewView;
   private panel?: vscode.WebviewPanel;
+  private accountsFetchInFlight = false;
 
   public hasResolvedView(): boolean {
     return this.view !== undefined || this.panel !== undefined;
@@ -53,6 +58,7 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
     private readonly profileLauncher: ProfileLauncher,
     private readonly profileDetector: ProfileDetector,
     private readonly quotaService: MultiProfileQuotaService,
+    private readonly accountFetcher: ProfileAccountFetcher,
     private readonly instanceDetector: InstanceDetector
   ) {
     this.quotaService.onRefresh((quotas) => {
@@ -164,12 +170,14 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
         profiles,
         currentProfile,
         quotas,
+        profileAccounts: {},
+        activeAccount: null,
         runningInstances,
       };
 
       await this.postMessage({ type: 'init', data: initData });
 
-      void this.refreshQuotas();
+      void Promise.all([this.refreshQuotas(), this.refreshProfileAccounts()]);
     } catch (error) {
       extensionLog.error(
         `[AccountsPanel] Failed to refresh accounts panel: ${extensionLog.formatError(error)}`
@@ -194,6 +202,53 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
       extensionLog.error(
         `[AccountsPanel] Failed to refresh instances: ${extensionLog.formatError(error)}`
       );
+    }
+  }
+
+  /** Fetch live profile account data and push to webview. */
+  public async refreshProfileAccounts(): Promise<void> {
+    if (!this.getActiveWebview()) {
+      return;
+    }
+
+    if (this.accountsFetchInFlight) {
+      extensionLog.debug(
+        '[AccountsPanel] Profile account fetch skipped (already in flight)'
+      );
+      return;
+    }
+
+    try {
+      this.accountsFetchInFlight = true;
+      await this.postMessage({ type: 'accountsLoading', data: true });
+
+      const profiles = await this.profileManager.getProfiles();
+      const currentProfile = await this.profileDetector.detectCurrentProfile();
+      const userDataDir = this.profileDetector.getCurrentUserDataDir();
+
+      const [accountMap, activeAccount] = await Promise.all([
+        this.accountFetcher.fetchAllProfileAccounts(profiles),
+        this.accountFetcher.fetchActiveWindowAccount(
+          userDataDir,
+          currentProfile?.id
+        ),
+      ]);
+
+      await this.postMessage({
+        type: 'profileAccounts',
+        data: accountMapToRecord(accountMap),
+      });
+      await this.postMessage({
+        type: 'activeAccount',
+        data: activeAccount,
+      });
+    } catch (error) {
+      extensionLog.error(
+        `[AccountsPanel] Failed to refresh profile accounts: ${extensionLog.formatError(error)}`
+      );
+    } finally {
+      this.accountsFetchInFlight = false;
+      await this.postMessage({ type: 'accountsLoading', data: false });
     }
   }
 
@@ -329,6 +384,7 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
       displayName: data.displayName,
       theme: data.theme,
       color: data.color,
+      emoji: data.emoji,
     });
 
     await this.postMessage({
@@ -505,7 +561,7 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src ${webview.cspSource} 'nonce-${nonce}'; font-src ${webview.cspSource}; img-src ${webview.cspSource};">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src ${webview.cspSource} 'nonce-${nonce}'; font-src ${webview.cspSource}; img-src ${webview.cspSource} https:;">
   <link rel="stylesheet" href="${styleUri}">
   <title>Cursor Accounts</title>
 </head>

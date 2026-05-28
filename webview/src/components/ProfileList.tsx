@@ -1,10 +1,16 @@
 import React from 'react';
-import { InstanceInfoMap, Profile, ProfileQuotaMap } from '../types';
+import {
+  InstanceInfoMap,
+  Profile,
+  ProfileAccountMap,
+  ProfileQuotaMap,
+} from '../types';
 import { ProfileCard } from './ProfileCard';
 
 interface ProfileListProps {
   profiles: Profile[];
   currentProfileId?: string;
+  profileAccounts: ProfileAccountMap;
   quotas: ProfileQuotaMap;
   runningInstances: InstanceInfoMap;
   onLaunch: (id: string) => void;
@@ -17,6 +23,7 @@ interface ProfileListProps {
 export const ProfileList: React.FC<ProfileListProps> = ({
   profiles,
   currentProfileId,
+  profileAccounts,
   quotas,
   runningInstances,
   onLaunch,
@@ -43,6 +50,7 @@ export const ProfileList: React.FC<ProfileListProps> = ({
           key={profile.id}
           profile={profile}
           isCurrent={profile.id === currentProfileId}
+          account={profileAccounts[profile.id]}
           quota={quotas[profile.id]}
           isRunning={profile.id in runningInstances}
           onLaunch={onLaunch}

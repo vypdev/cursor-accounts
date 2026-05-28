@@ -11,6 +11,7 @@ import { ProfileManager } from '../profiles/profileManager';
 import { ProfileStorage } from '../profiles/profileStorage';
 import { FromWebviewMessage, ToWebviewMessage } from '../profiles/types';
 import { MultiProfileQuotaService } from '../services/multiProfileQuotaService';
+import { ProfileAccountFetcher } from '../services/profileAccountFetcher';
 import { AccountsPanelProvider } from '../ui/accountsPanel';
 
 interface MockWebview {
@@ -50,6 +51,13 @@ function createMockInstanceDetector(): InstanceDetector {
     stopAutoDetection: () => undefined,
     onDetectionChange: () => undefined,
   } as unknown as InstanceDetector;
+}
+
+function createMockAccountFetcher(): ProfileAccountFetcher {
+  return {
+    fetchAllProfileAccounts: async () => new Map(),
+    fetchActiveWindowAccount: async () => null,
+  } as unknown as ProfileAccountFetcher;
 }
 
 function createMockQuotaService(): MultiProfileQuotaService {
@@ -120,6 +128,7 @@ describe('AccountsPanelProvider', () => {
   let launcher: ProfileLauncher;
   let detector: ProfileDetector;
   let quotaService: MultiProfileQuotaService;
+  let accountFetcher: ProfileAccountFetcher;
   let instanceDetector: InstanceDetector;
   let provider: AccountsPanelProvider;
   let mockView: MockWebviewView;
@@ -147,6 +156,7 @@ describe('AccountsPanelProvider', () => {
     );
 
     quotaService = createMockQuotaService();
+    accountFetcher = createMockAccountFetcher();
     instanceDetector = createMockInstanceDetector();
 
     provider = new AccountsPanelProvider(
@@ -155,6 +165,7 @@ describe('AccountsPanelProvider', () => {
       launcher,
       detector,
       quotaService,
+      accountFetcher,
       instanceDetector
     );
 
@@ -204,7 +215,8 @@ describe('AccountsPanelProvider', () => {
     assert.ok(mockWebview.html.includes('bundle.css'));
     assert.ok(mockWebview.html.includes('id="root"'));
     assert.ok(mockWebview.html.includes('Loading Cursor Accounts'));
-    assert.ok(mockWebview.html.includes("'nonce-"));
+    assert.ok(mockWebview.html.includes('img-src'));
+    assert.ok(mockWebview.html.includes('https:'));
   });
 
   it('sends init message on ready with empty profiles', async () => {
@@ -217,6 +229,8 @@ describe('AccountsPanelProvider', () => {
       assert.deepEqual(initMessage.data.profiles, []);
       assert.equal(initMessage.data.currentProfile, null);
       assert.deepEqual(initMessage.data.quotas, {});
+      assert.deepEqual(initMessage.data.profileAccounts, {});
+      assert.equal(initMessage.data.activeAccount, null);
       assert.deepEqual(initMessage.data.runningInstances, {});
     }
   });
@@ -352,6 +366,7 @@ describe('AccountsPanelProvider', () => {
       failingLauncher,
       detector,
       quotaService,
+      accountFetcher,
       instanceDetector
     );
 

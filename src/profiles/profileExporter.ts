@@ -131,6 +131,7 @@ export class ProfileExporter {
       displayName: profile.displayName,
       theme: profile.theme,
       color: profile.color,
+      emoji: profile.emoji,
       metadata: this.sanitizeMetadata(profile.metadata),
     };
 

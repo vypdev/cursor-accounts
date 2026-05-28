@@ -37,3 +37,20 @@ export interface GetCurrentPeriodUsageResponse {
   planUsage?: PlanUsageRaw;
   displayMessage?: string;
 }
+
+export interface CursorAccountInfo {
+  email: string;
+  name: string;
+  picture?: string;
+  sub: string;
+  id: number;
+}
+
+/** Live API account data for webview display (not persisted). */
+export interface ProfileAccountView {
+  profileId: string;
+  accountName?: string;
+  pictureUrl?: string;
+  error?: string;
+  fetchedAt: number;
+}

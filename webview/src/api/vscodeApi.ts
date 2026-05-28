@@ -66,9 +66,10 @@ class VSCodeAPI {
     email: string,
     displayName?: string,
     theme?: string,
-    color?: string
+    color?: string,
+    emoji?: string
   ): void {
-    this.postMessage({ type: 'add', email, displayName, theme, color });
+    this.postMessage({ type: 'add', email, displayName, theme, color, emoji });
   }
 
   editProfile(profileId: string, updates: Partial<Profile>): void {
