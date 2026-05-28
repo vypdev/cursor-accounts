@@ -121,6 +121,68 @@ export const DEFAULT_PROFILE_SETTINGS: ProfileSettings = {
 /** Profile directory prefix */
 export const PROFILE_DIR_PREFIX = '.cursor-';
 
+/** Export format version */
+export const PROFILE_EXPORT_VERSION = '1.0.0';
+
+/**
+ * Exported profile format (portable, no absolute paths or secrets).
+ */
+export interface ExportedProfile {
+  email: string;
+  displayName: string;
+  theme?: string;
+  color?: string;
+  settings?: Record<string, unknown>;
+  metadata?: ProfileMetadata;
+}
+
+/**
+ * Root export file format.
+ */
+export interface ProfileExport {
+  version: string;
+  exportedAt: string;
+  exportedBy?: string;
+  profiles: ExportedProfile[];
+}
+
+/**
+ * Options for importing profiles.
+ */
+export interface ImportOptions {
+  /** Skip profiles with duplicate emails */
+  skipDuplicates: boolean;
+
+  /** Overwrite existing profiles with same email */
+  overwriteExisting: boolean;
+
+  /** Import settings.json if present */
+  importSettings: boolean;
+
+  /** Validate imported data strictly */
+  strictValidation: boolean;
+}
+
+/**
+ * Result of a profile import operation.
+ */
+export interface ImportResult {
+  success: boolean;
+  imported: Profile[];
+  skipped: ExportedProfile[];
+  errors: Array<{
+    profile: ExportedProfile;
+    error: string;
+  }>;
+}
+
+/** Pre-import validation result. */
+export interface ImportValidationResult {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+}
+
 /**
  * Quota information for a specific profile.
  */
@@ -178,7 +240,8 @@ export type ToWebviewMessage =
   | { type: 'quotas'; data: ProfileQuotaMap }
   | { type: 'runningInstances'; data: InstanceInfoMap }
   | { type: 'error'; message: string }
-  | { type: 'success'; message: string };
+  | { type: 'success'; message: string }
+  | { type: 'exportData'; data: string; filename: string };
 
 /**
  * Messages sent from webview to extension.
@@ -196,7 +259,9 @@ export type FromWebviewMessage =
     }
   | { type: 'edit'; profileId: string; updates: Partial<Profile> }
   | { type: 'delete'; profileId: string }
-  | { type: 'showInExplorer'; profileId: string };
+  | { type: 'showInExplorer'; profileId: string }
+  | { type: 'export'; profileIds: string[]; includeSettings: boolean }
+  | { type: 'import'; data: string; options: ImportOptions };
 
 /**
  * Initial data sent when webview loads.

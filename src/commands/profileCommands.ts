@@ -1,7 +1,13 @@
+import * as fs from 'fs/promises';
+import * as os from 'os';
+import * as path from 'path';
 import * as vscode from 'vscode';
+import { ProfileExporter } from '../profiles/profileExporter';
+import { ProfileImporter } from '../profiles/profileImporter';
 import { ProfileDetector } from '../profiles/profileDetector';
 import { ProfileLauncher } from '../profiles/profileLauncher';
 import { ProfileManager } from '../profiles/profileManager';
+import { ProfileExport } from '../profiles/types';
 
 export function registerProfileCommands(
   context: vscode.ExtensionContext,
@@ -240,5 +246,136 @@ export function registerProfileCommands(
         }
       }
     )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('cursorQuota.exportProfiles', async () => {
+      try {
+        const profiles = await profileManager.getProfiles();
+
+        if (profiles.length === 0) {
+          vscode.window.showInformationMessage('No profiles to export.');
+          return;
+        }
+
+        const selected = await vscode.window.showQuickPick(
+          [
+            { label: 'Export All Profiles', id: 'all' },
+            ...profiles.map((p) => ({
+              label: p.displayName,
+              description: p.email,
+              id: p.id,
+              picked: true,
+            })),
+          ],
+          {
+            placeHolder: 'Select profiles to export',
+            canPickMany: true,
+          }
+        );
+
+        if (!selected || selected.length === 0) {
+          return;
+        }
+
+        const exportAll = selected.some((s) => s.id === 'all');
+        const profileIds = exportAll
+          ? profiles.map((p) => p.id)
+          : selected.filter((s) => s.id !== 'all').map((s) => s.id);
+
+        const includeSettings = await vscode.window.showQuickPick(['Yes', 'No'], {
+          placeHolder: 'Include VS Code settings.json?',
+        });
+
+        const uri = await vscode.window.showSaveDialog({
+          defaultUri: vscode.Uri.file(
+            path.join(os.homedir(), 'Downloads', 'cursor-profiles-export.json')
+          ),
+          filters: { JSON: ['json'] },
+        });
+
+        if (!uri) {
+          return;
+        }
+
+        const exporter = new ProfileExporter(profileManager);
+        await exporter.exportToFile(
+          profileIds,
+          uri.fsPath,
+          includeSettings === 'Yes'
+        );
+
+        vscode.window.showInformationMessage(
+          `Exported ${profileIds.length} profile(s) to ${uri.fsPath}`
+        );
+      } catch (error) {
+        vscode.window.showErrorMessage(
+          `Failed to export profiles: ${error instanceof Error ? error.message : 'Unknown error'}`
+        );
+      }
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('cursorQuota.importProfiles', async () => {
+      try {
+        const uris = await vscode.window.showOpenDialog({
+          canSelectMany: false,
+          filters: { JSON: ['json'] },
+          openLabel: 'Import',
+        });
+
+        if (!uris || uris.length === 0) {
+          return;
+        }
+
+        const importer = new ProfileImporter(profileManager);
+
+        const content = await fs.readFile(uris[0].fsPath, 'utf-8');
+        const exportData = JSON.parse(content) as ProfileExport;
+        const validation = await importer.validateImport(exportData);
+
+        if (!validation.valid) {
+          vscode.window.showErrorMessage(
+            `Invalid import file: ${validation.errors.join(', ')}`
+          );
+          return;
+        }
+
+        if (validation.warnings.length > 0) {
+          const proceed = await vscode.window.showWarningMessage(
+            `Warnings:\n${validation.warnings.join('\n')}\n\nContinue?`,
+            { modal: true },
+            'Continue'
+          );
+          if (proceed !== 'Continue') {
+            return;
+          }
+        }
+
+        const result = await importer.importFromFile(uris[0].fsPath);
+
+        const messages: string[] = [];
+        if (result.imported.length > 0) {
+          messages.push(`Imported: ${result.imported.length}`);
+        }
+        if (result.skipped.length > 0) {
+          messages.push(`Skipped: ${result.skipped.length}`);
+        }
+        if (result.errors.length > 0) {
+          messages.push(`Errors: ${result.errors.length}`);
+        }
+
+        if (result.success) {
+          vscode.window.showInformationMessage(messages.join(', '));
+        } else {
+          vscode.window.showWarningMessage(messages.join(', '));
+        }
+      } catch (error) {
+        vscode.window.showErrorMessage(
+          `Failed to import profiles: ${error instanceof Error ? error.message : 'Unknown error'}`
+        );
+      }
+    })
   );
 }

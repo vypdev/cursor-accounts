@@ -5,10 +5,13 @@ import {
   InstanceDetector,
 } from '../profiles/instanceDetector';
 import { ProfileDetector } from '../profiles/profileDetector';
+import { ProfileExporter } from '../profiles/profileExporter';
+import { ProfileImporter } from '../profiles/profileImporter';
 import { ProfileLauncher } from '../profiles/profileLauncher';
 import { ProfileManager } from '../profiles/profileManager';
 import {
   FromWebviewMessage,
+  ImportOptions,
   InitData,
   InstanceInfo,
   Profile,
@@ -202,6 +205,14 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
           await this.handleShowInExplorer(message.profileId);
           break;
 
+        case 'export':
+          await this.handleExport(message.profileIds, message.includeSettings);
+          break;
+
+        case 'import':
+          await this.handleImport(message.data, message.options);
+          break;
+
         default: {
           const unknown = message as { type?: string };
           console.warn('Unknown message type:', unknown.type);
@@ -285,6 +296,64 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
 
     const uri = vscode.Uri.file(profile.userDataDir);
     await vscode.commands.executeCommand('revealFileInOS', uri);
+  }
+
+  private async handleExport(
+    profileIds: string[],
+    includeSettings: boolean
+  ): Promise<void> {
+    const exporter = new ProfileExporter(this.profileManager);
+    const exportData = await exporter.exportProfiles(profileIds, includeSettings);
+    const json = JSON.stringify(exportData, null, 2);
+    const timestamp = new Date().toISOString().slice(0, 10);
+
+    await this.postMessage({
+      type: 'exportData',
+      data: json,
+      filename: `cursor-profiles-export-${timestamp}.json`,
+    });
+
+    await this.postMessage({
+      type: 'success',
+      message: `Exported ${exportData.profiles.length} profile(s)`,
+    });
+  }
+
+  private async handleImport(
+    json: string,
+    options: ImportOptions
+  ): Promise<void> {
+    const importer = new ProfileImporter(this.profileManager);
+    const result = await importer.importFromString(json, options);
+
+    const messages: string[] = [];
+    if (result.imported.length > 0) {
+      messages.push(`Imported ${result.imported.length}`);
+    }
+    if (result.skipped.length > 0) {
+      messages.push(`Skipped ${result.skipped.length}`);
+    }
+    if (result.errors.length > 0) {
+      messages.push(`${result.errors.length} error(s)`);
+    }
+
+    if (result.imported.length > 0 || result.skipped.length > 0) {
+      await this.refresh();
+    }
+
+    if (result.success) {
+      await this.postMessage({
+        type: 'success',
+        message: messages.join(', ') || 'Import completed',
+      });
+    } else {
+      await this.postMessage({
+        type: 'error',
+        message:
+          messages.join(', ') ||
+          'Import completed with errors',
+      });
+    }
   }
 
   private async postMessage(message: ToWebviewMessage): Promise<void> {

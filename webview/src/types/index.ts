@@ -77,6 +77,22 @@ export interface InstanceInfo {
 
 export type InstanceInfoMap = Record<string, InstanceInfo>;
 
+export interface ExportedProfile {
+  email: string;
+  displayName: string;
+  theme?: string;
+  color?: string;
+  settings?: Record<string, unknown>;
+  metadata?: ProfileMetadata;
+}
+
+export interface ImportOptions {
+  skipDuplicates: boolean;
+  overwriteExisting: boolean;
+  importSettings: boolean;
+  strictValidation: boolean;
+}
+
 export interface InitData {
   profiles: Profile[];
   currentProfile: Profile | null;
@@ -91,7 +107,8 @@ export type ToWebviewMessage =
   | { type: 'quotas'; data: ProfileQuotaMap }
   | { type: 'runningInstances'; data: InstanceInfoMap }
   | { type: 'error'; message: string }
-  | { type: 'success'; message: string };
+  | { type: 'success'; message: string }
+  | { type: 'exportData'; data: string; filename: string };
 
 export type FromWebviewMessage =
   | { type: 'ready' }
@@ -106,7 +123,9 @@ export type FromWebviewMessage =
     }
   | { type: 'edit'; profileId: string; updates: Partial<Profile> }
   | { type: 'delete'; profileId: string }
-  | { type: 'showInExplorer'; profileId: string };
+  | { type: 'showInExplorer'; profileId: string }
+  | { type: 'export'; profileIds: string[]; includeSettings: boolean }
+  | { type: 'import'; data: string; options: ImportOptions };
 
 export const WEBVIEW_STATE_VERSION = 1;
 

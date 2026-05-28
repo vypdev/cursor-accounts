@@ -1,5 +1,6 @@
 import {
   FromWebviewMessage,
+  ImportOptions,
   Profile,
   ToWebviewMessage,
   WebviewPersistedState,
@@ -70,6 +71,14 @@ class VSCodeAPI {
 
   showInExplorer(profileId: string): void {
     this.postMessage({ type: 'showInExplorer', profileId });
+  }
+
+  exportProfiles(profileIds: string[], includeSettings: boolean): void {
+    this.postMessage({ type: 'export', profileIds, includeSettings });
+  }
+
+  importProfiles(data: string, options: ImportOptions): void {
+    this.postMessage({ type: 'import', data, options });
   }
 
   saveState(state: Omit<WebviewPersistedState, 'version'>): void {

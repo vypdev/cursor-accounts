@@ -68,6 +68,16 @@
       {
         "command": "cursorQuota.showCurrentProfile",
         "title": "Cursor Quota: Show Current Profile"
+      },
+      {
+        "command": "cursorQuota.exportProfiles",
+        "title": "Cursor Quota: Export Profiles",
+        "icon": "$(export)"
+      },
+      {
+        "command": "cursorQuota.importProfiles",
+        "title": "Cursor Quota: Import Profiles",
+        "icon": "$(folder-opened)"
       }
     ],
     "configuration": {

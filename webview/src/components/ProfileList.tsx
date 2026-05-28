@@ -11,6 +11,7 @@ interface ProfileListProps {
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
   onShowInExplorer: (id: string) => void;
+  onExport: (profileIds: string[], includeSettings: boolean) => void;
 }
 
 export const ProfileList: React.FC<ProfileListProps> = ({
@@ -22,9 +23,21 @@ export const ProfileList: React.FC<ProfileListProps> = ({
   onEdit,
   onDelete,
   onShowInExplorer,
+  onExport,
 }) => {
   return (
-    <div className="profile-list" role="list">
+    <div className="profile-list-container">
+      <div className="list-header">
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={() => onExport(profiles.map((p) => p.id), false)}
+          title="Export all profiles"
+        >
+          Export All
+        </button>
+      </div>
+      <div className="profile-list" role="list">
       {profiles.map((profile) => (
         <ProfileCard
           key={profile.id}
@@ -38,6 +51,7 @@ export const ProfileList: React.FC<ProfileListProps> = ({
           onShowInExplorer={onShowInExplorer}
         />
       ))}
+      </div>
     </div>
   );
 };

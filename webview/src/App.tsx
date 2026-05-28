@@ -3,8 +3,15 @@ import { vscodeApi } from './api/vscodeApi';
 import { AddProfileForm } from './components/AddProfileForm';
 import { EditProfileForm } from './components/EditProfileForm';
 import { EmptyState } from './components/EmptyState';
+import { ImportDialog } from './components/ImportDialog';
 import { ProfileList } from './components/ProfileList';
-import { Profile, ProfileQuotaMap, InstanceInfoMap, ToWebviewMessage } from './types';
+import {
+  ImportOptions,
+  Profile,
+  ProfileQuotaMap,
+  InstanceInfoMap,
+  ToWebviewMessage,
+} from './types';
 import './App.css';
 
 export const App: React.FC = () => {
@@ -17,6 +24,7 @@ export const App: React.FC = () => {
   const [showAddForm, setShowAddForm] = useState(
     persisted?.showAddForm ?? false
   );
+  const [showImportDialog, setShowImportDialog] = useState(false);
   const [editingProfileId, setEditingProfileId] = useState<string | null>(
     persisted?.editingProfileId ?? null
   );
@@ -70,6 +78,17 @@ export const App: React.FC = () => {
           setSuccess(message.message);
           setTimeout(() => setSuccess(null), 4000);
           break;
+
+        case 'exportData': {
+          const blob = new Blob([message.data], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const anchor = document.createElement('a');
+          anchor.href = url;
+          anchor.download = message.filename;
+          anchor.click();
+          URL.revokeObjectURL(url);
+          break;
+        }
       }
     });
 
@@ -136,6 +155,18 @@ export const App: React.FC = () => {
     persistUiState(showAddForm, null);
   }, [showAddForm, persistUiState]);
 
+  const handleExport = useCallback(
+    (profileIds: string[], includeSettings: boolean) => {
+      vscodeApi.exportProfiles(profileIds, includeSettings);
+    },
+    []
+  );
+
+  const handleImport = useCallback((json: string, options: ImportOptions) => {
+    vscodeApi.importProfiles(json, options);
+    setShowImportDialog(false);
+  }, []);
+
   const editingProfile = editingProfileId
     ? profiles.find((p) => p.id === editingProfileId)
     : undefined;
@@ -154,6 +185,14 @@ export const App: React.FC = () => {
       <div className="header">
         <h2>Cursor Accounts</h2>
         <div className="header-actions">
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => setShowImportDialog(true)}
+            title="Import profiles"
+          >
+            Import
+          </button>
           <button
             type="button"
             className="btn-secondary"
@@ -204,6 +243,14 @@ export const App: React.FC = () => {
           onEdit={handleEditOpen}
           onDelete={handleDelete}
           onShowInExplorer={handleShowInExplorer}
+          onExport={handleExport}
+        />
+      )}
+
+      {showImportDialog && (
+        <ImportDialog
+          onImport={handleImport}
+          onCancel={() => setShowImportDialog(false)}
         />
       )}
 
