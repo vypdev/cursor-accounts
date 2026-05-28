@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { CursorAuthTokens } from '../api/types';
+import * as extensionLog from '../logging/extensionLog';
 import { getCursorStateDbPath, SECRETS_KEYS } from './cursorPaths';
 import { isTokenExpired, readAuthFromStateDb } from './tokenReader';
 
@@ -23,6 +24,7 @@ export class TokenService {
   async getValidTokens(signal?: AbortSignal): Promise<CursorAuthTokens> {
     const fromSecrets = await this.readFromSecrets();
     if (fromSecrets?.accessToken && !isTokenExpired(fromSecrets.accessToken)) {
+      extensionLog.debug('[TokenService] Using access token from extension secrets');
       return fromSecrets;
     }
 
@@ -37,6 +39,7 @@ export class TokenService {
     }
 
     if (!isTokenExpired(fromDb.accessToken)) {
+      extensionLog.debug('[TokenService] Loaded valid tokens from Cursor state database');
       await this.persistTokens(fromDb);
       return fromDb;
     }
@@ -54,6 +57,7 @@ export class TokenService {
       );
     }
 
+    extensionLog.debug('[TokenService] Access token expired; refreshing via OAuth');
     const refreshed = await this.refreshTokens(fromDb.refreshToken, signal);
     await this.persistTokens(refreshed);
     return refreshed;
@@ -105,6 +109,7 @@ export class TokenService {
     if (!response.ok || !body.access_token) {
       const detail =
         body.error_description ?? body.error ?? response.statusText;
+      extensionLog.error(`[TokenService] Token refresh failed: ${detail}`);
       throw new Error(`Token refresh failed: ${detail}`);
     }
 
@@ -113,6 +118,7 @@ export class TokenService {
       refreshToken: body.refresh_token ?? refreshToken,
     };
     await this.persistTokens(tokens);
+    extensionLog.info('[TokenService] OAuth token refresh succeeded');
     return tokens;
   }
 }

@@ -1,6 +1,7 @@
 import * as os from 'os';
 import * as path from 'path';
 import * as vscode from 'vscode';
+import * as extensionLog from '../logging/extensionLog';
 import { pathsEqual } from '../utils/pathUtils';
 import { ProfileManager } from './profileManager';
 import { Profile } from './types';
@@ -15,8 +16,12 @@ export class ProfileDetectorError extends Error {
   }
 }
 
+type UserDataDirSource = 'globalStorageUri' | 'env' | 'argv' | 'default';
+
 export class ProfileDetector {
   private currentProfile: Profile | null | undefined = undefined;
+  private lastUserDataDirSource: UserDataDirSource | undefined;
+  private loggedNonPrimarySource = false;
 
   constructor(
     private readonly profileManager: ProfileManager,
@@ -35,6 +40,16 @@ export class ProfileDetector {
 
     try {
       const userDataDir = this.getCurrentUserDataDir();
+      if (
+        !this.loggedNonPrimarySource &&
+        this.lastUserDataDirSource &&
+        this.lastUserDataDirSource !== 'globalStorageUri'
+      ) {
+        this.loggedNonPrimarySource = true;
+        extensionLog.debug(
+          `[ProfileDetector] Current user data dir resolved via ${this.lastUserDataDirSource}`
+        );
+      }
       const defaultDir = this.getDefaultCursorUserDataDir();
 
       if (pathsEqual(userDataDir, defaultDir)) {
@@ -69,33 +84,27 @@ export class ProfileDetector {
         const userDataDir = path.dirname(
           path.dirname(path.dirname(globalStoragePath))
         );
+        this.lastUserDataDirSource = 'globalStorageUri';
         return path.normalize(userDataDir);
-      } catch (error) {
-        console.warn(
-          'Failed to derive user data dir from globalStorageUri:',
-          error
-        );
+      } catch {
+        // Fall through to other detection methods.
       }
     }
 
     const envDir = process.env.VSCODE_USER_DATA_DIR;
     if (envDir) {
-      console.warn(
-        'Using VSCODE_USER_DATA_DIR environment variable (may be unreliable)'
-      );
+      this.lastUserDataDirSource = 'env';
       return path.normalize(envDir);
     }
 
     const args = process.argv;
     const userDataDirIndex = args.findIndex((arg) => arg === '--user-data-dir');
     if (userDataDirIndex !== -1 && userDataDirIndex < args.length - 1) {
-      console.warn('Using process.argv for user data dir (may be unreliable)');
+      this.lastUserDataDirSource = 'argv';
       return path.normalize(args[userDataDirIndex + 1]);
     }
 
-    console.warn(
-      'Could not detect custom user data dir, using default location'
-    );
+    this.lastUserDataDirSource = 'default';
     return this.getDefaultCursorUserDataDir();
   }
 
@@ -132,6 +141,8 @@ export class ProfileDetector {
    */
   clearCache(): void {
     this.currentProfile = undefined;
+    this.lastUserDataDirSource = undefined;
+    this.loggedNonPrimarySource = false;
   }
 
   /**

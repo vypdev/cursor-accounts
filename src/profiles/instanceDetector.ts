@@ -1,5 +1,6 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import * as extensionLog from '../logging/extensionLog';
 import { pathsEqual } from '../utils/pathUtils';
 import { ProfileManager } from './profileManager';
 import { InstanceInfo, InstanceInfoMap } from './types';
@@ -62,13 +63,11 @@ export function parseMacOSPsOutput(stdout: string): CursorProcess[] {
     try {
       const match = line.match(/^\s*(\d+)\s+(.+?)\s+(\/.*?)$/);
       if (!match) {
-        console.warn('Failed to parse ps line:', line);
         continue;
       }
 
       const pid = parseInt(match[1], 10);
       if (isNaN(pid)) {
-        console.warn('Invalid PID in ps line:', line);
         continue;
       }
 
@@ -82,8 +81,8 @@ export function parseMacOSPsOutput(stdout: string): CursorProcess[] {
         pid,
         userDataDir: extractUserDataDir(command),
       });
-    } catch (lineError) {
-      console.error('Error parsing ps line:', line, lineError);
+    } catch {
+      continue;
     }
   }
 
@@ -102,13 +101,11 @@ export function parseLinuxPsOutput(stdout: string): CursorProcess[] {
     try {
       const match = line.match(/^\s*(\d+)\s+(.+)$/);
       if (!match) {
-        console.warn('Failed to parse ps line:', line);
         continue;
       }
 
       const pid = parseInt(match[1], 10);
       if (isNaN(pid)) {
-        console.warn('Invalid PID in ps line:', line);
         continue;
       }
 
@@ -122,8 +119,8 @@ export function parseLinuxPsOutput(stdout: string): CursorProcess[] {
         pid,
         userDataDir: extractUserDataDir(command),
       });
-    } catch (lineError) {
-      console.error('Error parsing ps line:', line, lineError);
+    } catch {
+      continue;
     }
   }
 
@@ -140,8 +137,7 @@ export function parseWindowsPowerShellJson(stdout: string): CursorProcess[] {
   let processData: unknown;
   try {
     processData = JSON.parse(trimmed);
-  } catch (jsonError) {
-    console.error('Failed to parse PowerShell JSON output:', stdout);
+  } catch {
     throw new Error('Invalid JSON from PowerShell');
   }
 
@@ -174,8 +170,8 @@ export function parseWindowsPowerShellJson(stdout: string): CursorProcess[] {
         pid,
         userDataDir: extractUserDataDir(command),
       });
-    } catch (procError) {
-      console.error('Error processing PowerShell process entry:', proc, procError);
+    } catch {
+      continue;
     }
   }
 
@@ -214,8 +210,8 @@ export function parseWindowsWmicOutput(stdout: string): CursorProcess[] {
         pid,
         userDataDir: extractUserDataDir(command),
       });
-    } catch (blockError) {
-      console.error('Error parsing wmic block:', block, blockError);
+    } catch {
+      continue;
     }
   }
 
@@ -273,6 +269,9 @@ export class InstanceDetector {
       this.lastDetection = instances;
 
       if (changed) {
+        extensionLog.debug(
+          `[InstanceDetector] Running instances changed: ${instances.size} matched profile(s) from ${processes.length} process(es)`
+        );
         this.notifyDetectionChange(instances);
       }
 
@@ -307,12 +306,16 @@ export class InstanceDetector {
     this.stopAutoDetection();
 
     void this.detectRunningInstances().catch((error) => {
-      console.error('Initial instance detection failed:', error);
+      extensionLog.error(
+        `[InstanceDetector] Initial instance detection failed: ${extensionLog.formatError(error)}`
+      );
     });
 
     this.pollTimer = setInterval(() => {
       void this.detectRunningInstances().catch((error) => {
-        console.error('Instance detection poll failed:', error);
+        extensionLog.error(
+          `[InstanceDetector] Instance detection poll failed: ${extensionLog.formatError(error)}`
+        );
       });
     }, intervalMs);
   }
@@ -324,6 +327,7 @@ export class InstanceDetector {
     if (this.pollTimer) {
       clearInterval(this.pollTimer);
       this.pollTimer = undefined;
+      extensionLog.debug('[InstanceDetector] Auto-detection stopped');
     }
   }
 
@@ -359,7 +363,9 @@ export class InstanceDetector {
         return [];
       }
 
-      console.error('Failed to get Cursor processes on macOS:', error);
+      extensionLog.error(
+        `[InstanceDetector] Failed to get Cursor processes on macOS: ${extensionLog.formatError(error)}`
+      );
       throw new InstanceDetectorError(
         'Failed to detect running Cursor instances on macOS',
         error instanceof Error ? error : undefined
@@ -371,12 +377,16 @@ export class InstanceDetector {
     try {
       return await this.getCursorProcessesWindowsPowerShell();
     } catch (psError) {
-      console.warn('PowerShell detection failed, falling back to wmic:', psError);
+      extensionLog.warn(
+        `[InstanceDetector] PowerShell detection failed, falling back to wmic: ${extensionLog.formatError(psError)}`
+      );
 
       try {
         return await this.getCursorProcessesWindowsWmic();
       } catch (wmicError) {
-        console.error('Both PowerShell and wmic detection failed');
+        extensionLog.error(
+          `[InstanceDetector] Both PowerShell and wmic detection failed: ${extensionLog.formatError(wmicError)}`
+        );
         throw new InstanceDetectorError(
           'Failed to detect running Cursor instances on Windows',
           wmicError instanceof Error ? wmicError : undefined
@@ -438,7 +448,9 @@ export class InstanceDetector {
         return [];
       }
 
-      console.error('Failed to get Cursor processes on Linux:', error);
+      extensionLog.error(
+        `[InstanceDetector] Failed to get Cursor processes on Linux: ${extensionLog.formatError(error)}`
+      );
       throw new InstanceDetectorError(
         'Failed to detect running Cursor instances on Linux',
         error instanceof Error ? error : undefined
@@ -453,7 +465,9 @@ export class InstanceDetector {
       try {
         callback(new Map(instances));
       } catch (error) {
-        console.error('Instance detection callback failed:', error);
+        extensionLog.error(
+          `[InstanceDetector] Instance detection callback failed: ${extensionLog.formatError(error)}`
+        );
       }
     }
   }

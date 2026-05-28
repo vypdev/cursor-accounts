@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
+import * as extensionLog from '../logging/extensionLog';
 import { getProfileStateDbPath } from '../auth/cursorPaths';
 import { readAuthFromStateDb } from '../auth/tokenReader';
 import {
@@ -72,6 +73,7 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
     _token: vscode.CancellationToken
   ): void {
     this.view = webviewView;
+    extensionLog.debug('[AccountsPanel] Webview resolved (sidebar)');
 
     webviewView.webview.options = {
       enableScripts: true,
@@ -109,6 +111,8 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
       void this.refresh();
       return;
     }
+
+    extensionLog.debug('[AccountsPanel] Webview resolved (editor panel fallback)');
 
     const distRoot = vscode.Uri.file(
       path.join(this.context.extensionPath, 'webview-dist')
@@ -167,7 +171,9 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
 
       void this.refreshQuotas();
     } catch (error) {
-      console.error('Failed to refresh accounts panel:', error);
+      extensionLog.error(
+        `[AccountsPanel] Failed to refresh accounts panel: ${extensionLog.formatError(error)}`
+      );
       await this.postMessage({
         type: 'error',
         message: 'Failed to load profiles',
@@ -185,7 +191,9 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
       const runningInstances = await this.instanceDetector.detectRunningInstances();
       await this.postRunningInstances(runningInstances);
     } catch (error) {
-      console.error('Failed to refresh instances:', error);
+      extensionLog.error(
+        `[AccountsPanel] Failed to refresh instances: ${extensionLog.formatError(error)}`
+      );
     }
   }
 
@@ -199,7 +207,9 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
       const quotaMap = await this.quotaService.fetchAllQuotas();
       await this.postQuotas(quotaMap);
     } catch (error) {
-      console.error('Failed to refresh quotas:', error);
+      extensionLog.error(
+        `[AccountsPanel] Failed to refresh quotas: ${extensionLog.formatError(error)}`
+      );
     }
   }
 
@@ -277,7 +287,9 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
 
         default: {
           const unknown = message as { type?: string };
-          console.warn('Unknown message type:', unknown.type);
+          extensionLog.warn(
+            `[AccountsPanel] Unknown webview message type: ${unknown.type ?? 'undefined'}`
+          );
         }
       }
     } catch (error) {
@@ -289,6 +301,7 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
   }
 
   private async handleLaunch(profileId: string): Promise<void> {
+    extensionLog.info(`[AccountsPanel] Launch requested for profile ${profileId}`);
     const result = await this.profileLauncher.launch(profileId);
 
     if (result.success) {
@@ -310,6 +323,7 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
   private async handleAdd(
     data: Extract<FromWebviewMessage, { type: 'add' }>
   ): Promise<void> {
+    extensionLog.info(`[AccountsPanel] Add profile requested (${data.email})`);
     const profile = await this.profileManager.createProfile({
       email: data.email,
       displayName: data.displayName,
@@ -338,6 +352,7 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
   }
 
   private async handleDelete(profileId: string): Promise<void> {
+    extensionLog.info(`[AccountsPanel] Delete profile requested (${profileId})`);
     const profile = await this.profileManager.getProfile(profileId);
     const displayName = profile?.displayName ?? 'Unknown';
 
@@ -382,7 +397,9 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
         buildSuggestedProfileResponse(tokens?.email, existing)
       );
     } catch (error) {
-      console.error('Failed to detect current profile email:', error);
+      extensionLog.error(
+        `[AccountsPanel] Failed to detect current profile email: ${extensionLog.formatError(error)}`
+      );
 
       if (this.getActiveWebview()) {
         await this.postMessage({
@@ -398,6 +415,9 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
     profileIds: string[],
     includeSettings: boolean
   ): Promise<void> {
+    extensionLog.info(
+      `[AccountsPanel] Export requested (${profileIds.length} profile(s), settings=${includeSettings})`
+    );
     const exporter = new ProfileExporter(this.profileManager);
     const exportData = await exporter.exportProfiles(profileIds, includeSettings);
     const json = JSON.stringify(exportData, null, 2);
@@ -419,6 +439,7 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
     json: string,
     options: ImportOptions
   ): Promise<void> {
+    extensionLog.info('[AccountsPanel] Import requested');
     const importer = new ProfileImporter(this.profileManager);
     const result = await importer.importFromString(json, options);
 
@@ -464,7 +485,9 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
     const bundleJsPath = path.join(distDir, 'bundle.js');
 
     if (!fs.existsSync(bundleJsPath)) {
-      console.error('[AccountsPanel] bundle.js not found at:', bundleJsPath);
+      extensionLog.error(
+        `[AccountsPanel] bundle.js not found at: ${bundleJsPath}`
+      );
     }
 
     const scriptUri = webview.asWebviewUri(

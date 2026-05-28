@@ -1,5 +1,6 @@
 import { TokenProvider } from '../auth/tokenProvider';
 import { TokenService } from '../auth/tokenRefresh';
+import * as extensionLog from '../logging/extensionLog';
 import {
   GetCurrentPeriodUsageResponse,
   PlanUsageRaw,
@@ -89,6 +90,9 @@ export class QuotaClient {
         tokens.refreshToken &&
         this.tokenProvider instanceof TokenService
       ) {
+        extensionLog.debug(
+          '[QuotaClient] Usage API returned 401; retrying after token refresh'
+        );
         const refreshed = await this.tokenProvider.refreshTokens(
           tokens.refreshToken,
           signal
@@ -98,6 +102,11 @@ export class QuotaClient {
           signal
         );
         return mapUsageResponse(raw, tokens.email);
+      }
+      if (error instanceof QuotaApiError) {
+        extensionLog.warn(
+          `[QuotaClient] Usage API error (status ${error.statusCode ?? 'unknown'}): ${error.message}`
+        );
       }
       throw error;
     }

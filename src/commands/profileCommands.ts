@@ -2,6 +2,7 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
 import * as vscode from 'vscode';
+import * as extensionLog from '../logging/extensionLog';
 import { ProfileExporter } from '../profiles/profileExporter';
 import { ProfileImporter } from '../profiles/profileImporter';
 import { ProfileDetector } from '../profiles/profileDetector';
@@ -147,25 +148,26 @@ export function registerProfileCommands(
           return;
         }
 
-        const output = vscode.window.createOutputChannel('Cursor Profiles');
-        output.clear();
-        output.appendLine('Configured Cursor Profiles:');
-        output.appendLine('');
+        extensionLog.clear();
+        extensionLog.appendLine('Configured Cursor Profiles:');
+        extensionLog.appendLine('');
 
         for (const profile of profiles) {
           const isCurrent = current?.id === profile.id;
-          output.appendLine(`${isCurrent ? '● ' : '○ '}${profile.displayName}`);
-          output.appendLine(`  Email: ${profile.email}`);
-          output.appendLine(`  Path: ${profile.userDataDir}`);
+          extensionLog.appendLine(
+            `${isCurrent ? '● ' : '○ '}${profile.displayName}`
+          );
+          extensionLog.appendLine(`  Email: ${profile.email}`);
+          extensionLog.appendLine(`  Path: ${profile.userDataDir}`);
           if (profile.lastLaunched) {
-            output.appendLine(
+            extensionLog.appendLine(
               `  Last launched: ${new Date(profile.lastLaunched).toLocaleString()}`
             );
           }
-          output.appendLine('');
+          extensionLog.appendLine('');
         }
 
-        output.show();
+        extensionLog.show();
       } catch (error) {
         vscode.window.showErrorMessage(
           `Failed to list profiles: ${error instanceof Error ? error.message : 'Unknown error'}`

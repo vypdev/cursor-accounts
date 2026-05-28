@@ -1,5 +1,6 @@
 import { ChildProcess, spawn } from 'child_process';
 import * as path from 'path';
+import * as extensionLog from '../logging/extensionLog';
 import { InstanceDetector } from './instanceDetector';
 import { ProfileManager } from './profileManager';
 import { Profile } from './types';
@@ -41,15 +42,31 @@ export class ProfileLauncher {
     try {
       const profile = await this.profileManager.getProfile(profileId);
       if (!profile) {
+        extensionLog.warn(
+          `[ProfileLauncher] Launch failed: profile ${profileId} not found`
+        );
         return {
           success: false,
           error: `Profile with ID ${profileId} not found`,
         };
       }
 
+      if (options?.force) {
+        extensionLog.warn(
+          `[ProfileLauncher] Force launching profile ${profileId} (${profile.displayName})`
+        );
+      } else {
+        extensionLog.info(
+          `[ProfileLauncher] Launching profile ${profileId} (${profile.displayName})`
+        );
+      }
+
       if (this.instanceDetector && !options?.force) {
         const instances = await this.instanceDetector.detectRunningInstances();
         if (instances.has(profileId)) {
+          extensionLog.warn(
+            `[ProfileLauncher] Profile ${profileId} is already running`
+          );
           return {
             success: false,
             error: `Profile "${profile.displayName}" is already running. Close the existing window first.`,
@@ -59,9 +76,13 @@ export class ProfileLauncher {
 
       return await this.launchWithProfile(profile);
     } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      extensionLog.error(
+        `[ProfileLauncher] Launch failed for ${profileId}: ${message}`
+      );
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: message,
       };
     }
   }
@@ -91,14 +112,19 @@ export class ProfileLauncher {
         });
       }
 
+      extensionLog.info(
+        `[ProfileLauncher] Started Cursor (pid ${proc.pid ?? 'unknown'})`
+      );
       return {
         success: true,
         pid: proc.pid,
       };
     } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      extensionLog.error(`[ProfileLauncher] Failed to spawn Cursor: ${message}`);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: message,
       };
     }
   }

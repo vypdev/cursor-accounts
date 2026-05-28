@@ -5,6 +5,7 @@ import {
   affectsCursorAccountsConfig,
   getCursorAccountsConfig,
 } from '../config';
+import * as extensionLog from '../logging/extensionLog';
 
 const GLOBAL_CACHE_KEY = 'lastQuota';
 const MAX_BACKOFF_MS = 5 * 60 * 1000;
@@ -37,9 +38,13 @@ export class RefreshService {
     this.stop();
     const cfg = getCursorAccountsConfig();
     if (!cfg.refreshEnabled) {
+      extensionLog.info('[RefreshService] Status bar refresh disabled by configuration');
       return;
     }
 
+    extensionLog.info(
+      `[RefreshService] Started (interval ${cfg.refreshIntervalSeconds}s)`
+    );
     void this.tick();
     const intervalMs = cfg.refreshIntervalSeconds * 1000;
     this.timer = setInterval(() => void this.tick(), intervalMs);
@@ -49,18 +54,21 @@ export class RefreshService {
     if (this.timer) {
       clearInterval(this.timer);
       this.timer = undefined;
+      extensionLog.debug('[RefreshService] Stopped');
     }
     this.abortController?.abort();
     this.abortController = undefined;
   }
 
   restart(): void {
+    extensionLog.debug('[RefreshService] Restarting after configuration change');
     this.consecutiveFailures = 0;
     this.backoffMs = 0;
     this.start();
   }
 
   async tickNow(): Promise<void> {
+    extensionLog.debug('[RefreshService] Manual refresh requested');
     this.consecutiveFailures = 0;
     this.backoffMs = 0;
     await this.tick();
@@ -90,6 +98,9 @@ export class RefreshService {
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Failed to fetch quota usage';
+      extensionLog.warn(
+        `[RefreshService] Quota fetch failed (attempt ${this.consecutiveFailures + 1}, next backoff ${Math.min(MAX_BACKOFF_MS, 1000 * 2 ** Math.min(this.consecutiveFailures + 1, 8))}ms): ${message}`
+      );
       this.onError(message);
       this.consecutiveFailures += 1;
       this.backoffMs = Math.min(

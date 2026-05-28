@@ -1,6 +1,7 @@
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
+import * as extensionLog from '../logging/extensionLog';
 import { validateUserDataPath } from '../utils/pathUtils';
 import { ProfileManager } from './profileManager';
 import {
@@ -140,7 +141,9 @@ export class ProfileExporter {
           exported.settings = settings;
         }
       } catch (error) {
-        console.warn(`Failed to read settings for ${profile.email}:`, error);
+        extensionLog.warn(
+          `[ProfileExporter] Could not read settings for ${profile.email}: ${extensionLog.formatError(error)}`
+        );
       }
     }
 

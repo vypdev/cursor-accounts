@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as extensionLog from '../logging/extensionLog';
 import { QuotaUsage } from '../api/types';
 import { getCursorAccountsConfig } from '../config';
 import { ProfileDetector } from '../profiles/profileDetector';
@@ -171,7 +172,9 @@ export class StatusBarManager {
         this.profileItem.show();
       }
     } catch (error) {
-      console.error('Failed to update profile indicator:', error);
+      extensionLog.error(
+        `[StatusBarManager] Failed to update profile indicator: ${extensionLog.formatError(error)}`
+      );
       this.profileItem.hide();
     }
   }

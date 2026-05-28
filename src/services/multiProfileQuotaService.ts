@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { QuotaClient } from '../api/quotaClient';
+import * as extensionLog from '../logging/extensionLog';
 import { getProfileStateDbPath } from '../auth/cursorPaths';
 import { StaticTokenProvider } from '../auth/tokenProvider';
 import { readAuthFromStateDb } from '../auth/tokenReader';
@@ -41,6 +42,9 @@ export class MultiProfileQuotaService {
   start(intervalSeconds = 300): void {
     this.stop();
 
+    extensionLog.info(
+      `[MultiProfileQuotaService] Started (interval ${intervalSeconds}s)`
+    );
     void this.refreshAll();
 
     this.refreshTimer = setInterval(() => {
@@ -53,6 +57,7 @@ export class MultiProfileQuotaService {
     if (this.refreshTimer) {
       clearInterval(this.refreshTimer);
       this.refreshTimer = undefined;
+      extensionLog.debug('[MultiProfileQuotaService] Stopped');
     }
   }
 
@@ -144,12 +149,27 @@ export class MultiProfileQuotaService {
   /** Refresh all quotas (with deduplication). */
   async refreshAll(): Promise<Map<string, ProfileQuota>> {
     if (this.inFlight) {
+      extensionLog.debug(
+        '[MultiProfileQuotaService] Refresh skipped (already in flight)'
+      );
       return this.loadCache();
     }
 
     try {
       this.inFlight = true;
       const quotas = await this.fetchAllQuotas();
+      let ok = 0;
+      let failed = 0;
+      for (const entry of quotas.values()) {
+        if (entry.quota) {
+          ok += 1;
+        } else {
+          failed += 1;
+        }
+      }
+      extensionLog.info(
+        `[MultiProfileQuotaService] Refresh complete: ${quotas.size} profile(s), ${ok} ok, ${failed} failed`
+      );
       for (const callback of this.onRefreshCallbacks) {
         callback(quotas);
       }

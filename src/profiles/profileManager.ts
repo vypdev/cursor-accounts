@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 import * as os from 'os';
 import * as path from 'path';
+import * as extensionLog from '../logging/extensionLog';
 import {
   emailToSlug,
   generateUniqueSlug,
@@ -40,6 +41,9 @@ export class ProfileManager {
    */
   async initialize(): Promise<void> {
     this.config = await this.storage.load();
+    extensionLog.debug(
+      `[ProfileManager] Loaded configuration from ${this.storage.getConfigPath()}`
+    );
   }
 
   private async ensureLoaded(): Promise<ProfileConfig> {
@@ -127,7 +131,9 @@ export class ProfileManager {
         );
       }
 
-      console.log(`Path collision resolved: ${slug} → ${uniqueSlug}`);
+      extensionLog.info(
+        `[ProfileManager] Path collision resolved: ${slug} → ${uniqueSlug}`
+      );
     }
 
     const profile: Profile = {
@@ -149,6 +155,10 @@ export class ProfileManager {
 
     config.profiles.push(profile);
     await this.storage.save(config);
+
+    extensionLog.info(
+      `[ProfileManager] Created profile ${profile.id} (${profile.email})`
+    );
 
     return profile;
   }
@@ -227,8 +237,13 @@ export class ProfileManager {
       }
     }
 
+    const removed = config.profiles[index];
     config.profiles.splice(index, 1);
     await this.storage.save(config);
+
+    extensionLog.info(
+      `[ProfileManager] Deleted profile ${id} (${removed.email})`
+    );
   }
 
   /**

@@ -4,6 +4,25 @@
  */
 import Module from 'node:module';
 
+function createLogOutputChannelStub() {
+  return {
+    appendLine: () => undefined,
+    append: () => undefined,
+    replace: () => undefined,
+    clear: () => undefined,
+    show: () => undefined,
+    hide: () => undefined,
+    dispose: () => undefined,
+    name: 'Cursor Accounts',
+    logLevel: 0,
+    trace: () => undefined,
+    debug: () => undefined,
+    info: () => undefined,
+    warn: () => undefined,
+    error: () => undefined,
+  };
+}
+
 const vscodeMock = {
   Uri: {
     file: (filePath: string) => ({
@@ -28,16 +47,15 @@ const vscodeMock = {
       reveal: () => undefined,
       onDidDispose: () => ({ dispose: () => undefined }),
     }),
-    createOutputChannel: () => ({
-      appendLine: () => undefined,
-      append: () => undefined,
-      replace: () => undefined,
-      clear: () => undefined,
-      show: () => undefined,
-      hide: () => undefined,
-      dispose: () => undefined,
-      name: 'Cursor Accounts',
-    }),
+    createOutputChannel: (
+      _name: string,
+      options?: { log?: boolean }
+    ) => {
+      if (options?.log) {
+        return createLogOutputChannelStub();
+      }
+      return createLogOutputChannelStub();
+    },
   },
   commands: {
     executeCommand: async () => undefined,

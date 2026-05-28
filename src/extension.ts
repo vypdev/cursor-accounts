@@ -4,6 +4,7 @@ import { QuotaClient } from './api/quotaClient';
 import { TokenService } from './auth/tokenRefresh';
 import { registerProfileCommands } from './commands/profileCommands';
 import { affectsCursorAccountsConfig } from './config';
+import * as extensionLog from './logging/extensionLog';
 import { InstanceDetector } from './profiles/instanceDetector';
 import { ProfileDetector } from './profiles/profileDetector';
 import { ProfileLauncher } from './profiles/profileLauncher';
@@ -32,9 +33,10 @@ const LEGACY_SETTINGS_KEYS = [
   'profiles.instanceDetectionInterval',
 ] as const;
 
-function migrateSettingsFromCursorQuota(): void {
+function migrateSettingsFromCursorQuota(): number {
   const oldSection = vscode.workspace.getConfiguration('cursorQuota');
   const newSection = vscode.workspace.getConfiguration('cursorAccounts');
+  let migratedCount = 0;
 
   for (const key of LEGACY_SETTINGS_KEYS) {
     const oldInspect = oldSection.inspect<unknown>(key);
@@ -52,6 +54,7 @@ function migrateSettingsFromCursorQuota(): void {
         oldInspect.globalValue,
         vscode.ConfigurationTarget.Global
       );
+      migratedCount += 1;
     }
 
     if (
@@ -63,6 +66,7 @@ function migrateSettingsFromCursorQuota(): void {
         oldInspect.workspaceValue,
         vscode.ConfigurationTarget.Workspace
       );
+      migratedCount += 1;
     }
 
     if (
@@ -74,16 +78,19 @@ function migrateSettingsFromCursorQuota(): void {
         oldInspect.workspaceFolderValue,
         vscode.ConfigurationTarget.WorkspaceFolder
       );
+      migratedCount += 1;
     }
   }
+
+  return migratedCount;
 }
 
 async function migrateSecretsFromCursorQuota(
   context: vscode.ExtensionContext
-): Promise<void> {
+): Promise<{ skipped: boolean; migratedTokenCount: number }> {
   const newAccess = await context.secrets.get(SECRETS_KEYS.accessToken);
   if (newAccess) {
-    return;
+    return { skipped: true, migratedTokenCount: 0 };
   }
 
   const oldAccess = await context.secrets.get(LEGACY_SECRETS_KEYS.accessToken);
@@ -91,12 +98,17 @@ async function migrateSecretsFromCursorQuota(
     LEGACY_SECRETS_KEYS.refreshToken
   );
 
+  let migratedTokenCount = 0;
   if (oldAccess) {
     await context.secrets.store(SECRETS_KEYS.accessToken, oldAccess);
+    migratedTokenCount += 1;
   }
   if (oldRefresh) {
     await context.secrets.store(SECRETS_KEYS.refreshToken, oldRefresh);
+    migratedTokenCount += 1;
   }
+
+  return { skipped: false, migratedTokenCount };
 }
 
 async function delay(ms: number): Promise<void> {
@@ -135,8 +147,27 @@ async function focusAccountsSidebar(
 }
 
 export function activate(context: vscode.ExtensionContext): void {
-  migrateSettingsFromCursorQuota();
-  void migrateSecretsFromCursorQuota(context);
+  extensionLog.init(context);
+  extensionLog.info('[Extension] Cursor Accounts activated');
+
+  const settingsMigrated = migrateSettingsFromCursorQuota();
+  if (settingsMigrated > 0) {
+    extensionLog.info(
+      `[Extension] Migrated ${settingsMigrated} setting value(s) from cursorQuota to cursorAccounts`
+    );
+  }
+
+  void migrateSecretsFromCursorQuota(context).then((result) => {
+    if (result.skipped) {
+      extensionLog.debug(
+        '[Extension] Secrets migration skipped (cursorAccounts tokens already present)'
+      );
+    } else if (result.migratedTokenCount > 0) {
+      extensionLog.info(
+        `[Extension] Migrated ${result.migratedTokenCount} secret(s) from cursorQuota to cursorAccounts`
+      );
+    }
+  });
 
   const profileManager = new ProfileManager();
   const profileDetector = new ProfileDetector(profileManager, context);
@@ -169,8 +200,15 @@ export function activate(context: vscode.ExtensionContext): void {
     )
   );
 
-  void profileManager.initialize().catch((err) => {
-    console.error('ProfileManager initialization failed:', err);
+  void profileManager.initialize().then(async () => {
+    const profiles = await profileManager.getProfiles();
+    extensionLog.info(
+      `[Extension] ProfileManager initialized with ${profiles.length} profile(s)`
+    );
+  }).catch((err) => {
+    extensionLog.error(
+      `[Extension] ProfileManager initialization failed: ${extensionLog.formatError(err)}`
+    );
   });
 
   registerProfileCommands(
@@ -188,6 +226,9 @@ export function activate(context: vscode.ExtensionContext): void {
     300
   );
   multiProfileQuotaService.start(refreshAllInterval);
+  extensionLog.info(
+    `[Extension] MultiProfileQuotaService started (interval ${refreshAllInterval}s)`
+  );
 
   if (profilesConfig.get<boolean>('autoDetectRunning', true)) {
     const detectionIntervalSeconds = profilesConfig.get<number>(
@@ -195,6 +236,13 @@ export function activate(context: vscode.ExtensionContext): void {
       30
     );
     instanceDetector.startAutoDetection(detectionIntervalSeconds * 1000);
+    extensionLog.info(
+      `[Extension] InstanceDetector auto-detection started (interval ${detectionIntervalSeconds}s)`
+    );
+  } else {
+    extensionLog.debug(
+      '[Extension] InstanceDetector auto-detection disabled by configuration'
+    );
   }
 
   context.subscriptions.push({
@@ -249,6 +297,7 @@ export function activate(context: vscode.ExtensionContext): void {
 }
 
 export function deactivate(): void {
+  extensionLog.info('[Extension] Cursor Accounts deactivated');
   refreshService = undefined;
   multiProfileQuotaService?.stop();
   multiProfileQuotaService = undefined;
