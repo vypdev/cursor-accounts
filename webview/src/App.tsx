@@ -4,7 +4,7 @@ import { AddProfileForm } from './components/AddProfileForm';
 import { EditProfileForm } from './components/EditProfileForm';
 import { EmptyState } from './components/EmptyState';
 import { ProfileList } from './components/ProfileList';
-import { Profile, ProfileQuotaMap, ToWebviewMessage } from './types';
+import { Profile, ProfileQuotaMap, InstanceInfoMap, ToWebviewMessage } from './types';
 import './App.css';
 
 export const App: React.FC = () => {
@@ -13,6 +13,7 @@ export const App: React.FC = () => {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [currentProfile, setCurrentProfile] = useState<Profile | null>(null);
   const [quotas, setQuotas] = useState<ProfileQuotaMap>({});
+  const [runningInstances, setRunningInstances] = useState<InstanceInfoMap>({});
   const [showAddForm, setShowAddForm] = useState(
     persisted?.showAddForm ?? false
   );
@@ -40,6 +41,7 @@ export const App: React.FC = () => {
           setProfiles(message.data.profiles);
           setCurrentProfile(message.data.currentProfile);
           setQuotas(message.data.quotas ?? {});
+          setRunningInstances(message.data.runningInstances ?? {});
           setLoading(false);
           break;
 
@@ -49,6 +51,10 @@ export const App: React.FC = () => {
 
         case 'quotas':
           setQuotas(message.data);
+          break;
+
+        case 'runningInstances':
+          setRunningInstances(message.data);
           break;
 
         case 'currentProfile':
@@ -193,6 +199,7 @@ export const App: React.FC = () => {
           profiles={profiles}
           currentProfileId={currentProfile?.id}
           quotas={quotas}
+          runningInstances={runningInstances}
           onLaunch={handleLaunch}
           onEdit={handleEditOpen}
           onDelete={handleDelete}

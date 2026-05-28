@@ -519,3 +519,33 @@ form {
 .profile-card.quota-warning {
   border-left-color: #f59e0b !important;
 }
+
+.running-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  margin-right: 8px;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.profile-card.running {
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3);
+}
+
+.btn-launch:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

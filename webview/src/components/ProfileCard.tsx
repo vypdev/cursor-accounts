@@ -5,6 +5,7 @@ interface ProfileCardProps {
   profile: Profile;
   isCurrent: boolean;
   quota?: ProfileQuota;
+  isRunning: boolean;
   onLaunch: (id: string) => void;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
@@ -53,6 +54,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
   profile,
   isCurrent,
   quota,
+  isRunning,
   onLaunch,
   onEdit,
   onDelete,
@@ -95,12 +97,17 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
 
   return (
     <div
-      className={`profile-card ${isCurrent ? 'current' : ''} quota-${quotaStatus}`}
+      className={`profile-card ${isCurrent ? 'current' : ''} ${isRunning ? 'running' : ''} quota-${quotaStatus}`}
       style={{ borderLeftColor: borderColor }}
       role="listitem"
     >
       <div className="profile-header">
         <div className="profile-info">
+          {isRunning && (
+            <span className="running-indicator" title="Currently running">
+              ●
+            </span>
+          )}
           <h3>{profile.displayName}</h3>
           <span className="email">{profile.email}</span>
         </div>
@@ -186,9 +193,13 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
           type="button"
           className="btn-launch"
           onClick={handleLaunch}
-          disabled={isCurrent}
+          disabled={isCurrent || isRunning}
         >
-          {isCurrent ? 'Current Window' : 'Launch'}
+          {isCurrent
+            ? 'Current Window'
+            : isRunning
+              ? 'Already Running'
+              : 'Launch'}
         </button>
 
         <div className="menu-container" ref={menuRef}>
@@ -224,7 +235,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
               >
                 Show in Explorer
               </button>
-              <button type="button" role="menuitem" onClick={handleDelete}>
+              <button type="button" role="menuitem" onClick={handleDelete} disabled={isRunning}>
                 Delete
               </button>
             </div>

@@ -116,6 +116,13 @@
           "minimum": 60,
           "maximum": 3600,
           "description": "Interval in seconds for refreshing all profile quotas."
+        },
+        "cursorQuota.profiles.instanceDetectionInterval": {
+          "type": "number",
+          "default": 30,
+          "minimum": 15,
+          "maximum": 120,
+          "description": "Interval in seconds for detecting running Cursor instances."
         }
       }
     }

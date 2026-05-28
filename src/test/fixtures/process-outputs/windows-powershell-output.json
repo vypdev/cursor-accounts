@@ -1,0 +1,14 @@
+[
+  {
+    "Id": 8888,
+    "CommandLine": "C:\\Users\\test\\AppData\\Local\\Programs\\Cursor\\Cursor.exe --user-data-dir=C:\\Users\\test\\.cursor-work"
+  },
+  {
+    "Id": 8889,
+    "CommandLine": "C:\\Users\\test\\AppData\\Local\\Programs\\Cursor\\Cursor.exe --type=renderer"
+  },
+  {
+    "Id": 8890,
+    "CommandLine": "C:\\Users\\test\\AppData\\Local\\Programs\\Cursor\\Cursor.exe"
+  }
+]

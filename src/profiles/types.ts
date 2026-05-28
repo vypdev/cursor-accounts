@@ -155,6 +155,20 @@ export function getQuotaStatus(quota: QuotaUsage | null): QuotaStatus {
 export type ProfileQuotaMap = Record<string, ProfileQuota>;
 
 /**
+ * Information about a running Cursor instance.
+ */
+export interface InstanceInfo {
+  profileId: string;
+  pid: number;
+  startTime?: number;
+  userDataDir: string;
+  detectedAt: number;
+}
+
+/** Serialized instance map for webview messaging (JSON-safe). */
+export type InstanceInfoMap = Record<string, InstanceInfo>;
+
+/**
  * Messages sent from extension to webview.
  */
 export type ToWebviewMessage =
@@ -162,6 +176,7 @@ export type ToWebviewMessage =
   | { type: 'profiles'; data: Profile[] }
   | { type: 'currentProfile'; data: Profile | null }
   | { type: 'quotas'; data: ProfileQuotaMap }
+  | { type: 'runningInstances'; data: InstanceInfoMap }
   | { type: 'error'; message: string }
   | { type: 'success'; message: string };
 
@@ -190,6 +205,7 @@ export interface InitData {
   profiles: Profile[];
   currentProfile: Profile | null;
   quotas: ProfileQuotaMap;
+  runningInstances: InstanceInfoMap;
 }
 
 /** Schema version for webview persisted state */

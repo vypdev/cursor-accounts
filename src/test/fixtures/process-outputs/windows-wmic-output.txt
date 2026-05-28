@@ -1,0 +1,7 @@
+CommandLine="C:\Users\test\AppData\Local\Programs\Cursor\Cursor.exe" --user-data-dir=C:\Users\test\.cursor-work
+ProcessId=7777
+
+
+CommandLine="C:\Users\test\AppData\Local\Programs\Cursor\Cursor.exe" --type=renderer
+ProcessId=7778
+

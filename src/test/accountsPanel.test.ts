@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
+import { InstanceDetector } from '../profiles/instanceDetector';
 import { ProfileDetector } from '../profiles/profileDetector';
 import { ProfileLauncher } from '../profiles/profileLauncher';
 import { ProfileManager } from '../profiles/profileManager';
@@ -38,6 +39,17 @@ interface MockExtensionContext {
     get: () => undefined;
     update: () => Promise<void>;
   };
+}
+
+function createMockInstanceDetector(): InstanceDetector {
+  return {
+    detectRunningInstances: async () => new Map(),
+    isProfileRunning: async () => false,
+    getLastDetection: () => new Map(),
+    startAutoDetection: () => undefined,
+    stopAutoDetection: () => undefined,
+    onDetectionChange: () => undefined,
+  } as unknown as InstanceDetector;
 }
 
 function createMockQuotaService(): MultiProfileQuotaService {
@@ -108,6 +120,7 @@ describe('AccountsPanelProvider', () => {
   let launcher: ProfileLauncher;
   let detector: ProfileDetector;
   let quotaService: MultiProfileQuotaService;
+  let instanceDetector: InstanceDetector;
   let provider: AccountsPanelProvider;
   let mockView: MockWebviewView;
   let mockWebview: MockWebview;
@@ -134,13 +147,15 @@ describe('AccountsPanelProvider', () => {
     );
 
     quotaService = createMockQuotaService();
+    instanceDetector = createMockInstanceDetector();
 
     provider = new AccountsPanelProvider(
       createMockContext(extensionPath) as never,
       manager,
       launcher,
       detector,
-      quotaService
+      quotaService,
+      instanceDetector
     );
 
     mockWebview = createMockWebview();
@@ -198,6 +213,7 @@ describe('AccountsPanelProvider', () => {
       assert.deepEqual(initMessage.data.profiles, []);
       assert.equal(initMessage.data.currentProfile, null);
       assert.deepEqual(initMessage.data.quotas, {});
+      assert.deepEqual(initMessage.data.runningInstances, {});
     }
   });
 
@@ -315,7 +331,8 @@ describe('AccountsPanelProvider', () => {
       manager,
       failingLauncher,
       detector,
-      quotaService
+      quotaService,
+      instanceDetector
     );
 
     failingProvider.resolveWebviewView(

@@ -1,11 +1,16 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
+import {
+  instanceMapToRecord,
+  InstanceDetector,
+} from '../profiles/instanceDetector';
 import { ProfileDetector } from '../profiles/profileDetector';
 import { ProfileLauncher } from '../profiles/profileLauncher';
 import { ProfileManager } from '../profiles/profileManager';
 import {
   FromWebviewMessage,
   InitData,
+  InstanceInfo,
   Profile,
   ProfileQuota,
   ToWebviewMessage,
@@ -25,10 +30,15 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
     private readonly profileManager: ProfileManager,
     private readonly profileLauncher: ProfileLauncher,
     private readonly profileDetector: ProfileDetector,
-    private readonly quotaService: MultiProfileQuotaService
+    private readonly quotaService: MultiProfileQuotaService,
+    private readonly instanceDetector: InstanceDetector
   ) {
     this.quotaService.onRefresh((quotas) => {
       void this.postQuotas(quotas);
+    });
+
+    this.instanceDetector.onDetectionChange((instances) => {
+      void this.postRunningInstances(instances);
     });
   }
 
@@ -81,11 +91,15 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
       const currentProfile = await this.profileDetector.detectCurrentProfile();
       const cachedQuotas = await this.quotaService.getAllCachedQuotas();
       const quotas = quotaMapToRecord(cachedQuotas);
+      const runningInstances = instanceMapToRecord(
+        await this.instanceDetector.detectRunningInstances()
+      );
 
       const initData: InitData = {
         profiles,
         currentProfile,
         quotas,
+        runningInstances,
       };
 
       await this.postMessage({ type: 'init', data: initData });
@@ -97,6 +111,20 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
         type: 'error',
         message: 'Failed to load profiles',
       });
+    }
+  }
+
+  /** Refresh only running instance data. */
+  public async refreshInstances(): Promise<void> {
+    if (!this.view) {
+      return;
+    }
+
+    try {
+      const runningInstances = await this.instanceDetector.detectRunningInstances();
+      await this.postRunningInstances(runningInstances);
+    } catch (error) {
+      console.error('Failed to refresh instances:', error);
     }
   }
 
@@ -124,6 +152,19 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
     await this.postMessage({
       type: 'quotas',
       data: quotaMapToRecord(quotas),
+    });
+  }
+
+  private async postRunningInstances(
+    instances: Map<string, InstanceInfo>
+  ): Promise<void> {
+    if (!this.view) {
+      return;
+    }
+
+    await this.postMessage({
+      type: 'runningInstances',
+      data: instanceMapToRecord(instances),
     });
   }
 
@@ -184,6 +225,7 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
         message: `Launching ${profile?.displayName ?? 'profile'}...`,
       });
       await this.refresh();
+      void this.refreshInstances();
     } else {
       await this.postMessage({
         type: 'error',
@@ -226,7 +268,7 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
     const profile = await this.profileManager.getProfile(profileId);
     const displayName = profile?.displayName ?? 'Unknown';
 
-    await this.profileManager.deleteProfile(profileId);
+    await this.profileManager.deleteProfile(profileId, this.instanceDetector);
 
     await this.postMessage({
       type: 'success',

@@ -1,0 +1,4 @@
+  9999 /usr/share/cursor/cursor --user-data-dir=/home/test/.cursor-work
+ 10000 /usr/share/cursor/cursor --type=zygote
+ 10001 /usr/share/cursor/cursor
+ 10002 /usr/share/cursor/cursor --type=gpu-process

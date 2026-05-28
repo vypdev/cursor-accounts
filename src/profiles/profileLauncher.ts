@@ -1,5 +1,6 @@
 import { ChildProcess, spawn } from 'child_process';
 import * as path from 'path';
+import { InstanceDetector } from './instanceDetector';
 import { ProfileManager } from './profileManager';
 import { Profile } from './types';
 
@@ -7,6 +8,11 @@ export interface LaunchResult {
   success: boolean;
   pid?: number;
   error?: string;
+}
+
+export interface LaunchOptions {
+  /** Bypass running-instance check. Can cause data corruption if profile is open. */
+  force?: boolean;
 }
 
 export class ProfileLauncherError extends Error {
@@ -20,12 +26,18 @@ export class ProfileLauncherError extends Error {
 }
 
 export class ProfileLauncher {
-  constructor(private readonly profileManager: ProfileManager) {}
+  constructor(
+    private readonly profileManager: ProfileManager,
+    private readonly instanceDetector?: InstanceDetector
+  ) {}
 
   /**
    * Launch Cursor with the specified profile.
    */
-  async launch(profileId: string): Promise<LaunchResult> {
+  async launch(
+    profileId: string,
+    options?: LaunchOptions
+  ): Promise<LaunchResult> {
     try {
       const profile = await this.profileManager.getProfile(profileId);
       if (!profile) {
@@ -35,13 +47,14 @@ export class ProfileLauncher {
         };
       }
 
-      // TODO(Phase 5): Replace with actual instance detection
-      const alreadyRunning = await this.checkIfRunning(profileId);
-      if (alreadyRunning) {
-        return {
-          success: false,
-          error: `Profile "${profile.displayName}" may already be running. Close existing window first.`,
-        };
+      if (this.instanceDetector && !options?.force) {
+        const instances = await this.instanceDetector.detectRunningInstances();
+        if (instances.has(profileId)) {
+          return {
+            success: false,
+            error: `Profile "${profile.displayName}" is already running. Close the existing window first.`,
+          };
+        }
       }
 
       return await this.launchWithProfile(profile);
@@ -51,6 +64,14 @@ export class ProfileLauncher {
         error: error instanceof Error ? error.message : 'Unknown error',
       };
     }
+  }
+
+  /**
+   * Launch profile with force flag to bypass running check.
+   * USE WITH CAUTION: Can cause data corruption if profile already running.
+   */
+  async forceLaunch(profileId: string): Promise<LaunchResult> {
+    return await this.launch(profileId, { force: true });
   }
 
   /**
@@ -141,14 +162,6 @@ export class ProfileLauncher {
 
   private async launchWithProfile(profile: Profile): Promise<LaunchResult> {
     return await this.launchWithPath(profile.userDataDir);
-  }
-
-  /**
-   * STUB: Always returns false in Phase 2.
-   * Phase 5 will implement actual instance detection.
-   */
-  private async checkIfRunning(_profileId: string): Promise<boolean> {
-    return false;
   }
 
   /**

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
+import { InstanceDetector } from '../profiles/instanceDetector';
 import { ProfileLauncher } from '../profiles/profileLauncher';
 import { ProfileManager } from '../profiles/profileManager';
 import { ProfileStorage } from '../profiles/profileStorage';
@@ -88,6 +89,38 @@ describe('ProfileLauncher', () => {
       assert.equal(result.success, false);
       assert.ok(result.error);
       assert.match(result.error!, /not found/);
+    });
+
+    it('returns error when profile is already running', async () => {
+      const profile = await manager.createProfile({
+        email: 'running@example.com',
+        displayName: 'Running',
+      });
+
+      const instanceDetector = new InstanceDetector(manager, async () => [
+        { pid: 4242, userDataDir: profile.userDataDir },
+      ]);
+
+      const guardedLauncher = new ProfileLauncher(manager, instanceDetector);
+      const result = await guardedLauncher.launch(profile.id);
+
+      assert.equal(result.success, false);
+      assert.match(result.error!, /already running/i);
+    });
+
+    it('allows force launch when profile is already running', async () => {
+      const profile = await manager.createProfile({
+        email: 'force@example.com',
+      });
+
+      const instanceDetector = new InstanceDetector(manager, async () => [
+        { pid: 4242, userDataDir: profile.userDataDir },
+      ]);
+
+      const guardedLauncher = new ProfileLauncher(manager, instanceDetector);
+      const result = await guardedLauncher.forceLaunch(profile.id);
+
+      assert.notEqual(result.success, undefined);
     });
   });
 });

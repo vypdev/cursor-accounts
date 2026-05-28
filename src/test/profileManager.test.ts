@@ -4,6 +4,9 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
 import {
+  InstanceDetector,
+} from '../profiles/instanceDetector';
+import {
   ProfileManager,
   ProfileManagerError,
 } from '../profiles/profileManager';
@@ -228,6 +231,29 @@ describe('ProfileManager', () => {
       await assert.rejects(
         () => manager.deleteProfile('non-existent'),
         ProfileManagerError
+      );
+    });
+
+    it('throws when deleting a running profile', async () => {
+      const profile = await manager.createProfile({
+        email: 'running-delete@example.com',
+        displayName: 'Running Delete',
+      });
+
+      const instanceDetector = new InstanceDetector(manager, async () => [
+        { pid: 5150, userDataDir: profile.userDataDir },
+      ]);
+
+      await assert.rejects(
+        () => manager.deleteProfile(profile.id, instanceDetector),
+        (error: unknown) => {
+          assert.ok(error instanceof ProfileManagerError);
+          assert.match(
+            (error as ProfileManagerError).message,
+            /Cannot delete running profile/
+          );
+          return true;
+        }
       );
     });
   });

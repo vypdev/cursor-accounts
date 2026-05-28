@@ -7,6 +7,7 @@ import {
   validateSlug,
 } from '../utils/emailToSlug';
 import { pathsEqual, validateUserDataPath } from '../utils/pathUtils';
+import { InstanceDetector } from './instanceDetector';
 import { ProfileStorage } from './profileStorage';
 import {
   CreateProfileOptions,
@@ -204,12 +205,26 @@ export class ProfileManager {
   /**
    * Delete a profile.
    */
-  async deleteProfile(id: string): Promise<void> {
+  async deleteProfile(
+    id: string,
+    instanceDetector?: InstanceDetector
+  ): Promise<void> {
     const config = await this.ensureLoaded();
 
     const index = config.profiles.findIndex((p) => p.id === id);
     if (index === -1) {
       throw new ProfileManagerError(`Profile with ID ${id} not found`);
+    }
+
+    if (instanceDetector) {
+      const isRunning = await instanceDetector.isProfileRunning(id);
+      if (isRunning) {
+        const profile = config.profiles[index];
+        throw new ProfileManagerError(
+          `Cannot delete running profile "${profile.displayName}". ` +
+            `Close the Cursor window first.`
+        );
+      }
     }
 
     config.profiles.splice(index, 1);

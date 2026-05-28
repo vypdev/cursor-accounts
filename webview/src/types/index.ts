@@ -67,10 +67,21 @@ export function getQuotaStatus(quota: QuotaUsage | null): QuotaStatus {
 
 export type ProfileQuotaMap = Record<string, ProfileQuota>;
 
+export interface InstanceInfo {
+  profileId: string;
+  pid: number;
+  startTime?: number;
+  userDataDir: string;
+  detectedAt: number;
+}
+
+export type InstanceInfoMap = Record<string, InstanceInfo>;
+
 export interface InitData {
   profiles: Profile[];
   currentProfile: Profile | null;
   quotas: ProfileQuotaMap;
+  runningInstances: InstanceInfoMap;
 }
 
 export type ToWebviewMessage =
@@ -78,6 +89,7 @@ export type ToWebviewMessage =
   | { type: 'profiles'; data: Profile[] }
   | { type: 'currentProfile'; data: Profile | null }
   | { type: 'quotas'; data: ProfileQuotaMap }
+  | { type: 'runningInstances'; data: InstanceInfoMap }
   | { type: 'error'; message: string }
   | { type: 'success'; message: string };
 

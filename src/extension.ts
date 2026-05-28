@@ -3,6 +3,7 @@ import { QuotaClient } from './api/quotaClient';
 import { TokenService } from './auth/tokenRefresh';
 import { registerProfileCommands } from './commands/profileCommands';
 import { affectsCursorQuotaConfig } from './config';
+import { InstanceDetector } from './profiles/instanceDetector';
 import { ProfileDetector } from './profiles/profileDetector';
 import { ProfileLauncher } from './profiles/profileLauncher';
 import { ProfileManager } from './profiles/profileManager';
@@ -17,7 +18,8 @@ let multiProfileQuotaService: MultiProfileQuotaService | undefined;
 export function activate(context: vscode.ExtensionContext): void {
   const profileManager = new ProfileManager();
   const profileDetector = new ProfileDetector(profileManager, context);
-  const profileLauncher = new ProfileLauncher(profileManager);
+  const instanceDetector = new InstanceDetector(profileManager);
+  const profileLauncher = new ProfileLauncher(profileManager, instanceDetector);
 
   void profileManager.initialize().catch((err) => {
     console.error('Failed to initialize ProfileManager:', err);
@@ -44,12 +46,21 @@ export function activate(context: vscode.ExtensionContext): void {
   );
   multiProfileQuotaService.start(refreshAllInterval);
 
+  if (profilesConfig.get<boolean>('autoDetectRunning', true)) {
+    const detectionIntervalSeconds = profilesConfig.get<number>(
+      'instanceDetectionInterval',
+      30
+    );
+    instanceDetector.startAutoDetection(detectionIntervalSeconds * 1000);
+  }
+
   const accountsPanel = new AccountsPanelProvider(
     context,
     profileManager,
     profileLauncher,
     profileDetector,
-    multiProfileQuotaService
+    multiProfileQuotaService,
+    instanceDetector
   );
 
   context.subscriptions.push(
@@ -59,6 +70,9 @@ export function activate(context: vscode.ExtensionContext): void {
     ),
     {
       dispose: () => multiProfileQuotaService?.stop(),
+    },
+    {
+      dispose: () => instanceDetector.stopAutoDetection(),
     }
   );
 
