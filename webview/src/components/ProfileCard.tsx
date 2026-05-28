@@ -75,6 +75,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
 }) => {
   const [showMenu, setShowMenu] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
+  const [leaderboardExpanded, setLeaderboardExpanded] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const quotaStatus = quota?.quota
@@ -88,12 +89,24 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
   const isMonthlySpend = quota?.quota?.displayMode === 'monthlySpend';
   const isEnterprise = isEnterpriseUsage(quota?.quota);
 
+  const leaderboardEntries = quota?.activityLeaderboard?.entries ?? [];
+  const isInTopActivity = leaderboardEntries.some(
+    (entry) => entry.email.toLowerCase() === profile.email.toLowerCase()
+  );
+  const leaderboardStatusMessage = isInTopActivity
+    ? "You're in the Top AI Activity 🔥"
+    : "You're not in Cursor's Top Activity";
+
   const accountName = account?.accountName ?? profile.email;
   const showAvatar = account?.pictureUrl && !avatarError;
 
   useEffect(() => {
     setAvatarError(false);
   }, [account?.pictureUrl]);
+
+  useEffect(() => {
+    setLeaderboardExpanded(false);
+  }, [profile.id]);
 
   useEffect(() => {
     if (!showMenu) {
@@ -267,30 +280,40 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
         </div>
       )}
 
-      {isEnterprise && quota?.activityLeaderboard?.entries?.length ? (
+      {isEnterprise && leaderboardEntries.length ? (
         <div className="leaderboard-section">
-          <div className="leaderboard-header">
-            <span className="leaderboard-title">Top AI activity</span>
+          <button
+            type="button"
+            className="leaderboard-toggle"
+            onClick={() => setLeaderboardExpanded((expanded) => !expanded)}
+            aria-expanded={leaderboardExpanded}
+          >
+            <span className="leaderboard-status">{leaderboardStatusMessage}</span>
             <span className="leaderboard-period">30d</span>
-          </div>
-          <ol className="leaderboard-list">
-            {quota.activityLeaderboard.entries.map((entry) => (
-              <li
-                key={entry.email}
-                className={
-                  entry.email.toLowerCase() === profile.email.toLowerCase()
-                    ? 'leaderboard-item self'
-                    : 'leaderboard-item'
-                }
-              >
-                <span className="rank">#{entry.rank}</span>
-                <span className="name">{entry.displayName}</span>
-                <span className="metric">
-                  {formatCompactNumber(entry.composerLinesAccepted)} lines
-                </span>
-              </li>
-            ))}
-          </ol>
+            <span className="leaderboard-chevron" aria-hidden="true">
+              {leaderboardExpanded ? '▾' : '▸'}
+            </span>
+          </button>
+          {leaderboardExpanded && (
+            <ol className="leaderboard-list">
+              {leaderboardEntries.map((entry) => (
+                <li
+                  key={entry.email}
+                  className={
+                    entry.email.toLowerCase() === profile.email.toLowerCase()
+                      ? 'leaderboard-item self'
+                      : 'leaderboard-item'
+                  }
+                >
+                  <span className="rank">#{entry.rank}</span>
+                  <span className="name">{entry.displayName}</span>
+                  <span className="metric">
+                    {formatCompactNumber(entry.composerLinesAccepted)} lines
+                  </span>
+                </li>
+              ))}
+            </ol>
+          )}
         </div>
       ) : null}
 

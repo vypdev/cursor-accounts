@@ -568,25 +568,44 @@ form {
   border-top: 1px solid var(--border-color);
 }
 
-.leaderboard-header {
+.leaderboard-toggle {
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin-bottom: 8px;
+  align-items: center;
   gap: 8px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
-.leaderboard-title {
+.leaderboard-toggle:hover .leaderboard-status {
+  color: var(--fg-primary);
+}
+
+.leaderboard-status {
+  flex: 1;
+  min-width: 0;
   font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  line-height: 1.4;
   color: var(--fg-secondary);
 }
 
 .leaderboard-period {
+  flex-shrink: 0;
   font-size: 11px;
   color: var(--fg-secondary);
+}
+
+.leaderboard-chevron {
+  flex-shrink: 0;
+  font-size: 10px;
+  color: var(--fg-secondary);
+  line-height: 1;
 }
 
 .leaderboard-list {
@@ -594,6 +613,7 @@ form {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  margin-top: 8px;
 }
 
 .leaderboard-item {
