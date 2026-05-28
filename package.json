@@ -138,7 +138,7 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "pnpm run compile",
+    "vscode:prepublish": "node scripts/prepublish.mjs",
     "compile": "tsc -p ./ && pnpm --dir webview run build",
     "compile:webview": "pnpm --dir webview run build",
     "watch": "tsc -watch -p ./",
@@ -146,15 +146,24 @@
     "lint": "tsc -p ./ --noEmit",
     "test": "node --test out/test/*.test.js",
     "pretest": "tsc -p ./",
+    "build:all": "pnpm run compile && pnpm run package:all:fast",
+    "verify:vsix": "node scripts/verify-vsix.mjs",
     "package": "node scripts/prepare-bin-for-target.mjs $(node -p \"process.platform + '-' + process.arch\") && vsce package --allow-missing-repository --no-rewrite-relative-links; node scripts/restore-bin.mjs",
-    "package:all": "pnpm run package:darwin-arm64 && pnpm run package:darwin-x64 && pnpm run package:linux-x64 && pnpm run package:linux-arm64 && pnpm run package:win32-x64 && pnpm run package:win32-arm64",
+    "package:all": "pnpm run compile && pnpm run package:all:fast",
+    "package:all:fast": "pnpm run package:fast:darwin-arm64 && pnpm run package:fast:darwin-x64 && pnpm run package:fast:linux-x64 && pnpm run package:fast:linux-arm64 && pnpm run package:fast:win32-x64 && pnpm run package:fast:win32-arm64",
     "publish:ovsx": "ovsx publish --allow-missing-repository --no-rewrite-relative-links",
     "package:darwin-arm64": "node scripts/prepare-bin-for-target.mjs darwin-arm64 && vsce package --target darwin-arm64 --allow-missing-repository --no-rewrite-relative-links && node scripts/restore-bin.mjs",
     "package:darwin-x64": "node scripts/prepare-bin-for-target.mjs darwin-x64 && vsce package --target darwin-x64 --allow-missing-repository --no-rewrite-relative-links && node scripts/restore-bin.mjs",
     "package:linux-x64": "node scripts/prepare-bin-for-target.mjs linux-x64 && vsce package --target linux-x64 --allow-missing-repository --no-rewrite-relative-links && node scripts/restore-bin.mjs",
     "package:linux-arm64": "node scripts/prepare-bin-for-target.mjs linux-arm64 && vsce package --target linux-arm64 --allow-missing-repository --no-rewrite-relative-links && node scripts/restore-bin.mjs",
     "package:win32-x64": "node scripts/prepare-bin-for-target.mjs win32-x64 && vsce package --target win32-x64 --allow-missing-repository --no-rewrite-relative-links && node scripts/restore-bin.mjs",
-    "package:win32-arm64": "node scripts/prepare-bin-for-target.mjs win32-arm64 && vsce package --target win32-arm64 --allow-missing-repository --no-rewrite-relative-links && node scripts/restore-bin.mjs"
+    "package:win32-arm64": "node scripts/prepare-bin-for-target.mjs win32-arm64 && vsce package --target win32-arm64 --allow-missing-repository --no-rewrite-relative-links && node scripts/restore-bin.mjs",
+    "package:fast:darwin-arm64": "node scripts/prepare-bin-for-target.mjs darwin-arm64 && SKIP_PREPUBLISH=1 vsce package --target darwin-arm64 --allow-missing-repository --no-rewrite-relative-links && node scripts/restore-bin.mjs",
+    "package:fast:darwin-x64": "node scripts/prepare-bin-for-target.mjs darwin-x64 && SKIP_PREPUBLISH=1 vsce package --target darwin-x64 --allow-missing-repository --no-rewrite-relative-links && node scripts/restore-bin.mjs",
+    "package:fast:linux-x64": "node scripts/prepare-bin-for-target.mjs linux-x64 && SKIP_PREPUBLISH=1 vsce package --target linux-x64 --allow-missing-repository --no-rewrite-relative-links && node scripts/restore-bin.mjs",
+    "package:fast:linux-arm64": "node scripts/prepare-bin-for-target.mjs linux-arm64 && SKIP_PREPUBLISH=1 vsce package --target linux-arm64 --allow-missing-repository --no-rewrite-relative-links && node scripts/restore-bin.mjs",
+    "package:fast:win32-x64": "node scripts/prepare-bin-for-target.mjs win32-x64 && SKIP_PREPUBLISH=1 vsce package --target win32-x64 --allow-missing-repository --no-rewrite-relative-links && node scripts/restore-bin.mjs",
+    "package:fast:win32-arm64": "node scripts/prepare-bin-for-target.mjs win32-arm64 && SKIP_PREPUBLISH=1 vsce package --target win32-arm64 --allow-missing-repository --no-rewrite-relative-links && node scripts/restore-bin.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

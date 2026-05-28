@@ -1,3 +1,4 @@
+import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { getProfileStateDbPath } from '../auth/cursorPaths';
@@ -56,6 +57,7 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
     _context: vscode.WebviewViewResolveContext,
     _token: vscode.CancellationToken
   ): void {
+    console.log('[AccountsPanel] Resolving webview view');
     this.view = webviewView;
 
     webviewView.webview.options = {
@@ -82,6 +84,8 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
         void this.refresh();
       }
     });
+
+    console.log('[AccountsPanel] Webview view resolved, HTML set');
   }
 
   /**
@@ -181,6 +185,7 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
     try {
       switch (message.type) {
         case 'ready':
+          console.log('[AccountsPanel] Webview ready, sending initial data');
           await this.refresh();
           break;
 
@@ -398,6 +403,11 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
 
   private getHtmlContent(webview: vscode.Webview): string {
     const distDir = path.join(this.context.extensionPath, 'webview-dist');
+    const bundleJsPath = path.join(distDir, 'bundle.js');
+
+    if (!fs.existsSync(bundleJsPath)) {
+      console.error('[AccountsPanel] bundle.js not found at:', bundleJsPath);
+    }
 
     const scriptUri = webview.asWebviewUri(
       vscode.Uri.file(path.join(distDir, 'bundle.js'))
