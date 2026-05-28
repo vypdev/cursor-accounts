@@ -7,6 +7,7 @@ import { ProfileDetector } from './profiles/profileDetector';
 import { ProfileLauncher } from './profiles/profileLauncher';
 import { ProfileManager } from './profiles/profileManager';
 import { RefreshService } from './services/refreshService';
+import { AccountsPanelProvider } from './ui/accountsPanel';
 import { StatusBarManager } from './ui/statusBarManager';
 
 let refreshService: RefreshService | undefined;
@@ -25,6 +26,20 @@ export function activate(context: vscode.ExtensionContext): void {
     profileManager,
     profileLauncher,
     profileDetector
+  );
+
+  const accountsPanel = new AccountsPanelProvider(
+    context,
+    profileManager,
+    profileLauncher,
+    profileDetector
+  );
+
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(
+      AccountsPanelProvider.viewType,
+      accountsPanel
+    )
   );
 
   const statusBar = new StatusBarManager(context, profileDetector);

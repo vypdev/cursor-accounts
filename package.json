@@ -18,6 +18,24 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "cursorQuota",
+          "title": "Cursor Quota",
+          "icon": "$(account)"
+        }
+      ]
+    },
+    "views": {
+      "cursorQuota": [
+        {
+          "type": "webview",
+          "id": "cursorQuota.accountsPanel",
+          "name": "Accounts"
+        }
+      ]
+    },
     "commands": [
       {
         "command": "cursorQuota.refresh",
@@ -103,9 +121,11 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "tsc -p ./",
-    "compile": "tsc -p ./",
+    "vscode:prepublish": "pnpm run compile",
+    "compile": "tsc -p ./ && cd webview && npm run build",
+    "compile:webview": "cd webview && npm run build",
     "watch": "tsc -watch -p ./",
+    "watch:webview": "cd webview && npm run watch",
     "lint": "tsc -p ./ --noEmit",
     "test": "node --test out/test/*.test.js",
     "pretest": "tsc -p ./",

@@ -19,3 +19,5 @@ scripts/**
 .bin-all-backup/**
 # Ensure bundled SQLite binaries are included in the VSIX
 !bin/**
+# Webview bundle (Phase 3)
+!webview-dist/**

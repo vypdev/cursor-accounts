@@ -118,3 +118,51 @@ export const DEFAULT_PROFILE_SETTINGS: ProfileSettings = {
 
 /** Profile directory prefix */
 export const PROFILE_DIR_PREFIX = '.cursor-';
+
+/**
+ * Messages sent from extension to webview.
+ */
+export type ToWebviewMessage =
+  | { type: 'init'; data: InitData }
+  | { type: 'profiles'; data: Profile[] }
+  | { type: 'currentProfile'; data: Profile | null }
+  | { type: 'error'; message: string }
+  | { type: 'success'; message: string };
+
+/**
+ * Messages sent from webview to extension.
+ */
+export type FromWebviewMessage =
+  | { type: 'ready' }
+  | { type: 'refresh' }
+  | { type: 'launch'; profileId: string }
+  | {
+      type: 'add';
+      email: string;
+      displayName?: string;
+      theme?: string;
+      color?: string;
+    }
+  | { type: 'edit'; profileId: string; updates: Partial<Profile> }
+  | { type: 'delete'; profileId: string }
+  | { type: 'showInExplorer'; profileId: string };
+
+/**
+ * Initial data sent when webview loads.
+ */
+export interface InitData {
+  profiles: Profile[];
+  currentProfile: Profile | null;
+}
+
+/** Schema version for webview persisted state */
+export const WEBVIEW_STATE_VERSION = 1;
+
+/**
+ * Persisted webview UI state (survives reloads).
+ */
+export interface WebviewPersistedState {
+  version: number;
+  showAddForm?: boolean;
+  editingProfileId?: string | null;
+}
