@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as extensionLog from '../logging/extensionLog';
-import { QuotaUsage, getEffectiveUsagePercent, isEnterpriseUsage } from '../api/types';
+import { QuotaUsage, getEffectiveUsagePercent, getPersonalModeAveragePercent, isEnterpriseUsage } from '../api/types';
 import { getCursorAccountsConfig } from '../config';
 import { ProfileDetector } from '../profiles/profileDetector';
 import {
@@ -67,24 +67,18 @@ export class StatusBarManager {
   showLoading(): void {
     const cfg = getCursorAccountsConfig();
     const cached = this.readCache();
-    const hideIncluded = isEnterpriseUsage(cached);
+    const isEnterprise = isEnterpriseUsage(cached);
+    const showPersonalQuota = cfg.showTotal || cfg.showIncluded;
 
-    if (cfg.showIncluded && !hideIncluded) {
-      this.includedItem.text = '$(sync~spin) Included quota…';
-      this.includedItem.tooltip = 'Loading Cursor included quota usage…';
-      this.includedItem.backgroundColor = undefined;
-      this.includedItem.show();
-    } else {
-      this.includedItem.hide();
-    }
+    this.includedItem.hide();
 
-    if (cfg.showTotal) {
-      this.totalItem.text = hideIncluded
+    if (isEnterprise ? cfg.showTotal : showPersonalQuota) {
+      this.totalItem.text = isEnterprise
         ? '$(sync~spin) Monthly usage…'
-        : '$(sync~spin) Plan quota…';
-      this.totalItem.tooltip = hideIncluded
+        : '$(sync~spin) Usage…';
+      this.totalItem.tooltip = isEnterprise
         ? 'Loading Cursor monthly usage…'
-        : 'Loading Cursor plan quota usage…';
+        : 'Loading Cursor usage…';
       this.totalItem.backgroundColor = undefined;
       this.totalItem.show();
     } else {
@@ -96,23 +90,17 @@ export class StatusBarManager {
     const cfg = getCursorAccountsConfig();
     const isEnterprise = isEnterpriseUsage(usage);
     const isMonthlySpend = usage.displayMode === 'monthlySpend';
+    const isPersonalPercent = !isEnterprise && !isMonthlySpend;
     const effectivePct = clampPercent(getEffectiveUsagePercent(usage));
-    const includedPct = clampPercent(usage.apiPercentUsed);
-    const totalPct = clampPercent(usage.totalPercentUsed);
+    const averagePct = clampPercent(getPersonalModeAveragePercent(usage));
+    const showPersonalQuota = cfg.showTotal || cfg.showIncluded;
     const tooltip = this.buildTooltip(usage, cfg.showAccountEmail);
 
-    if (cfg.showIncluded && !isEnterprise) {
-      const bar = renderProgressBar(includedPct);
-      this.includedItem.text = `$(graph) ${bar} ${formatPercent(includedPct)} included`;
-      this.includedItem.tooltip = tooltip;
-      this.includedItem.backgroundColor = backgroundForPercent(includedPct);
-      this.includedItem.show();
-    } else {
-      this.includedItem.hide();
-    }
+    this.includedItem.hide();
 
-    if (cfg.showTotal) {
-      const bar = renderProgressBar(isEnterprise || isMonthlySpend ? effectivePct : totalPct);
+    if (isEnterprise ? cfg.showTotal : showPersonalQuota) {
+      const barPct = isEnterprise || isMonthlySpend ? effectivePct : averagePct;
+      const bar = renderProgressBar(barPct);
 
       if (isEnterprise && isMonthlySpend) {
         const spend = usage.monthlySpend ?? usage.totalSpend;
@@ -122,14 +110,14 @@ export class StatusBarManager {
         const spend = usage.monthlySpend ?? usage.totalSpend;
         const limit = usage.monthlyLimit;
         this.totalItem.text = `$(pulse) ${bar} ${formatMonthlySpend(spend, limit)} monthly`;
+      } else if (isPersonalPercent) {
+        this.totalItem.text = `$(pulse) ${bar} ${formatPercent(averagePct)} usage`;
       } else {
-        this.totalItem.text = `$(pulse) ${bar} ${formatPercent(totalPct)} plan`;
+        this.totalItem.text = `$(pulse) ${bar} ${formatPercent(effectivePct)} plan`;
       }
 
       this.totalItem.tooltip = tooltip;
-      this.totalItem.backgroundColor = backgroundForPercent(
-        isEnterprise || isMonthlySpend ? effectivePct : totalPct
-      );
+      this.totalItem.backgroundColor = backgroundForPercent(barPct);
       this.totalItem.show();
     } else {
       this.totalItem.hide();
@@ -142,24 +130,20 @@ export class StatusBarManager {
     const cfg = getCursorAccountsConfig();
     const text = `$(warning) Quota unavailable`;
     const cached = this.readCache();
-    const hideIncluded = isEnterpriseUsage(cached);
+    const isEnterprise = isEnterpriseUsage(cached);
+    const showPersonalQuota = cfg.showTotal || cfg.showIncluded;
 
-    if (cfg.showIncluded && !hideIncluded) {
-      this.includedItem.text = text;
-      this.includedItem.tooltip = message;
-      this.includedItem.backgroundColor = new vscode.ThemeColor(
-        'statusBarItem.warningBackground'
-      );
-      this.includedItem.show();
-    }
+    this.includedItem.hide();
 
-    if (cfg.showTotal) {
+    if (isEnterprise ? cfg.showTotal : showPersonalQuota) {
       this.totalItem.text = text;
       this.totalItem.tooltip = message;
       this.totalItem.backgroundColor = new vscode.ThemeColor(
         'statusBarItem.warningBackground'
       );
       this.totalItem.show();
+    } else {
+      this.totalItem.hide();
     }
   }
 

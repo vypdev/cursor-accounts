@@ -155,6 +155,18 @@ export function isEnterpriseUsage(quota: QuotaUsage | null | undefined): boolean
   return quota.membershipType === 'enterprise' || quota.limitType === 'team';
 }
 
+/** Average of API mode and auto mode usage for personal percent-mode accounts. */
+export function getPersonalModeAveragePercent(quota: QuotaUsage | null): number {
+  if (!quota) {
+    return 0;
+  }
+  const average = (quota.apiPercentUsed + quota.autoPercentUsed) / 2;
+  if (!Number.isFinite(average)) {
+    return 0;
+  }
+  return Math.min(100, Math.max(0, Math.round(average)));
+}
+
 /** Effective usage percent for progress bars and status thresholds. */
 export function getEffectiveUsagePercent(quota: QuotaUsage | null): number {
   if (!quota) {

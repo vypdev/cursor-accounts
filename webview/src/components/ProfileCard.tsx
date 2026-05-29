@@ -1,5 +1,17 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { getEffectiveUsagePercent, getQuotaStatus, formatEnterpriseUsageLabel, formatMonthlySpendLabel, formatCompactNumber, isEnterpriseUsage, Profile, ProfileAccountView, ProfileQuota } from '../types';
+import {
+  getEffectiveUsagePercent,
+  getPersonalModeAveragePercent,
+  getQuotaStatus,
+  formatEnterpriseUsageLabel,
+  formatMonthlySpendLabel,
+  formatCompactNumber,
+  isEnterpriseUsage,
+  Profile,
+  ProfileAccountView,
+  ProfileQuota,
+  QuotaStatus,
+} from '../types';
 
 interface ProfileCardProps {
   profile: Profile;
@@ -63,6 +75,45 @@ function getInitials(name: string): string {
   return `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
 }
 
+interface QuotaBarRowProps {
+  percent: number;
+  label?: string;
+  fillStatus?: QuotaStatus;
+}
+
+function QuotaBarRow({ percent, label, fillStatus = 'ok' }: QuotaBarRowProps) {
+  const clamped = Math.min(100, Math.max(0, percent));
+
+  return (
+    <div className={label ? 'quota-bar-row' : undefined}>
+      {label ? <span className="quota-bar-label">{label}</span> : null}
+      <div className="quota-bar" aria-hidden="true">
+        <div
+          className={`quota-fill ${fillStatus}`}
+          style={{ width: `${clamped}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function renderQuotaStatusIcons(quotaStatus: QuotaStatus) {
+  return (
+    <>
+      {quotaStatus === 'warning' && (
+        <span className="warning-icon" aria-label="Warning">
+          ⚠️
+        </span>
+      )}
+      {quotaStatus === 'critical' && (
+        <span className="error-icon" aria-label="Critical">
+          🔴
+        </span>
+      )}
+    </>
+  );
+}
+
 export const ProfileCard: React.FC<ProfileCardProps> = ({
   profile,
   isCurrent,
@@ -78,6 +129,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
   const [showMenu, setShowMenu] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
   const [leaderboardExpanded, setLeaderboardExpanded] = useState(false);
+  const [quotaExpanded, setQuotaExpanded] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const quotaStatus = quota?.quota
@@ -90,6 +142,8 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
 
   const isMonthlySpend = quota?.quota?.displayMode === 'monthlySpend';
   const isEnterprise = isEnterpriseUsage(quota?.quota);
+  const isPersonalPercent = Boolean(quota?.quota && !isEnterprise && !isMonthlySpend);
+  const averagePercent = quota?.quota ? getPersonalModeAveragePercent(quota.quota) : 0;
 
   const leaderboardEntries = quota?.activityLeaderboard?.entries ?? [];
   const isInTopActivity = leaderboardEntries.some(
@@ -108,6 +162,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
 
   useEffect(() => {
     setLeaderboardExpanded(false);
+    setQuotaExpanded(false);
   }, [profile.id]);
 
   useEffect(() => {
@@ -216,66 +271,98 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
               </div>
             )
           ) : quota.quota ? (
-            <>
-              <div className="quota-bar" aria-hidden="true">
-                <div
-                  className={`quota-fill ${quotaStatus}`}
-                  style={{
-                    width: `${Math.min(100, Math.max(0, usagePercent))}%`,
-                  }}
-                />
-              </div>
-              <div className="quota-text">
-                {isEnterprise && isMonthlySpend ? (
-                  <>
-                    <span className="percent">
-                      {formatEnterpriseUsageLabel(quota.quota!)}
-                    </span>
-                    <span className="label">used</span>
-                  </>
-                ) : isMonthlySpend ? (
-                  <>
-                    <span className="percent">
-                      {formatMonthlySpendLabel(quota.quota!)}
-                    </span>
-                    <span className="label">monthly</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="percent">
-                      {quota.quota!.totalPercentUsed.toFixed(0)}%
-                    </span>
-                    <span className="label">used</span>
-                  </>
+            isPersonalPercent ? (
+              <>
+                <button
+                  type="button"
+                  className="quota-toggle"
+                  onClick={() => setQuotaExpanded((expanded) => !expanded)}
+                  aria-expanded={quotaExpanded}
+                >
+                  <div className="quota-toggle-main">
+                    <QuotaBarRow percent={averagePercent} fillStatus={quotaStatus} />
+                    <div className="quota-text">
+                      <span className="percent">{averagePercent}%</span>
+                      <span className="label">used</span>
+                      {renderQuotaStatusIcons(quotaStatus)}
+                    </div>
+                  </div>
+                  <span className="quota-chevron" aria-hidden="true">
+                    {quotaExpanded ? '▾' : '▸'}
+                  </span>
+                </button>
+                {quotaExpanded && (
+                  <div className="quota-bars-expanded">
+                    <QuotaBarRow
+                      percent={quota.quota!.autoPercentUsed}
+                      label="Auto mode"
+                    />
+                    <QuotaBarRow
+                      percent={quota.quota!.apiPercentUsed}
+                      label="API mode"
+                    />
+                  </div>
                 )}
-                {quotaStatus === 'warning' && (
-                  <span className="warning-icon" aria-label="Warning">
-                    ⚠️
-                  </span>
-                )}
-                {quotaStatus === 'critical' && (
-                  <span className="error-icon" aria-label="Critical">
-                    🔴
-                  </span>
-                )}
-              </div>
-              <div className="quota-details">
-                {isEnterprise && isMonthlySpend ? (
-                  <span>
-                    Used: {formatEnterpriseUsageLabel(quota.quota!)}
-                  </span>
-                ) : isMonthlySpend ? (
-                  <span>
-                    Monthly: {formatMonthlySpendLabel(quota.quota!)}
-                  </span>
-                ) : (
+                <div className="quota-details">
                   <span>
                     Remaining: ${(quota.quota!.remaining / 100).toFixed(2)}
                   </span>
-                )}
-                <span>Resets: {formatResetDate(quota.quota!.billingCycleEnd)}</span>
-              </div>
-            </>
+                  <span>Resets: {formatResetDate(quota.quota!.billingCycleEnd)}</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="quota-bar" aria-hidden="true">
+                  <div
+                    className={`quota-fill ${quotaStatus}`}
+                    style={{
+                      width: `${Math.min(100, Math.max(0, usagePercent))}%`,
+                    }}
+                  />
+                </div>
+                <div className="quota-text">
+                  {isEnterprise && isMonthlySpend ? (
+                    <>
+                      <span className="percent">
+                        {formatEnterpriseUsageLabel(quota.quota!)}
+                      </span>
+                      <span className="label">used</span>
+                    </>
+                  ) : isMonthlySpend ? (
+                    <>
+                      <span className="percent">
+                        {formatMonthlySpendLabel(quota.quota!)}
+                      </span>
+                      <span className="label">monthly</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="percent">
+                        {quota.quota!.totalPercentUsed.toFixed(0)}%
+                      </span>
+                      <span className="label">used</span>
+                    </>
+                  )}
+                  {renderQuotaStatusIcons(quotaStatus)}
+                </div>
+                <div className="quota-details">
+                  {isEnterprise && isMonthlySpend ? (
+                    <span>
+                      Used: {formatEnterpriseUsageLabel(quota.quota!)}
+                    </span>
+                  ) : isMonthlySpend ? (
+                    <span>
+                      Monthly: {formatMonthlySpendLabel(quota.quota!)}
+                    </span>
+                  ) : (
+                    <span>
+                      Remaining: ${(quota.quota!.remaining / 100).toFixed(2)}
+                    </span>
+                  )}
+                  <span>Resets: {formatResetDate(quota.quota!.billingCycleEnd)}</span>
+                </div>
+              </>
+            )
           ) : (
             <div className="quota-unavailable">Quota data unavailable</div>
           )}

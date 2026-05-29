@@ -4,10 +4,9 @@ Cursor extension that shows **plan quota usage** in the IDE status bar after act
 
 ## Features
 
-- Two status bar indicators (visible on activation):
-  1. **Included quota usage** — API/included pool (`apiPercentUsed`) with progress bar and percentage (Pro/Ultra)
-  2. **Plan quota usage** — total plan usage (`totalPercentUsed`) or **Monthly Usage** spend for enterprise (`$94.00 / $600.00 monthly`)
-- Separates **Auto mode** vs included/API usage in tooltips
+- One status bar indicator for personal accounts — averaged **API mode** and **auto mode** usage (`usage` label with progress bar)
+- **Monthly Usage** spend for enterprise (`$94.00 / $600.00` with percent)
+- API mode, auto mode, and plan breakdown in tooltips
 - Auto-refresh (default 60s, configurable)
 - Cached last-known usage on startup while fetching
 - Click status bar → **Cursor Settings → Usage** (Pro/Ultra) or **cursor.com/dashboard/usage** (enterprise)

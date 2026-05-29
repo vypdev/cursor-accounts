@@ -562,6 +562,61 @@ form {
   border-top: 1px solid var(--border-color);
 }
 
+.quota-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.quota-toggle:hover .quota-text .percent {
+  color: var(--fg-primary);
+}
+
+.quota-toggle-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.quota-chevron {
+  flex-shrink: 0;
+  margin-top: 2px;
+  font-size: 10px;
+  color: var(--fg-secondary);
+  line-height: 1;
+}
+
+.quota-bars-expanded {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.quota-bar-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.quota-bar-label {
+  font-size: 11px;
+  color: var(--fg-secondary);
+  line-height: 1.2;
+}
+
+.quota-bar-row .quota-bar {
+  margin-bottom: 0;
+}
+
 .leaderboard-section {
   margin-top: 12px;
   padding-top: 12px;

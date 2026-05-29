@@ -22,8 +22,8 @@ Cursor staff (forum, 2026) state there is **no public personal usage API** for i
 **IDE response fields used:**
 
 - `planUsage.totalPercentUsed` — total plan usage %
-- `planUsage.apiPercentUsed` — included/API pool % (shown as “included” bar)
-- `planUsage.autoPercentUsed` — Auto mode % (tooltip)
+- `planUsage.apiPercentUsed` — API mode % (status bar average, account listing)
+- `planUsage.autoPercentUsed` — Auto mode % (status bar average, account listing)
 - Spend fields in **cents**: `totalSpend`, `includedSpend`, `remaining`, `limit`
 - `spendLimitUsage` — on-demand / team pool spend (mapped to **Monthly Usage** when present)
 - `billingCycleStart` / `billingCycleEnd` (ms strings)

@@ -97,6 +97,17 @@ export function isEnterpriseUsage(quota: QuotaUsage | null | undefined): boolean
   return quota.membershipType === 'enterprise' || quota.limitType === 'team';
 }
 
+export function getPersonalModeAveragePercent(quota: QuotaUsage | null): number {
+  if (!quota) {
+    return 0;
+  }
+  const average = (quota.apiPercentUsed + quota.autoPercentUsed) / 2;
+  if (!Number.isFinite(average)) {
+    return 0;
+  }
+  return Math.min(100, Math.max(0, Math.round(average)));
+}
+
 export function getEffectiveUsagePercent(quota: QuotaUsage | null): number {
   if (!quota) {
     return 0;
@@ -114,12 +125,19 @@ export function getEffectiveUsagePercent(quota: QuotaUsage | null): number {
   return quota.totalPercentUsed;
 }
 
+function getQuotaThresholdPercent(quota: QuotaUsage): number {
+  if (!isEnterpriseUsage(quota) && quota.displayMode !== 'monthlySpend') {
+    return getPersonalModeAveragePercent(quota);
+  }
+  return getEffectiveUsagePercent(quota);
+}
+
 export function getQuotaStatus(quota: QuotaUsage | null): QuotaStatus {
   if (!quota) {
     return 'unavailable';
   }
 
-  const percent = getEffectiveUsagePercent(quota);
+  const percent = getQuotaThresholdPercent(quota);
 
   if (percent >= 95) {
     return 'critical';
