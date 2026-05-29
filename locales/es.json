@@ -219,6 +219,7 @@
   "webview.profileCard.resets": "Reinicia: {date}",
   "webview.profileCard.monthly": "mensual",
   "webview.profileCard.usedLabel": "Usado: {value}",
+  "webview.profileCard.teamBudgetLabel": "Equipo: {value}",
   "webview.profileCard.monthlyLabel": "Mensual: {value}",
   "webview.profileCard.quotaUnavailable": "Datos de cuota no disponibles",
   "webview.profileCard.leaderboardPeriod": "30d",

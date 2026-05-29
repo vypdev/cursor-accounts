@@ -267,3 +267,39 @@ export function formatEnterpriseUsageLabel(quota: QuotaUsage): string {
   const percent = Math.round(getEffectiveUsagePercent(quota));
   return `${percent}% · ${formatMonthlySpendLabel(quota)}`;
 }
+
+export function getTeamUsagePercent(quota: QuotaUsage): number {
+  const spend = quota.teamMonthlySpend ?? 0;
+  const limit = quota.teamMonthlyLimit;
+  if (limit != null && limit > 0) {
+    return Math.min(100, Math.max(0, (spend / limit) * 100));
+  }
+  return 0;
+}
+
+/** Format team pooled spend for profile card display. */
+export function formatTeamMonthlySpendLabel(quota: QuotaUsage): string {
+  const spend = quota.teamMonthlySpend ?? 0;
+  const limit = quota.teamMonthlyLimit;
+  if (limit == null) {
+    return `${formatCents(spend)} / unlimited`;
+  }
+  return `${formatCents(spend)} / ${formatCents(limit)}`;
+}
+
+/** Format team budget as percent + spend (e.g. "24% · $1,200.00/$5,000.00"). */
+export function formatTeamBudgetLabel(quota: QuotaUsage): string {
+  const percent = Math.round(getTeamUsagePercent(quota));
+  return `${percent}% · ${formatTeamMonthlySpendLabel(quota)}`;
+}
+
+/** True when team pool data exists and differs from individual monthly spend. */
+export function hasDistinctTeamBudget(quota: QuotaUsage): boolean {
+  if (quota.teamMonthlySpend == null) {
+    return false;
+  }
+  return (
+    quota.teamMonthlySpend !== quota.monthlySpend ||
+    quota.teamMonthlyLimit !== quota.monthlyLimit
+  );
+}

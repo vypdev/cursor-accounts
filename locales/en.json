@@ -219,6 +219,7 @@
   "webview.profileCard.resets": "Resets: {date}",
   "webview.profileCard.monthly": "monthly",
   "webview.profileCard.usedLabel": "Used: {value}",
+  "webview.profileCard.teamBudgetLabel": "Team: {value}",
   "webview.profileCard.monthlyLabel": "Monthly: {value}",
   "webview.profileCard.quotaUnavailable": "Quota data unavailable",
   "webview.profileCard.leaderboardPeriod": "30d",

@@ -6,7 +6,9 @@ import {
   getQuotaStatus,
   formatEnterpriseUsageLabel,
   formatMonthlySpendLabel,
+  formatTeamBudgetLabel,
   formatCompactNumber,
+  hasDistinctTeamBudget,
   isEnterpriseUsage,
   Profile,
   ProfileAccountView,
@@ -363,11 +365,13 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
                 </div>
                 <div className="quota-details">
                   {isEnterprise && isMonthlySpend ? (
-                    <span>
-                      {t('profileCard.usedLabel', {
-                        value: formatEnterpriseUsageLabel(quota.quota!),
-                      })}
-                    </span>
+                    hasDistinctTeamBudget(quota.quota!) ? (
+                      <span>
+                        {t('profileCard.teamBudgetLabel', {
+                          value: formatTeamBudgetLabel(quota.quota!),
+                        })}
+                      </span>
+                    ) : null
                   ) : isMonthlySpend ? (
                     <span>
                       {t('profileCard.monthlyLabel', {

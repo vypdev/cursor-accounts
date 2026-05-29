@@ -3,8 +3,37 @@ import * as path from 'path';
 
 export type LocaleMessages = Record<string, string>;
 
-const SUPPORTED_LOCALES = ['en', 'es'] as const;
+const SUPPORTED_LOCALES = [
+  'en',
+  'es',
+  'fr',
+  'pt-br',
+  'pt',
+  'zh',
+  'zh-tw',
+  'ja',
+  'de',
+  'it',
+  'ko',
+  'ru',
+  'nl',
+  'pl',
+  'tr',
+  'id',
+  'vi',
+  'uk',
+  'cs',
+  'sv',
+  'nb',
+  'da',
+  'ar',
+  'hi',
+  'th',
+  'he',
+] as const;
 export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
+
+const RTL_LOCALES = new Set<SupportedLocale>(['ar', 'he']);
 
 let activeLocale: SupportedLocale = 'en';
 let activeMessages: LocaleMessages = {};
@@ -15,8 +44,25 @@ function isSupportedLocale(locale: string): locale is SupportedLocale {
 }
 
 export function resolveLocale(language: string): SupportedLocale {
-  const base = language.split('-')[0]?.toLowerCase() ?? 'en';
+  const normalized = language.toLowerCase();
+  if (normalized.startsWith('pt-br')) {
+    return 'pt-br';
+  }
+  if (normalized.startsWith('pt')) {
+    return 'pt';
+  }
+  if (normalized.startsWith('zh-tw') || normalized.startsWith('zh-hant')) {
+    return 'zh-tw';
+  }
+  if (normalized.startsWith('zh')) {
+    return 'zh';
+  }
+  const base = normalized.split('-')[0] ?? 'en';
   return isSupportedLocale(base) ? base : 'en';
+}
+
+export function isRtlLocale(locale: SupportedLocale = activeLocale): boolean {
+  return RTL_LOCALES.has(locale);
 }
 
 function loadBundleFromDisk(

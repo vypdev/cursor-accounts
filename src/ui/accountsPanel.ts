@@ -35,6 +35,7 @@ import { EfficiencyService, getEfficiencyWrongWindowMessage } from '../modelEffi
 import {
   getLocale,
   getWebviewMessages,
+  isRtlLocale,
   t,
 } from '../l10n';
 
@@ -615,9 +616,10 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
     const nonce = getNonce();
 
     const locale = getLocale();
+    const dir = isRtlLocale(locale) ? 'rtl' : 'ltr';
 
     return `<!DOCTYPE html>
-<html lang="${locale}">
+<html lang="${locale}" dir="${dir}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
