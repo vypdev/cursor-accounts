@@ -1,5 +1,6 @@
 import * as extensionLog from '../logging/extensionLog';
 import { t } from '../l10n';
+import { modelBaseComparisonKey } from './modelBaseName';
 import {
   EfficiencySeverity,
   EfficiencyTaskType,
@@ -93,27 +94,54 @@ function normalizeSeverity(value: unknown): EfficiencySeverity {
   return 'medium';
 }
 
+function applyBaseModelEquivalence(
+  metadata: PromptMetadata,
+  payload: SdkClassificationPayload
+): SdkClassificationPayload {
+  const recommendedModel =
+    typeof payload.recommendedModel === 'string'
+      ? payload.recommendedModel.trim()
+      : '';
+  if (!recommendedModel || recommendedModel === 'auto') {
+    return payload;
+  }
+
+  const selectedKey = modelBaseComparisonKey(metadata.model);
+  const recommendedKey = modelBaseComparisonKey(recommendedModel);
+  if (!selectedKey || !recommendedKey || selectedKey !== recommendedKey) {
+    return payload;
+  }
+
+  return {
+    ...payload,
+    efficiencyScore: Math.max(Number(payload.efficiencyScore) || 0, 0.7),
+    severity: 'low',
+    recommendedModel: metadata.model,
+  };
+}
+
 export function mapPayloadToScoringResult(
   metadata: PromptMetadata,
   payload: SdkClassificationPayload
 ): ScoringResult {
+  const adjusted = applyBaseModelEquivalence(metadata, payload);
   return {
     promptExcerpt: metadata.prompt.slice(0, 120),
     selectedModel: metadata.model,
-    taskType: normalizeTaskType(payload.taskType),
-    requiredTier: Number(payload.requiredTier) || 2,
-    actualTier: Number(payload.actualTier) || 2,
-    efficiencyScore: clamp01(Number(payload.efficiencyScore)),
-    severity: normalizeSeverity(payload.severity),
+    taskType: normalizeTaskType(adjusted.taskType),
+    requiredTier: Number(adjusted.requiredTier) || 2,
+    actualTier: Number(adjusted.actualTier) || 2,
+    efficiencyScore: clamp01(Number(adjusted.efficiencyScore)),
+    severity: normalizeSeverity(adjusted.severity),
     opinion:
-      typeof payload.opinion === 'string' && payload.opinion.trim()
-        ? payload.opinion.trim()
+      typeof adjusted.opinion === 'string' && adjusted.opinion.trim()
+        ? adjusted.opinion.trim()
         : t('efficiency.classifier.noOpinion'),
     recommendedModel:
-      typeof payload.recommendedModel === 'string'
-        ? payload.recommendedModel
+      typeof adjusted.recommendedModel === 'string'
+        ? adjusted.recommendedModel
         : 'auto',
-    confidence: clamp01(Number(payload.confidence)),
+    confidence: clamp01(Number(adjusted.confidence)),
     scoredAt: Date.now(),
   };
 }

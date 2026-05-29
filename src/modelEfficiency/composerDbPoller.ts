@@ -14,6 +14,12 @@ import {
 } from './composerDbParse';
 import { EfficiencyAnalyzer } from './efficiencyAnalyzer';
 import {
+  ModelCatalogEntry,
+  parseModelCatalog,
+  resolveModelConfig,
+} from './modelConfigResolver';
+import {
+  APPLICATION_USER_KEY,
   bubbleIdKey,
   COMPOSER_HEADERS_KEY,
   composerDataKey,
@@ -165,6 +171,7 @@ export class ComposerDbPoller {
       }
 
       const enabledAtMs = Date.parse(state.enabledAt);
+      const catalog = await this.loadModelCatalog(dbPath);
 
       for (const header of headers.allComposers) {
         await this.processComposer(
@@ -172,7 +179,8 @@ export class ComposerDbPoller {
           header,
           state,
           profile,
-          enabledAtMs
+          enabledAtMs,
+          catalog
         );
       }
 
@@ -218,12 +226,22 @@ export class ComposerDbPoller {
     );
   }
 
+  private async loadModelCatalog(dbPath: string): Promise<ModelCatalogEntry[]> {
+    const raw = await readItemTableKey(
+      dbPath,
+      APPLICATION_USER_KEY,
+      this.extensionPath
+    );
+    return parseModelCatalog(raw);
+  }
+
   private async processComposer(
     dbPath: string,
     header: ComposerHeaderEntry,
     state: DbPollerState,
     profile: Profile,
-    enabledAtMs: number
+    enabledAtMs: number,
+    catalog: ModelCatalogEntry[]
   ): Promise<void> {
     const composerId = header.composerId;
     if (!composerId) {
@@ -242,7 +260,11 @@ export class ComposerDbPoller {
       this.extensionPath
     );
     const data = parseComposerData(dataRaw);
-    const model = data?.modelConfig?.modelName ?? 'unknown';
+    const resolved = resolveModelConfig(data?.modelConfig, catalog);
+    const model = resolved.slug;
+    extensionLog.debug(
+      `[ComposerDbPoller] Model ${resolved.baseModelId} → ${resolved.slug} (resolved=${resolved.resolved}, maxMode=${resolved.maxMode}, params=${JSON.stringify(resolved.parameters)})`
+    );
     const workspaceRoots = extractWorkspaceRoots(header);
 
     for (const bubbleHeader of getUserBubbleHeaders(data)) {
@@ -284,6 +306,7 @@ export class ComposerDbPoller {
         timestamp: createdAtMs ?? lastUpdated,
         prompt,
         model,
+        modelResolved: resolved.resolved,
         attachments: [],
         conversationId: composerId,
         workspaceRoots,

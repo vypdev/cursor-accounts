@@ -27,11 +27,38 @@ export interface PromptAttachment {
 export interface PromptMetadata {
   timestamp: number;
   prompt: string;
+  /** Resolved model slug (legacySlug when catalog match succeeds). */
   model: string;
+  modelResolved?: boolean;
   attachments: PromptAttachment[];
   conversationId: string;
   workspaceRoots: string[];
   userEmail?: string;
+}
+
+export interface ModelParameter {
+  id: string;
+  value: string;
+}
+
+export interface SelectedModel {
+  modelId: string;
+  parameters?: ModelParameter[];
+}
+
+export interface ComposerModelConfig {
+  modelName?: string;
+  maxMode?: boolean;
+  selectedModels?: SelectedModel[];
+}
+
+export interface ResolvedModel {
+  slug: string;
+  baseModelId: string;
+  maxMode: boolean;
+  parameters: ModelParameter[];
+  resolved: boolean;
+  displayName?: string;
 }
 
 export interface ComposerHeaderEntry {
@@ -53,7 +80,7 @@ export interface ConversationBubbleHeader {
 
 export interface ComposerDataRow {
   composerId?: string;
-  modelConfig?: { modelName?: string; maxMode?: boolean };
+  modelConfig?: ComposerModelConfig;
   fullConversationHeadersOnly?: ConversationBubbleHeader[];
   text?: string;
   richText?: string;

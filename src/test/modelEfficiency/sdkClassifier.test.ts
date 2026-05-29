@@ -48,4 +48,43 @@ describe('sdkClassifier helpers', () => {
     assert.equal(result.recommendedModel, 'composer-2.5-fast');
     assert.match(result.opinion, /Opus/);
   });
+
+  it('mapPayloadToScoringResult suppresses variant-only recommendations', () => {
+    const metadata: PromptMetadata = {
+      ...sampleMetadata,
+      model: 'composer-2.5-fast',
+    };
+
+    const result = mapPayloadToScoringResult(metadata, {
+      taskType: 'factual_simple',
+      requiredTier: 1,
+      actualTier: 2,
+      efficiencyScore: 0.3,
+      severity: 'high',
+      confidence: 0.9,
+      opinion: 'Use Composer 2.5 Fast instead.',
+      recommendedModel: 'composer-2.5',
+    });
+
+    assert.equal(result.efficiencyScore, 0.7);
+    assert.equal(result.severity, 'low');
+    assert.equal(result.recommendedModel, 'composer-2.5-fast');
+  });
+
+  it('mapPayloadToScoringResult keeps cross-base recommendations', () => {
+    const result = mapPayloadToScoringResult(sampleMetadata, {
+      taskType: 'factual_simple',
+      requiredTier: 1,
+      actualTier: 3,
+      efficiencyScore: 0.2,
+      severity: 'high',
+      confidence: 0.95,
+      opinion: 'Opus is oversized.',
+      recommendedModel: 'composer-2.5-fast',
+    });
+
+    assert.equal(result.efficiencyScore, 0.2);
+    assert.equal(result.severity, 'high');
+    assert.equal(result.recommendedModel, 'composer-2.5-fast');
+  });
 });

@@ -6,6 +6,9 @@ import * as extensionLog from '../logging/extensionLog';
 
 export const COMPOSER_HEADERS_KEY = 'composer.composerHeaders';
 
+export const APPLICATION_USER_KEY =
+  'src.vs.platform.reactivestorage.browser.reactiveStorageServiceImpl.persistentStorage.applicationUser';
+
 export type StateDbTable = 'ItemTable' | 'cursorDiskKV';
 
 const MAX_RETRIES = 3;

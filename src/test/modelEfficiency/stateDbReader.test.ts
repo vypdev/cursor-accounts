@@ -5,12 +5,14 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
 import {
+  APPLICATION_USER_KEY,
   COMPOSER_HEADERS_KEY,
   composerDataKey,
   bubbleIdKey,
   readCursorDiskKV,
   readItemTableKey,
 } from '../../modelEfficiency/stateDbReader';
+import { parseModelCatalog } from '../../modelEfficiency/modelConfigResolver';
 
 const extensionPath = path.join(__dirname, '..', '..', '..');
 
@@ -42,7 +44,16 @@ async function createFixtureDb(dir: string): Promise<string> {
 
   const composerData = JSON.stringify({
     composerId: 'composer-1',
-    modelConfig: { modelName: 'claude-opus-4' },
+    modelConfig: {
+      modelName: 'composer-2.5',
+      maxMode: false,
+      selectedModels: [
+        {
+          modelId: 'composer-2.5',
+          parameters: [{ id: 'fast', value: 'true' }],
+        },
+      ],
+    },
     fullConversationHeadersOnly: [
       { bubbleId: 'bubble-user-1', type: 1 },
       { bubbleId: 'bubble-ai-1', type: 2 },
@@ -62,6 +73,27 @@ async function createFixtureDb(dir: string): Promise<string> {
   runSqlite(
     dbPath,
     `INSERT INTO cursorDiskKV (key, value) VALUES ('${bubbleIdKey('composer-1', 'bubble-user-1').replace(/'/g, "''")}', '${bubble.replace(/'/g, "''")}');`
+  );
+
+  const applicationUser = JSON.stringify({
+    availableDefaultModels2: [
+      {
+        name: 'composer-2.5',
+        serverModelName: 'composer-2.5',
+        variants: [
+          {
+            parameterValues: [{ id: 'fast', value: 'true' }],
+            legacySlug: 'composer-2.5-fast',
+            variantStringRepresentation: 'composer-2.5[fast=true]',
+            isMaxMode: false,
+          },
+        ],
+      },
+    ],
+  });
+  runSqlite(
+    dbPath,
+    `INSERT INTO ItemTable (key, value) VALUES ('${APPLICATION_USER_KEY}', '${applicationUser.replace(/'/g, "''")}');`
   );
 
   return dbPath;
@@ -102,8 +134,14 @@ describe('stateDbReader', () => {
       extensionPath
     );
     assert.ok(dataRaw);
-    const data = JSON.parse(dataRaw) as { modelConfig: { modelName: string } };
-    assert.equal(data.modelConfig.modelName, 'claude-opus-4');
+    const data = JSON.parse(dataRaw) as {
+      modelConfig: {
+        modelName: string;
+        selectedModels?: Array<{ parameters: Array<{ id: string; value: string }> }>;
+      };
+    };
+    assert.equal(data.modelConfig.modelName, 'composer-2.5');
+    assert.equal(data.modelConfig.selectedModels?.[0].parameters[0].id, 'fast');
 
     const bubbleRaw = await readCursorDiskKV(
       dbPath,
@@ -114,6 +152,18 @@ describe('stateDbReader', () => {
     const bubble = JSON.parse(bubbleRaw) as { text: string; type: number };
     assert.equal(bubble.type, 1);
     assert.match(bubble.text, /Spain/);
+  });
+
+  it('readItemTableKey returns model catalog from applicationUser', async () => {
+    const dbPath = await createFixtureDb(tempDir);
+    const raw = await readItemTableKey(
+      dbPath,
+      APPLICATION_USER_KEY,
+      extensionPath
+    );
+    assert.ok(raw);
+    const catalog = parseModelCatalog(raw);
+    assert.equal(catalog[0].name, 'composer-2.5');
   });
 
   it('returns null for missing database file', async () => {
