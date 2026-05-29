@@ -98,14 +98,15 @@ export class EfficiencyService {
 
     if (enabled) {
       const confirmLabel = t('efficiency.consent.confirm');
+      const cancelLabel = t('efficiency.consent.cancel');
       const consent = await vscode.window.showInformationMessage(
         t('efficiency.consent.message'),
         { modal: true },
-        confirmLabel,
-        t('efficiency.consent.cancel')
+        { title: confirmLabel },
+        { title: cancelLabel, isCloseAffordance: true }
       );
 
-      if (consent !== confirmLabel) {
+      if (consent?.title !== confirmLabel) {
         throw new Error(t('errors.efficiencyActivationCancelled'));
       }
 
