@@ -12,25 +12,52 @@ if (vsixFiles.length === 0) {
 
 let allValid = true;
 
+const PLATFORM_SDK_PACKAGE = {
+  'darwin-arm64': '@cursor/sdk-darwin-arm64',
+  'darwin-x64': '@cursor/sdk-darwin-x64',
+  'linux-x64': '@cursor/sdk-linux-x64',
+  'linux-arm64': '@cursor/sdk-linux-arm64',
+  'win32-x64': '@cursor/sdk-win32-x64',
+  'win32-arm64': '@cursor/sdk-win32-x64',
+};
+
+function targetFromVsixName(vsix) {
+  const match = vsix.match(
+    /-(darwin-arm64|darwin-x64|linux-x64|linux-arm64|win32-x64|win32-arm64)-/
+  );
+  return match?.[1];
+}
+
 for (const vsix of vsixFiles) {
-  try {
-    const result = execSync(
-      `unzip -l "${vsix}" | grep "extension/webview-dist/bundle.js"`,
-      {
+  console.log(`Checking ${vsix}…`);
+  const target = targetFromVsixName(vsix);
+
+  const checks = [
+    { label: 'webview bundle', pattern: 'extension/webview-dist/bundle.js' },
+    {
+      label: 'sqlite3 native binding',
+      pattern: 'extension/node_modules/sqlite3/build/Release/node_sqlite3.node',
+    },
+  ];
+
+  if (target && PLATFORM_SDK_PACKAGE[target]) {
+    checks.push({
+      label: `@cursor/sdk platform package (${target})`,
+      pattern: `extension/node_modules/${PLATFORM_SDK_PACKAGE[target]}/package.json`,
+    });
+  }
+
+  for (const { label, pattern } of checks) {
+    try {
+      execSync(`unzip -l "${vsix}" | grep "${pattern}"`, {
         cwd: root,
         encoding: 'utf-8',
-      }
-    );
-
-    if (result.includes('bundle.js')) {
-      console.log(`✓ ${vsix} - contains webview bundle`);
-    } else {
-      console.error(`✗ ${vsix} - MISSING webview bundle`);
+      });
+      console.log(`  ✓ ${label}`);
+    } catch {
+      console.error(`  ✗ MISSING ${label}`);
       allValid = false;
     }
-  } catch {
-    console.error(`✗ ${vsix} - MISSING webview bundle`);
-    allValid = false;
   }
 }
 
