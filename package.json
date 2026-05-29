@@ -2,7 +2,7 @@
   "name": "cursor-accounts",
   "displayName": "%extension.displayName%",
   "description": "%extension.description%",
-  "version": "0.1.22",
+  "version": "0.1.23",
   "publisher": "vypdev",
   "license": "MIT",
   "engines": {
