@@ -24,7 +24,10 @@ body:
       multiple: false
       options:
         - README.md
-        - docs/ (e.g. RESEARCH.md)
+        - CONTRIBUTING.md
+        - docs/ARCHITECTURE.md
+        - docs/FEATURE-MULTI-PROFILE.md
+        - docs/RESEARCH.md
         - Extension settings / package.json descriptions
         - Inline code comments
         - CHANGELOG / release notes

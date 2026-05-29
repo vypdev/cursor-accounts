@@ -2,6 +2,8 @@
 
 This document records how quota data is obtained, refresh behavior, API limits, and account-switching feasibility. Implementation choices follow these findings; undocumented APIs are not assumed.
 
+**Last reviewed:** 2026-05-29
+
 ## 1. Quota / usage data
 
 ### Official position

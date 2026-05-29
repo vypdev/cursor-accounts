@@ -91,6 +91,16 @@ Example: prompt *“¿Cuál es la capital de España?”* with **Opus** should s
 
 See [docs/RESEARCH.md](docs/RESEARCH.md) for data sources, limitations, and account-switching investigation.
 
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Development setup, structure, tests, pull requests |
+| [CHANGELOG.md](CHANGELOG.md) | Version history |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Extension structure, data flows, design decisions |
+| [docs/FEATURE-MULTI-PROFILE.md](docs/FEATURE-MULTI-PROFILE.md) | Multi-profile product design |
+| [docs/RESEARCH.md](docs/RESEARCH.md) | Quota APIs and platform constraints |
+
 ## Multi-account / account switching
 
 **Not supported by this extension.** Cursor does not expose a supported API for switching subscription accounts inside one window.
