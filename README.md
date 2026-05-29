@@ -65,17 +65,21 @@ The extension was renamed to **Cursor Accounts** (`vypdev.cursor-accounts`). Uni
 Each account in the **Accounts** panel can enable **Análisis de eficiencia**:
 
 1. Confirm creation of a Cursor API key named **Cursor Accounts - API Key** (uses the profile’s stored session).
-2. A `beforeSubmitPrompt` hook captures each Composer prompt and selected model (non-blocking).
-3. The extension analyzes prompts in the background via `@cursor/sdk` and prints scoring to the **Cursor Model Efficiency** output channel.
+2. Every **10 seconds** (configurable), the extension reads the active profile’s `state.vscdb` for new Composer user messages and the selected model.
+3. Analysis runs in the background via `@cursor/sdk` and prints scoring to the **Cursor Model Efficiency** output channel.
 
 Example: prompt *“¿Cuál es la capital de España?”* with **Opus** should score low and recommend a lighter model.
 
 | Command | Description |
 |---------|-------------|
 | `Cursor Accounts: Show Model Efficiency Output` | Open the analysis output channel |
-| `Cursor Accounts: Reinstall Efficiency Hook` | Re-register `~/.cursor/hooks.json` entry |
+| `Cursor Accounts: Restart Prompt Detector` | Clear detection state and restart `state.vscdb` polling |
 
-**Notes:** Analysis runs only for the **active** profile window with efficiency enabled. Uses your Cursor plan quota (SDK `model: auto`). Not available for cloud agents submitted from the web UI.
+**Notes:** Analysis runs only in the **profile window** where you enabled efficiency (API keys are per window). Detection reads `{userDataDir}/User/globalStorage/state.vscdb` (Composer headers, `composerData`, user `bubbleId` entries). Latency is up to the poll interval (default 10 s). Uses your Cursor plan quota (SDK `model: auto`). Not available for cloud agents submitted from the web UI.
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `cursorAccounts.modelEfficiency.pollIntervalSeconds` | `10` | Poll interval (5–60 s) |
 
 ## How it works
 

@@ -31,7 +31,50 @@ export interface PromptMetadata {
   attachments: PromptAttachment[];
   conversationId: string;
   workspaceRoots: string[];
+  userEmail?: string;
 }
+
+export interface ComposerHeaderEntry {
+  composerId?: string;
+  lastUpdatedAt?: number;
+  createdAt?: number;
+  unifiedMode?: string;
+  trackedGitRepos?: Array<{ repoPath?: string }>;
+}
+
+export interface ComposerHeadersPayload {
+  allComposers?: ComposerHeaderEntry[];
+}
+
+export interface ConversationBubbleHeader {
+  bubbleId: string;
+  type: number;
+}
+
+export interface ComposerDataRow {
+  composerId?: string;
+  modelConfig?: { modelName?: string; maxMode?: boolean };
+  fullConversationHeadersOnly?: ConversationBubbleHeader[];
+  text?: string;
+  richText?: string;
+}
+
+export interface BubbleRow {
+  type?: number;
+  text?: string;
+  richText?: string;
+  createdAt?: string;
+  bubbleId?: string;
+}
+
+export interface DbPollerState {
+  seenBubbleIds: Record<string, string[]>;
+  lastUpdatedAtByComposer: Record<string, number>;
+  enabledAt?: string;
+}
+
+export const DB_POLLER_STATE_KEY = 'efficiency.dbPollerState';
+export const SEEN_BUBBLES_CAP_PER_COMPOSER = 200;
 
 export interface ScoringResult {
   promptExcerpt: string;

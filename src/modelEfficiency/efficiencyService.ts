@@ -5,12 +5,8 @@ import * as extensionLog from '../logging/extensionLog';
 import { Profile } from '../profiles/types';
 import { ProfileManager } from '../profiles/profileManager';
 import { ApiKeyManager, ApiKeyManagerError } from './apiKeyManager';
-import {
-  installEfficiencyHook,
-  isEfficiencyHookInstalled,
-  uninstallEfficiencyHook,
-} from './hookInstaller';
-import { MetadataWatcher } from './metadataWatcher';
+import { ComposerDbPoller } from './composerDbPoller';
+import { EfficiencyAnalyzer } from './efficiencyAnalyzer';
 import { OutputPresenter } from './outputPresenter';
 import { CursorSdkClassifier } from './sdkClassifier';
 import { ProfileDetector } from '../profiles/profileDetector';
@@ -22,7 +18,8 @@ export class EfficiencyService {
   private readonly apiKeyManager: ApiKeyManager;
   private readonly outputPresenter: OutputPresenter;
   private readonly sdkClassifier = new CursorSdkClassifier();
-  private metadataWatcher?: MetadataWatcher;
+  private readonly analyzer: EfficiencyAnalyzer;
+  private poller?: ComposerDbPoller;
 
   constructor(
     private readonly context: vscode.ExtensionContext,
@@ -31,6 +28,13 @@ export class EfficiencyService {
   ) {
     this.apiKeyManager = new ApiKeyManager(context);
     this.outputPresenter = new OutputPresenter();
+    this.analyzer = new EfficiencyAnalyzer(
+      profileManager,
+      profileDetector,
+      this.apiKeyManager,
+      this.sdkClassifier,
+      this.outputPresenter
+    );
   }
 
   getOutputPresenter(): OutputPresenter {
@@ -40,51 +44,39 @@ export class EfficiencyService {
   async initialize(): Promise<void> {
     const profiles = await this.profileManager.getProfiles();
     if (profiles.some((p) => p.efficiencyAnalysisEnabled)) {
-      await this.ensureHookInstalled();
-      this.startWatcher();
+      this.startPoller();
     }
   }
 
   dispose(): void {
-    this.metadataWatcher?.stop();
-    this.metadataWatcher = undefined;
+    this.poller?.stop();
+    this.poller = undefined;
     this.outputPresenter.dispose();
   }
 
-  private startWatcher(): void {
-    if (this.metadataWatcher) {
+  private startPoller(): void {
+    if (this.poller) {
       return;
     }
 
-    this.metadataWatcher = new MetadataWatcher(
+    this.poller = new ComposerDbPoller(
       this.context,
-      this.profileManager,
       this.profileDetector,
-      this.apiKeyManager,
-      this.sdkClassifier,
-      this.outputPresenter
+      this.context.extensionPath,
+      this.analyzer
     );
-    this.metadataWatcher.start();
+    this.poller.start();
   }
 
-  private async ensureHookInstalled(): Promise<void> {
-    const installed = await isEfficiencyHookInstalled(this.context.extensionPath);
-    if (!installed) {
-      await installEfficiencyHook(this.context);
-    }
-  }
-
-  private async syncHookWithProfiles(): Promise<void> {
+  private async syncPollerWithProfiles(): Promise<void> {
     const profiles = await this.profileManager.getProfiles();
     const anyEnabled = profiles.some((p) => p.efficiencyAnalysisEnabled);
 
     if (anyEnabled) {
-      await this.ensureHookInstalled();
-      this.startWatcher();
+      this.startPoller();
     } else {
-      this.metadataWatcher?.stop();
-      this.metadataWatcher = undefined;
-      await uninstallEfficiencyHook(this.context.extensionPath);
+      this.poller?.stop();
+      this.poller = undefined;
     }
   }
 
@@ -133,7 +125,8 @@ export class EfficiencyService {
         efficiencyAnalysisEnabled: true,
       });
 
-      await this.syncHookWithProfiles();
+      await this.poller?.resetState();
+      await this.syncPollerWithProfiles();
 
       extensionLog.info(
         `[EfficiencyService] Enabled efficiency analysis for ${profile.email}`
@@ -150,7 +143,7 @@ export class EfficiencyService {
       efficiencyAnalysisEnabled: false,
     });
 
-    await this.syncHookWithProfiles();
+    await this.syncPollerWithProfiles();
 
     return {
       profile: updated,
@@ -158,10 +151,16 @@ export class EfficiencyService {
     };
   }
 
-  async reinstallHook(): Promise<void> {
-    await installEfficiencyHook(this.context);
+  async restartPromptDetector(): Promise<void> {
+    await this.poller?.resetState();
+    this.poller?.stop();
+    this.poller = undefined;
+    const profiles = await this.profileManager.getProfiles();
+    if (profiles.some((p) => p.efficiencyAnalysisEnabled)) {
+      this.startPoller();
+    }
     vscode.window.showInformationMessage(
-      'Hook de análisis de eficiencia reinstalado en ~/.cursor/hooks.json'
+      'Detector de prompts reiniciado (lectura de state.vscdb cada 10 s).'
     );
   }
 }

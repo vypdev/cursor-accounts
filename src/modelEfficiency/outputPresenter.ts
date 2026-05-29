@@ -32,6 +32,12 @@ export class OutputPresenter {
     this.channel.show(true);
   }
 
+  appendStatus(message: string): void {
+    this.channel.appendLine(
+      `[${new Date().toLocaleTimeString()}] ${message}`
+    );
+  }
+
   presentError(message: string, metadata?: PromptMetadata): void {
     this.channel.appendLine('═'.repeat(60));
     this.channel.appendLine(

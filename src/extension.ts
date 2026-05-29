@@ -323,9 +323,9 @@ export function activate(context: vscode.ExtensionContext): void {
       }
     ),
     vscode.commands.registerCommand(
-      'cursorAccounts.efficiency.reinstallHook',
+      'cursorAccounts.efficiency.restartDetector',
       async () => {
-        await efficiencyService?.reinstallHook();
+        await efficiencyService?.restartPromptDetector();
       }
     )
   );
