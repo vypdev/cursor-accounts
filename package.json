@@ -2,7 +2,7 @@
   "name": "cursor-accounts",
   "displayName": "Cursor Accounts",
   "description": "Manage Cursor accounts and show plan quota usage in the status bar without opening Settings.",
-  "version": "0.1.18",
+  "version": "0.1.19",
   "publisher": "vypdev",
   "license": "MIT",
   "engines": {
@@ -87,6 +87,14 @@
         "command": "cursorAccounts.importProfiles",
         "title": "Cursor Accounts: Import Profiles",
         "icon": "$(folder-opened)"
+      },
+      {
+        "command": "cursorAccounts.efficiency.showOutput",
+        "title": "Cursor Accounts: Show Model Efficiency Output"
+      },
+      {
+        "command": "cursorAccounts.efficiency.reinstallHook",
+        "title": "Cursor Accounts: Reinstall Efficiency Hook"
       }
     ],
     "configuration": {
@@ -142,20 +150,33 @@
           "minimum": 15,
           "maximum": 120,
           "description": "Interval in seconds for detecting running Cursor instances."
+        },
+        "cursorAccounts.modelEfficiency.showNotificationOnHigh": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show an information notification when model efficiency severity is high."
+        },
+        "cursorAccounts.modelEfficiency.autoShowOutputChannel": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically open the Model Efficiency output channel on each analysis."
         }
       }
     }
   },
+  "dependencies": {
+    "@cursor/sdk": "^1.0.15"
+  },
   "scripts": {
     "vscode:prepublish": "node scripts/prepublish.mjs",
     "debug:usage": "node scripts/debug-usage.mjs",
-    "compile": "tsc -p ./ && pnpm --dir webview run build",
+    "compile": "tsc -p ./ && node scripts/copy-hooks.mjs && pnpm --dir webview run build",
     "compile:webview": "pnpm --dir webview run build",
     "watch": "tsc -watch -p ./",
     "watch:webview": "pnpm --dir webview run watch",
     "lint": "tsc -p ./ --noEmit",
     "test": "node --test out/test/*.test.js",
-    "pretest": "tsc -p ./",
+    "pretest": "tsc -p ./ && node scripts/copy-hooks.mjs",
     "build:all": "pnpm run compile && pnpm run package:all:fast",
     "verify:vsix": "node scripts/verify-vsix.mjs",
     "verify:installed": "node scripts/verify-installed-extension.mjs",

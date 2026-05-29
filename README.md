@@ -57,6 +57,25 @@ The extension was renamed to **Cursor Accounts** (`vypdev.cursor-accounts`). Uni
 | `cursorAccounts.statusBar.showIncluded` | `true` | Show included usage indicator |
 | `cursorAccounts.statusBar.showTotal` | `true` | Show total plan percentage indicator |
 | `cursorAccounts.statusBar.showAccountEmail` | `false` | Show cached email in tooltips |
+| `cursorAccounts.modelEfficiency.showNotificationOnHigh` | `true` | Notify when efficiency severity is high |
+| `cursorAccounts.modelEfficiency.autoShowOutputChannel` | `false` | Open Model Efficiency output on each analysis |
+
+## Model efficiency analysis (per profile)
+
+Each account in the **Accounts** panel can enable **Análisis de eficiencia**:
+
+1. Confirm creation of a Cursor API key named **Cursor Accounts - API Key** (uses the profile’s stored session).
+2. A `beforeSubmitPrompt` hook captures each Composer prompt and selected model (non-blocking).
+3. The extension analyzes prompts in the background via `@cursor/sdk` and prints scoring to the **Cursor Model Efficiency** output channel.
+
+Example: prompt *“¿Cuál es la capital de España?”* with **Opus** should score low and recommend a lighter model.
+
+| Command | Description |
+|---------|-------------|
+| `Cursor Accounts: Show Model Efficiency Output` | Open the analysis output channel |
+| `Cursor Accounts: Reinstall Efficiency Hook` | Re-register `~/.cursor/hooks.json` entry |
+
+**Notes:** Analysis runs only for the **active** profile window with efficiency enabled. Uses your Cursor plan quota (SDK `model: auto`). Not available for cloud agents submitted from the web UI.
 
 ## How it works
 

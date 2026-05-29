@@ -220,6 +220,13 @@ export const App: React.FC = () => {
     setShowImportDialog(false);
   }, []);
 
+  const handleToggleEfficiency = useCallback(
+    (profileId: string, enabled: boolean) => {
+      vscodeApi.toggleEfficiency(profileId, enabled);
+    },
+    []
+  );
+
   const editingProfile = editingProfileId
     ? profiles.find((p) => p.id === editingProfileId)
     : undefined;
@@ -308,6 +315,7 @@ export const App: React.FC = () => {
             onDelete={handleDelete}
             onShowInExplorer={handleShowInExplorer}
             onExport={handleExport}
+            onToggleEfficiency={handleToggleEfficiency}
           />
         )}
       </div>

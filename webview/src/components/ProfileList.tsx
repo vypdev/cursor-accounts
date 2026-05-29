@@ -18,6 +18,7 @@ interface ProfileListProps {
   onDelete: (id: string) => void;
   onShowInExplorer: (id: string) => void;
   onExport: (profileIds: string[], includeSettings: boolean) => void;
+  onToggleEfficiency: (id: string, enabled: boolean) => void;
 }
 
 export const ProfileList: React.FC<ProfileListProps> = ({
@@ -31,6 +32,7 @@ export const ProfileList: React.FC<ProfileListProps> = ({
   onDelete,
   onShowInExplorer,
   onExport,
+  onToggleEfficiency,
 }) => {
   return (
     <div className="profile-list-container">
@@ -57,6 +59,7 @@ export const ProfileList: React.FC<ProfileListProps> = ({
           onEdit={onEdit}
           onDelete={onDelete}
           onShowInExplorer={onShowInExplorer}
+          onToggleEfficiency={onToggleEfficiency}
         />
       ))}
       </div>

@@ -20,6 +20,7 @@ export interface Profile {
   theme?: string;
   color?: string;
   emoji?: string;
+  efficiencyAnalysisEnabled?: boolean;
   metadata?: ProfileMetadata;
 }
 
@@ -199,7 +200,8 @@ export type FromWebviewMessage =
   | { type: 'showInExplorer'; profileId: string }
   | { type: 'export'; profileIds: string[]; includeSettings: boolean }
   | { type: 'import'; data: string; options: ImportOptions }
-  | { type: 'requestSuggestedProfile' };
+  | { type: 'requestSuggestedProfile' }
+  | { type: 'toggleEfficiency'; profileId: string; enabled: boolean };
 
 export const WEBVIEW_STATE_VERSION = 1;
 

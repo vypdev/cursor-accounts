@@ -96,6 +96,10 @@ class VSCodeAPI {
     this.postMessage({ type: 'requestSuggestedProfile' });
   }
 
+  toggleEfficiency(profileId: string, enabled: boolean): void {
+    this.postMessage({ type: 'toggleEfficiency', profileId, enabled });
+  }
+
   saveState(state: Omit<WebviewPersistedState, 'version'>): void {
     this.vscode.setState({
       version: WEBVIEW_STATE_VERSION,

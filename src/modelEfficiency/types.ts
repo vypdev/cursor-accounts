@@ -1,0 +1,59 @@
+export const EFFICIENCY_API_KEY_NAME = 'Cursor Accounts - API Key';
+
+export type EfficiencySeverity = 'low' | 'medium' | 'high';
+
+export type EfficiencyTaskType =
+  | 'factual_simple'
+  | 'explanation'
+  | 'debugging'
+  | 'refactor'
+  | 'codegen_scoped'
+  | 'architecture'
+  | 'review'
+  | 'unknown';
+
+export interface EfficiencyState {
+  profileId: string;
+  enabled: boolean;
+  apiKeyCreatedAt?: string;
+  lastAnalysisAt?: number;
+}
+
+export interface PromptAttachment {
+  type: string;
+  file_path: string;
+}
+
+export interface PromptMetadata {
+  timestamp: number;
+  prompt: string;
+  model: string;
+  attachments: PromptAttachment[];
+  conversationId: string;
+  workspaceRoots: string[];
+}
+
+export interface ScoringResult {
+  promptExcerpt: string;
+  selectedModel: string;
+  taskType: EfficiencyTaskType | string;
+  requiredTier: number;
+  actualTier: number;
+  efficiencyScore: number;
+  severity: EfficiencySeverity;
+  opinion: string;
+  recommendedModel: string;
+  confidence: number;
+  scoredAt: number;
+}
+
+export interface SdkClassificationPayload {
+  taskType?: string;
+  requiredTier?: number;
+  actualTier?: number;
+  efficiencyScore?: number;
+  severity?: string;
+  opinion?: string;
+  recommendedModel?: string;
+  confidence?: number;
+}

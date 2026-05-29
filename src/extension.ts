@@ -19,9 +19,11 @@ import {
   AccountsPanelProvider,
 } from './ui/accountsPanel';
 import { StatusBarManager } from './ui/statusBarManager';
+import { EfficiencyService } from './modelEfficiency/efficiencyService';
 
 let refreshService: RefreshService | undefined;
 let multiProfileQuotaService: MultiProfileQuotaService | undefined;
+let efficiencyService: EfficiencyService | undefined;
 
 const LEGACY_SETTINGS_KEYS = [
   'refresh.enabled',
@@ -183,6 +185,12 @@ export function activate(context: vscode.ExtensionContext): void {
 
   const profileAccountFetcher = new ProfileAccountFetcher(context);
 
+  efficiencyService = new EfficiencyService(
+    context,
+    profileManager,
+    profileDetector
+  );
+
   const accountsPanel = new AccountsPanelProvider(
     context,
     profileManager,
@@ -190,7 +198,8 @@ export function activate(context: vscode.ExtensionContext): void {
     profileDetector,
     multiProfileQuotaService,
     profileAccountFetcher,
-    instanceDetector
+    instanceDetector,
+    efficiencyService
   );
 
   context.subscriptions.push(
@@ -210,6 +219,7 @@ export function activate(context: vscode.ExtensionContext): void {
     extensionLog.info(
       `[Extension] ProfileManager initialized with ${profiles.length} profile(s)`
     );
+    await efficiencyService?.initialize();
   }).catch((err) => {
     extensionLog.error(
       `[Extension] ProfileManager initialization failed: ${extensionLog.formatError(err)}`
@@ -305,8 +315,24 @@ export function activate(context: vscode.ExtensionContext): void {
       vscode.window.showInformationMessage(
         'Open Cursor Settings and select the Usage section to view full quota details.'
       );
-    })
+    }),
+    vscode.commands.registerCommand(
+      'cursorAccounts.efficiency.showOutput',
+      () => {
+        efficiencyService?.getOutputPresenter().show();
+      }
+    ),
+    vscode.commands.registerCommand(
+      'cursorAccounts.efficiency.reinstallHook',
+      async () => {
+        await efficiencyService?.reinstallHook();
+      }
+    )
   );
+
+  context.subscriptions.push({
+    dispose: () => efficiencyService?.dispose(),
+  });
 
   refreshService.start();
 
@@ -318,4 +344,6 @@ export function deactivate(): void {
   refreshService = undefined;
   multiProfileQuotaService?.stop();
   multiProfileQuotaService = undefined;
+  efficiencyService?.dispose();
+  efficiencyService = undefined;
 }

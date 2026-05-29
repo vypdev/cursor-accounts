@@ -31,6 +31,7 @@ import {
   ProfileAccountFetcher,
 } from '../services/profileAccountFetcher';
 import { buildSuggestedProfileResponse } from './suggestedProfile';
+import { EfficiencyService } from '../modelEfficiency/efficiencyService';
 
 /** Activity bar container id (must match package.json viewsContainers). */
 export const ACCOUNTS_VIEW_CONTAINER = 'cursorAccounts';
@@ -60,7 +61,8 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
     private readonly profileDetector: ProfileDetector,
     private readonly quotaService: MultiProfileQuotaService,
     private readonly accountFetcher: ProfileAccountFetcher,
-    private readonly instanceDetector: InstanceDetector
+    private readonly instanceDetector: InstanceDetector,
+    private readonly efficiencyService: EfficiencyService
   ) {
     this.quotaService.onRefresh((quotas) => {
       void this.postQuotas(quotas);
@@ -341,6 +343,13 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
           await this.handleRequestSuggestedProfile();
           break;
 
+        case 'toggleEfficiency':
+          await this.handleToggleEfficiency(
+            message.profileId,
+            message.enabled
+          );
+          break;
+
         default: {
           const unknown = message as { type?: string };
           extensionLog.warn(
@@ -444,6 +453,26 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
 
     const uri = vscode.Uri.file(profile.userDataDir);
     await vscode.commands.executeCommand('revealFileInOS', uri);
+  }
+
+  private async handleToggleEfficiency(
+    profileId: string,
+    enabled: boolean
+  ): Promise<void> {
+    extensionLog.info(
+      `[AccountsPanel] Toggle efficiency ${enabled ? 'on' : 'off'} for ${profileId}`
+    );
+
+    const result = await this.efficiencyService.setEfficiencyEnabled(
+      profileId,
+      enabled
+    );
+
+    await this.postMessage({
+      type: 'success',
+      message: result.message,
+    });
+    await this.refresh();
   }
 
   private async handleRequestSuggestedProfile(): Promise<void> {

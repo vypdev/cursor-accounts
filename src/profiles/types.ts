@@ -42,6 +42,9 @@ export interface Profile {
   /** User-chosen emoji for visual identification */
   emoji?: string;
 
+  /** When true, analyze Composer prompts for model efficiency (per profile). */
+  efficiencyAnalysisEnabled?: boolean;
+
   /** Additional metadata */
   metadata?: ProfileMetadata;
 }
@@ -282,7 +285,8 @@ export type FromWebviewMessage =
   | { type: 'showInExplorer'; profileId: string }
   | { type: 'export'; profileIds: string[]; includeSettings: boolean }
   | { type: 'import'; data: string; options: ImportOptions }
-  | { type: 'requestSuggestedProfile' };
+  | { type: 'requestSuggestedProfile' }
+  | { type: 'toggleEfficiency'; profileId: string; enabled: boolean };
 
 /**
  * Initial data sent when webview loads.

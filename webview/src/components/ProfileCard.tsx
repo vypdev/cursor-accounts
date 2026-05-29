@@ -11,6 +11,7 @@ interface ProfileCardProps {
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
   onShowInExplorer: (id: string) => void;
+  onToggleEfficiency: (id: string, enabled: boolean) => void;
 }
 
 function formatResetDate(isoString: string): string {
@@ -72,6 +73,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
   onEdit,
   onDelete,
   onShowInExplorer,
+  onToggleEfficiency,
 }) => {
   const [showMenu, setShowMenu] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
@@ -316,6 +318,23 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
           )}
         </div>
       ) : null}
+
+      <div className="efficiency-toggle">
+        <label className="efficiency-label">
+          <input
+            type="checkbox"
+            checked={Boolean(profile.efficiencyAnalysisEnabled)}
+            onChange={(e) =>
+              onToggleEfficiency(profile.id, e.target.checked)
+            }
+          />
+          <span>
+            {profile.efficiencyAnalysisEnabled
+              ? 'Análisis de eficiencia activo'
+              : 'Activar análisis de eficiencia'}
+          </span>
+        </label>
+      </div>
 
       <div className="profile-actions">
         <button
