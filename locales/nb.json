@@ -7,7 +7,6 @@
   "errors.failedLoadProfiles": "Kunne ikke laste inn profiler",
   "errors.failedLaunchProfile": "Kunne ikke starte profil",
   "errors.cursorExecutableNotFound": "Cursor-kjørbar fil ikke funnet",
-
   "commands.addProfile.promptEmail": "Skriv inn e-post for Cursor-konto",
   "commands.addProfile.promptDisplayName": "Skriv inn visningsnavn for profil (valgfritt)",
   "commands.addProfile.emailPlaceholder": "user@example.com",
@@ -19,32 +18,27 @@
   "commands.addProfile.launching": "Starter {name}…",
   "commands.addProfile.failedLaunch": "Kunne ikke starte profil: {error}",
   "commands.addProfile.failedCreate": "Kunne ikke opprette profil: {error}",
-
   "commands.launchProfile.noProfilesCreate": "Ingen profiler konfigurert. Opprette en nå?",
   "commands.launchProfile.createProfile": "Opprett profil",
   "commands.launchProfile.selectPlaceholder": "Velg profil å starte",
   "commands.launchProfile.lastLaunched": "Sist startet: {date}",
   "commands.launchProfile.lastLaunchedNever": "Aldri",
   "commands.launchProfile.failedLaunch": "Kunne ikke starte profil: {error}",
-
   "commands.listProfiles.header": "Konfigurerte Cursor-profiler:",
   "commands.listProfiles.noProfiles": "Ingen profiler konfigurert. Bruk «Cursor Accounts: Add Profile» for å opprette en.",
   "commands.listProfiles.email": "  E-post: {email}",
   "commands.listProfiles.path": "  Sti: {path}",
   "commands.listProfiles.lastLaunched": "  Sist startet: {date}",
   "commands.listProfiles.failed": "Kunne ikke liste profiler: {error}",
-
   "commands.deleteProfile.noProfiles": "Ingen profiler å slette.",
   "commands.deleteProfile.selectPlaceholder": "Velg profil å slette",
   "commands.deleteProfile.confirm": "Slette profilen \"{name}\"? Brukerdatakatalogen slettes IKKE.",
   "commands.deleteProfile.delete": "Slett",
   "commands.deleteProfile.deleted": "Profilen \"{name}\" er slettet.",
   "commands.deleteProfile.failed": "Kunne ikke slette profil: {error}",
-
   "commands.showCurrentProfile.default": "Bruker standard Cursor-profil (ingen egendefinert profil aktiv)",
   "commands.showCurrentProfile.current": "Gjeldende profil: {name} ({email})",
   "commands.showCurrentProfile.failed": "Kunne ikke finne gjeldende profil: {error}",
-
   "commands.exportProfiles.noProfiles": "Ingen profiler å eksportere.",
   "commands.exportProfiles.exportAll": "Eksporter alle profiler",
   "commands.exportProfiles.selectPlaceholder": "Velg profiler å eksportere",
@@ -53,7 +47,6 @@
   "commands.exportProfiles.no": "Nei",
   "commands.exportProfiles.exported": "Eksporterte {count} profil(er) til {path}",
   "commands.exportProfiles.failed": "Kunne ikke eksportere profiler: {error}",
-
   "commands.importProfiles.invalidFile": "Ugyldig importfil: {errors}",
   "commands.importProfiles.warningsContinue": "Advarsler:\n{warnings}\n\nFortsette?",
   "commands.importProfiles.continue": "Fortsett",
@@ -61,9 +54,7 @@
   "commands.importProfiles.skipped": "Hoppet over: {count}",
   "commands.importProfiles.errors": "Feil: {count}",
   "commands.importProfiles.failed": "Kunne ikke importere profiler: {error}",
-
   "commands.openUsage.message": "Åpne Cursor-innstillinger og velg Usage-delen for å se fullstendige kvotedetaljer.",
-
   "panel.loadFailed": "Cursor Accounts: kunne ikke laste Accounts-panelet ({error})",
   "panel.title": "Cursor Accounts",
   "panel.loadingHtml": "Laster Cursor Accounts…",
@@ -80,12 +71,13 @@
   "panel.importErrors": "{count} feil",
   "panel.importCompleted": "Import fullført",
   "panel.importCompletedWithErrors": "Import fullført med feil",
-
   "statusBar.profileTooltip": "Klikk for å se detaljer om gjeldende profil",
   "statusBar.loadingMonthlyUsage": "$(sync~spin) Månedlig bruk…",
   "statusBar.loadingUsage": "$(sync~spin) Bruk…",
   "statusBar.loadingMonthlyUsageTooltip": "Laster månedlig Cursor-bruk…",
   "statusBar.loadingUsageTooltip": "Laster Cursor-bruk…",
+  "statusBar.selectAccount": "Velg konto",
+  "statusBar.selectAccountTooltip": "Åpne Cursor Accounts for å velge en profil",
   "statusBar.quotaUnavailable": "$(warning) Kvote utilgjengelig",
   "statusBar.monthlySuffix": "månedlig",
   "statusBar.usageSuffix": "bruk",
@@ -108,11 +100,9 @@
   "statusBar.tooltipAutoModeUsed": "| **Auto-modus brukt** | {value} |",
   "statusBar.tooltipSpend": "| **Forbruk** | {value} |",
   "statusBar.tooltipIncludedSpend": "| **Inkludert forbruk** | {value} |",
-  "statusBar.tooltipClickToOpen": "\n\nKlikk for å åpne bruksdetaljer. Bruk **Cursor Accounts: Refresh Now** for å oppdatere.",
-
+  "statusBar.tooltipClickToOpen": "\n\nKlikk for å åpne Cursor Accounts i sidefeltet. Bruk **Cursor Accounts: Refresh Now** for å oppdatere.",
   "formatters.unlimited": "ubegrenset",
   "formatters.dash": "—",
-
   "efficiency.consent.message": "En Cursor API-nøkkel med navnet «Cursor Accounts - API Key» opprettes for denne kontoen for å analysere modelleffektivitet i bakgrunnen.",
   "efficiency.consent.confirm": "Opprett API-nøkkel og aktiver",
   "efficiency.consent.cancel": "Avbryt",
@@ -141,9 +131,7 @@
   "efficiency.classifier.sdkNonJson": "SDK returnerte klassifiseringsutdata som ikke er JSON",
   "efficiency.classifier.sdkEmpty": "Klassifiseringskjøring returnerte tomt resultat",
   "efficiency.classifier.sdkFailed": "SDK-klassifisering mislyktes",
-
   "suggestedProfile.accountAlreadyConfigured": "Kontoen {email} er allerede konfigurert. Skriv inn e-post og navn for den nye kontoen.",
-
   "webview.app.title": "Cursor Accounts",
   "webview.app.loadingProfiles": "Laster inn profiler…",
   "webview.app.loadingAccount": "Laster inn konto…",
@@ -154,11 +142,9 @@
   "webview.app.addTitle": "Legg til ny profil",
   "webview.app.add": "+ Legg til",
   "webview.app.activeAccount": "Aktiv konto",
-
   "webview.emptyState.title": "Ingen profiler ennå",
   "webview.emptyState.description": "Opprett en profil for å administrere flere Cursor-kontoer",
   "webview.emptyState.button": "Legg til din første profil",
-
   "webview.addProfile.title": "Legg til profil",
   "webview.addProfile.close": "Lukk",
   "webview.addProfile.detectedAccount": "Oppdaget gjeldende konto: {email}",
@@ -174,7 +160,6 @@
   "webview.addProfile.invalidEmail": "Ugyldig e-postformat",
   "webview.addProfile.cancel": "Avbryt",
   "webview.addProfile.create": "Opprett profil",
-
   "webview.editProfile.title": "Rediger profil",
   "webview.editProfile.emailLabel": "E-post",
   "webview.editProfile.displayNameLabel": "Visningsnavn *",
@@ -187,17 +172,14 @@
   "webview.editProfile.displayNameRequired": "Visningsnavn er påkrevd",
   "webview.editProfile.cancel": "Avbryt",
   "webview.editProfile.save": "Lagre endringer",
-
   "webview.import.title": "Importer profiler",
   "webview.import.fileLabel": "Velg eksportfil",
   "webview.import.skipDuplicates": "Hopp over duplikatprofiler",
   "webview.import.importSettings": "Importer VS Code-innstillinger",
   "webview.import.cancel": "Avbryt",
   "webview.import.submit": "Importer",
-
   "webview.profileList.exportAll": "Eksporter alle",
   "webview.profileList.exportAllTitle": "Eksporter alle profiler",
-
   "webview.profileCard.unknownDate": "Ukjent",
   "webview.profileCard.today": "I dag",
   "webview.profileCard.tomorrow": "I morgen",

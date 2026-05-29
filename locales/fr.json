@@ -7,7 +7,6 @@
   "errors.failedLoadProfiles": "Échec du chargement des profils",
   "errors.failedLaunchProfile": "Échec du lancement du profil",
   "errors.cursorExecutableNotFound": "Exécutable Cursor introuvable",
-
   "commands.addProfile.promptEmail": "Saisir l'e-mail du compte Cursor",
   "commands.addProfile.promptDisplayName": "Saisir le nom d'affichage du profil (facultatif)",
   "commands.addProfile.emailPlaceholder": "user@example.com",
@@ -19,32 +18,27 @@
   "commands.addProfile.launching": "Lancement de {name}…",
   "commands.addProfile.failedLaunch": "Échec du lancement du profil : {error}",
   "commands.addProfile.failedCreate": "Échec de la création du profil : {error}",
-
   "commands.launchProfile.noProfilesCreate": "Aucun profil configuré. En créer un maintenant ?",
   "commands.launchProfile.createProfile": "Créer un profil",
   "commands.launchProfile.selectPlaceholder": "Sélectionner le profil à lancer",
   "commands.launchProfile.lastLaunched": "Dernier lancement : {date}",
   "commands.launchProfile.lastLaunchedNever": "Jamais",
   "commands.launchProfile.failedLaunch": "Échec du lancement du profil : {error}",
-
   "commands.listProfiles.header": "Profils Cursor configurés :",
   "commands.listProfiles.noProfiles": "Aucun profil configuré. Utilisez « Cursor Accounts : Ajouter un profil » pour en créer un.",
   "commands.listProfiles.email": "  E-mail : {email}",
   "commands.listProfiles.path": "  Chemin : {path}",
   "commands.listProfiles.lastLaunched": "  Dernier lancement : {date}",
   "commands.listProfiles.failed": "Échec de la liste des profils : {error}",
-
   "commands.deleteProfile.noProfiles": "Aucun profil à supprimer.",
   "commands.deleteProfile.selectPlaceholder": "Sélectionner le profil à supprimer",
   "commands.deleteProfile.confirm": "Supprimer le profil « {name} » ? Le répertoire de données utilisateur ne sera PAS supprimé.",
   "commands.deleteProfile.delete": "Supprimer",
   "commands.deleteProfile.deleted": "Profil « {name} » supprimé.",
   "commands.deleteProfile.failed": "Échec de la suppression du profil : {error}",
-
   "commands.showCurrentProfile.default": "Profil Cursor par défaut (aucun profil personnalisé actif)",
   "commands.showCurrentProfile.current": "Profil actuel : {name} ({email})",
   "commands.showCurrentProfile.failed": "Échec de la détection du profil actuel : {error}",
-
   "commands.exportProfiles.noProfiles": "Aucun profil à exporter.",
   "commands.exportProfiles.exportAll": "Exporter tous les profils",
   "commands.exportProfiles.selectPlaceholder": "Sélectionner les profils à exporter",
@@ -53,7 +47,6 @@
   "commands.exportProfiles.no": "Non",
   "commands.exportProfiles.exported": "{count} profil(s) exporté(s) vers {path}",
   "commands.exportProfiles.failed": "Échec de l'exportation des profils : {error}",
-
   "commands.importProfiles.invalidFile": "Fichier d'importation invalide : {errors}",
   "commands.importProfiles.warningsContinue": "Avertissements :\n{warnings}\n\nContinuer ?",
   "commands.importProfiles.continue": "Continuer",
@@ -61,9 +54,7 @@
   "commands.importProfiles.skipped": "Ignorés : {count}",
   "commands.importProfiles.errors": "Erreurs : {count}",
   "commands.importProfiles.failed": "Échec de l'importation des profils : {error}",
-
   "commands.openUsage.message": "Ouvrez les paramètres Cursor et sélectionnez la section Usage pour voir les détails complets du quota.",
-
   "panel.loadFailed": "Cursor Accounts : échec du chargement du panneau Comptes ({error})",
   "panel.title": "Cursor Accounts",
   "panel.loadingHtml": "Chargement de Cursor Accounts…",
@@ -80,12 +71,13 @@
   "panel.importErrors": "{count} erreur(s)",
   "panel.importCompleted": "Importation terminée",
   "panel.importCompletedWithErrors": "Importation terminée avec des erreurs",
-
   "statusBar.profileTooltip": "Cliquez pour voir les détails du profil actuel",
   "statusBar.loadingMonthlyUsage": "$(sync~spin) Usage mensuel…",
   "statusBar.loadingUsage": "$(sync~spin) Usage…",
   "statusBar.loadingMonthlyUsageTooltip": "Chargement de l'usage mensuel Cursor…",
   "statusBar.loadingUsageTooltip": "Chargement de l'usage Cursor…",
+  "statusBar.selectAccount": "Sélectionner un compte",
+  "statusBar.selectAccountTooltip": "Ouvrir Cursor Accounts pour choisir un profil",
   "statusBar.quotaUnavailable": "$(warning) Quota indisponible",
   "statusBar.monthlySuffix": "mensuel",
   "statusBar.usageSuffix": "usage",
@@ -108,11 +100,9 @@
   "statusBar.tooltipAutoModeUsed": "| **Mode auto utilisé** | {value} |",
   "statusBar.tooltipSpend": "| **Dépenses** | {value} |",
   "statusBar.tooltipIncludedSpend": "| **Dépenses incluses** | {value} |",
-  "statusBar.tooltipClickToOpen": "\n\nCliquez pour ouvrir les détails d'usage. Utilisez **Cursor Accounts : Actualiser maintenant** pour mettre à jour.",
-
+  "statusBar.tooltipClickToOpen": "\n\nCliquez pour ouvrir Cursor Accounts dans la barre latérale. Utilisez **Cursor Accounts: Refresh Now** pour mettre à jour.",
   "formatters.unlimited": "illimité",
   "formatters.dash": "—",
-
   "efficiency.consent.message": "Une clé API Cursor nommée « Cursor Accounts - API Key » sera créée pour ce compte afin d'analyser l'efficacité du modèle en arrière-plan.",
   "efficiency.consent.confirm": "Créer la clé API et activer",
   "efficiency.consent.cancel": "Annuler",
@@ -141,9 +131,7 @@
   "efficiency.classifier.sdkNonJson": "Le SDK a renvoyé une sortie de classification non-JSON",
   "efficiency.classifier.sdkEmpty": "L'exécution de classification a renvoyé un résultat vide",
   "efficiency.classifier.sdkFailed": "Échec de la classification SDK",
-
   "suggestedProfile.accountAlreadyConfigured": "Le compte {email} est déjà configuré. Saisissez l'e-mail et le nom du nouveau compte.",
-
   "webview.app.title": "Cursor Accounts",
   "webview.app.loadingProfiles": "Chargement des profils…",
   "webview.app.loadingAccount": "Chargement du compte…",
@@ -154,11 +142,9 @@
   "webview.app.addTitle": "Ajouter un profil",
   "webview.app.add": "+ Ajouter",
   "webview.app.activeAccount": "Compte actif",
-
   "webview.emptyState.title": "Aucun profil pour l'instant",
   "webview.emptyState.description": "Créez un profil pour gérer plusieurs comptes Cursor",
   "webview.emptyState.button": "Ajouter votre premier profil",
-
   "webview.addProfile.title": "Ajouter un profil",
   "webview.addProfile.close": "Fermer",
   "webview.addProfile.detectedAccount": "Compte actuel détecté : {email}",
@@ -174,7 +160,6 @@
   "webview.addProfile.invalidEmail": "Format d'e-mail invalide",
   "webview.addProfile.cancel": "Annuler",
   "webview.addProfile.create": "Créer le profil",
-
   "webview.editProfile.title": "Modifier le profil",
   "webview.editProfile.emailLabel": "E-mail",
   "webview.editProfile.displayNameLabel": "Nom d'affichage *",
@@ -187,17 +172,14 @@
   "webview.editProfile.displayNameRequired": "Le nom d'affichage est requis",
   "webview.editProfile.cancel": "Annuler",
   "webview.editProfile.save": "Enregistrer",
-
   "webview.import.title": "Importer des profils",
   "webview.import.fileLabel": "Sélectionner le fichier d'export",
   "webview.import.skipDuplicates": "Ignorer les profils en double",
   "webview.import.importSettings": "Importer les paramètres VS Code",
   "webview.import.cancel": "Annuler",
   "webview.import.submit": "Importer",
-
   "webview.profileList.exportAll": "Tout exporter",
   "webview.profileList.exportAllTitle": "Exporter tous les profils",
-
   "webview.profileCard.unknownDate": "Inconnu",
   "webview.profileCard.today": "Aujourd'hui",
   "webview.profileCard.tomorrow": "Demain",

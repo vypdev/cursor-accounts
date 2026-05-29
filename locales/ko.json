@@ -7,7 +7,6 @@
   "errors.failedLoadProfiles": "프로필을 불러오지 못했습니다",
   "errors.failedLaunchProfile": "프로필을 실행하지 못했습니다",
   "errors.cursorExecutableNotFound": "Cursor 실행 파일을 찾을 수 없음",
-
   "commands.addProfile.promptEmail": "Cursor 계정 이메일 입력",
   "commands.addProfile.promptDisplayName": "프로필 표시 이름 입력(선택 사항)",
   "commands.addProfile.emailPlaceholder": "user@example.com",
@@ -19,32 +18,27 @@
   "commands.addProfile.launching": "{name} 실행 중…",
   "commands.addProfile.failedLaunch": "프로필 실행 실패: {error}",
   "commands.addProfile.failedCreate": "프로필 생성 실패: {error}",
-
   "commands.launchProfile.noProfilesCreate": "구성된 프로필이 없습니다. 지금 만들까요?",
   "commands.launchProfile.createProfile": "프로필 만들기",
   "commands.launchProfile.selectPlaceholder": "실행할 프로필 선택",
   "commands.launchProfile.lastLaunched": "마지막 실행: {date}",
   "commands.launchProfile.lastLaunchedNever": "없음",
   "commands.launchProfile.failedLaunch": "프로필 실행 실패: {error}",
-
   "commands.listProfiles.header": "구성된 Cursor 프로필:",
   "commands.listProfiles.noProfiles": "구성된 프로필이 없습니다. \"Cursor Accounts: 프로필 추가\"를 사용하여 만드세요.",
   "commands.listProfiles.email": "  이메일: {email}",
   "commands.listProfiles.path": "  경로: {path}",
   "commands.listProfiles.lastLaunched": "  마지막 실행: {date}",
   "commands.listProfiles.failed": "프로필 목록을 불러오지 못했습니다: {error}",
-
   "commands.deleteProfile.noProfiles": "삭제할 프로필이 없습니다.",
   "commands.deleteProfile.selectPlaceholder": "삭제할 프로필 선택",
   "commands.deleteProfile.confirm": "프로필 \"{name}\"을(를) 삭제할까요? 사용자 데이터 디렉터리는 삭제되지 않습니다.",
   "commands.deleteProfile.delete": "삭제",
   "commands.deleteProfile.deleted": "프로필 \"{name}\"이(가) 삭제되었습니다.",
   "commands.deleteProfile.failed": "프로필 삭제 실패: {error}",
-
   "commands.showCurrentProfile.default": "기본 Cursor 프로필 사용 중(사용자 지정 프로필 없음)",
   "commands.showCurrentProfile.current": "현재 프로필: {name} ({email})",
   "commands.showCurrentProfile.failed": "현재 프로필을 감지하지 못했습니다: {error}",
-
   "commands.exportProfiles.noProfiles": "내보낼 프로필이 없습니다.",
   "commands.exportProfiles.exportAll": "모든 프로필 내보내기",
   "commands.exportProfiles.selectPlaceholder": "내보낼 프로필 선택",
@@ -53,7 +47,6 @@
   "commands.exportProfiles.no": "아니요",
   "commands.exportProfiles.exported": "{count}개 프로필을 {path}에 내보냈습니다",
   "commands.exportProfiles.failed": "프로필 내보내기 실패: {error}",
-
   "commands.importProfiles.invalidFile": "잘못된 가져오기 파일: {errors}",
   "commands.importProfiles.warningsContinue": "경고:\n{warnings}\n\n계속할까요?",
   "commands.importProfiles.continue": "계속",
@@ -61,9 +54,7 @@
   "commands.importProfiles.skipped": "건너뜀: {count}",
   "commands.importProfiles.errors": "오류: {count}",
   "commands.importProfiles.failed": "프로필 가져오기 실패: {error}",
-
   "commands.openUsage.message": "Cursor 설정을 열고 Usage 섹션을 선택하여 전체 할당량 세부 정보를 확인하세요.",
-
   "panel.loadFailed": "Cursor Accounts: Accounts 패널을 불러오지 못했습니다 ({error})",
   "panel.title": "Cursor Accounts",
   "panel.loadingHtml": "Cursor Accounts 로드 중…",
@@ -80,12 +71,13 @@
   "panel.importErrors": "오류 {count}개",
   "panel.importCompleted": "가져오기 완료",
   "panel.importCompletedWithErrors": "오류와 함께 가져오기 완료",
-
   "statusBar.profileTooltip": "클릭하여 현재 프로필 세부 정보 보기",
   "statusBar.loadingMonthlyUsage": "$(sync~spin) 월간 사용량…",
   "statusBar.loadingUsage": "$(sync~spin) 사용량…",
   "statusBar.loadingMonthlyUsageTooltip": "Cursor 월간 사용량 로드 중…",
   "statusBar.loadingUsageTooltip": "Cursor 사용량 로드 중…",
+  "statusBar.selectAccount": "계정 선택",
+  "statusBar.selectAccountTooltip": "프로필을 선택하려면 Cursor Accounts를 여세요",
   "statusBar.quotaUnavailable": "$(warning) 할당량 사용 불가",
   "statusBar.monthlySuffix": "월간",
   "statusBar.usageSuffix": "사용량",
@@ -108,11 +100,9 @@
   "statusBar.tooltipAutoModeUsed": "| **자동 모드 사용** | {value} |",
   "statusBar.tooltipSpend": "| **지출** | {value} |",
   "statusBar.tooltipIncludedSpend": "| **포함 지출** | {value} |",
-  "statusBar.tooltipClickToOpen": "\n\n클릭하여 사용량 세부 정보를 엽니다. **Cursor Accounts: 지금 새로고침**으로 업데이트하세요.",
-
+  "statusBar.tooltipClickToOpen": "\n\n클릭하여 사이드바에서 Cursor Accounts를 엽니다. **Cursor Accounts: Refresh Now**로 업데이트하세요.",
   "formatters.unlimited": "무제한",
   "formatters.dash": "—",
-
   "efficiency.consent.message": "이 계정의 모델 효율성을 백그라운드에서 분석하기 위해 \"Cursor Accounts - API Key\"라는 이름의 Cursor API 키가 생성됩니다.",
   "efficiency.consent.confirm": "API 키 생성 및 활성화",
   "efficiency.consent.cancel": "취소",
@@ -141,9 +131,7 @@
   "efficiency.classifier.sdkNonJson": "SDK가 JSON이 아닌 분류 출력을 반환했습니다",
   "efficiency.classifier.sdkEmpty": "분류 실행 결과가 비어 있습니다",
   "efficiency.classifier.sdkFailed": "SDK 분류 실패",
-
   "suggestedProfile.accountAlreadyConfigured": "계정 {email}이(가) 이미 구성되어 있습니다. 새 계정의 이메일과 이름을 입력하세요.",
-
   "webview.app.title": "Cursor Accounts",
   "webview.app.loadingProfiles": "프로필 로드 중...",
   "webview.app.loadingAccount": "계정 로드 중…",
@@ -154,11 +142,9 @@
   "webview.app.addTitle": "새 프로필 추가",
   "webview.app.add": "+ 추가",
   "webview.app.activeAccount": "활성 계정",
-
   "webview.emptyState.title": "아직 프로필이 없습니다",
   "webview.emptyState.description": "프로필을 만들어 여러 Cursor 계정을 관리하세요",
   "webview.emptyState.button": "첫 프로필 추가",
-
   "webview.addProfile.title": "프로필 추가",
   "webview.addProfile.close": "닫기",
   "webview.addProfile.detectedAccount": "감지된 현재 계정: {email}",
@@ -174,7 +160,6 @@
   "webview.addProfile.invalidEmail": "잘못된 이메일 형식",
   "webview.addProfile.cancel": "취소",
   "webview.addProfile.create": "프로필 만들기",
-
   "webview.editProfile.title": "프로필 편집",
   "webview.editProfile.emailLabel": "이메일",
   "webview.editProfile.displayNameLabel": "표시 이름 *",
@@ -187,17 +172,14 @@
   "webview.editProfile.displayNameRequired": "표시 이름은 필수입니다",
   "webview.editProfile.cancel": "취소",
   "webview.editProfile.save": "변경 사항 저장",
-
   "webview.import.title": "프로필 가져오기",
   "webview.import.fileLabel": "내보내기 파일 선택",
   "webview.import.skipDuplicates": "중복 프로필 건너뛰기",
   "webview.import.importSettings": "VS Code 설정 가져오기",
   "webview.import.cancel": "취소",
   "webview.import.submit": "가져오기",
-
   "webview.profileList.exportAll": "모두 내보내기",
   "webview.profileList.exportAllTitle": "모든 프로필 내보내기",
-
   "webview.profileCard.unknownDate": "알 수 없음",
   "webview.profileCard.today": "오늘",
   "webview.profileCard.tomorrow": "내일",

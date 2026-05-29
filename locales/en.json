@@ -86,6 +86,8 @@
   "statusBar.loadingUsage": "$(sync~spin) Usage…",
   "statusBar.loadingMonthlyUsageTooltip": "Loading Cursor monthly usage…",
   "statusBar.loadingUsageTooltip": "Loading Cursor usage…",
+  "statusBar.selectAccount": "Select account",
+  "statusBar.selectAccountTooltip": "Open Cursor Accounts to choose a profile",
   "statusBar.quotaUnavailable": "$(warning) Quota unavailable",
   "statusBar.monthlySuffix": "monthly",
   "statusBar.usageSuffix": "usage",
@@ -108,7 +110,7 @@
   "statusBar.tooltipAutoModeUsed": "| **Auto mode used** | {value} |",
   "statusBar.tooltipSpend": "| **Spend** | {value} |",
   "statusBar.tooltipIncludedSpend": "| **Included spend** | {value} |",
-  "statusBar.tooltipClickToOpen": "\n\nClick to open usage details. Use **Cursor Accounts: Refresh Now** to update.",
+  "statusBar.tooltipClickToOpen": "\n\nClick to open Cursor Accounts in the sidebar. Use **Cursor Accounts: Refresh Now** to update.",
 
   "formatters.unlimited": "unlimited",
   "formatters.dash": "—",

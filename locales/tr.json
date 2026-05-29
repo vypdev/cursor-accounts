@@ -7,7 +7,6 @@
   "errors.failedLoadProfiles": "Profiller yüklenemedi",
   "errors.failedLaunchProfile": "Profil başlatılamadı",
   "errors.cursorExecutableNotFound": "Cursor yürütülebilir dosyası bulunamadı",
-
   "commands.addProfile.promptEmail": "Cursor hesap e-postasını girin",
   "commands.addProfile.promptDisplayName": "Profil görünen adını girin (isteğe bağlı)",
   "commands.addProfile.emailPlaceholder": "user@example.com",
@@ -19,32 +18,27 @@
   "commands.addProfile.launching": "{name} başlatılıyor...",
   "commands.addProfile.failedLaunch": "Profil başlatılamadı: {error}",
   "commands.addProfile.failedCreate": "Profil oluşturulamadı: {error}",
-
   "commands.launchProfile.noProfilesCreate": "Yapılandırılmış profil yok. Şimdi bir tane oluşturulsun mu?",
   "commands.launchProfile.createProfile": "Profil Oluştur",
   "commands.launchProfile.selectPlaceholder": "Başlatılacak profili seçin",
   "commands.launchProfile.lastLaunched": "Son başlatma: {date}",
   "commands.launchProfile.lastLaunchedNever": "Hiç",
   "commands.launchProfile.failedLaunch": "Profil başlatılamadı: {error}",
-
   "commands.listProfiles.header": "Yapılandırılmış Cursor Profilleri:",
   "commands.listProfiles.noProfiles": "Yapılandırılmış profil yok. Bir tane oluşturmak için \"Cursor Accounts: Add Profile\" kullanın.",
   "commands.listProfiles.email": "  E-posta: {email}",
   "commands.listProfiles.path": "  Yol: {path}",
   "commands.listProfiles.lastLaunched": "  Son başlatma: {date}",
   "commands.listProfiles.failed": "Profiller listelenemedi: {error}",
-
   "commands.deleteProfile.noProfiles": "Silinecek profil yok.",
   "commands.deleteProfile.selectPlaceholder": "Silinecek profili seçin",
   "commands.deleteProfile.confirm": "\"{name}\" profili silinsin mi? Bu işlem kullanıcı veri dizinini SİLMEZ.",
   "commands.deleteProfile.delete": "Sil",
   "commands.deleteProfile.deleted": "\"{name}\" profili silindi.",
   "commands.deleteProfile.failed": "Profil silinemedi: {error}",
-
   "commands.showCurrentProfile.default": "Varsayılan Cursor profili kullanılıyor (özel profil etkin değil)",
   "commands.showCurrentProfile.current": "Geçerli profil: {name} ({email})",
   "commands.showCurrentProfile.failed": "Geçerli profil algılanamadı: {error}",
-
   "commands.exportProfiles.noProfiles": "Dışa aktarılacak profil yok.",
   "commands.exportProfiles.exportAll": "Tüm Profilleri Dışa Aktar",
   "commands.exportProfiles.selectPlaceholder": "Dışa aktarılacak profilleri seçin",
@@ -53,7 +47,6 @@
   "commands.exportProfiles.no": "Hayır",
   "commands.exportProfiles.exported": "{count} profil {path} konumuna dışa aktarıldı",
   "commands.exportProfiles.failed": "Profiller dışa aktarılamadı: {error}",
-
   "commands.importProfiles.invalidFile": "Geçersiz içe aktarma dosyası: {errors}",
   "commands.importProfiles.warningsContinue": "Uyarılar:\n{warnings}\n\nDevam edilsin mi?",
   "commands.importProfiles.continue": "Devam",
@@ -61,9 +54,7 @@
   "commands.importProfiles.skipped": "Atlanan: {count}",
   "commands.importProfiles.errors": "Hatalar: {count}",
   "commands.importProfiles.failed": "Profiller içe aktarılamadı: {error}",
-
   "commands.openUsage.message": "Tam kota ayrıntılarını görmek için Cursor Ayarlarını açın ve Usage bölümünü seçin.",
-
   "panel.loadFailed": "Cursor Accounts: Hesaplar paneli yüklenemedi ({error})",
   "panel.title": "Cursor Accounts",
   "panel.loadingHtml": "Cursor Accounts yükleniyor…",
@@ -80,12 +71,13 @@
   "panel.importErrors": "{count} hata",
   "panel.importCompleted": "İçe aktarma tamamlandı",
   "panel.importCompletedWithErrors": "İçe aktarma hatalarla tamamlandı",
-
   "statusBar.profileTooltip": "Geçerli profil ayrıntılarını görmek için tıklayın",
   "statusBar.loadingMonthlyUsage": "$(sync~spin) Aylık kullanım…",
   "statusBar.loadingUsage": "$(sync~spin) Kullanım…",
   "statusBar.loadingMonthlyUsageTooltip": "Cursor aylık kullanımı yükleniyor…",
   "statusBar.loadingUsageTooltip": "Cursor kullanımı yükleniyor…",
+  "statusBar.selectAccount": "Hesap seç",
+  "statusBar.selectAccountTooltip": "Profil seçmek için Cursor Accounts'u açın",
   "statusBar.quotaUnavailable": "$(warning) Kota kullanılamıyor",
   "statusBar.monthlySuffix": "aylık",
   "statusBar.usageSuffix": "kullanım",
@@ -108,11 +100,9 @@
   "statusBar.tooltipAutoModeUsed": "| **Otomatik mod kullanılan** | {value} |",
   "statusBar.tooltipSpend": "| **Harcama** | {value} |",
   "statusBar.tooltipIncludedSpend": "| **Dahil harcama** | {value} |",
-  "statusBar.tooltipClickToOpen": "\n\nKullanım ayrıntılarını açmak için tıklayın. Güncellemek için **Cursor Accounts: Refresh Now** kullanın.",
-
+  "statusBar.tooltipClickToOpen": "\n\nKenar çubuğunda Cursor Accounts'u açmak için tıklayın. Güncellemek için **Cursor Accounts: Refresh Now** kullanın.",
   "formatters.unlimited": "sınırsız",
   "formatters.dash": "—",
-
   "efficiency.consent.message": "Bu hesap için arka planda model verimliliğini analiz etmek üzere \"Cursor Accounts - API Key\" adlı bir Cursor API anahtarı oluşturulacak.",
   "efficiency.consent.confirm": "API anahtarı oluştur ve etkinleştir",
   "efficiency.consent.cancel": "İptal",
@@ -141,9 +131,7 @@
   "efficiency.classifier.sdkNonJson": "SDK JSON olmayan sınıflandırma çıktısı döndürdü",
   "efficiency.classifier.sdkEmpty": "Sınıflandırma çalıştırması boş sonuç döndürdü",
   "efficiency.classifier.sdkFailed": "SDK sınıflandırması başarısız",
-
   "suggestedProfile.accountAlreadyConfigured": "{email} hesabı zaten yapılandırılmış. Yeni hesabın e-postasını ve adını girin.",
-
   "webview.app.title": "Cursor Accounts",
   "webview.app.loadingProfiles": "Profiller yükleniyor...",
   "webview.app.loadingAccount": "Hesap yükleniyor…",
@@ -154,11 +142,9 @@
   "webview.app.addTitle": "Yeni profil ekle",
   "webview.app.add": "+ Ekle",
   "webview.app.activeAccount": "Etkin hesap",
-
   "webview.emptyState.title": "Henüz profil yok",
   "webview.emptyState.description": "Birden fazla Cursor hesabını yönetmek için bir profil oluşturun",
   "webview.emptyState.button": "İlk Profilinizi Ekleyin",
-
   "webview.addProfile.title": "Profil Ekle",
   "webview.addProfile.close": "Kapat",
   "webview.addProfile.detectedAccount": "Algılanan geçerli hesap: {email}",
@@ -174,7 +160,6 @@
   "webview.addProfile.invalidEmail": "Geçersiz e-posta biçimi",
   "webview.addProfile.cancel": "İptal",
   "webview.addProfile.create": "Profil Oluştur",
-
   "webview.editProfile.title": "Profili Düzenle",
   "webview.editProfile.emailLabel": "E-posta",
   "webview.editProfile.displayNameLabel": "Görünen Ad *",
@@ -187,17 +172,14 @@
   "webview.editProfile.displayNameRequired": "Görünen ad gerekli",
   "webview.editProfile.cancel": "İptal",
   "webview.editProfile.save": "Değişiklikleri Kaydet",
-
   "webview.import.title": "Profilleri İçe Aktar",
   "webview.import.fileLabel": "Dışa aktarma dosyasını seçin",
   "webview.import.skipDuplicates": "Yinelenen profilleri atla",
   "webview.import.importSettings": "VS Code ayarlarını içe aktar",
   "webview.import.cancel": "İptal",
   "webview.import.submit": "İçe Aktar",
-
   "webview.profileList.exportAll": "Tümünü Dışa Aktar",
   "webview.profileList.exportAllTitle": "Tüm profilleri dışa aktar",
-
   "webview.profileCard.unknownDate": "Bilinmiyor",
   "webview.profileCard.today": "Bugün",
   "webview.profileCard.tomorrow": "Yarın",

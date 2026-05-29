@@ -7,7 +7,6 @@
   "errors.failedLoadProfiles": "Не вдалося завантажити профілі",
   "errors.failedLaunchProfile": "Не вдалося запустити профіль",
   "errors.cursorExecutableNotFound": "Виконуваний файл Cursor не знайдено",
-
   "commands.addProfile.promptEmail": "Введіть електронну пошту облікового запису Cursor",
   "commands.addProfile.promptDisplayName": "Введіть відображуване ім'я профілю (необов'язково)",
   "commands.addProfile.emailPlaceholder": "user@example.com",
@@ -19,32 +18,27 @@
   "commands.addProfile.launching": "Запуск {name}…",
   "commands.addProfile.failedLaunch": "Не вдалося запустити профіль: {error}",
   "commands.addProfile.failedCreate": "Не вдалося створити профіль: {error}",
-
   "commands.launchProfile.noProfilesCreate": "Профілі не налаштовано. Створити зараз?",
   "commands.launchProfile.createProfile": "Створити профіль",
   "commands.launchProfile.selectPlaceholder": "Виберіть профіль для запуску",
   "commands.launchProfile.lastLaunched": "Останній запуск: {date}",
   "commands.launchProfile.lastLaunchedNever": "Ніколи",
   "commands.launchProfile.failedLaunch": "Не вдалося запустити профіль: {error}",
-
   "commands.listProfiles.header": "Налаштовані профілі Cursor:",
   "commands.listProfiles.noProfiles": "Профілі не налаштовано. Використайте «Cursor Accounts: Add Profile», щоб створити один.",
   "commands.listProfiles.email": "  Електронна пошта: {email}",
   "commands.listProfiles.path": "  Шлях: {path}",
   "commands.listProfiles.lastLaunched": "  Останній запуск: {date}",
   "commands.listProfiles.failed": "Не вдалося показати список профілів: {error}",
-
   "commands.deleteProfile.noProfiles": "Немає профілів для видалення.",
   "commands.deleteProfile.selectPlaceholder": "Виберіть профіль для видалення",
   "commands.deleteProfile.confirm": "Видалити профіль \"{name}\"? Каталог даних користувача НЕ буде видалено.",
   "commands.deleteProfile.delete": "Видалити",
   "commands.deleteProfile.deleted": "Профіль \"{name}\" видалено.",
   "commands.deleteProfile.failed": "Не вдалося видалити профіль: {error}",
-
   "commands.showCurrentProfile.default": "Використовується стандартний профіль Cursor (немає активного користувацького профілю)",
   "commands.showCurrentProfile.current": "Поточний профіль: {name} ({email})",
   "commands.showCurrentProfile.failed": "Не вдалося визначити поточний профіль: {error}",
-
   "commands.exportProfiles.noProfiles": "Немає профілів для експорту.",
   "commands.exportProfiles.exportAll": "Експортувати всі профілі",
   "commands.exportProfiles.selectPlaceholder": "Виберіть профілі для експорту",
@@ -53,7 +47,6 @@
   "commands.exportProfiles.no": "Ні",
   "commands.exportProfiles.exported": "Експортовано профілів: {count} у {path}",
   "commands.exportProfiles.failed": "Не вдалося експортувати профілі: {error}",
-
   "commands.importProfiles.invalidFile": "Недійсний файл імпорту: {errors}",
   "commands.importProfiles.warningsContinue": "Попередження:\n{warnings}\n\nПродовжити?",
   "commands.importProfiles.continue": "Продовжити",
@@ -61,9 +54,7 @@
   "commands.importProfiles.skipped": "Пропущено: {count}",
   "commands.importProfiles.errors": "Помилки: {count}",
   "commands.importProfiles.failed": "Не вдалося імпортувати профілі: {error}",
-
   "commands.openUsage.message": "Відкрийте налаштування Cursor і виберіть розділ Usage, щоб переглянути повну інформацію про квоту.",
-
   "panel.loadFailed": "Cursor Accounts: не вдалося завантажити панель Accounts ({error})",
   "panel.title": "Cursor Accounts",
   "panel.loadingHtml": "Завантаження Cursor Accounts…",
@@ -80,12 +71,13 @@
   "panel.importErrors": "Помилок: {count}",
   "panel.importCompleted": "Імпорт завершено",
   "panel.importCompletedWithErrors": "Імпорт завершено з помилками",
-
   "statusBar.profileTooltip": "Натисніть, щоб переглянути деталі поточного профілю",
   "statusBar.loadingMonthlyUsage": "$(sync~spin) Місячне використання…",
   "statusBar.loadingUsage": "$(sync~spin) Використання…",
   "statusBar.loadingMonthlyUsageTooltip": "Завантаження місячного використання Cursor…",
   "statusBar.loadingUsageTooltip": "Завантаження використання Cursor…",
+  "statusBar.selectAccount": "Вибрати обліковий запис",
+  "statusBar.selectAccountTooltip": "Відкрийте Cursor Accounts, щоб вибрати профіль",
   "statusBar.quotaUnavailable": "$(warning) Квота недоступна",
   "statusBar.monthlySuffix": "місячне",
   "statusBar.usageSuffix": "використання",
@@ -108,11 +100,9 @@
   "statusBar.tooltipAutoModeUsed": "| **Режим Auto використано** | {value} |",
   "statusBar.tooltipSpend": "| **Витрати** | {value} |",
   "statusBar.tooltipIncludedSpend": "| **Включені витрати** | {value} |",
-  "statusBar.tooltipClickToOpen": "\n\nНатисніть, щоб відкрити деталі використання. Використайте **Cursor Accounts: Refresh Now** для оновлення.",
-
+  "statusBar.tooltipClickToOpen": "\n\nНатисніть, щоб відкрити Cursor Accounts на бічній панелі. Оновіть за допомогою **Cursor Accounts: Refresh Now**.",
   "formatters.unlimited": "необмежено",
   "formatters.dash": "—",
-
   "efficiency.consent.message": "Для цього облікового запису буде створено ключ API Cursor з назвою «Cursor Accounts - API Key» для аналізу ефективності моделі у фоновому режимі.",
   "efficiency.consent.confirm": "Створити ключ API та увімкнути",
   "efficiency.consent.cancel": "Скасувати",
@@ -141,9 +131,7 @@
   "efficiency.classifier.sdkNonJson": "SDK повернув вихідні дані класифікації не в форматі JSON",
   "efficiency.classifier.sdkEmpty": "Запуск класифікації повернув порожній результат",
   "efficiency.classifier.sdkFailed": "Класифікація SDK не вдалася",
-
   "suggestedProfile.accountAlreadyConfigured": "Обліковий запис {email} уже налаштовано. Введіть електронну пошту та ім'я для нового облікового запису.",
-
   "webview.app.title": "Cursor Accounts",
   "webview.app.loadingProfiles": "Завантаження профілів…",
   "webview.app.loadingAccount": "Завантаження облікового запису…",
@@ -154,11 +142,9 @@
   "webview.app.addTitle": "Додати новий профіль",
   "webview.app.add": "+ Додати",
   "webview.app.activeAccount": "Активний обліковий запис",
-
   "webview.emptyState.title": "Профілів ще немає",
   "webview.emptyState.description": "Створіть профіль для керування кількома обліковими записами Cursor",
   "webview.emptyState.button": "Додати перший профіль",
-
   "webview.addProfile.title": "Додати профіль",
   "webview.addProfile.close": "Закрити",
   "webview.addProfile.detectedAccount": "Виявлено поточний обліковий запис: {email}",
@@ -174,7 +160,6 @@
   "webview.addProfile.invalidEmail": "Недійсний формат електронної пошти",
   "webview.addProfile.cancel": "Скасувати",
   "webview.addProfile.create": "Створити профіль",
-
   "webview.editProfile.title": "Редагувати профіль",
   "webview.editProfile.emailLabel": "Електронна пошта",
   "webview.editProfile.displayNameLabel": "Відображуване ім'я *",
@@ -187,17 +172,14 @@
   "webview.editProfile.displayNameRequired": "Відображуване ім'я обов'язкове",
   "webview.editProfile.cancel": "Скасувати",
   "webview.editProfile.save": "Зберегти зміни",
-
   "webview.import.title": "Імпорт профілів",
   "webview.import.fileLabel": "Виберіть файл експорту",
   "webview.import.skipDuplicates": "Пропустити дублікати профілів",
   "webview.import.importSettings": "Імпортувати налаштування VS Code",
   "webview.import.cancel": "Скасувати",
   "webview.import.submit": "Імпорт",
-
   "webview.profileList.exportAll": "Експортувати все",
   "webview.profileList.exportAllTitle": "Експортувати всі профілі",
-
   "webview.profileCard.unknownDate": "Невідомо",
   "webview.profileCard.today": "Сьогодні",
   "webview.profileCard.tomorrow": "Завтра",

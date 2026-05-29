@@ -7,7 +7,6 @@
   "errors.failedLoadProfiles": "Не удалось загрузить профили",
   "errors.failedLaunchProfile": "Не удалось запустить профиль",
   "errors.cursorExecutableNotFound": "Исполняемый файл Cursor не найден",
-
   "commands.addProfile.promptEmail": "Введите email аккаунта Cursor",
   "commands.addProfile.promptDisplayName": "Введите отображаемое имя профиля (необязательно)",
   "commands.addProfile.emailPlaceholder": "user@example.com",
@@ -19,32 +18,27 @@
   "commands.addProfile.launching": "Запуск {name}…",
   "commands.addProfile.failedLaunch": "Не удалось запустить профиль: {error}",
   "commands.addProfile.failedCreate": "Не удалось создать профиль: {error}",
-
   "commands.launchProfile.noProfilesCreate": "Профили не настроены. Создать сейчас?",
   "commands.launchProfile.createProfile": "Создать профиль",
   "commands.launchProfile.selectPlaceholder": "Выберите профиль для запуска",
   "commands.launchProfile.lastLaunched": "Последний запуск: {date}",
   "commands.launchProfile.lastLaunchedNever": "Никогда",
   "commands.launchProfile.failedLaunch": "Не удалось запустить профиль: {error}",
-
   "commands.listProfiles.header": "Настроенные профили Cursor:",
   "commands.listProfiles.noProfiles": "Профили не настроены. Используйте \"Cursor Accounts: Добавить профиль\", чтобы создать.",
   "commands.listProfiles.email": "  Email: {email}",
   "commands.listProfiles.path": "  Путь: {path}",
   "commands.listProfiles.lastLaunched": "  Последний запуск: {date}",
   "commands.listProfiles.failed": "Не удалось вывести список профилей: {error}",
-
   "commands.deleteProfile.noProfiles": "Нет профилей для удаления.",
   "commands.deleteProfile.selectPlaceholder": "Выберите профиль для удаления",
   "commands.deleteProfile.confirm": "Удалить профиль \"{name}\"? Каталог пользовательских данных НЕ будет удалён.",
   "commands.deleteProfile.delete": "Удалить",
   "commands.deleteProfile.deleted": "Профиль \"{name}\" удалён.",
   "commands.deleteProfile.failed": "Не удалось удалить профиль: {error}",
-
   "commands.showCurrentProfile.default": "Используется профиль Cursor по умолчанию (пользовательский профиль не активен)",
   "commands.showCurrentProfile.current": "Текущий профиль: {name} ({email})",
   "commands.showCurrentProfile.failed": "Не удалось определить текущий профиль: {error}",
-
   "commands.exportProfiles.noProfiles": "Нет профилей для экспорта.",
   "commands.exportProfiles.exportAll": "Экспортировать все профили",
   "commands.exportProfiles.selectPlaceholder": "Выберите профили для экспорта",
@@ -53,7 +47,6 @@
   "commands.exportProfiles.no": "Нет",
   "commands.exportProfiles.exported": "Экспортировано профилей: {count} в {path}",
   "commands.exportProfiles.failed": "Не удалось экспортировать профили: {error}",
-
   "commands.importProfiles.invalidFile": "Неверный файл импорта: {errors}",
   "commands.importProfiles.warningsContinue": "Предупреждения:\n{warnings}\n\nПродолжить?",
   "commands.importProfiles.continue": "Продолжить",
@@ -61,9 +54,7 @@
   "commands.importProfiles.skipped": "Пропущено: {count}",
   "commands.importProfiles.errors": "Ошибки: {count}",
   "commands.importProfiles.failed": "Не удалось импортировать профили: {error}",
-
   "commands.openUsage.message": "Откройте настройки Cursor и выберите раздел Usage, чтобы просмотреть полные сведения о квоте.",
-
   "panel.loadFailed": "Cursor Accounts: не удалось загрузить панель Accounts ({error})",
   "panel.title": "Cursor Accounts",
   "panel.loadingHtml": "Загрузка Cursor Accounts…",
@@ -80,12 +71,13 @@
   "panel.importErrors": "Ошибок: {count}",
   "panel.importCompleted": "Импорт завершён",
   "panel.importCompletedWithErrors": "Импорт завершён с ошибками",
-
   "statusBar.profileTooltip": "Нажмите, чтобы увидеть сведения о текущем профиле",
   "statusBar.loadingMonthlyUsage": "$(sync~spin) Месячное использование…",
   "statusBar.loadingUsage": "$(sync~spin) Использование…",
   "statusBar.loadingMonthlyUsageTooltip": "Загрузка месячного использования Cursor…",
   "statusBar.loadingUsageTooltip": "Загрузка использования Cursor…",
+  "statusBar.selectAccount": "Выбрать аккаунт",
+  "statusBar.selectAccountTooltip": "Откройте Cursor Accounts, чтобы выбрать профиль",
   "statusBar.quotaUnavailable": "$(warning) Квота недоступна",
   "statusBar.monthlySuffix": "месячное",
   "statusBar.usageSuffix": "использование",
@@ -108,11 +100,9 @@
   "statusBar.tooltipAutoModeUsed": "| **Использовано в авто-режиме** | {value} |",
   "statusBar.tooltipSpend": "| **Расходы** | {value} |",
   "statusBar.tooltipIncludedSpend": "| **Включённые расходы** | {value} |",
-  "statusBar.tooltipClickToOpen": "\n\nНажмите, чтобы открыть сведения об использовании. Обновите через **Cursor Accounts: Обновить сейчас**.",
-
+  "statusBar.tooltipClickToOpen": "\n\nНажмите, чтобы открыть Cursor Accounts на боковой панели. Используйте **Cursor Accounts: Refresh Now** для обновления.",
   "formatters.unlimited": "без ограничений",
   "formatters.dash": "—",
-
   "efficiency.consent.message": "Для фонового анализа эффективности модели для этого аккаунта будет создан ключ Cursor API с именем \"Cursor Accounts - API Key\".",
   "efficiency.consent.confirm": "Создать ключ API и включить",
   "efficiency.consent.cancel": "Отмена",
@@ -141,9 +131,7 @@
   "efficiency.classifier.sdkNonJson": "SDK вернул вывод классификации не в формате JSON",
   "efficiency.classifier.sdkEmpty": "Запуск классификации вернул пустой результат",
   "efficiency.classifier.sdkFailed": "Классификация SDK не удалась",
-
   "suggestedProfile.accountAlreadyConfigured": "Аккаунт {email} уже настроен. Введите email и имя для нового аккаунта.",
-
   "webview.app.title": "Cursor Accounts",
   "webview.app.loadingProfiles": "Загрузка профилей...",
   "webview.app.loadingAccount": "Загрузка аккаунта…",
@@ -154,11 +142,9 @@
   "webview.app.addTitle": "Добавить новый профиль",
   "webview.app.add": "+ Добавить",
   "webview.app.activeAccount": "Активный аккаунт",
-
   "webview.emptyState.title": "Профилей пока нет",
   "webview.emptyState.description": "Создайте профиль для управления несколькими аккаунтами Cursor",
   "webview.emptyState.button": "Добавить первый профиль",
-
   "webview.addProfile.title": "Добавить профиль",
   "webview.addProfile.close": "Закрыть",
   "webview.addProfile.detectedAccount": "Обнаружен текущий аккаунт: {email}",
@@ -174,7 +160,6 @@
   "webview.addProfile.invalidEmail": "Неверный формат email",
   "webview.addProfile.cancel": "Отмена",
   "webview.addProfile.create": "Создать профиль",
-
   "webview.editProfile.title": "Редактировать профиль",
   "webview.editProfile.emailLabel": "Email",
   "webview.editProfile.displayNameLabel": "Отображаемое имя *",
@@ -187,17 +172,14 @@
   "webview.editProfile.displayNameRequired": "Отображаемое имя обязательно",
   "webview.editProfile.cancel": "Отмена",
   "webview.editProfile.save": "Сохранить изменения",
-
   "webview.import.title": "Импорт профилей",
   "webview.import.fileLabel": "Выберите файл экспорта",
   "webview.import.skipDuplicates": "Пропускать дубликаты профилей",
   "webview.import.importSettings": "Импортировать настройки VS Code",
   "webview.import.cancel": "Отмена",
   "webview.import.submit": "Импорт",
-
   "webview.profileList.exportAll": "Экспортировать все",
   "webview.profileList.exportAllTitle": "Экспортировать все профили",
-
   "webview.profileCard.unknownDate": "Неизвестно",
   "webview.profileCard.today": "Сегодня",
   "webview.profileCard.tomorrow": "Завтра",

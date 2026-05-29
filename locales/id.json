@@ -7,7 +7,6 @@
   "errors.failedLoadProfiles": "Gagal memuat profil",
   "errors.failedLaunchProfile": "Gagal meluncurkan profil",
   "errors.cursorExecutableNotFound": "Eksekutable Cursor tidak ditemukan",
-
   "commands.addProfile.promptEmail": "Masukkan email akun Cursor",
   "commands.addProfile.promptDisplayName": "Masukkan nama tampilan profil (opsional)",
   "commands.addProfile.emailPlaceholder": "user@example.com",
@@ -19,32 +18,27 @@
   "commands.addProfile.launching": "Meluncurkan {name}...",
   "commands.addProfile.failedLaunch": "Gagal meluncurkan profil: {error}",
   "commands.addProfile.failedCreate": "Gagal membuat profil: {error}",
-
   "commands.launchProfile.noProfilesCreate": "Tidak ada profil yang dikonfigurasi. Buat sekarang?",
   "commands.launchProfile.createProfile": "Buat Profil",
   "commands.launchProfile.selectPlaceholder": "Pilih profil untuk diluncurkan",
   "commands.launchProfile.lastLaunched": "Terakhir diluncurkan: {date}",
   "commands.launchProfile.lastLaunchedNever": "Tidak pernah",
   "commands.launchProfile.failedLaunch": "Gagal meluncurkan profil: {error}",
-
   "commands.listProfiles.header": "Profil Cursor yang Dikonfigurasi:",
   "commands.listProfiles.noProfiles": "Tidak ada profil yang dikonfigurasi. Gunakan \"Cursor Accounts: Add Profile\" untuk membuat satu.",
   "commands.listProfiles.email": "  Email: {email}",
   "commands.listProfiles.path": "  Jalur: {path}",
   "commands.listProfiles.lastLaunched": "  Terakhir diluncurkan: {date}",
   "commands.listProfiles.failed": "Gagal menampilkan daftar profil: {error}",
-
   "commands.deleteProfile.noProfiles": "Tidak ada profil untuk dihapus.",
   "commands.deleteProfile.selectPlaceholder": "Pilih profil untuk dihapus",
   "commands.deleteProfile.confirm": "Hapus profil \"{name}\"? Ini TIDAK akan menghapus direktori data pengguna.",
   "commands.deleteProfile.delete": "Hapus",
   "commands.deleteProfile.deleted": "Profil \"{name}\" dihapus.",
   "commands.deleteProfile.failed": "Gagal menghapus profil: {error}",
-
   "commands.showCurrentProfile.default": "Menggunakan profil Cursor default (tidak ada profil kustom yang aktif)",
   "commands.showCurrentProfile.current": "Profil saat ini: {name} ({email})",
   "commands.showCurrentProfile.failed": "Gagal mendeteksi profil saat ini: {error}",
-
   "commands.exportProfiles.noProfiles": "Tidak ada profil untuk diekspor.",
   "commands.exportProfiles.exportAll": "Ekspor Semua Profil",
   "commands.exportProfiles.selectPlaceholder": "Pilih profil untuk diekspor",
@@ -53,7 +47,6 @@
   "commands.exportProfiles.no": "Tidak",
   "commands.exportProfiles.exported": "Mengekspor {count} profil ke {path}",
   "commands.exportProfiles.failed": "Gagal mengekspor profil: {error}",
-
   "commands.importProfiles.invalidFile": "File impor tidak valid: {errors}",
   "commands.importProfiles.warningsContinue": "Peringatan:\n{warnings}\n\nLanjutkan?",
   "commands.importProfiles.continue": "Lanjutkan",
@@ -61,9 +54,7 @@
   "commands.importProfiles.skipped": "Dilewati: {count}",
   "commands.importProfiles.errors": "Kesalahan: {count}",
   "commands.importProfiles.failed": "Gagal mengimpor profil: {error}",
-
   "commands.openUsage.message": "Buka Pengaturan Cursor dan pilih bagian Usage untuk melihat detail kuota lengkap.",
-
   "panel.loadFailed": "Cursor Accounts: gagal memuat panel Akun ({error})",
   "panel.title": "Cursor Accounts",
   "panel.loadingHtml": "Memuat Cursor Accounts…",
@@ -80,12 +71,13 @@
   "panel.importErrors": "{count} kesalahan",
   "panel.importCompleted": "Impor selesai",
   "panel.importCompletedWithErrors": "Impor selesai dengan kesalahan",
-
   "statusBar.profileTooltip": "Klik untuk melihat detail profil saat ini",
   "statusBar.loadingMonthlyUsage": "$(sync~spin) Penggunaan bulanan…",
   "statusBar.loadingUsage": "$(sync~spin) Penggunaan…",
   "statusBar.loadingMonthlyUsageTooltip": "Memuat penggunaan bulanan Cursor…",
   "statusBar.loadingUsageTooltip": "Memuat penggunaan Cursor…",
+  "statusBar.selectAccount": "Pilih akun",
+  "statusBar.selectAccountTooltip": "Buka Cursor Accounts untuk memilih profil",
   "statusBar.quotaUnavailable": "$(warning) Kuota tidak tersedia",
   "statusBar.monthlySuffix": "bulanan",
   "statusBar.usageSuffix": "penggunaan",
@@ -108,11 +100,9 @@
   "statusBar.tooltipAutoModeUsed": "| **Mode otomatis terpakai** | {value} |",
   "statusBar.tooltipSpend": "| **Pengeluaran** | {value} |",
   "statusBar.tooltipIncludedSpend": "| **Pengeluaran termasuk** | {value} |",
-  "statusBar.tooltipClickToOpen": "\n\nKlik untuk membuka detail penggunaan. Gunakan **Cursor Accounts: Refresh Now** untuk memperbarui.",
-
+  "statusBar.tooltipClickToOpen": "\n\nKlik untuk membuka Cursor Accounts di bilah sisi. Gunakan **Cursor Accounts: Refresh Now** untuk memperbarui.",
   "formatters.unlimited": "tak terbatas",
   "formatters.dash": "—",
-
   "efficiency.consent.message": "Kunci API Cursor bernama \"Cursor Accounts - API Key\" akan dibuat untuk akun ini guna menganalisis efisiensi model di latar belakang.",
   "efficiency.consent.confirm": "Buat kunci API dan aktifkan",
   "efficiency.consent.cancel": "Batal",
@@ -141,9 +131,7 @@
   "efficiency.classifier.sdkNonJson": "SDK mengembalikan output klasifikasi non-JSON",
   "efficiency.classifier.sdkEmpty": "Jalankan klasifikasi mengembalikan hasil kosong",
   "efficiency.classifier.sdkFailed": "Klasifikasi SDK gagal",
-
   "suggestedProfile.accountAlreadyConfigured": "Akun {email} sudah dikonfigurasi. Masukkan email dan nama untuk akun baru.",
-
   "webview.app.title": "Cursor Accounts",
   "webview.app.loadingProfiles": "Memuat profil...",
   "webview.app.loadingAccount": "Memuat akun…",
@@ -154,11 +142,9 @@
   "webview.app.addTitle": "Tambah profil baru",
   "webview.app.add": "+ Tambah",
   "webview.app.activeAccount": "Akun aktif",
-
   "webview.emptyState.title": "Belum ada profil",
   "webview.emptyState.description": "Buat profil untuk mengelola beberapa akun Cursor",
   "webview.emptyState.button": "Tambahkan Profil Pertama Anda",
-
   "webview.addProfile.title": "Tambah Profil",
   "webview.addProfile.close": "Tutup",
   "webview.addProfile.detectedAccount": "Akun saat ini terdeteksi: {email}",
@@ -174,7 +160,6 @@
   "webview.addProfile.invalidEmail": "Format email tidak valid",
   "webview.addProfile.cancel": "Batal",
   "webview.addProfile.create": "Buat Profil",
-
   "webview.editProfile.title": "Edit Profil",
   "webview.editProfile.emailLabel": "Email",
   "webview.editProfile.displayNameLabel": "Nama Tampilan *",
@@ -187,17 +172,14 @@
   "webview.editProfile.displayNameRequired": "Nama tampilan wajib diisi",
   "webview.editProfile.cancel": "Batal",
   "webview.editProfile.save": "Simpan Perubahan",
-
   "webview.import.title": "Impor Profil",
   "webview.import.fileLabel": "Pilih file ekspor",
   "webview.import.skipDuplicates": "Lewati profil duplikat",
   "webview.import.importSettings": "Impor pengaturan VS Code",
   "webview.import.cancel": "Batal",
   "webview.import.submit": "Impor",
-
   "webview.profileList.exportAll": "Ekspor Semua",
   "webview.profileList.exportAllTitle": "Ekspor semua profil",
-
   "webview.profileCard.unknownDate": "Tidak diketahui",
   "webview.profileCard.today": "Hari ini",
   "webview.profileCard.tomorrow": "Besok",

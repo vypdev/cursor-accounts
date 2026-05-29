@@ -7,7 +7,6 @@
   "errors.failedLoadProfiles": "プロファイルの読み込みに失敗しました",
   "errors.failedLaunchProfile": "プロファイルの起動に失敗しました",
   "errors.cursorExecutableNotFound": "Cursor 実行ファイルが見つかりません",
-
   "commands.addProfile.promptEmail": "Cursor アカウントのメールアドレスを入力",
   "commands.addProfile.promptDisplayName": "プロファイルの表示名を入力（任意）",
   "commands.addProfile.emailPlaceholder": "user@example.com",
@@ -19,32 +18,27 @@
   "commands.addProfile.launching": "{name} を起動中…",
   "commands.addProfile.failedLaunch": "プロファイルの起動に失敗しました: {error}",
   "commands.addProfile.failedCreate": "プロファイルの作成に失敗しました: {error}",
-
   "commands.launchProfile.noProfilesCreate": "プロファイルが設定されていません。今すぐ作成しますか？",
   "commands.launchProfile.createProfile": "プロファイルを作成",
   "commands.launchProfile.selectPlaceholder": "起動するプロファイルを選択",
   "commands.launchProfile.lastLaunched": "最終起動: {date}",
   "commands.launchProfile.lastLaunchedNever": "なし",
   "commands.launchProfile.failedLaunch": "プロファイルの起動に失敗しました: {error}",
-
   "commands.listProfiles.header": "設定済み Cursor プロファイル:",
   "commands.listProfiles.noProfiles": "プロファイルが設定されていません。「Cursor Accounts: プロファイルを追加」で作成してください。",
   "commands.listProfiles.email": "  メール: {email}",
   "commands.listProfiles.path": "  パス: {path}",
   "commands.listProfiles.lastLaunched": "  最終起動: {date}",
   "commands.listProfiles.failed": "プロファイルの一覧表示に失敗しました: {error}",
-
   "commands.deleteProfile.noProfiles": "削除するプロファイルがありません。",
   "commands.deleteProfile.selectPlaceholder": "削除するプロファイルを選択",
   "commands.deleteProfile.confirm": "プロファイル「{name}」を削除しますか？ユーザーデータディレクトリは削除されません。",
   "commands.deleteProfile.delete": "削除",
   "commands.deleteProfile.deleted": "プロファイル「{name}」を削除しました。",
   "commands.deleteProfile.failed": "プロファイルの削除に失敗しました: {error}",
-
   "commands.showCurrentProfile.default": "デフォルトの Cursor プロファイルを使用中（カスタムプロファイルはアクティブではありません）",
   "commands.showCurrentProfile.current": "現在のプロファイル: {name} ({email})",
   "commands.showCurrentProfile.failed": "現在のプロファイルの検出に失敗しました: {error}",
-
   "commands.exportProfiles.noProfiles": "エクスポートするプロファイルがありません。",
   "commands.exportProfiles.exportAll": "すべてのプロファイルをエクスポート",
   "commands.exportProfiles.selectPlaceholder": "エクスポートするプロファイルを選択",
@@ -53,7 +47,6 @@
   "commands.exportProfiles.no": "いいえ",
   "commands.exportProfiles.exported": "{count} 件のプロファイルを {path} にエクスポートしました",
   "commands.exportProfiles.failed": "プロファイルのエクスポートに失敗しました: {error}",
-
   "commands.importProfiles.invalidFile": "無効なインポートファイル: {errors}",
   "commands.importProfiles.warningsContinue": "警告:\n{warnings}\n\n続行しますか？",
   "commands.importProfiles.continue": "続行",
@@ -61,9 +54,7 @@
   "commands.importProfiles.skipped": "スキップ: {count}",
   "commands.importProfiles.errors": "エラー: {count}",
   "commands.importProfiles.failed": "プロファイルのインポートに失敗しました: {error}",
-
   "commands.openUsage.message": "Cursor の設定を開き、Usage セクションを選択してクォータの詳細を表示してください。",
-
   "panel.loadFailed": "Cursor Accounts: アカウントパネルの読み込みに失敗しました ({error})",
   "panel.title": "Cursor Accounts",
   "panel.loadingHtml": "Cursor Accounts を読み込み中…",
@@ -80,12 +71,13 @@
   "panel.importErrors": "{count} 件のエラー",
   "panel.importCompleted": "インポート完了",
   "panel.importCompletedWithErrors": "エラーありでインポート完了",
-
   "statusBar.profileTooltip": "クリックして現在のプロファイルの詳細を表示",
   "statusBar.loadingMonthlyUsage": "$(sync~spin) 月間使用量…",
   "statusBar.loadingUsage": "$(sync~spin) 使用量…",
   "statusBar.loadingMonthlyUsageTooltip": "Cursor 月間使用量を読み込み中…",
   "statusBar.loadingUsageTooltip": "Cursor 使用量を読み込み中…",
+  "statusBar.selectAccount": "アカウントを選択",
+  "statusBar.selectAccountTooltip": "Cursor Accounts を開いてプロファイルを選択",
   "statusBar.quotaUnavailable": "$(warning) クォータ利用不可",
   "statusBar.monthlySuffix": "月間",
   "statusBar.usageSuffix": "使用量",
@@ -108,11 +100,9 @@
   "statusBar.tooltipAutoModeUsed": "| **自動モード使用** | {value} |",
   "statusBar.tooltipSpend": "| **支出** | {value} |",
   "statusBar.tooltipIncludedSpend": "| **含まれる支出** | {value} |",
-  "statusBar.tooltipClickToOpen": "\n\nクリックで使用量の詳細を開く。**Cursor Accounts: 今すぐ更新** で更新できます。",
-
+  "statusBar.tooltipClickToOpen": "\n\nクリックしてサイドバーで Cursor Accounts を開きます。**Cursor Accounts: Refresh Now** で更新します。",
   "formatters.unlimited": "無制限",
   "formatters.dash": "—",
-
   "efficiency.consent.message": "このアカウント用に「Cursor Accounts - API Key」という名前の Cursor API キーが作成され、バックグラウンドでモデル効率を分析します。",
   "efficiency.consent.confirm": "API キーを作成して有効化",
   "efficiency.consent.cancel": "キャンセル",
@@ -141,9 +131,7 @@
   "efficiency.classifier.sdkNonJson": "SDK が非 JSON の分類出力を返しました",
   "efficiency.classifier.sdkEmpty": "分類実行が空の結果を返しました",
   "efficiency.classifier.sdkFailed": "SDK 分類に失敗しました",
-
   "suggestedProfile.accountAlreadyConfigured": "アカウント {email} は既に設定されています。新しいアカウントのメールと名前を入力してください。",
-
   "webview.app.title": "Cursor Accounts",
   "webview.app.loadingProfiles": "プロファイルを読み込み中…",
   "webview.app.loadingAccount": "アカウントを読み込み中…",
@@ -154,11 +142,9 @@
   "webview.app.addTitle": "新しいプロファイルを追加",
   "webview.app.add": "+ 追加",
   "webview.app.activeAccount": "アクティブアカウント",
-
   "webview.emptyState.title": "プロファイルがありません",
   "webview.emptyState.description": "プロファイルを作成して複数の Cursor アカウントを管理",
   "webview.emptyState.button": "最初のプロファイルを追加",
-
   "webview.addProfile.title": "プロファイルを追加",
   "webview.addProfile.close": "閉じる",
   "webview.addProfile.detectedAccount": "現在のアカウントを検出: {email}",
@@ -174,7 +160,6 @@
   "webview.addProfile.invalidEmail": "無効なメール形式",
   "webview.addProfile.cancel": "キャンセル",
   "webview.addProfile.create": "プロファイルを作成",
-
   "webview.editProfile.title": "プロファイルを編集",
   "webview.editProfile.emailLabel": "メール",
   "webview.editProfile.displayNameLabel": "表示名 *",
@@ -187,17 +172,14 @@
   "webview.editProfile.displayNameRequired": "表示名は必須です",
   "webview.editProfile.cancel": "キャンセル",
   "webview.editProfile.save": "変更を保存",
-
   "webview.import.title": "プロファイルをインポート",
   "webview.import.fileLabel": "エクスポートファイルを選択",
   "webview.import.skipDuplicates": "重複プロファイルをスキップ",
   "webview.import.importSettings": "VS Code 設定をインポート",
   "webview.import.cancel": "キャンセル",
   "webview.import.submit": "インポート",
-
   "webview.profileList.exportAll": "すべてエクスポート",
   "webview.profileList.exportAllTitle": "すべてのプロファイルをエクスポート",
-
   "webview.profileCard.unknownDate": "不明",
   "webview.profileCard.today": "今日",
   "webview.profileCard.tomorrow": "明日",

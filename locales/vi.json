@@ -7,7 +7,6 @@
   "errors.failedLoadProfiles": "Không tải được hồ sơ",
   "errors.failedLaunchProfile": "Không khởi chạy được hồ sơ",
   "errors.cursorExecutableNotFound": "Không tìm thấy tệp thực thi Cursor",
-
   "commands.addProfile.promptEmail": "Nhập email tài khoản Cursor",
   "commands.addProfile.promptDisplayName": "Nhập tên hiển thị hồ sơ (tùy chọn)",
   "commands.addProfile.emailPlaceholder": "user@example.com",
@@ -19,32 +18,27 @@
   "commands.addProfile.launching": "Đang khởi chạy {name}...",
   "commands.addProfile.failedLaunch": "Không khởi chạy được hồ sơ: {error}",
   "commands.addProfile.failedCreate": "Không tạo được hồ sơ: {error}",
-
   "commands.launchProfile.noProfilesCreate": "Chưa cấu hình hồ sơ nào. Tạo một hồ sơ ngay?",
   "commands.launchProfile.createProfile": "Tạo hồ sơ",
   "commands.launchProfile.selectPlaceholder": "Chọn hồ sơ để khởi chạy",
   "commands.launchProfile.lastLaunched": "Lần khởi chạy gần nhất: {date}",
   "commands.launchProfile.lastLaunchedNever": "Chưa bao giờ",
   "commands.launchProfile.failedLaunch": "Không khởi chạy được hồ sơ: {error}",
-
   "commands.listProfiles.header": "Hồ sơ Cursor đã cấu hình:",
   "commands.listProfiles.noProfiles": "Chưa cấu hình hồ sơ nào. Dùng \"Cursor Accounts: Add Profile\" để tạo một hồ sơ.",
   "commands.listProfiles.email": "  Email: {email}",
   "commands.listProfiles.path": "  Đường dẫn: {path}",
   "commands.listProfiles.lastLaunched": "  Lần khởi chạy gần nhất: {date}",
   "commands.listProfiles.failed": "Không liệt kê được hồ sơ: {error}",
-
   "commands.deleteProfile.noProfiles": "Không có hồ sơ để xóa.",
   "commands.deleteProfile.selectPlaceholder": "Chọn hồ sơ cần xóa",
   "commands.deleteProfile.confirm": "Xóa hồ sơ \"{name}\"? Thao tác này KHÔNG xóa thư mục dữ liệu người dùng.",
   "commands.deleteProfile.delete": "Xóa",
   "commands.deleteProfile.deleted": "Đã xóa hồ sơ \"{name}\".",
   "commands.deleteProfile.failed": "Không xóa được hồ sơ: {error}",
-
   "commands.showCurrentProfile.default": "Đang dùng hồ sơ Cursor mặc định (không có hồ sơ tùy chỉnh đang hoạt động)",
   "commands.showCurrentProfile.current": "Hồ sơ hiện tại: {name} ({email})",
   "commands.showCurrentProfile.failed": "Không phát hiện được hồ sơ hiện tại: {error}",
-
   "commands.exportProfiles.noProfiles": "Không có hồ sơ để xuất.",
   "commands.exportProfiles.exportAll": "Xuất tất cả hồ sơ",
   "commands.exportProfiles.selectPlaceholder": "Chọn hồ sơ cần xuất",
@@ -53,7 +47,6 @@
   "commands.exportProfiles.no": "Không",
   "commands.exportProfiles.exported": "Đã xuất {count} hồ sơ tới {path}",
   "commands.exportProfiles.failed": "Không xuất được hồ sơ: {error}",
-
   "commands.importProfiles.invalidFile": "Tệp nhập không hợp lệ: {errors}",
   "commands.importProfiles.warningsContinue": "Cảnh báo:\n{warnings}\n\nTiếp tục?",
   "commands.importProfiles.continue": "Tiếp tục",
@@ -61,9 +54,7 @@
   "commands.importProfiles.skipped": "Đã bỏ qua: {count}",
   "commands.importProfiles.errors": "Lỗi: {count}",
   "commands.importProfiles.failed": "Không nhập được hồ sơ: {error}",
-
   "commands.openUsage.message": "Mở Cài đặt Cursor và chọn mục Usage để xem đầy đủ chi tiết hạn mức.",
-
   "panel.loadFailed": "Cursor Accounts: không tải được bảng Tài khoản ({error})",
   "panel.title": "Cursor Accounts",
   "panel.loadingHtml": "Đang tải Cursor Accounts…",
@@ -80,12 +71,13 @@
   "panel.importErrors": "{count} lỗi",
   "panel.importCompleted": "Nhập hoàn tất",
   "panel.importCompletedWithErrors": "Nhập hoàn tất nhưng có lỗi",
-
   "statusBar.profileTooltip": "Nhấp để xem chi tiết hồ sơ hiện tại",
   "statusBar.loadingMonthlyUsage": "$(sync~spin) Dùng hàng tháng…",
   "statusBar.loadingUsage": "$(sync~spin) Mức dùng…",
   "statusBar.loadingMonthlyUsageTooltip": "Đang tải mức dùng hàng tháng của Cursor…",
   "statusBar.loadingUsageTooltip": "Đang tải mức dùng Cursor…",
+  "statusBar.selectAccount": "Chọn tài khoản",
+  "statusBar.selectAccountTooltip": "Mở Cursor Accounts để chọn hồ sơ",
   "statusBar.quotaUnavailable": "$(warning) Hạn mức không khả dụng",
   "statusBar.monthlySuffix": "hàng tháng",
   "statusBar.usageSuffix": "mức dùng",
@@ -108,11 +100,9 @@
   "statusBar.tooltipAutoModeUsed": "| **Đã dùng chế độ tự động** | {value} |",
   "statusBar.tooltipSpend": "| **Chi tiêu** | {value} |",
   "statusBar.tooltipIncludedSpend": "| **Chi tiêu gồm trong gói** | {value} |",
-  "statusBar.tooltipClickToOpen": "\n\nNhấp để mở chi tiết mức dùng. Dùng **Cursor Accounts: Refresh Now** để cập nhật.",
-
+  "statusBar.tooltipClickToOpen": "\n\nNhấp để mở Cursor Accounts trên thanh bên. Dùng **Cursor Accounts: Refresh Now** để cập nhật.",
   "formatters.unlimited": "không giới hạn",
   "formatters.dash": "—",
-
   "efficiency.consent.message": "Một khóa API Cursor tên \"Cursor Accounts - API Key\" sẽ được tạo cho tài khoản này để phân tích hiệu suất mô hình ở nền.",
   "efficiency.consent.confirm": "Tạo khóa API và bật",
   "efficiency.consent.cancel": "Hủy",
@@ -141,9 +131,7 @@
   "efficiency.classifier.sdkNonJson": "SDK trả về đầu ra phân loại không phải JSON",
   "efficiency.classifier.sdkEmpty": "Lần chạy phân loại trả về kết quả trống",
   "efficiency.classifier.sdkFailed": "Phân loại SDK thất bại",
-
   "suggestedProfile.accountAlreadyConfigured": "Tài khoản {email} đã được cấu hình. Nhập email và tên cho tài khoản mới.",
-
   "webview.app.title": "Cursor Accounts",
   "webview.app.loadingProfiles": "Đang tải hồ sơ...",
   "webview.app.loadingAccount": "Đang tải tài khoản…",
@@ -154,11 +142,9 @@
   "webview.app.addTitle": "Thêm hồ sơ mới",
   "webview.app.add": "+ Thêm",
   "webview.app.activeAccount": "Tài khoản đang hoạt động",
-
   "webview.emptyState.title": "Chưa có hồ sơ",
   "webview.emptyState.description": "Tạo hồ sơ để quản lý nhiều tài khoản Cursor",
   "webview.emptyState.button": "Thêm hồ sơ đầu tiên",
-
   "webview.addProfile.title": "Thêm hồ sơ",
   "webview.addProfile.close": "Đóng",
   "webview.addProfile.detectedAccount": "Phát hiện tài khoản hiện tại: {email}",
@@ -174,7 +160,6 @@
   "webview.addProfile.invalidEmail": "Định dạng email không hợp lệ",
   "webview.addProfile.cancel": "Hủy",
   "webview.addProfile.create": "Tạo hồ sơ",
-
   "webview.editProfile.title": "Sửa hồ sơ",
   "webview.editProfile.emailLabel": "Email",
   "webview.editProfile.displayNameLabel": "Tên hiển thị *",
@@ -187,17 +172,14 @@
   "webview.editProfile.displayNameRequired": "Tên hiển thị là bắt buộc",
   "webview.editProfile.cancel": "Hủy",
   "webview.editProfile.save": "Lưu thay đổi",
-
   "webview.import.title": "Nhập hồ sơ",
   "webview.import.fileLabel": "Chọn tệp xuất",
   "webview.import.skipDuplicates": "Bỏ qua hồ sơ trùng",
   "webview.import.importSettings": "Nhập cài đặt VS Code",
   "webview.import.cancel": "Hủy",
   "webview.import.submit": "Nhập",
-
   "webview.profileList.exportAll": "Xuất tất cả",
   "webview.profileList.exportAllTitle": "Xuất tất cả hồ sơ",
-
   "webview.profileCard.unknownDate": "Không xác định",
   "webview.profileCard.today": "Hôm nay",
   "webview.profileCard.tomorrow": "Ngày mai",

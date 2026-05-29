@@ -7,7 +7,6 @@
   "errors.failedLoadProfiles": "Nepodařilo se načíst profily",
   "errors.failedLaunchProfile": "Nepodařilo se spustit profil",
   "errors.cursorExecutableNotFound": "Spustitelný soubor Cursor nenalezen",
-
   "commands.addProfile.promptEmail": "Zadejte e-mail účtu Cursor",
   "commands.addProfile.promptDisplayName": "Zadejte zobrazované jméno profilu (volitelné)",
   "commands.addProfile.emailPlaceholder": "user@example.com",
@@ -19,32 +18,27 @@
   "commands.addProfile.launching": "Spouštění {name}…",
   "commands.addProfile.failedLaunch": "Nepodařilo se spustit profil: {error}",
   "commands.addProfile.failedCreate": "Nepodařilo se vytvořit profil: {error}",
-
   "commands.launchProfile.noProfilesCreate": "Nejsou nakonfigurovány žádné profily. Vytvořit jeden nyní?",
   "commands.launchProfile.createProfile": "Vytvořit profil",
   "commands.launchProfile.selectPlaceholder": "Vyberte profil ke spuštění",
   "commands.launchProfile.lastLaunched": "Naposledy spuštěno: {date}",
   "commands.launchProfile.lastLaunchedNever": "Nikdy",
   "commands.launchProfile.failedLaunch": "Nepodařilo se spustit profil: {error}",
-
   "commands.listProfiles.header": "Nakonfigurované profily Cursor:",
   "commands.listProfiles.noProfiles": "Nejsou nakonfigurovány žádné profily. Použijte „Cursor Accounts: Add Profile“ k vytvoření jednoho.",
   "commands.listProfiles.email": "  E-mail: {email}",
   "commands.listProfiles.path": "  Cesta: {path}",
   "commands.listProfiles.lastLaunched": "  Naposledy spuštěno: {date}",
   "commands.listProfiles.failed": "Nepodařilo se vypsat profily: {error}",
-
   "commands.deleteProfile.noProfiles": "Žádné profily ke smazání.",
   "commands.deleteProfile.selectPlaceholder": "Vyberte profil ke smazání",
   "commands.deleteProfile.confirm": "Smazat profil \"{name}\"? Adresář uživatelských dat NEBUDE smazán.",
   "commands.deleteProfile.delete": "Smazat",
   "commands.deleteProfile.deleted": "Profil \"{name}\" smazán.",
   "commands.deleteProfile.failed": "Nepodařilo se smazat profil: {error}",
-
   "commands.showCurrentProfile.default": "Používá se výchozí profil Cursor (žádný vlastní profil není aktivní)",
   "commands.showCurrentProfile.current": "Aktuální profil: {name} ({email})",
   "commands.showCurrentProfile.failed": "Nepodařilo se zjistit aktuální profil: {error}",
-
   "commands.exportProfiles.noProfiles": "Žádné profily k exportu.",
   "commands.exportProfiles.exportAll": "Exportovat všechny profily",
   "commands.exportProfiles.selectPlaceholder": "Vyberte profily k exportu",
@@ -53,7 +47,6 @@
   "commands.exportProfiles.no": "Ne",
   "commands.exportProfiles.exported": "Exportováno profilů: {count} do {path}",
   "commands.exportProfiles.failed": "Nepodařilo se exportovat profily: {error}",
-
   "commands.importProfiles.invalidFile": "Neplatný importní soubor: {errors}",
   "commands.importProfiles.warningsContinue": "Varování:\n{warnings}\n\nPokračovat?",
   "commands.importProfiles.continue": "Pokračovat",
@@ -61,9 +54,7 @@
   "commands.importProfiles.skipped": "Přeskočeno: {count}",
   "commands.importProfiles.errors": "Chyby: {count}",
   "commands.importProfiles.failed": "Nepodařilo se importovat profily: {error}",
-
   "commands.openUsage.message": "Otevřete nastavení Cursor a vyberte sekci Usage pro zobrazení úplných detailů kvóty.",
-
   "panel.loadFailed": "Cursor Accounts: nepodařilo se načíst panel Accounts ({error})",
   "panel.title": "Cursor Accounts",
   "panel.loadingHtml": "Načítání Cursor Accounts…",
@@ -80,12 +71,13 @@
   "panel.importErrors": "Chyb: {count}",
   "panel.importCompleted": "Import dokončen",
   "panel.importCompletedWithErrors": "Import dokončen s chybami",
-
   "statusBar.profileTooltip": "Klikněte pro zobrazení detailů aktuálního profilu",
   "statusBar.loadingMonthlyUsage": "$(sync~spin) Měsíční využití…",
   "statusBar.loadingUsage": "$(sync~spin) Využití…",
   "statusBar.loadingMonthlyUsageTooltip": "Načítání měsíčního využití Cursor…",
   "statusBar.loadingUsageTooltip": "Načítání využití Cursor…",
+  "statusBar.selectAccount": "Vybrat účet",
+  "statusBar.selectAccountTooltip": "Otevřete Cursor Accounts a vyberte profil",
   "statusBar.quotaUnavailable": "$(warning) Kvóta nedostupná",
   "statusBar.monthlySuffix": "měsíční",
   "statusBar.usageSuffix": "využití",
@@ -108,11 +100,9 @@
   "statusBar.tooltipAutoModeUsed": "| **Režim Auto využito** | {value} |",
   "statusBar.tooltipSpend": "| **Útrata** | {value} |",
   "statusBar.tooltipIncludedSpend": "| **Zahrnutá útrata** | {value} |",
-  "statusBar.tooltipClickToOpen": "\n\nKlikněte pro otevření detailů využití. Pro aktualizaci použijte **Cursor Accounts: Refresh Now**.",
-
+  "statusBar.tooltipClickToOpen": "\n\nKliknutím otevřete Cursor Accounts na postranním panelu. Aktualizujte pomocí **Cursor Accounts: Refresh Now**.",
   "formatters.unlimited": "neomezeno",
   "formatters.dash": "—",
-
   "efficiency.consent.message": "Pro tento účet bude vytvořen klíč API Cursor s názvem „Cursor Accounts - API Key“ pro analýzu efektivity modelu na pozadí.",
   "efficiency.consent.confirm": "Vytvořit klíč API a zapnout",
   "efficiency.consent.cancel": "Zrušit",
@@ -141,9 +131,7 @@
   "efficiency.classifier.sdkNonJson": "SDK vrátilo výstup klasifikace jiný než JSON",
   "efficiency.classifier.sdkEmpty": "Běh klasifikace vrátil prázdný výsledek",
   "efficiency.classifier.sdkFailed": "Klasifikace SDK selhala",
-
   "suggestedProfile.accountAlreadyConfigured": "Účet {email} je již nakonfigurován. Zadejte e-mail a jméno pro nový účet.",
-
   "webview.app.title": "Cursor Accounts",
   "webview.app.loadingProfiles": "Načítání profilů…",
   "webview.app.loadingAccount": "Načítání účtu…",
@@ -154,11 +142,9 @@
   "webview.app.addTitle": "Přidat nový profil",
   "webview.app.add": "+ Přidat",
   "webview.app.activeAccount": "Aktivní účet",
-
   "webview.emptyState.title": "Zatím žádné profily",
   "webview.emptyState.description": "Vytvořte profil pro správu více účtů Cursor",
   "webview.emptyState.button": "Přidat první profil",
-
   "webview.addProfile.title": "Přidat profil",
   "webview.addProfile.close": "Zavřít",
   "webview.addProfile.detectedAccount": "Zjištěn aktuální účet: {email}",
@@ -174,7 +160,6 @@
   "webview.addProfile.invalidEmail": "Neplatný formát e-mailu",
   "webview.addProfile.cancel": "Zrušit",
   "webview.addProfile.create": "Vytvořit profil",
-
   "webview.editProfile.title": "Upravit profil",
   "webview.editProfile.emailLabel": "E-mail",
   "webview.editProfile.displayNameLabel": "Zobrazované jméno *",
@@ -187,17 +172,14 @@
   "webview.editProfile.displayNameRequired": "Zobrazované jméno je povinné",
   "webview.editProfile.cancel": "Zrušit",
   "webview.editProfile.save": "Uložit změny",
-
   "webview.import.title": "Importovat profily",
   "webview.import.fileLabel": "Vyberte exportní soubor",
   "webview.import.skipDuplicates": "Přeskočit duplicitní profily",
   "webview.import.importSettings": "Importovat nastavení VS Code",
   "webview.import.cancel": "Zrušit",
   "webview.import.submit": "Import",
-
   "webview.profileList.exportAll": "Exportovat vše",
   "webview.profileList.exportAllTitle": "Exportovat všechny profily",
-
   "webview.profileCard.unknownDate": "Neznámé",
   "webview.profileCard.today": "Dnes",
   "webview.profileCard.tomorrow": "Zítra",

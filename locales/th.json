@@ -7,7 +7,6 @@
   "errors.failedLoadProfiles": "โหลดโปรไฟล์ไม่สำเร็จ",
   "errors.failedLaunchProfile": "เปิดโปรไฟล์ไม่สำเร็จ",
   "errors.cursorExecutableNotFound": "ไม่พบ Cursor executable",
-
   "commands.addProfile.promptEmail": "ป้อนอีเมลบัญชี Cursor",
   "commands.addProfile.promptDisplayName": "ป้อนชื่อที่แสดงของโปรไฟล์ (ไม่บังคับ)",
   "commands.addProfile.emailPlaceholder": "user@example.com",
@@ -19,32 +18,27 @@
   "commands.addProfile.launching": "กำลังเปิด {name}...",
   "commands.addProfile.failedLaunch": "เปิดโปรไฟล์ไม่สำเร็จ: {error}",
   "commands.addProfile.failedCreate": "สร้างโปรไฟล์ไม่สำเร็จ: {error}",
-
   "commands.launchProfile.noProfilesCreate": "ยังไม่ได้ตั้งค่าโปรไฟล์ สร้างตอนนี้หรือไม่?",
   "commands.launchProfile.createProfile": "สร้างโปรไฟล์",
   "commands.launchProfile.selectPlaceholder": "เลือกโปรไฟล์ที่จะเปิด",
   "commands.launchProfile.lastLaunched": "เปิดล่าสุด: {date}",
   "commands.launchProfile.lastLaunchedNever": "ไม่เคย",
   "commands.launchProfile.failedLaunch": "เปิดโปรไฟล์ไม่สำเร็จ: {error}",
-
   "commands.listProfiles.header": "โปรไฟล์ Cursor ที่ตั้งค่าแล้ว:",
   "commands.listProfiles.noProfiles": "ยังไม่ได้ตั้งค่าโปรไฟล์ ใช้ \"Cursor Accounts: Add Profile\" เพื่อสร้าง",
   "commands.listProfiles.email": "  อีเมล: {email}",
   "commands.listProfiles.path": "  เส้นทาง: {path}",
   "commands.listProfiles.lastLaunched": "  เปิดล่าสุด: {date}",
   "commands.listProfiles.failed": "แสดงรายการโปรไฟล์ไม่สำเร็จ: {error}",
-
   "commands.deleteProfile.noProfiles": "ไม่มีโปรไฟล์ที่จะลบ",
   "commands.deleteProfile.selectPlaceholder": "เลือกโปรไฟล์ที่จะลบ",
   "commands.deleteProfile.confirm": "ลบโปรไฟล์ \"{name}\" หรือไม่? จะไม่ลบไดเรกทอรีข้อมูลผู้ใช้",
   "commands.deleteProfile.delete": "ลบ",
   "commands.deleteProfile.deleted": "ลบโปรไฟล์ \"{name}\" แล้ว",
   "commands.deleteProfile.failed": "ลบโปรไฟล์ไม่สำเร็จ: {error}",
-
   "commands.showCurrentProfile.default": "ใช้โปรไฟล์ Cursor เริ่มต้น (ไม่มีโปรไฟล์ที่กำหนดเองที่ใช้งานอยู่)",
   "commands.showCurrentProfile.current": "โปรไฟล์ปัจจุบัน: {name} ({email})",
   "commands.showCurrentProfile.failed": "ตรวจหาโปรไฟล์ปัจจุบันไม่สำเร็จ: {error}",
-
   "commands.exportProfiles.noProfiles": "ไม่มีโปรไฟล์ที่จะส่งออก",
   "commands.exportProfiles.exportAll": "ส่งออกโปรไฟล์ทั้งหมด",
   "commands.exportProfiles.selectPlaceholder": "เลือกโปรไฟล์ที่จะส่งออก",
@@ -53,7 +47,6 @@
   "commands.exportProfiles.no": "ไม่",
   "commands.exportProfiles.exported": "ส่งออก {count} โปรไฟล์ไปยัง {path}",
   "commands.exportProfiles.failed": "ส่งออกโปรไฟล์ไม่สำเร็จ: {error}",
-
   "commands.importProfiles.invalidFile": "ไฟล์นำเข้าไม่ถูกต้อง: {errors}",
   "commands.importProfiles.warningsContinue": "คำเตือน:\n{warnings}\n\nดำเนินการต่อหรือไม่?",
   "commands.importProfiles.continue": "ดำเนินการต่อ",
@@ -61,9 +54,7 @@
   "commands.importProfiles.skipped": "ข้าม: {count}",
   "commands.importProfiles.errors": "ข้อผิดพลาด: {count}",
   "commands.importProfiles.failed": "นำเข้าโปรไฟล์ไม่สำเร็จ: {error}",
-
   "commands.openUsage.message": "เปิด Cursor Settings และเลือกส่วน Usage เพื่อดูรายละเอียดโควต้าเต็ม",
-
   "panel.loadFailed": "Cursor Accounts: โหลดแผง Accounts ไม่สำเร็จ ({error})",
   "panel.title": "Cursor Accounts",
   "panel.loadingHtml": "กำลังโหลด Cursor Accounts…",
@@ -80,12 +71,13 @@
   "panel.importErrors": "{count} ข้อผิดพลาด",
   "panel.importCompleted": "นำเข้าเสร็จสมบูรณ์",
   "panel.importCompletedWithErrors": "นำเข้าเสร็จสมบูรณ์แต่มีข้อผิดพลาด",
-
   "statusBar.profileTooltip": "คลิกเพื่อดูรายละเอียดโปรไฟล์ปัจจุบัน",
   "statusBar.loadingMonthlyUsage": "$(sync~spin) การใช้งานรายเดือน…",
   "statusBar.loadingUsage": "$(sync~spin) การใช้งาน…",
   "statusBar.loadingMonthlyUsageTooltip": "กำลังโหลดการใช้งานรายเดือนของ Cursor…",
   "statusBar.loadingUsageTooltip": "กำลังโหลดการใช้งาน Cursor…",
+  "statusBar.selectAccount": "เลือกบัญชี",
+  "statusBar.selectAccountTooltip": "เปิด Cursor Accounts เพื่อเลือกโปรไฟล์",
   "statusBar.quotaUnavailable": "$(warning) โควต้าไม่พร้อมใช้งาน",
   "statusBar.monthlySuffix": "รายเดือน",
   "statusBar.usageSuffix": "การใช้งาน",
@@ -108,11 +100,9 @@
   "statusBar.tooltipAutoModeUsed": "| **ใช้โหมดอัตโนมัติ** | {value} |",
   "statusBar.tooltipSpend": "| **ค่าใช้จ่าย** | {value} |",
   "statusBar.tooltipIncludedSpend": "| **ค่าใช้จ่ายที่รวม** | {value} |",
-  "statusBar.tooltipClickToOpen": "\n\nคลิกเพื่อเปิดรายละเอียดการใช้งาน ใช้ **Cursor Accounts: Refresh Now** เพื่ออัปเดต",
-
+  "statusBar.tooltipClickToOpen": "\n\nคลิกเพื่อเปิด Cursor Accounts ในแถบด้านข้าง ใช้ **Cursor Accounts: Refresh Now** เพื่ออัปเดต",
   "formatters.unlimited": "ไม่จำกัด",
   "formatters.dash": "—",
-
   "efficiency.consent.message": "จะสร้าง Cursor API key ชื่อ \"Cursor Accounts - API Key\" สำหรับบัญชีนี้เพื่อวิเคราะห์ประสิทธิภาพของโมเดลในพื้นหลัง",
   "efficiency.consent.confirm": "สร้าง API key และเปิดใช้งาน",
   "efficiency.consent.cancel": "ยกเลิก",
@@ -141,9 +131,7 @@
   "efficiency.classifier.sdkNonJson": "SDK ส่งคืนผลลัพธ์การจำแนกที่ไม่ใช่ JSON",
   "efficiency.classifier.sdkEmpty": "การรันจำแนกส่งคืนผลลัพธ์ว่าง",
   "efficiency.classifier.sdkFailed": "การจำแนก SDK ล้มเหลว",
-
   "suggestedProfile.accountAlreadyConfigured": "บัญชี {email} ตั้งค่าแล้ว ป้อนอีเมลและชื่อสำหรับบัญชีใหม่",
-
   "webview.app.title": "Cursor Accounts",
   "webview.app.loadingProfiles": "กำลังโหลดโปรไฟล์...",
   "webview.app.loadingAccount": "กำลังโหลดบัญชี…",
@@ -154,11 +142,9 @@
   "webview.app.addTitle": "เพิ่มโปรไฟล์ใหม่",
   "webview.app.add": "+ เพิ่ม",
   "webview.app.activeAccount": "บัญชีที่ใช้งาน",
-
   "webview.emptyState.title": "ยังไม่มีโปรไฟล์",
   "webview.emptyState.description": "สร้างโปรไฟล์เพื่อจัดการหลายบัญชี Cursor",
   "webview.emptyState.button": "เพิ่มโปรไฟล์แรกของคุณ",
-
   "webview.addProfile.title": "เพิ่มโปรไฟล์",
   "webview.addProfile.close": "ปิด",
   "webview.addProfile.detectedAccount": "ตรวจพบบัญชีปัจจุบัน: {email}",
@@ -174,7 +160,6 @@
   "webview.addProfile.invalidEmail": "รูปแบบอีเมลไม่ถูกต้อง",
   "webview.addProfile.cancel": "ยกเลิก",
   "webview.addProfile.create": "สร้างโปรไฟล์",
-
   "webview.editProfile.title": "แก้ไขโปรไฟล์",
   "webview.editProfile.emailLabel": "อีเมล",
   "webview.editProfile.displayNameLabel": "ชื่อที่แสดง *",
@@ -187,17 +172,14 @@
   "webview.editProfile.displayNameRequired": "ต้องระบุชื่อที่แสดง",
   "webview.editProfile.cancel": "ยกเลิก",
   "webview.editProfile.save": "บันทึกการเปลี่ยนแปลง",
-
   "webview.import.title": "นำเข้าโปรไฟล์",
   "webview.import.fileLabel": "เลือกไฟล์ส่งออก",
   "webview.import.skipDuplicates": "ข้ามโปรไฟล์ที่ซ้ำ",
   "webview.import.importSettings": "นำเข้าการตั้งค่า VS Code",
   "webview.import.cancel": "ยกเลิก",
   "webview.import.submit": "นำเข้า",
-
   "webview.profileList.exportAll": "ส่งออกทั้งหมด",
   "webview.profileList.exportAllTitle": "ส่งออกโปรไฟล์ทั้งหมด",
-
   "webview.profileCard.unknownDate": "ไม่ทราบ",
   "webview.profileCard.today": "วันนี้",
   "webview.profileCard.tomorrow": "พรุ่งนี้",

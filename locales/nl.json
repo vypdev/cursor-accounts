@@ -7,7 +7,6 @@
   "errors.failedLoadProfiles": "Profielen laden mislukt",
   "errors.failedLaunchProfile": "Profiel starten mislukt",
   "errors.cursorExecutableNotFound": "Cursor-uitvoerbaar bestand niet gevonden",
-
   "commands.addProfile.promptEmail": "Voer Cursor-account-e-mail in",
   "commands.addProfile.promptDisplayName": "Voer profielweergavenaam in (optioneel)",
   "commands.addProfile.emailPlaceholder": "user@example.com",
@@ -19,32 +18,27 @@
   "commands.addProfile.launching": "{name} starten…",
   "commands.addProfile.failedLaunch": "Profiel starten mislukt: {error}",
   "commands.addProfile.failedCreate": "Profiel aanmaken mislukt: {error}",
-
   "commands.launchProfile.noProfilesCreate": "Geen profielen geconfigureerd. Nu een aanmaken?",
   "commands.launchProfile.createProfile": "Profiel aanmaken",
   "commands.launchProfile.selectPlaceholder": "Selecteer profiel om te starten",
   "commands.launchProfile.lastLaunched": "Laatst gestart: {date}",
   "commands.launchProfile.lastLaunchedNever": "Nooit",
   "commands.launchProfile.failedLaunch": "Profiel starten mislukt: {error}",
-
   "commands.listProfiles.header": "Geconfigureerde Cursor-profielen:",
   "commands.listProfiles.noProfiles": "Geen profielen geconfigureerd. Gebruik \"Cursor Accounts: Profiel toevoegen\" om er een aan te maken.",
   "commands.listProfiles.email": "  E-mail: {email}",
   "commands.listProfiles.path": "  Pad: {path}",
   "commands.listProfiles.lastLaunched": "  Laatst gestart: {date}",
   "commands.listProfiles.failed": "Profielen weergeven mislukt: {error}",
-
   "commands.deleteProfile.noProfiles": "Geen profielen om te verwijderen.",
   "commands.deleteProfile.selectPlaceholder": "Selecteer profiel om te verwijderen",
   "commands.deleteProfile.confirm": "Profiel \"{name}\" verwijderen? De gebruikersdatamap wordt NIET verwijderd.",
   "commands.deleteProfile.delete": "Verwijderen",
   "commands.deleteProfile.deleted": "Profiel \"{name}\" verwijderd.",
   "commands.deleteProfile.failed": "Profiel verwijderen mislukt: {error}",
-
   "commands.showCurrentProfile.default": "Standaard Cursor-profiel in gebruik (geen aangepast profiel actief)",
   "commands.showCurrentProfile.current": "Huidig profiel: {name} ({email})",
   "commands.showCurrentProfile.failed": "Huidig profiel detecteren mislukt: {error}",
-
   "commands.exportProfiles.noProfiles": "Geen profielen om te exporteren.",
   "commands.exportProfiles.exportAll": "Alle profielen exporteren",
   "commands.exportProfiles.selectPlaceholder": "Selecteer profielen om te exporteren",
@@ -53,7 +47,6 @@
   "commands.exportProfiles.no": "Nee",
   "commands.exportProfiles.exported": "{count} profiel/profielen geëxporteerd naar {path}",
   "commands.exportProfiles.failed": "Profielen exporteren mislukt: {error}",
-
   "commands.importProfiles.invalidFile": "Ongeldig importbestand: {errors}",
   "commands.importProfiles.warningsContinue": "Waarschuwingen:\n{warnings}\n\nDoorgaan?",
   "commands.importProfiles.continue": "Doorgaan",
@@ -61,9 +54,7 @@
   "commands.importProfiles.skipped": "Overgeslagen: {count}",
   "commands.importProfiles.errors": "Fouten: {count}",
   "commands.importProfiles.failed": "Profielen importeren mislukt: {error}",
-
   "commands.openUsage.message": "Open Cursor-instellingen en selecteer het gedeelte Usage om volledige quotumdetails te bekijken.",
-
   "panel.loadFailed": "Cursor Accounts: Accounts-paneel laden mislukt ({error})",
   "panel.title": "Cursor Accounts",
   "panel.loadingHtml": "Cursor Accounts laden…",
@@ -80,12 +71,13 @@
   "panel.importErrors": "{count} fout(en)",
   "panel.importCompleted": "Import voltooid",
   "panel.importCompletedWithErrors": "Import voltooid met fouten",
-
   "statusBar.profileTooltip": "Klik om huidige profieldetails te zien",
   "statusBar.loadingMonthlyUsage": "$(sync~spin) Maandelijks gebruik…",
   "statusBar.loadingUsage": "$(sync~spin) Gebruik…",
   "statusBar.loadingMonthlyUsageTooltip": "Cursor maandelijks gebruik laden…",
   "statusBar.loadingUsageTooltip": "Cursor-gebruik laden…",
+  "statusBar.selectAccount": "Account selecteren",
+  "statusBar.selectAccountTooltip": "Open Cursor Accounts om een profiel te kiezen",
   "statusBar.quotaUnavailable": "$(warning) Quotum niet beschikbaar",
   "statusBar.monthlySuffix": "maandelijks",
   "statusBar.usageSuffix": "gebruik",
@@ -108,11 +100,9 @@
   "statusBar.tooltipAutoModeUsed": "| **Automatische modus gebruikt** | {value} |",
   "statusBar.tooltipSpend": "| **Uitgaven** | {value} |",
   "statusBar.tooltipIncludedSpend": "| **Inbegrepen uitgaven** | {value} |",
-  "statusBar.tooltipClickToOpen": "\n\nKlik om gebruiksdetails te openen. Gebruik **Cursor Accounts: Nu vernieuwen** om bij te werken.",
-
+  "statusBar.tooltipClickToOpen": "\n\nKlik om Cursor Accounts in de zijbalk te openen. Gebruik **Cursor Accounts: Refresh Now** om bij te werken.",
   "formatters.unlimited": "onbeperkt",
   "formatters.dash": "—",
-
   "efficiency.consent.message": "Er wordt een Cursor API-sleutel met de naam \"Cursor Accounts - API Key\" aangemaakt voor dit account om modelefficiëntie op de achtergrond te analyseren.",
   "efficiency.consent.confirm": "API-sleutel aanmaken en inschakelen",
   "efficiency.consent.cancel": "Annuleren",
@@ -141,9 +131,7 @@
   "efficiency.classifier.sdkNonJson": "SDK retourneerde niet-JSON classificatie-uitvoer",
   "efficiency.classifier.sdkEmpty": "Classificatierun retourneerde leeg resultaat",
   "efficiency.classifier.sdkFailed": "SDK-classificatie mislukt",
-
   "suggestedProfile.accountAlreadyConfigured": "Account {email} is al geconfigureerd. Voer het e-mailadres en de naam in voor het nieuwe account.",
-
   "webview.app.title": "Cursor Accounts",
   "webview.app.loadingProfiles": "Profielen laden...",
   "webview.app.loadingAccount": "Account laden…",
@@ -154,11 +142,9 @@
   "webview.app.addTitle": "Nieuw profiel toevoegen",
   "webview.app.add": "+ Toevoegen",
   "webview.app.activeAccount": "Actief account",
-
   "webview.emptyState.title": "Nog geen profielen",
   "webview.emptyState.description": "Maak een profiel aan om meerdere Cursor-accounts te beheren",
   "webview.emptyState.button": "Voeg je eerste profiel toe",
-
   "webview.addProfile.title": "Profiel toevoegen",
   "webview.addProfile.close": "Sluiten",
   "webview.addProfile.detectedAccount": "Huidig account gedetecteerd: {email}",
@@ -174,7 +160,6 @@
   "webview.addProfile.invalidEmail": "Ongeldig e-mailformaat",
   "webview.addProfile.cancel": "Annuleren",
   "webview.addProfile.create": "Profiel aanmaken",
-
   "webview.editProfile.title": "Profiel bewerken",
   "webview.editProfile.emailLabel": "E-mail",
   "webview.editProfile.displayNameLabel": "Weergavenaam *",
@@ -187,17 +172,14 @@
   "webview.editProfile.displayNameRequired": "Weergavenaam is verplicht",
   "webview.editProfile.cancel": "Annuleren",
   "webview.editProfile.save": "Wijzigingen opslaan",
-
   "webview.import.title": "Profielen importeren",
   "webview.import.fileLabel": "Exportbestand selecteren",
   "webview.import.skipDuplicates": "Dubbele profielen overslaan",
   "webview.import.importSettings": "VS Code-instellingen importeren",
   "webview.import.cancel": "Annuleren",
   "webview.import.submit": "Importeren",
-
   "webview.profileList.exportAll": "Alles exporteren",
   "webview.profileList.exportAllTitle": "Alle profielen exporteren",
-
   "webview.profileCard.unknownDate": "Onbekend",
   "webview.profileCard.today": "Vandaag",
   "webview.profileCard.tomorrow": "Morgen",

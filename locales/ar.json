@@ -7,7 +7,6 @@
   "errors.failedLoadProfiles": "فشل تحميل الملفات الشخصية",
   "errors.failedLaunchProfile": "فشل تشغيل الملف الشخصي",
   "errors.cursorExecutableNotFound": "لم يتم العثور على ملف Cursor التنفيذي",
-
   "commands.addProfile.promptEmail": "أدخل بريد حساب Cursor الإلكتروني",
   "commands.addProfile.promptDisplayName": "أدخل اسم العرض للملف الشخصي (اختياري)",
   "commands.addProfile.emailPlaceholder": "user@example.com",
@@ -19,32 +18,27 @@
   "commands.addProfile.launching": "جارٍ تشغيل {name}...",
   "commands.addProfile.failedLaunch": "فشل تشغيل الملف الشخصي: {error}",
   "commands.addProfile.failedCreate": "فشل إنشاء الملف الشخصي: {error}",
-
   "commands.launchProfile.noProfilesCreate": "لا توجد ملفات شخصية مُعدّة. هل تريد إنشاء واحد الآن؟",
   "commands.launchProfile.createProfile": "إنشاء ملف شخصي",
   "commands.launchProfile.selectPlaceholder": "اختر الملف الشخصي للتشغيل",
   "commands.launchProfile.lastLaunched": "آخر تشغيل: {date}",
   "commands.launchProfile.lastLaunchedNever": "أبداً",
   "commands.launchProfile.failedLaunch": "فشل تشغيل الملف الشخصي: {error}",
-
   "commands.listProfiles.header": "ملفات Cursor الشخصية المُعدّة:",
   "commands.listProfiles.noProfiles": "لا توجد ملفات شخصية مُعدّة. استخدم \"Cursor Accounts: Add Profile\" لإنشاء واحد.",
   "commands.listProfiles.email": "  البريد: {email}",
   "commands.listProfiles.path": "  المسار: {path}",
   "commands.listProfiles.lastLaunched": "  آخر تشغيل: {date}",
   "commands.listProfiles.failed": "فشل عرض الملفات الشخصية: {error}",
-
   "commands.deleteProfile.noProfiles": "لا توجد ملفات شخصية للحذف.",
   "commands.deleteProfile.selectPlaceholder": "اختر الملف الشخصي للحذف",
   "commands.deleteProfile.confirm": "حذف الملف الشخصي \"{name}\"؟ لن يتم حذف دليل بيانات المستخدم.",
   "commands.deleteProfile.delete": "حذف",
   "commands.deleteProfile.deleted": "تم حذف الملف الشخصي \"{name}\".",
   "commands.deleteProfile.failed": "فشل حذف الملف الشخصي: {error}",
-
   "commands.showCurrentProfile.default": "استخدام ملف Cursor الشخصي الافتراضي (لا يوجد ملف شخصي مخصص نشط)",
   "commands.showCurrentProfile.current": "الملف الشخصي الحالي: {name} ({email})",
   "commands.showCurrentProfile.failed": "فشل اكتشاف الملف الشخصي الحالي: {error}",
-
   "commands.exportProfiles.noProfiles": "لا توجد ملفات شخصية للتصدير.",
   "commands.exportProfiles.exportAll": "تصدير جميع الملفات الشخصية",
   "commands.exportProfiles.selectPlaceholder": "اختر الملفات الشخصية للتصدير",
@@ -53,7 +47,6 @@
   "commands.exportProfiles.no": "لا",
   "commands.exportProfiles.exported": "تم تصدير {count} ملف(ات) شخصي(ة) إلى {path}",
   "commands.exportProfiles.failed": "فشل تصدير الملفات الشخصية: {error}",
-
   "commands.importProfiles.invalidFile": "ملف استيراد غير صالح: {errors}",
   "commands.importProfiles.warningsContinue": "تحذيرات:\n{warnings}\n\nهل تريد المتابعة؟",
   "commands.importProfiles.continue": "متابعة",
@@ -61,9 +54,7 @@
   "commands.importProfiles.skipped": "تم التخطي: {count}",
   "commands.importProfiles.errors": "أخطاء: {count}",
   "commands.importProfiles.failed": "فشل استيراد الملفات الشخصية: {error}",
-
   "commands.openUsage.message": "افتح إعدادات Cursor واختر قسم الاستخدام لعرض تفاصيل الحصة الكاملة.",
-
   "panel.loadFailed": "Cursor Accounts: فشل تحميل لوحة الحسابات ({error})",
   "panel.title": "Cursor Accounts",
   "panel.loadingHtml": "جارٍ تحميل Cursor Accounts…",
@@ -80,12 +71,13 @@
   "panel.importErrors": "{count} خطأ(أخطاء)",
   "panel.importCompleted": "اكتمل الاستيراد",
   "panel.importCompletedWithErrors": "اكتمل الاستيراد مع أخطاء",
-
   "statusBar.profileTooltip": "انقر لعرض تفاصيل الملف الشخصي الحالي",
   "statusBar.loadingMonthlyUsage": "$(sync~spin) الاستخدام الشهري…",
   "statusBar.loadingUsage": "$(sync~spin) الاستخدام…",
   "statusBar.loadingMonthlyUsageTooltip": "جارٍ تحميل الاستخدام الشهري لـ Cursor…",
   "statusBar.loadingUsageTooltip": "جارٍ تحميل استخدام Cursor…",
+  "statusBar.selectAccount": "اختر الحساب",
+  "statusBar.selectAccountTooltip": "افتح Cursor Accounts لاختيار ملف شخصي",
   "statusBar.quotaUnavailable": "$(warning) الحصة غير متاحة",
   "statusBar.monthlySuffix": "شهري",
   "statusBar.usageSuffix": "استخدام",
@@ -108,11 +100,9 @@
   "statusBar.tooltipAutoModeUsed": "| **وضع تلقائي مستخدم** | {value} |",
   "statusBar.tooltipSpend": "| **الإنفاق** | {value} |",
   "statusBar.tooltipIncludedSpend": "| **الإنفاق المضمن** | {value} |",
-  "statusBar.tooltipClickToOpen": "\n\nانقر لفتح تفاصيل الاستخدام. استخدم **Cursor Accounts: Refresh Now** للتحديث.",
-
+  "statusBar.tooltipClickToOpen": "\n\nانقر لفتح Cursor Accounts في الشريط الجانبي. استخدم **Cursor Accounts: Refresh Now** للتحديث.",
   "formatters.unlimited": "غير محدود",
   "formatters.dash": "—",
-
   "efficiency.consent.message": "سيتم إنشاء مفتاح Cursor API باسم \"Cursor Accounts - API Key\" لهذا الحساب لتحليل كفاءة النموذج في الخلفية.",
   "efficiency.consent.confirm": "إنشاء مفتاح API وتفعيل",
   "efficiency.consent.cancel": "إلغاء",
@@ -141,9 +131,7 @@
   "efficiency.classifier.sdkNonJson": "أعاد SDK مخرجات تصنيف غير JSON",
   "efficiency.classifier.sdkEmpty": "أعادت عملية التصنيف نتيجة فارغة",
   "efficiency.classifier.sdkFailed": "فشل تصنيف SDK",
-
   "suggestedProfile.accountAlreadyConfigured": "الحساب {email} مُعدّ بالفعل. أدخل البريد والاسم للحساب الجديد.",
-
   "webview.app.title": "Cursor Accounts",
   "webview.app.loadingProfiles": "جارٍ تحميل الملفات الشخصية...",
   "webview.app.loadingAccount": "جارٍ تحميل الحساب…",
@@ -154,11 +142,9 @@
   "webview.app.addTitle": "إضافة ملف شخصي جديد",
   "webview.app.add": "+ إضافة",
   "webview.app.activeAccount": "الحساب النشط",
-
   "webview.emptyState.title": "لا توجد ملفات شخصية بعد",
   "webview.emptyState.description": "أنشئ ملفاً شخصياً لإدارة حسابات Cursor متعددة",
   "webview.emptyState.button": "أضف ملفك الشخصي الأول",
-
   "webview.addProfile.title": "إضافة ملف شخصي",
   "webview.addProfile.close": "إغلاق",
   "webview.addProfile.detectedAccount": "تم اكتشاف الحساب الحالي: {email}",
@@ -174,7 +160,6 @@
   "webview.addProfile.invalidEmail": "تنسيق البريد غير صالح",
   "webview.addProfile.cancel": "إلغاء",
   "webview.addProfile.create": "إنشاء ملف شخصي",
-
   "webview.editProfile.title": "تعديل الملف الشخصي",
   "webview.editProfile.emailLabel": "البريد",
   "webview.editProfile.displayNameLabel": "اسم العرض *",
@@ -187,17 +172,14 @@
   "webview.editProfile.displayNameRequired": "اسم العرض مطلوب",
   "webview.editProfile.cancel": "إلغاء",
   "webview.editProfile.save": "حفظ التغييرات",
-
   "webview.import.title": "استيراد الملفات الشخصية",
   "webview.import.fileLabel": "اختر ملف التصدير",
   "webview.import.skipDuplicates": "تخطي الملفات الشخصية المكررة",
   "webview.import.importSettings": "استيراد إعدادات VS Code",
   "webview.import.cancel": "إلغاء",
   "webview.import.submit": "استيراد",
-
   "webview.profileList.exportAll": "تصدير الكل",
   "webview.profileList.exportAllTitle": "تصدير جميع الملفات الشخصية",
-
   "webview.profileCard.unknownDate": "غير معروف",
   "webview.profileCard.today": "اليوم",
   "webview.profileCard.tomorrow": "غداً",

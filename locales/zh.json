@@ -7,7 +7,6 @@
   "errors.failedLoadProfiles": "加载配置文件失败",
   "errors.failedLaunchProfile": "启动配置文件失败",
   "errors.cursorExecutableNotFound": "未找到 Cursor 可执行文件",
-
   "commands.addProfile.promptEmail": "输入 Cursor 账户邮箱",
   "commands.addProfile.promptDisplayName": "输入配置文件显示名称（可选）",
   "commands.addProfile.emailPlaceholder": "user@example.com",
@@ -19,32 +18,27 @@
   "commands.addProfile.launching": "正在启动 {name}…",
   "commands.addProfile.failedLaunch": "启动配置文件失败：{error}",
   "commands.addProfile.failedCreate": "创建配置文件失败：{error}",
-
   "commands.launchProfile.noProfilesCreate": "未配置配置文件。立即创建一个？",
   "commands.launchProfile.createProfile": "创建配置文件",
   "commands.launchProfile.selectPlaceholder": "选择要启动的配置文件",
   "commands.launchProfile.lastLaunched": "上次启动：{date}",
   "commands.launchProfile.lastLaunchedNever": "从未",
   "commands.launchProfile.failedLaunch": "启动配置文件失败：{error}",
-
   "commands.listProfiles.header": "已配置的 Cursor 配置文件：",
   "commands.listProfiles.noProfiles": "未配置配置文件。使用「Cursor Accounts: 添加配置文件」创建一个。",
   "commands.listProfiles.email": "  邮箱：{email}",
   "commands.listProfiles.path": "  路径：{path}",
   "commands.listProfiles.lastLaunched": "  上次启动：{date}",
   "commands.listProfiles.failed": "列出配置文件失败：{error}",
-
   "commands.deleteProfile.noProfiles": "没有可删除的配置文件。",
   "commands.deleteProfile.selectPlaceholder": "选择要删除的配置文件",
   "commands.deleteProfile.confirm": "删除配置文件「{name}」？用户数据目录不会被删除。",
   "commands.deleteProfile.delete": "删除",
   "commands.deleteProfile.deleted": "配置文件「{name}」已删除。",
   "commands.deleteProfile.failed": "删除配置文件失败：{error}",
-
   "commands.showCurrentProfile.default": "使用默认 Cursor 配置文件（无自定义配置文件处于活动状态）",
   "commands.showCurrentProfile.current": "当前配置文件：{name}（{email}）",
   "commands.showCurrentProfile.failed": "检测当前配置文件失败：{error}",
-
   "commands.exportProfiles.noProfiles": "没有可导出的配置文件。",
   "commands.exportProfiles.exportAll": "导出所有配置文件",
   "commands.exportProfiles.selectPlaceholder": "选择要导出的配置文件",
@@ -53,7 +47,6 @@
   "commands.exportProfiles.no": "否",
   "commands.exportProfiles.exported": "已将 {count} 个配置文件导出到 {path}",
   "commands.exportProfiles.failed": "导出配置文件失败：{error}",
-
   "commands.importProfiles.invalidFile": "无效的导入文件：{errors}",
   "commands.importProfiles.warningsContinue": "警告：\n{warnings}\n\n继续？",
   "commands.importProfiles.continue": "继续",
@@ -61,9 +54,7 @@
   "commands.importProfiles.skipped": "已跳过：{count}",
   "commands.importProfiles.errors": "错误：{count}",
   "commands.importProfiles.failed": "导入配置文件失败：{error}",
-
   "commands.openUsage.message": "打开 Cursor 设置并选择 Usage 部分以查看完整的配额详情。",
-
   "panel.loadFailed": "Cursor Accounts：加载账户面板失败（{error}）",
   "panel.title": "Cursor Accounts",
   "panel.loadingHtml": "正在加载 Cursor Accounts…",
@@ -80,12 +71,13 @@
   "panel.importErrors": "{count} 个错误",
   "panel.importCompleted": "导入完成",
   "panel.importCompletedWithErrors": "导入完成但有错误",
-
   "statusBar.profileTooltip": "点击查看当前配置文件详情",
   "statusBar.loadingMonthlyUsage": "$(sync~spin) 月度使用量…",
   "statusBar.loadingUsage": "$(sync~spin) 使用量…",
   "statusBar.loadingMonthlyUsageTooltip": "正在加载 Cursor 月度使用量…",
   "statusBar.loadingUsageTooltip": "正在加载 Cursor 使用量…",
+  "statusBar.selectAccount": "选择账户",
+  "statusBar.selectAccountTooltip": "打开 Cursor Accounts 以选择配置文件",
   "statusBar.quotaUnavailable": "$(warning) 配额不可用",
   "statusBar.monthlySuffix": "月度",
   "statusBar.usageSuffix": "使用量",
@@ -108,11 +100,9 @@
   "statusBar.tooltipAutoModeUsed": "| **自动模式已用** | {value} |",
   "statusBar.tooltipSpend": "| **支出** | {value} |",
   "statusBar.tooltipIncludedSpend": "| **包含支出** | {value} |",
-  "statusBar.tooltipClickToOpen": "\n\n点击查看使用量详情。使用 **Cursor Accounts: 立即刷新** 更新。",
-
+  "statusBar.tooltipClickToOpen": "\n\n点击在侧边栏中打开 Cursor Accounts。使用 **Cursor Accounts: Refresh Now** 进行更新。",
   "formatters.unlimited": "无限制",
   "formatters.dash": "—",
-
   "efficiency.consent.message": "将为此账户创建名为「Cursor Accounts - API Key」的 Cursor API 密钥，以在后台分析模型效率。",
   "efficiency.consent.confirm": "创建 API 密钥并启用",
   "efficiency.consent.cancel": "取消",
@@ -141,9 +131,7 @@
   "efficiency.classifier.sdkNonJson": "SDK 返回了非 JSON 分类输出",
   "efficiency.classifier.sdkEmpty": "分类运行返回空结果",
   "efficiency.classifier.sdkFailed": "SDK 分类失败",
-
   "suggestedProfile.accountAlreadyConfigured": "账户 {email} 已配置。请输入新账户的邮箱和名称。",
-
   "webview.app.title": "Cursor Accounts",
   "webview.app.loadingProfiles": "正在加载配置文件…",
   "webview.app.loadingAccount": "正在加载账户…",
@@ -154,11 +142,9 @@
   "webview.app.addTitle": "添加新配置文件",
   "webview.app.add": "+ 添加",
   "webview.app.activeAccount": "活动账户",
-
   "webview.emptyState.title": "尚无配置文件",
   "webview.emptyState.description": "创建配置文件以管理多个 Cursor 账户",
   "webview.emptyState.button": "添加第一个配置文件",
-
   "webview.addProfile.title": "添加配置文件",
   "webview.addProfile.close": "关闭",
   "webview.addProfile.detectedAccount": "检测到当前账户：{email}",
@@ -174,7 +160,6 @@
   "webview.addProfile.invalidEmail": "邮箱格式无效",
   "webview.addProfile.cancel": "取消",
   "webview.addProfile.create": "创建配置文件",
-
   "webview.editProfile.title": "编辑配置文件",
   "webview.editProfile.emailLabel": "邮箱",
   "webview.editProfile.displayNameLabel": "显示名称 *",
@@ -187,17 +172,14 @@
   "webview.editProfile.displayNameRequired": "显示名称为必填项",
   "webview.editProfile.cancel": "取消",
   "webview.editProfile.save": "保存更改",
-
   "webview.import.title": "导入配置文件",
   "webview.import.fileLabel": "选择导出文件",
   "webview.import.skipDuplicates": "跳过重复配置文件",
   "webview.import.importSettings": "导入 VS Code 设置",
   "webview.import.cancel": "取消",
   "webview.import.submit": "导入",
-
   "webview.profileList.exportAll": "全部导出",
   "webview.profileList.exportAllTitle": "导出所有配置文件",
-
   "webview.profileCard.unknownDate": "未知",
   "webview.profileCard.today": "今天",
   "webview.profileCard.tomorrow": "明天",

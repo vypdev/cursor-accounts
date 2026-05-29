@@ -7,7 +7,6 @@
   "errors.failedLoadProfiles": "प्रोफ़ाइल लोड करने में विफल",
   "errors.failedLaunchProfile": "प्रोफ़ाइल लॉन्च करने में विफल",
   "errors.cursorExecutableNotFound": "Cursor executable नहीं मिला",
-
   "commands.addProfile.promptEmail": "Cursor खाता ईमेल दर्ज करें",
   "commands.addProfile.promptDisplayName": "प्रोफ़ाइल प्रदर्शन नाम दर्ज करें (वैकल्पिक)",
   "commands.addProfile.emailPlaceholder": "user@example.com",
@@ -19,32 +18,27 @@
   "commands.addProfile.launching": "{name} लॉन्च हो रहा है...",
   "commands.addProfile.failedLaunch": "प्रोफ़ाइल लॉन्च करने में विफल: {error}",
   "commands.addProfile.failedCreate": "प्रोफ़ाइल बनाने में विफल: {error}",
-
   "commands.launchProfile.noProfilesCreate": "कोई प्रोफ़ाइल कॉन्फ़िगर नहीं है। अभी एक बनाएँ?",
   "commands.launchProfile.createProfile": "प्रोफ़ाइल बनाएँ",
   "commands.launchProfile.selectPlaceholder": "लॉन्च करने के लिए प्रोफ़ाइल चुनें",
   "commands.launchProfile.lastLaunched": "अंतिम लॉन्च: {date}",
   "commands.launchProfile.lastLaunchedNever": "कभी नहीं",
   "commands.launchProfile.failedLaunch": "प्रोफ़ाइल लॉन्च करने में विफल: {error}",
-
   "commands.listProfiles.header": "कॉन्फ़िगर की गई Cursor प्रोफ़ाइल:",
   "commands.listProfiles.noProfiles": "कोई प्रोफ़ाइल कॉन्फ़िगर नहीं है। बनाने के लिए \"Cursor Accounts: Add Profile\" का उपयोग करें।",
   "commands.listProfiles.email": "  ईमेल: {email}",
   "commands.listProfiles.path": "  पथ: {path}",
   "commands.listProfiles.lastLaunched": "  अंतिम लॉन्च: {date}",
   "commands.listProfiles.failed": "प्रोफ़ाइल सूचीबद्ध करने में विफल: {error}",
-
   "commands.deleteProfile.noProfiles": "हटाने के लिए कोई प्रोफ़ाइल नहीं।",
   "commands.deleteProfile.selectPlaceholder": "हटाने के लिए प्रोफ़ाइल चुनें",
   "commands.deleteProfile.confirm": "प्रोफ़ाइल \"{name}\" हटाएँ? यह उपयोगकर्ता डेटा निर्देशिका को नहीं हटाएगा।",
   "commands.deleteProfile.delete": "हटाएँ",
   "commands.deleteProfile.deleted": "प्रोफ़ाइल \"{name}\" हटाई गई।",
   "commands.deleteProfile.failed": "प्रोफ़ाइल हटाने में विफल: {error}",
-
   "commands.showCurrentProfile.default": "डिफ़ॉल्ट Cursor प्रोफ़ाइल उपयोग में (कोई कस्टम प्रोफ़ाइल सक्रिय नहीं)",
   "commands.showCurrentProfile.current": "वर्तमान प्रोफ़ाइल: {name} ({email})",
   "commands.showCurrentProfile.failed": "वर्तमान प्रोफ़ाइल पहचानने में विफल: {error}",
-
   "commands.exportProfiles.noProfiles": "निर्यात करने के लिए कोई प्रोफ़ाइल नहीं।",
   "commands.exportProfiles.exportAll": "सभी प्रोफ़ाइल निर्यात करें",
   "commands.exportProfiles.selectPlaceholder": "निर्यात करने के लिए प्रोफ़ाइल चुनें",
@@ -53,7 +47,6 @@
   "commands.exportProfiles.no": "नहीं",
   "commands.exportProfiles.exported": "{count} प्रोफ़ाइल {path} में निर्यात की गई",
   "commands.exportProfiles.failed": "प्रोफ़ाइल निर्यात करने में विफल: {error}",
-
   "commands.importProfiles.invalidFile": "अमान्य आयात फ़ाइल: {errors}",
   "commands.importProfiles.warningsContinue": "चेतावनियाँ:\n{warnings}\n\nजारी रखें?",
   "commands.importProfiles.continue": "जारी रखें",
@@ -61,9 +54,7 @@
   "commands.importProfiles.skipped": "छोड़ा गया: {count}",
   "commands.importProfiles.errors": "त्रुटियाँ: {count}",
   "commands.importProfiles.failed": "प्रोफ़ाइल आयात करने में विफल: {error}",
-
   "commands.openUsage.message": "Cursor Settings खोलें और पूर्ण कोटा विवरण देखने के लिए Usage अनुभाग चुनें।",
-
   "panel.loadFailed": "Cursor Accounts: Accounts पैनल लोड करने में विफल ({error})",
   "panel.title": "Cursor Accounts",
   "panel.loadingHtml": "Cursor Accounts लोड हो रहा है…",
@@ -80,12 +71,13 @@
   "panel.importErrors": "{count} त्रुटि(याँ)",
   "panel.importCompleted": "आयात पूर्ण",
   "panel.importCompletedWithErrors": "त्रुटियों के साथ आयात पूर्ण",
-
   "statusBar.profileTooltip": "वर्तमान प्रोफ़ाइल विवरण देखने के लिए क्लिक करें",
   "statusBar.loadingMonthlyUsage": "$(sync~spin) मासिक उपयोग…",
   "statusBar.loadingUsage": "$(sync~spin) उपयोग…",
   "statusBar.loadingMonthlyUsageTooltip": "Cursor मासिक उपयोग लोड हो रहा है…",
   "statusBar.loadingUsageTooltip": "Cursor उपयोग लोड हो रहा है…",
+  "statusBar.selectAccount": "खाता चुनें",
+  "statusBar.selectAccountTooltip": "प्रोफ़ाइल चुनने के लिए Cursor Accounts खोलें",
   "statusBar.quotaUnavailable": "$(warning) कोटा उपलब्ध नहीं",
   "statusBar.monthlySuffix": "मासिक",
   "statusBar.usageSuffix": "उपयोग",
@@ -108,11 +100,9 @@
   "statusBar.tooltipAutoModeUsed": "| **ऑटो मोड उपयोग** | {value} |",
   "statusBar.tooltipSpend": "| **खर्च** | {value} |",
   "statusBar.tooltipIncludedSpend": "| **शामिल खर्च** | {value} |",
-  "statusBar.tooltipClickToOpen": "\n\nउपयोग विवरण खोलने के लिए क्लिक करें। अपडेट करने के लिए **Cursor Accounts: Refresh Now** का उपयोग करें।",
-
+  "statusBar.tooltipClickToOpen": "\n\nसाइडबार में Cursor Accounts खोलने के लिए क्लिक करें। अपडेट करने के लिए **Cursor Accounts: Refresh Now** का उपयोग करें।",
   "formatters.unlimited": "असीमित",
   "formatters.dash": "—",
-
   "efficiency.consent.message": "इस खाते के लिए पृष्ठभूमि में मॉडल दक्षता का विश्लेषण करने हेतु \"Cursor Accounts - API Key\" नाम का Cursor API key बनाया जाएगा।",
   "efficiency.consent.confirm": "API key बनाएँ और सक्षम करें",
   "efficiency.consent.cancel": "रद्द करें",
@@ -141,9 +131,7 @@
   "efficiency.classifier.sdkNonJson": "SDK ने गैर-JSON वर्गीकरण आउटपुट लौटाया",
   "efficiency.classifier.sdkEmpty": "वर्गीकरण रन ने खाली परिणाम लौटाया",
   "efficiency.classifier.sdkFailed": "SDK वर्गीकरण विफल",
-
   "suggestedProfile.accountAlreadyConfigured": "खाता {email} पहले से कॉन्फ़िगर है। नए खाते के लिए ईमेल और नाम दर्ज करें।",
-
   "webview.app.title": "Cursor Accounts",
   "webview.app.loadingProfiles": "प्रोफ़ाइल लोड हो रही हैं...",
   "webview.app.loadingAccount": "खाता लोड हो रहा है…",
@@ -154,11 +142,9 @@
   "webview.app.addTitle": "नई प्रोफ़ाइल जोड़ें",
   "webview.app.add": "+ जोड़ें",
   "webview.app.activeAccount": "सक्रिय खाता",
-
   "webview.emptyState.title": "अभी कोई प्रोफ़ाइल नहीं",
   "webview.emptyState.description": "कई Cursor खातों को प्रबंधित करने के लिए प्रोफ़ाइल बनाएँ",
   "webview.emptyState.button": "अपनी पहली प्रोफ़ाइल जोड़ें",
-
   "webview.addProfile.title": "प्रोफ़ाइल जोड़ें",
   "webview.addProfile.close": "बंद करें",
   "webview.addProfile.detectedAccount": "वर्तमान खाता पहचाना गया: {email}",
@@ -174,7 +160,6 @@
   "webview.addProfile.invalidEmail": "अमान्य ईमेल प्रारूप",
   "webview.addProfile.cancel": "रद्द करें",
   "webview.addProfile.create": "प्रोफ़ाइल बनाएँ",
-
   "webview.editProfile.title": "प्रोफ़ाइल संपादित करें",
   "webview.editProfile.emailLabel": "ईमेल",
   "webview.editProfile.displayNameLabel": "प्रदर्शन नाम *",
@@ -187,17 +172,14 @@
   "webview.editProfile.displayNameRequired": "प्रदर्शन नाम आवश्यक है",
   "webview.editProfile.cancel": "रद्द करें",
   "webview.editProfile.save": "परिवर्तन सहेजें",
-
   "webview.import.title": "प्रोफ़ाइल आयात करें",
   "webview.import.fileLabel": "निर्यात फ़ाइल चुनें",
   "webview.import.skipDuplicates": "डुप्लिकेट प्रोफ़ाइल छोड़ें",
   "webview.import.importSettings": "VS Code सेटिंग्स आयात करें",
   "webview.import.cancel": "रद्द करें",
   "webview.import.submit": "आयात",
-
   "webview.profileList.exportAll": "सभी निर्यात",
   "webview.profileList.exportAllTitle": "सभी प्रोफ़ाइल निर्यात करें",
-
   "webview.profileCard.unknownDate": "अज्ञात",
   "webview.profileCard.today": "आज",
   "webview.profileCard.tomorrow": "कल",

@@ -1,9 +1,15 @@
 import * as vscode from 'vscode';
 import * as extensionLog from '../logging/extensionLog';
-import { QuotaUsage, getEffectiveUsagePercent, getPersonalModeAveragePercent, isEnterpriseUsage } from '../api/types';
+import {
+  QuotaUsage,
+  getEffectiveUsagePercent,
+  getPersonalModeAveragePercent,
+  isEnterpriseUsage,
+} from '../api/types';
 import { getCursorAccountsConfig } from '../config';
 import { t } from '../l10n';
 import { ProfileDetector } from '../profiles/profileDetector';
+import { Profile } from '../profiles/types';
 import {
   clampPercent,
   formatBillingDate,
@@ -12,185 +18,181 @@ import {
   formatPercent,
   renderProgressBar,
 } from '../utils/formatters';
+import { appendProfileSuffix } from '../utils/statusBarLabel';
 
-const PROFILE_PRIORITY = 102;
-const INCLUDED_PRIORITY = 101;
-const TOTAL_PRIORITY = 100;
+const QUOTA_ITEM_PRIORITY = 100;
 
 export class StatusBarManager {
-  private readonly profileItem?: vscode.StatusBarItem;
-  private readonly includedItem: vscode.StatusBarItem;
-  private readonly totalItem: vscode.StatusBarItem;
+  private readonly quotaItem: vscode.StatusBarItem;
+  private activeProfile: Profile | null = null;
+  private quotaLoading = false;
+  private quotaError: string | undefined;
 
   constructor(
     private readonly context: vscode.ExtensionContext,
     private readonly profileDetector?: ProfileDetector
   ) {
-    if (profileDetector) {
-      this.profileItem = vscode.window.createStatusBarItem(
-        vscode.StatusBarAlignment.Right,
-        PROFILE_PRIORITY
-      );
-      this.profileItem.name = 'cursorAccounts.profile';
-      this.profileItem.command = 'cursorAccounts.showCurrentProfile';
-      this.profileItem.tooltip = t('statusBar.profileTooltip');
-      context.subscriptions.push(this.profileItem);
-    }
-
-    this.includedItem = vscode.window.createStatusBarItem(
+    this.quotaItem = vscode.window.createStatusBarItem(
       vscode.StatusBarAlignment.Right,
-      INCLUDED_PRIORITY
+      QUOTA_ITEM_PRIORITY
     );
-    this.includedItem.name = 'cursorAccounts.included';
-    this.includedItem.command = 'cursorAccounts.openUsage';
-
-    this.totalItem = vscode.window.createStatusBarItem(
-      vscode.StatusBarAlignment.Right,
-      TOTAL_PRIORITY
-    );
-    this.totalItem.name = 'cursorAccounts.total';
-    this.totalItem.command = 'cursorAccounts.openUsage';
-
-    context.subscriptions.push(this.includedItem, this.totalItem);
+    this.quotaItem.name = 'cursorAccounts.quota';
+    this.quotaItem.command = 'cursorAccounts.openAccounts';
+    context.subscriptions.push(this.quotaItem);
   }
 
   showOnActivate(): void {
-    void this.updateProfileIndicator();
-
-    const cached = this.readCache();
-    if (cached) {
-      this.render(cached);
-    } else {
-      this.showLoading();
-    }
+    void this.updateProfileIndicator().then(() => {
+      const cached = this.readCache();
+      if (cached) {
+        this.render(cached);
+      } else {
+        this.showLoading();
+      }
+    });
   }
 
   showLoading(): void {
-    const cfg = getCursorAccountsConfig();
-    const cached = this.readCache();
-    const isEnterprise = isEnterpriseUsage(cached);
-    const showPersonalQuota = cfg.showTotal || cfg.showIncluded;
-
-    this.includedItem.hide();
-
-    if (isEnterprise ? cfg.showTotal : showPersonalQuota) {
-      this.totalItem.text = isEnterprise
-        ? t('statusBar.loadingMonthlyUsage')
-        : t('statusBar.loadingUsage');
-      this.totalItem.tooltip = isEnterprise
-        ? t('statusBar.loadingMonthlyUsageTooltip')
-        : t('statusBar.loadingUsageTooltip');
-      this.totalItem.backgroundColor = undefined;
-      this.totalItem.show();
-    } else {
-      this.totalItem.hide();
-    }
+    this.quotaLoading = true;
+    this.quotaError = undefined;
+    this.refreshDisplay();
   }
 
   render(usage: QuotaUsage): void {
-    const cfg = getCursorAccountsConfig();
-    const isEnterprise = isEnterpriseUsage(usage);
-    const isMonthlySpend = usage.displayMode === 'monthlySpend';
-    const isPersonalPercent = !isEnterprise && !isMonthlySpend;
-    const effectivePct = clampPercent(getEffectiveUsagePercent(usage));
-    const averagePct = clampPercent(getPersonalModeAveragePercent(usage));
-    const showPersonalQuota = cfg.showTotal || cfg.showIncluded;
-    const tooltip = this.buildTooltip(usage, cfg.showAccountEmail);
-
-    this.includedItem.hide();
-
-    if (isEnterprise ? cfg.showTotal : showPersonalQuota) {
-      const barPct = isEnterprise || isMonthlySpend ? effectivePct : averagePct;
-      const bar = renderProgressBar(barPct);
-
-      if (isEnterprise && isMonthlySpend) {
-        const spend = usage.monthlySpend ?? usage.totalSpend;
-        const limit = usage.monthlyLimit;
-        this.totalItem.text = `$(pulse) ${bar} ${formatPercent(effectivePct)} · ${formatMonthlySpend(spend, limit)}`;
-      } else if (isMonthlySpend) {
-        const spend = usage.monthlySpend ?? usage.totalSpend;
-        const limit = usage.monthlyLimit;
-        this.totalItem.text = `$(pulse) ${bar} ${formatMonthlySpend(spend, limit)} ${t('statusBar.monthlySuffix')}`;
-      } else if (isPersonalPercent) {
-        this.totalItem.text = `$(pulse) ${bar} ${formatPercent(averagePct)} ${t('statusBar.usageSuffix')}`;
-      } else {
-        this.totalItem.text = `$(pulse) ${bar} ${formatPercent(effectivePct)} ${t('statusBar.planSuffix')}`;
-      }
-
-      this.totalItem.tooltip = tooltip;
-      this.totalItem.backgroundColor = backgroundForPercent(barPct);
-      this.totalItem.show();
-    } else {
-      this.totalItem.hide();
-    }
-
+    this.quotaLoading = false;
+    this.quotaError = undefined;
     void this.context.globalState.update('lastQuota', usage);
+    this.refreshDisplay(usage);
   }
 
   showError(message: string): void {
-    const cfg = getCursorAccountsConfig();
-    const text = t('statusBar.quotaUnavailable');
-    const cached = this.readCache();
-    const isEnterprise = isEnterpriseUsage(cached);
-    const showPersonalQuota = cfg.showTotal || cfg.showIncluded;
-
-    this.includedItem.hide();
-
-    if (isEnterprise ? cfg.showTotal : showPersonalQuota) {
-      this.totalItem.text = text;
-      this.totalItem.tooltip = message;
-      this.totalItem.backgroundColor = new vscode.ThemeColor(
-        'statusBarItem.warningBackground'
-      );
-      this.totalItem.show();
-    } else {
-      this.totalItem.hide();
-    }
+    this.quotaLoading = false;
+    this.quotaError = message;
+    this.refreshDisplay();
   }
 
   applyVisibilityFromConfig(): void {
-    void this.updateProfileIndicator();
-
-    const cached = this.readCache();
-    if (cached) {
-      this.render(cached);
-    } else {
-      this.showLoading();
-    }
+    void this.updateProfileIndicator().then(() => {
+      const cached = this.readCache();
+      if (cached) {
+        this.render(cached);
+      } else {
+        this.showLoading();
+      }
+    });
   }
 
   async updateProfileIndicator(): Promise<void> {
-    if (!this.profileDetector || !this.profileItem) {
+    if (!this.profileDetector) {
       return;
     }
 
     try {
-      const profile = await this.profileDetector.detectCurrentProfile();
-      const cfg = getCursorAccountsConfig();
-
-      if (!cfg.showProfileInStatusBar) {
-        this.profileItem.hide();
-        return;
-      }
-
-      if (profile) {
-        this.profileItem.text = `$(account) ${profile.displayName}`;
-        this.profileItem.tooltip = t('statusBar.profileActiveTooltip', {
-          name: profile.displayName,
-          email: profile.email,
-        });
-        this.profileItem.show();
-      } else {
-        this.profileItem.text = t('statusBar.profileDefault');
-        this.profileItem.tooltip = t('statusBar.defaultProfileTooltip');
-        this.profileItem.show();
-      }
+      this.activeProfile = await this.profileDetector.detectCurrentProfile();
     } catch (error) {
       extensionLog.error(
         `[StatusBarManager] Failed to update profile indicator: ${extensionLog.formatError(error)}`
       );
-      this.profileItem.hide();
+      this.activeProfile = null;
     }
+
+    this.refreshDisplay();
+  }
+
+  private refreshDisplay(usageOverride?: QuotaUsage): void {
+    const cfg = getCursorAccountsConfig();
+    const showProfileName = cfg.showProfileInStatusBar;
+    const profileName = this.activeProfile?.displayName;
+
+    this.quotaItem.command = 'cursorAccounts.openAccounts';
+
+    if (!this.activeProfile) {
+      this.quotaItem.text = `$(account) ${t('statusBar.selectAccount')}`;
+      this.quotaItem.tooltip = t('statusBar.selectAccountTooltip');
+      this.quotaItem.backgroundColor = undefined;
+      this.quotaItem.show();
+      return;
+    }
+
+    const cached = usageOverride ?? this.readCache();
+    const isEnterprise = isEnterpriseUsage(cached);
+    const showQuota = isEnterprise ? cfg.showTotal : cfg.showTotal || cfg.showIncluded;
+
+    if (!showQuota && !showProfileName) {
+      this.quotaItem.hide();
+      return;
+    }
+
+    if (!showQuota) {
+      this.quotaItem.text = `$(account) ${profileName}`;
+      this.quotaItem.tooltip = this.buildProfileTooltip(this.activeProfile);
+      this.quotaItem.backgroundColor = undefined;
+      this.quotaItem.show();
+      return;
+    }
+
+    if (this.quotaLoading) {
+      const base = isEnterprise
+        ? t('statusBar.loadingMonthlyUsage')
+        : t('statusBar.loadingUsage');
+      this.quotaItem.text = appendProfileSuffix(base, profileName, showProfileName);
+      this.quotaItem.tooltip = isEnterprise
+        ? t('statusBar.loadingMonthlyUsageTooltip')
+        : t('statusBar.loadingUsageTooltip');
+      this.quotaItem.backgroundColor = undefined;
+      this.quotaItem.show();
+      return;
+    }
+
+    if (this.quotaError) {
+      const base = t('statusBar.quotaUnavailable');
+      this.quotaItem.text = appendProfileSuffix(base, profileName, showProfileName);
+      this.quotaItem.tooltip = this.quotaError;
+      this.quotaItem.backgroundColor = new vscode.ThemeColor(
+        'statusBarItem.warningBackground'
+      );
+      this.quotaItem.show();
+      return;
+    }
+
+    if (!cached) {
+      this.quotaItem.hide();
+      return;
+    }
+
+    const isMonthlySpend = cached.displayMode === 'monthlySpend';
+    const isPersonalPercent = !isEnterprise && !isMonthlySpend;
+    const effectivePct = clampPercent(getEffectiveUsagePercent(cached));
+    const averagePct = clampPercent(getPersonalModeAveragePercent(cached));
+    const barPct = isEnterprise || isMonthlySpend ? effectivePct : averagePct;
+    const bar = renderProgressBar(barPct);
+
+    let baseText: string;
+    if (isEnterprise && isMonthlySpend) {
+      const spend = cached.monthlySpend ?? cached.totalSpend;
+      const limit = cached.monthlyLimit;
+      baseText = `$(pulse) ${bar} ${formatPercent(effectivePct)} · ${formatMonthlySpend(spend, limit)}`;
+    } else if (isMonthlySpend) {
+      const spend = cached.monthlySpend ?? cached.totalSpend;
+      const limit = cached.monthlyLimit;
+      baseText = `$(pulse) ${bar} ${formatMonthlySpend(spend, limit)} ${t('statusBar.monthlySuffix')}`;
+    } else if (isPersonalPercent) {
+      baseText = `$(pulse) ${bar} ${formatPercent(averagePct)} ${t('statusBar.usageSuffix')}`;
+    } else {
+      baseText = `$(pulse) ${bar} ${formatPercent(effectivePct)} ${t('statusBar.planSuffix')}`;
+    }
+
+    this.quotaItem.text = appendProfileSuffix(baseText, profileName, showProfileName);
+    this.quotaItem.tooltip = this.buildTooltip(cached, cfg.showAccountEmail);
+    this.quotaItem.backgroundColor = backgroundForPercent(barPct);
+    this.quotaItem.show();
+  }
+
+  private buildProfileTooltip(profile: Profile): string | vscode.MarkdownString {
+    return t('statusBar.profileActiveTooltip', {
+      name: profile.displayName,
+      email: profile.email,
+    });
   }
 
   private readCache(): QuotaUsage | undefined {

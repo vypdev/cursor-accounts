@@ -7,7 +7,6 @@
   "errors.failedLoadProfiles": "טעינת פרופילים נכשלה",
   "errors.failedLaunchProfile": "הפעלת פרופיל נכשלה",
   "errors.cursorExecutableNotFound": "קובץ ההפעלה של Cursor לא נמצא",
-
   "commands.addProfile.promptEmail": "הזן אימייל של חשבון Cursor",
   "commands.addProfile.promptDisplayName": "הזן שם תצוגה לפרופיל (אופציונלי)",
   "commands.addProfile.emailPlaceholder": "user@example.com",
@@ -19,32 +18,27 @@
   "commands.addProfile.launching": "מפעיל {name}...",
   "commands.addProfile.failedLaunch": "הפעלת פרופיל נכשלה: {error}",
   "commands.addProfile.failedCreate": "יצירת פרופיל נכשלה: {error}",
-
   "commands.launchProfile.noProfilesCreate": "לא הוגדרו פרופילים. ליצור אחד עכשיו?",
   "commands.launchProfile.createProfile": "צור פרופיל",
   "commands.launchProfile.selectPlaceholder": "בחר פרופיל להפעלה",
   "commands.launchProfile.lastLaunched": "הופעל לאחרונה: {date}",
   "commands.launchProfile.lastLaunchedNever": "מעולם לא",
   "commands.launchProfile.failedLaunch": "הפעלת פרופיל נכשלה: {error}",
-
   "commands.listProfiles.header": "פרופילי Cursor שהוגדרו:",
   "commands.listProfiles.noProfiles": "לא הוגדרו פרופילים. השתמש ב-\"Cursor Accounts: Add Profile\" כדי ליצור אחד.",
   "commands.listProfiles.email": "  אימייל: {email}",
   "commands.listProfiles.path": "  נתיב: {path}",
   "commands.listProfiles.lastLaunched": "  הופעל לאחרונה: {date}",
   "commands.listProfiles.failed": "רישום פרופילים נכשל: {error}",
-
   "commands.deleteProfile.noProfiles": "אין פרופילים למחיקה.",
   "commands.deleteProfile.selectPlaceholder": "בחר פרופיל למחיקה",
   "commands.deleteProfile.confirm": "למחוק פרופיל \"{name}\"? פעולה זו לא תמחק את תיקיית נתוני המשתמש.",
   "commands.deleteProfile.delete": "מחק",
   "commands.deleteProfile.deleted": "פרופיל \"{name}\" נמחק.",
   "commands.deleteProfile.failed": "מחיקת פרופיל נכשלה: {error}",
-
   "commands.showCurrentProfile.default": "משתמש בפרופיל Cursor ברירת המחדל (אין פרופיל מותאם פעיל)",
   "commands.showCurrentProfile.current": "פרופיל נוכחי: {name} ({email})",
   "commands.showCurrentProfile.failed": "זיהוי פרופיל נוכחי נכשל: {error}",
-
   "commands.exportProfiles.noProfiles": "אין פרופילים לייצוא.",
   "commands.exportProfiles.exportAll": "ייצא את כל הפרופילים",
   "commands.exportProfiles.selectPlaceholder": "בחר פרופילים לייצוא",
@@ -53,7 +47,6 @@
   "commands.exportProfiles.no": "לא",
   "commands.exportProfiles.exported": "יוצאו {count} פרופיל(ים) אל {path}",
   "commands.exportProfiles.failed": "ייצוא פרופילים נכשל: {error}",
-
   "commands.importProfiles.invalidFile": "קובץ ייבוא לא תקין: {errors}",
   "commands.importProfiles.warningsContinue": "אזהרות:\n{warnings}\n\nלהמשיך?",
   "commands.importProfiles.continue": "המשך",
@@ -61,9 +54,7 @@
   "commands.importProfiles.skipped": "דולגו: {count}",
   "commands.importProfiles.errors": "שגיאות: {count}",
   "commands.importProfiles.failed": "ייבוא פרופילים נכשל: {error}",
-
   "commands.openUsage.message": "פתח את Cursor Settings ובחר את מקטע Usage כדי לצפות בפרטי המכסה המלאים.",
-
   "panel.loadFailed": "Cursor Accounts: טעינת לוח Accounts נכשלה ({error})",
   "panel.title": "Cursor Accounts",
   "panel.loadingHtml": "טוען Cursor Accounts…",
@@ -80,12 +71,13 @@
   "panel.importErrors": "{count} שגיאה(ות)",
   "panel.importCompleted": "הייבוא הושלם",
   "panel.importCompletedWithErrors": "הייבוא הושלם עם שגיאות",
-
   "statusBar.profileTooltip": "לחץ לצפייה בפרטי הפרופיל הנוכחי",
   "statusBar.loadingMonthlyUsage": "$(sync~spin) שימוש חודשי…",
   "statusBar.loadingUsage": "$(sync~spin) שימוש…",
   "statusBar.loadingMonthlyUsageTooltip": "טוען שימוש חודשי של Cursor…",
   "statusBar.loadingUsageTooltip": "טוען שימוש Cursor…",
+  "statusBar.selectAccount": "בחר חשבון",
+  "statusBar.selectAccountTooltip": "פתח את Cursor Accounts כדי לבחור פרופיל",
   "statusBar.quotaUnavailable": "$(warning) מכסה לא זמינה",
   "statusBar.monthlySuffix": "חודשי",
   "statusBar.usageSuffix": "שימוש",
@@ -108,11 +100,9 @@
   "statusBar.tooltipAutoModeUsed": "| **מצב אוטומטי בשימוש** | {value} |",
   "statusBar.tooltipSpend": "| **הוצאה** | {value} |",
   "statusBar.tooltipIncludedSpend": "| **הוצאה כלולה** | {value} |",
-  "statusBar.tooltipClickToOpen": "\n\nלחץ לפתיחת פרטי שימוש. השתמש ב-**Cursor Accounts: Refresh Now** לעדכון.",
-
+  "statusBar.tooltipClickToOpen": "\n\nלחץ כדי לפתוח את Cursor Accounts בסרגל הצד. השתמש ב-**Cursor Accounts: Refresh Now** לעדכון.",
   "formatters.unlimited": "ללא הגבלה",
   "formatters.dash": "—",
-
   "efficiency.consent.message": "מפתח Cursor API בשם \"Cursor Accounts - API Key\" ייווצר עבור חשבון זה לניתוח יעילות מודל ברקע.",
   "efficiency.consent.confirm": "צור מפתח API והפעל",
   "efficiency.consent.cancel": "ביטול",
@@ -141,9 +131,7 @@
   "efficiency.classifier.sdkNonJson": "SDK החזיר פלט סיווג שאינו JSON",
   "efficiency.classifier.sdkEmpty": "הרצת סיווג החזירה תוצאה ריקה",
   "efficiency.classifier.sdkFailed": "סיווג SDK נכשל",
-
   "suggestedProfile.accountAlreadyConfigured": "חשבון {email} כבר מוגדר. הזן את האימייל והשם עבור החשבון החדש.",
-
   "webview.app.title": "Cursor Accounts",
   "webview.app.loadingProfiles": "טוען פרופילים...",
   "webview.app.loadingAccount": "טוען חשבון…",
@@ -154,11 +142,9 @@
   "webview.app.addTitle": "הוסף פרופיל חדש",
   "webview.app.add": "+ הוסף",
   "webview.app.activeAccount": "חשבון פעיל",
-
   "webview.emptyState.title": "אין פרופילים עדיין",
   "webview.emptyState.description": "צור פרופיל לניהול מספר חשבונות Cursor",
   "webview.emptyState.button": "הוסף את הפרופיל הראשון שלך",
-
   "webview.addProfile.title": "הוסף פרופיל",
   "webview.addProfile.close": "סגור",
   "webview.addProfile.detectedAccount": "זוהה חשבון נוכחי: {email}",
@@ -174,7 +160,6 @@
   "webview.addProfile.invalidEmail": "פורמט אימייל לא תקין",
   "webview.addProfile.cancel": "ביטול",
   "webview.addProfile.create": "צור פרופיל",
-
   "webview.editProfile.title": "ערוך פרופיל",
   "webview.editProfile.emailLabel": "אימייל",
   "webview.editProfile.displayNameLabel": "שם תצוגה *",
@@ -187,17 +172,14 @@
   "webview.editProfile.displayNameRequired": "שם תצוגה נדרש",
   "webview.editProfile.cancel": "ביטול",
   "webview.editProfile.save": "שמור שינויים",
-
   "webview.import.title": "ייבוא פרופילים",
   "webview.import.fileLabel": "בחר קובץ ייצוא",
   "webview.import.skipDuplicates": "דלג על פרופילים כפולים",
   "webview.import.importSettings": "ייבא הגדרות VS Code",
   "webview.import.cancel": "ביטול",
   "webview.import.submit": "ייבוא",
-
   "webview.profileList.exportAll": "ייצא הכל",
   "webview.profileList.exportAllTitle": "ייצא את כל הפרופילים",
-
   "webview.profileCard.unknownDate": "לא ידוע",
   "webview.profileCard.today": "היום",
   "webview.profileCard.tomorrow": "מחר",

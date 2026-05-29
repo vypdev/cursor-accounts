@@ -7,7 +7,6 @@
   "errors.failedLoadProfiles": "Det gick inte att läsa in profiler",
   "errors.failedLaunchProfile": "Det gick inte att starta profilen",
   "errors.cursorExecutableNotFound": "Cursor-körbar fil hittades inte",
-
   "commands.addProfile.promptEmail": "Ange e-post för Cursor-konto",
   "commands.addProfile.promptDisplayName": "Ange visningsnamn för profil (valfritt)",
   "commands.addProfile.emailPlaceholder": "user@example.com",
@@ -19,32 +18,27 @@
   "commands.addProfile.launching": "Startar {name}…",
   "commands.addProfile.failedLaunch": "Det gick inte att starta profilen: {error}",
   "commands.addProfile.failedCreate": "Det gick inte att skapa profilen: {error}",
-
   "commands.launchProfile.noProfilesCreate": "Inga profiler konfigurerade. Skapa en nu?",
   "commands.launchProfile.createProfile": "Skapa profil",
   "commands.launchProfile.selectPlaceholder": "Välj profil att starta",
   "commands.launchProfile.lastLaunched": "Senast startad: {date}",
   "commands.launchProfile.lastLaunchedNever": "Aldrig",
   "commands.launchProfile.failedLaunch": "Det gick inte att starta profilen: {error}",
-
   "commands.listProfiles.header": "Konfigurerade Cursor-profiler:",
   "commands.listProfiles.noProfiles": "Inga profiler konfigurerade. Använd \"Cursor Accounts: Add Profile\" för att skapa en.",
   "commands.listProfiles.email": "  E-post: {email}",
   "commands.listProfiles.path": "  Sökväg: {path}",
   "commands.listProfiles.lastLaunched": "  Senast startad: {date}",
   "commands.listProfiles.failed": "Det gick inte att lista profiler: {error}",
-
   "commands.deleteProfile.noProfiles": "Inga profiler att ta bort.",
   "commands.deleteProfile.selectPlaceholder": "Välj profil att ta bort",
   "commands.deleteProfile.confirm": "Ta bort profilen \"{name}\"? Användardatakatalogen tas INTE bort.",
   "commands.deleteProfile.delete": "Ta bort",
   "commands.deleteProfile.deleted": "Profilen \"{name}\" borttagen.",
   "commands.deleteProfile.failed": "Det gick inte att ta bort profilen: {error}",
-
   "commands.showCurrentProfile.default": "Använder standardprofil för Cursor (ingen anpassad profil aktiv)",
   "commands.showCurrentProfile.current": "Aktuell profil: {name} ({email})",
   "commands.showCurrentProfile.failed": "Det gick inte att identifiera aktuell profil: {error}",
-
   "commands.exportProfiles.noProfiles": "Inga profiler att exportera.",
   "commands.exportProfiles.exportAll": "Exportera alla profiler",
   "commands.exportProfiles.selectPlaceholder": "Välj profiler att exportera",
@@ -53,7 +47,6 @@
   "commands.exportProfiles.no": "Nej",
   "commands.exportProfiles.exported": "Exporterade {count} profil(er) till {path}",
   "commands.exportProfiles.failed": "Det gick inte att exportera profiler: {error}",
-
   "commands.importProfiles.invalidFile": "Ogiltig importfil: {errors}",
   "commands.importProfiles.warningsContinue": "Varningar:\n{warnings}\n\nFortsätta?",
   "commands.importProfiles.continue": "Fortsätt",
@@ -61,9 +54,7 @@
   "commands.importProfiles.skipped": "Hoppade över: {count}",
   "commands.importProfiles.errors": "Fel: {count}",
   "commands.importProfiles.failed": "Det gick inte att importera profiler: {error}",
-
   "commands.openUsage.message": "Öppna Cursor-inställningar och välj avsnittet Usage för att se fullständiga kvotdetaljer.",
-
   "panel.loadFailed": "Cursor Accounts: det gick inte att läsa in panelen Accounts ({error})",
   "panel.title": "Cursor Accounts",
   "panel.loadingHtml": "Läser in Cursor Accounts…",
@@ -80,12 +71,13 @@
   "panel.importErrors": "{count} fel",
   "panel.importCompleted": "Import slutförd",
   "panel.importCompletedWithErrors": "Import slutförd med fel",
-
   "statusBar.profileTooltip": "Klicka för att se detaljer om aktuell profil",
   "statusBar.loadingMonthlyUsage": "$(sync~spin) Månadsanvändning…",
   "statusBar.loadingUsage": "$(sync~spin) Användning…",
   "statusBar.loadingMonthlyUsageTooltip": "Läser in månadsanvändning för Cursor…",
   "statusBar.loadingUsageTooltip": "Läser in användning för Cursor…",
+  "statusBar.selectAccount": "Välj konto",
+  "statusBar.selectAccountTooltip": "Öppna Cursor Accounts för att välja en profil",
   "statusBar.quotaUnavailable": "$(warning) Kvot otillgänglig",
   "statusBar.monthlySuffix": "månads",
   "statusBar.usageSuffix": "användning",
@@ -108,11 +100,9 @@
   "statusBar.tooltipAutoModeUsed": "| **Auto-läge använt** | {value} |",
   "statusBar.tooltipSpend": "| **Utgifter** | {value} |",
   "statusBar.tooltipIncludedSpend": "| **Inkluderade utgifter** | {value} |",
-  "statusBar.tooltipClickToOpen": "\n\nKlicka för att öppna användningsdetaljer. Använd **Cursor Accounts: Refresh Now** för att uppdatera.",
-
+  "statusBar.tooltipClickToOpen": "\n\nKlicka för att öppna Cursor Accounts i sidofältet. Använd **Cursor Accounts: Refresh Now** för att uppdatera.",
   "formatters.unlimited": "obegränsat",
   "formatters.dash": "—",
-
   "efficiency.consent.message": "En Cursor API-nyckel med namnet \"Cursor Accounts - API Key\" skapas för det här kontot för att analysera modellens effektivitet i bakgrunden.",
   "efficiency.consent.confirm": "Skapa API-nyckel och aktivera",
   "efficiency.consent.cancel": "Avbryt",
@@ -141,9 +131,7 @@
   "efficiency.classifier.sdkNonJson": "SDK returnerade klassificeringsutdata som inte är JSON",
   "efficiency.classifier.sdkEmpty": "Klassificeringskörningen returnerade tomt resultat",
   "efficiency.classifier.sdkFailed": "SDK-klassificering misslyckades",
-
   "suggestedProfile.accountAlreadyConfigured": "Kontot {email} är redan konfigurerat. Ange e-post och namn för det nya kontot.",
-
   "webview.app.title": "Cursor Accounts",
   "webview.app.loadingProfiles": "Läser in profiler…",
   "webview.app.loadingAccount": "Läser in konto…",
@@ -154,11 +142,9 @@
   "webview.app.addTitle": "Lägg till ny profil",
   "webview.app.add": "+ Lägg till",
   "webview.app.activeAccount": "Aktivt konto",
-
   "webview.emptyState.title": "Inga profiler än",
   "webview.emptyState.description": "Skapa en profil för att hantera flera Cursor-konton",
   "webview.emptyState.button": "Lägg till din första profil",
-
   "webview.addProfile.title": "Lägg till profil",
   "webview.addProfile.close": "Stäng",
   "webview.addProfile.detectedAccount": "Aktuellt konto upptäckt: {email}",
@@ -174,7 +160,6 @@
   "webview.addProfile.invalidEmail": "Ogiltigt e-postformat",
   "webview.addProfile.cancel": "Avbryt",
   "webview.addProfile.create": "Skapa profil",
-
   "webview.editProfile.title": "Redigera profil",
   "webview.editProfile.emailLabel": "E-post",
   "webview.editProfile.displayNameLabel": "Visningsnamn *",
@@ -187,17 +172,14 @@
   "webview.editProfile.displayNameRequired": "Visningsnamn krävs",
   "webview.editProfile.cancel": "Avbryt",
   "webview.editProfile.save": "Spara ändringar",
-
   "webview.import.title": "Importera profiler",
   "webview.import.fileLabel": "Välj exportfil",
   "webview.import.skipDuplicates": "Hoppa över dubblettprofiler",
   "webview.import.importSettings": "Importera VS Code-inställningar",
   "webview.import.cancel": "Avbryt",
   "webview.import.submit": "Importera",
-
   "webview.profileList.exportAll": "Exportera alla",
   "webview.profileList.exportAllTitle": "Exportera alla profiler",
-
   "webview.profileCard.unknownDate": "Okänt",
   "webview.profileCard.today": "Idag",
   "webview.profileCard.tomorrow": "Imorgon",
