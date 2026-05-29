@@ -75,7 +75,7 @@ Example: prompt *“¿Cuál es la capital de España?”* with **Opus** should s
 | `Cursor Accounts: Show Model Efficiency Output` | Open the analysis output channel |
 | `Cursor Accounts: Restart Prompt Detector` | Clear detection state and restart `state.vscdb` polling |
 
-**Notes:** Analysis runs only in the **profile window** where you enabled efficiency (API keys are per window). Detection reads `{userDataDir}/User/globalStorage/state.vscdb` (Composer headers, `composerData`, user `bubbleId` entries). Latency is up to the poll interval (default 10 s). Uses your Cursor plan quota (SDK `model: auto`). Not available for cloud agents submitted from the web UI.
+**Notes:** The efficiency toggle appears only on the profile card for **this window’s active profile** (the same rule as “Current Window”). Enabling or disabling from another window is blocked, because the API key is stored in that window’s extension host secrets. Detection reads `{userDataDir}/User/globalStorage/state.vscdb` (Composer headers, `composerData`, user `bubbleId` entries). Latency is up to the poll interval (default 10 s). Uses your Cursor plan quota (SDK `model: auto`). Not available for cloud agents submitted from the web UI.
 
 | Setting | Default | Description |
 |---------|---------|-------------|

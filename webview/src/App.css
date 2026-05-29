@@ -796,3 +796,24 @@ form {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+.efficiency-toggle {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-color, rgba(128, 128, 128, 0.25));
+}
+
+.efficiency-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.efficiency-hint {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--description-fg, rgba(128, 128, 128, 0.9));
+  font-style: italic;
+}

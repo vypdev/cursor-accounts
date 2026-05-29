@@ -14,6 +14,9 @@ import { ProfileDetector } from '../profiles/profileDetector';
 const EFFICIENCY_CONSENT_MESSAGE =
   'Se creará una API key de Cursor llamada "Cursor Accounts - API Key" vinculada a esta cuenta para analizar la eficiencia del modelo en segundo plano.';
 
+export const EFFICIENCY_WRONG_WINDOW_MESSAGE =
+  'El análisis de eficiencia solo se puede activar o desactivar en la ventana de ese perfil.';
+
 export class EfficiencyService {
   private readonly apiKeyManager: ApiKeyManager;
   private readonly outputPresenter: OutputPresenter;
@@ -84,6 +87,11 @@ export class EfficiencyService {
     profileId: string,
     enabled: boolean
   ): Promise<{ profile: Profile; message: string }> {
+    const current = await this.profileDetector.detectCurrentProfile();
+    if (!current || current.id !== profileId) {
+      throw new Error(EFFICIENCY_WRONG_WINDOW_MESSAGE);
+    }
+
     const profile = await this.profileManager.getProfile(profileId);
     if (!profile) {
       throw new Error('Profile not found');

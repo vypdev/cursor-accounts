@@ -319,22 +319,28 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
         </div>
       ) : null}
 
-      <div className="efficiency-toggle">
-        <label className="efficiency-label">
-          <input
-            type="checkbox"
-            checked={Boolean(profile.efficiencyAnalysisEnabled)}
-            onChange={(e) =>
-              onToggleEfficiency(profile.id, e.target.checked)
-            }
-          />
-          <span>
-            {profile.efficiencyAnalysisEnabled
-              ? 'Análisis de eficiencia activo'
-              : 'Activar análisis de eficiencia'}
-          </span>
-        </label>
-      </div>
+      {isCurrent ? (
+        <div className="efficiency-toggle">
+          <label className="efficiency-label">
+            <input
+              type="checkbox"
+              checked={Boolean(profile.efficiencyAnalysisEnabled)}
+              onChange={(e) =>
+                onToggleEfficiency(profile.id, e.target.checked)
+              }
+            />
+            <span>
+              {profile.efficiencyAnalysisEnabled
+                ? 'Análisis de eficiencia activo'
+                : 'Activar análisis de eficiencia'}
+            </span>
+          </label>
+        </div>
+      ) : profile.efficiencyAnalysisEnabled ? (
+        <p className="efficiency-hint">
+          Análisis activo — gestiona desde la ventana de este perfil
+        </p>
+      ) : null}
 
       <div className="profile-actions">
         <button

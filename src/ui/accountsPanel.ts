@@ -31,7 +31,10 @@ import {
   ProfileAccountFetcher,
 } from '../services/profileAccountFetcher';
 import { buildSuggestedProfileResponse } from './suggestedProfile';
-import { EfficiencyService } from '../modelEfficiency/efficiencyService';
+import {
+  EFFICIENCY_WRONG_WINDOW_MESSAGE,
+  EfficiencyService,
+} from '../modelEfficiency/efficiencyService';
 
 /** Activity bar container id (must match package.json viewsContainers). */
 export const ACCOUNTS_VIEW_CONTAINER = 'cursorAccounts';
@@ -459,6 +462,11 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
     profileId: string,
     enabled: boolean
   ): Promise<void> {
+    const current = await this.profileDetector.detectCurrentProfile();
+    if (!current || current.id !== profileId) {
+      throw new Error(EFFICIENCY_WRONG_WINDOW_MESSAGE);
+    }
+
     extensionLog.info(
       `[AccountsPanel] Toggle efficiency ${enabled ? 'on' : 'off'} for ${profileId}`
     );
