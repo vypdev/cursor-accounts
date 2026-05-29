@@ -75,7 +75,7 @@ export class EfficiencyAnalyzer {
       `[EfficiencyAnalyzer] Analyzing prompt for ${profile.email} (model: ${metadata.model})`
     );
     this.outputPresenter.appendStatus(
-      `Analizando prompt (${metadata.model}) para ${profile.email}…`
+      t('efficiency.analyzing', { model: metadata.model, email: profile.email })
     );
 
     const apiKey = await this.apiKeyManager.getApiKey(profile.id);

@@ -126,6 +126,8 @@
   "efficiency.output.inefficientNotification": "نموذج غير فعّال: {opinion}",
   "efficiency.output.viewDetails": "عرض التفاصيل",
   "efficiency.noApiKey": "لا يوجد مفتاح API للكفاءة لهذا الملف الشخصي. أعد تفعيل التحليل في Accounts.",
+  "efficiency.analyzing": "جارٍ تحليل المطالبة ({model}) لـ {email}…",
+  "efficiency.classifier.languageInstruction": "مهم: يجب كتابة حقل JSON \"opinion\" بالعربية (لغة واجهة Cursor: {locale}).",
   "efficiency.classifier.noOpinion": "لا توجد رأي إضافي.",
   "efficiency.classifier.opinionLang": "short explanation in Arabic",
   "efficiency.classifier.sdkNonJson": "أعاد SDK مخرجات تصنيف غير JSON",

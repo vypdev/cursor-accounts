@@ -126,6 +126,8 @@
   "efficiency.output.inefficientNotification": "Verimsiz model: {opinion}",
   "efficiency.output.viewDetails": "Ayrıntıları görüntüle",
   "efficiency.noApiKey": "Bu profil için verimlilik API anahtarı yok. Accounts'ta analizi yeniden etkinleştirin.",
+  "efficiency.analyzing": "Prompt analiz ediliyor ({model}) — {email}…",
+  "efficiency.classifier.languageInstruction": "ÖNEMLİ: JSON \"opinion\" alanı Türkçe yazılmalıdır (Cursor UI locale: {locale}).",
   "efficiency.classifier.noOpinion": "Ek görüş yok.",
   "efficiency.classifier.opinionLang": "short explanation in Turkish",
   "efficiency.classifier.sdkNonJson": "SDK JSON olmayan sınıflandırma çıktısı döndürdü",

@@ -126,6 +126,8 @@
   "efficiency.output.inefficientNotification": "Modelo ineficiente: {opinion}",
   "efficiency.output.viewDetails": "Ver detalles",
   "efficiency.noApiKey": "No hay API key de eficiencia para este perfil. Reactiva el análisis en Accounts.",
+  "efficiency.analyzing": "Analizando prompt ({model}) para {email}…",
+  "efficiency.classifier.languageInstruction": "IMPORTANTE: El campo JSON \"opinion\" debe estar en español (locale de Cursor: {locale}).",
   "efficiency.classifier.noOpinion": "Sin opinión adicional.",
   "efficiency.classifier.opinionLang": "short explanation in Spanish",
   "efficiency.classifier.sdkNonJson": "El SDK devolvió una salida de clasificación que no es JSON",

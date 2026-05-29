@@ -126,6 +126,8 @@
   "efficiency.output.inefficientNotification": "非効率なモデル: {opinion}",
   "efficiency.output.viewDetails": "詳細を表示",
   "efficiency.noApiKey": "このプロファイルに効率 API キーがありません。アカウントで分析を再有効化してください。",
+  "efficiency.analyzing": "プロンプトを分析中 ({model}) — {email}…",
+  "efficiency.classifier.languageInstruction": "重要: JSON の \"opinion\" フィールドは日本語で記述すること（Cursor UI ロケール: {locale}）。",
   "efficiency.classifier.noOpinion": "追加の意見はありません。",
   "efficiency.classifier.opinionLang": "short explanation in Japanese",
   "efficiency.classifier.sdkNonJson": "SDK が非 JSON の分類出力を返しました",

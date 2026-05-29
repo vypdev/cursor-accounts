@@ -138,6 +138,8 @@
   "efficiency.output.inefficientNotification": "Inefficient model: {opinion}",
   "efficiency.output.viewDetails": "View details",
   "efficiency.noApiKey": "No efficiency API key for this profile. Re-enable analysis in Accounts.",
+  "efficiency.analyzing": "Analyzing prompt ({model}) for {email}…",
+  "efficiency.classifier.languageInstruction": "IMPORTANT: The JSON \"opinion\" field must be written in English (Cursor UI locale: {locale}).",
   "efficiency.classifier.noOpinion": "No additional opinion.",
   "efficiency.classifier.opinionLang": "short explanation in English",
   "efficiency.classifier.sdkNonJson": "SDK returned non-JSON classification output",

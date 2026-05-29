@@ -126,6 +126,8 @@
   "efficiency.output.inefficientNotification": "अकुशल मॉडल: {opinion}",
   "efficiency.output.viewDetails": "विवरण देखें",
   "efficiency.noApiKey": "इस प्रोफ़ाइल के लिए कोई दक्षता API key नहीं। Accounts में विश्लेषण पुनः सक्षम करें।",
+  "efficiency.analyzing": "प्रॉम्प्ट ({model}) का {email} के लिए विश्लेषण…",
+  "efficiency.classifier.languageInstruction": "महत्वपूर्ण: JSON \"opinion\" फ़ील्ड हिंदी में लिखा होना चाहिए (Cursor UI locale: {locale}).",
   "efficiency.classifier.noOpinion": "कोई अतिरिक्त राय नहीं।",
   "efficiency.classifier.opinionLang": "short explanation in Hindi",
   "efficiency.classifier.sdkNonJson": "SDK ने गैर-JSON वर्गीकरण आउटपुट लौटाया",

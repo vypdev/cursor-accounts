@@ -1,11 +1,24 @@
 import assert from 'node:assert/strict';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { describe, it } from 'node:test';
+import { initL10nForTests } from '../../l10n';
 import {
   buildClassificationPrompt,
   mapPayloadToScoringResult,
   parseClassificationJson,
 } from '../../modelEfficiency/sdkClassifier';
 import { PromptMetadata } from '../../modelEfficiency/types';
+
+const repoRoot = path.join(__dirname, '..', '..', '..');
+
+function loadLocaleBundle(locale: string): Record<string, string> {
+  const raw = fs.readFileSync(
+    path.join(repoRoot, 'locales', `${locale}.json`),
+    'utf-8'
+  );
+  return JSON.parse(raw) as Record<string, string>;
+}
 
 const sampleMetadata: PromptMetadata = {
   timestamp: Date.now(),
@@ -18,9 +31,29 @@ const sampleMetadata: PromptMetadata = {
 
 describe('sdkClassifier helpers', () => {
   it('buildClassificationPrompt includes prompt and model', () => {
+    initL10nForTests(loadLocaleBundle('en'), 'en');
     const prompt = buildClassificationPrompt(sampleMetadata);
     assert.match(prompt, /capital de España/);
     assert.match(prompt, /opus/);
+  });
+
+  it('buildClassificationPrompt prefixes English language instruction when locale is en', () => {
+    initL10nForTests(loadLocaleBundle('en'), 'en');
+    const prompt = buildClassificationPrompt(sampleMetadata);
+    assert.match(prompt, /^IMPORTANT: The JSON "opinion"/);
+    assert.match(prompt, /Cursor UI locale: en/);
+  });
+
+  it('buildClassificationPrompt prefixes Spanish language instruction when locale is es', () => {
+    initL10nForTests(
+      loadLocaleBundle('es'),
+      'es',
+      loadLocaleBundle('en')
+    );
+    const prompt = buildClassificationPrompt(sampleMetadata);
+    assert.match(prompt, /^IMPORTANTE: El campo JSON "opinion"/);
+    assert.match(prompt, /locale de Cursor: es/);
+    initL10nForTests(loadLocaleBundle('en'), 'en');
   });
 
   it('parseClassificationJson extracts JSON from markdown wrapper', () => {

@@ -126,6 +126,8 @@
   "efficiency.output.inefficientNotification": "Mô hình kém hiệu quả: {opinion}",
   "efficiency.output.viewDetails": "Xem chi tiết",
   "efficiency.noApiKey": "Không có khóa API hiệu suất cho hồ sơ này. Bật lại phân tích trong Accounts.",
+  "efficiency.analyzing": "Đang phân tích prompt ({model}) cho {email}…",
+  "efficiency.classifier.languageInstruction": "QUAN TRỌNG: Trường JSON \"opinion\" phải được viết bằng tiếng Việt (locale UI Cursor: {locale}).",
   "efficiency.classifier.noOpinion": "Không có ý kiến thêm.",
   "efficiency.classifier.opinionLang": "short explanation in Vietnamese",
   "efficiency.classifier.sdkNonJson": "SDK trả về đầu ra phân loại không phải JSON",

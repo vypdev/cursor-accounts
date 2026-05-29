@@ -126,6 +126,8 @@
   "efficiency.output.inefficientNotification": "Неефективна модель: {opinion}",
   "efficiency.output.viewDetails": "Переглянути деталі",
   "efficiency.noApiKey": "Немає ключа API ефективності для цього профілю. Увімкніть аналіз знову в Accounts.",
+  "efficiency.analyzing": "Аналіз prompt ({model}) для {email}…",
+  "efficiency.classifier.languageInstruction": "ВАЖЛИВО: поле JSON \"opinion\" має бути українською (локаль UI Cursor: {locale}).",
   "efficiency.classifier.noOpinion": "Додаткової думки немає.",
   "efficiency.classifier.opinionLang": "short explanation in Ukrainian",
   "efficiency.classifier.sdkNonJson": "SDK повернув вихідні дані класифікації не в форматі JSON",

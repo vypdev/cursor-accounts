@@ -126,6 +126,8 @@
   "efficiency.output.inefficientNotification": "Neefektivní model: {opinion}",
   "efficiency.output.viewDetails": "Zobrazit detaily",
   "efficiency.noApiKey": "Pro tento profil není klíč API efektivity. Znovu zapněte analýzu v Accounts.",
+  "efficiency.analyzing": "Analyzuji prompt ({model}) pro {email}…",
+  "efficiency.classifier.languageInstruction": "DŮLEŽITÉ: Pole JSON \"opinion\" musí být napsáno česky (locale UI Cursoru: {locale}).",
   "efficiency.classifier.noOpinion": "Žádný další názor.",
   "efficiency.classifier.opinionLang": "short explanation in Czech",
   "efficiency.classifier.sdkNonJson": "SDK vrátilo výstup klasifikace jiný než JSON",

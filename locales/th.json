@@ -126,6 +126,8 @@
   "efficiency.output.inefficientNotification": "โมเดลไม่มีประสิทธิภาพ: {opinion}",
   "efficiency.output.viewDetails": "ดูรายละเอียด",
   "efficiency.noApiKey": "ไม่มี API key ประสิทธิภาพสำหรับโปรไฟล์นี้ เปิดการวิเคราะห์ใหม่ใน Accounts",
+  "efficiency.analyzing": "กำลังวิเคราะห์ prompt ({model}) สำหรับ {email}…",
+  "efficiency.classifier.languageInstruction": "สำคัญ: ฟิลด์ JSON \"opinion\" ต้องเขียนเป็นภาษาไทย (locale UI ของ Cursor: {locale})",
   "efficiency.classifier.noOpinion": "ไม่มีความคิดเห็นเพิ่มเติม",
   "efficiency.classifier.opinionLang": "short explanation in Thai",
   "efficiency.classifier.sdkNonJson": "SDK ส่งคืนผลลัพธ์การจำแนกที่ไม่ใช่ JSON",

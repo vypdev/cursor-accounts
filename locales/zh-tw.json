@@ -126,6 +126,8 @@
   "efficiency.output.inefficientNotification": "低效模型：{opinion}",
   "efficiency.output.viewDetails": "查看詳情",
   "efficiency.noApiKey": "此設定檔沒有效率 API 金鑰。請在帳戶中重新啟用分析。",
+  "efficiency.analyzing": "正在分析提示 ({model}) — {email}…",
+  "efficiency.classifier.languageInstruction": "重要：JSON 的 \"opinion\" 欄位必須以繁體中文撰寫（Cursor UI 語系：{locale}）。",
   "efficiency.classifier.noOpinion": "沒有其他意見。",
   "efficiency.classifier.opinionLang": "short explanation in Traditional Chinese",
   "efficiency.classifier.sdkNonJson": "SDK 傳回了非 JSON 分類輸出",

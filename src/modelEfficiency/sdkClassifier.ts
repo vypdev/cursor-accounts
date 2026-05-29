@@ -1,5 +1,5 @@
 import * as extensionLog from '../logging/extensionLog';
-import { t } from '../l10n';
+import { getLocale, t } from '../l10n';
 import { modelBaseComparisonKey } from './modelBaseName';
 import {
   EfficiencySeverity,
@@ -38,6 +38,8 @@ export function buildClassificationPrompt(metadata: PromptMetadata): string {
           .join(', ');
 
   return [
+    t('efficiency.classifier.languageInstruction', { locale: getLocale() }),
+    '',
     'You are a model-efficiency advisor for Cursor IDE.',
     'Analyze whether the SELECTED model is appropriate for the USER prompt.',
     'Respond with ONLY a single JSON object (no markdown, no prose) using this schema:',

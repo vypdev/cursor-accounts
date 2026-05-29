@@ -126,6 +126,8 @@
   "efficiency.output.inefficientNotification": "Model tidak efisien: {opinion}",
   "efficiency.output.viewDetails": "Lihat detail",
   "efficiency.noApiKey": "Tidak ada kunci API efisiensi untuk profil ini. Aktifkan kembali analisis di Accounts.",
+  "efficiency.analyzing": "Menganalisis prompt ({model}) untuk {email}…",
+  "efficiency.classifier.languageInstruction": "PENTING: Field JSON \"opinion\" harus ditulis dalam Bahasa Indonesia (locale UI Cursor: {locale}).",
   "efficiency.classifier.noOpinion": "Tidak ada pendapat tambahan.",
   "efficiency.classifier.opinionLang": "short explanation in Indonesian",
   "efficiency.classifier.sdkNonJson": "SDK mengembalikan output klasifikasi non-JSON",

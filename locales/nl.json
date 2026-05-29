@@ -126,6 +126,8 @@
   "efficiency.output.inefficientNotification": "Inefficiënt model: {opinion}",
   "efficiency.output.viewDetails": "Details bekijken",
   "efficiency.noApiKey": "Geen efficiëntie-API-sleutel voor dit profiel. Schakel analyse opnieuw in via Accounts.",
+  "efficiency.analyzing": "Prompt analyseren ({model}) voor {email}…",
+  "efficiency.classifier.languageInstruction": "BELANGRIJK: Het JSON-veld \"opinion\" moet in het Nederlands worden geschreven (Cursor UI-locale: {locale}).",
   "efficiency.classifier.noOpinion": "Geen aanvullend advies.",
   "efficiency.classifier.opinionLang": "short explanation in Dutch",
   "efficiency.classifier.sdkNonJson": "SDK retourneerde niet-JSON classificatie-uitvoer",

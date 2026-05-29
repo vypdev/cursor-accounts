@@ -126,6 +126,8 @@
   "efficiency.output.inefficientNotification": "비효율적 모델: {opinion}",
   "efficiency.output.viewDetails": "세부 정보 보기",
   "efficiency.noApiKey": "이 프로필에 효율성 API 키가 없습니다. Accounts에서 분석을 다시 활성화하세요.",
+  "efficiency.analyzing": "프롬프트 분석 중 ({model}) — {email}…",
+  "efficiency.classifier.languageInstruction": "중요: JSON \"opinion\" 필드는 한국어로 작성해야 합니다(Cursor UI 로케일: {locale}).",
   "efficiency.classifier.noOpinion": "추가 의견 없음.",
   "efficiency.classifier.opinionLang": "short explanation in Korean",
   "efficiency.classifier.sdkNonJson": "SDK가 JSON이 아닌 분류 출력을 반환했습니다",

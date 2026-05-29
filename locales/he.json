@@ -126,6 +126,8 @@
   "efficiency.output.inefficientNotification": "מודל לא יעיל: {opinion}",
   "efficiency.output.viewDetails": "הצג פרטים",
   "efficiency.noApiKey": "אין מפתח API ליעילות עבור פרופיל זה. הפעל מחדש ניתוח ב-Accounts.",
+  "efficiency.analyzing": "מנתח prompt ({model}) עבור {email}…",
+  "efficiency.classifier.languageInstruction": "חשוב: שדה JSON \"opinion\" חייב להיכתב בעברית (locale ממשק Cursor: {locale}).",
   "efficiency.classifier.noOpinion": "אין דעה נוספת.",
   "efficiency.classifier.opinionLang": "short explanation in Hebrew",
   "efficiency.classifier.sdkNonJson": "SDK החזיר פלט סיווג שאינו JSON",

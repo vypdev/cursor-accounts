@@ -126,6 +126,8 @@
   "efficiency.output.inefficientNotification": "Ineffektiv model: {opinion}",
   "efficiency.output.viewDetails": "Vis detaljer",
   "efficiency.noApiKey": "Ingen effektivitets-API-nøgle for denne profil. Aktiver analysen igen i Accounts.",
+  "efficiency.analyzing": "Analyserer prompt ({model}) for {email}…",
+  "efficiency.classifier.languageInstruction": "VIGTIGT: JSON-feltet \"opinion\" skal skrives på dansk (Cursor UI-locale: {locale}).",
   "efficiency.classifier.noOpinion": "Ingen yderligere mening.",
   "efficiency.classifier.opinionLang": "short explanation in Danish",
   "efficiency.classifier.sdkNonJson": "SDK returnerede klassificeringsoutput, der ikke er JSON",
