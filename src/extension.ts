@@ -5,6 +5,7 @@ import { QuotaUsage } from './api/types';
 import { TokenService } from './auth/tokenRefresh';
 import { registerProfileCommands } from './commands/profileCommands';
 import { affectsCursorAccountsConfig } from './config';
+import { initL10n, t } from './l10n';
 import * as extensionLog from './logging/extensionLog';
 import { InstanceDetector } from './profiles/instanceDetector';
 import { ProfileDetector } from './profiles/profileDetector';
@@ -151,6 +152,11 @@ async function focusAccountsSidebar(
 }
 
 export function activate(context: vscode.ExtensionContext): void {
+  initL10n({
+    extensionPath: context.extensionPath,
+    language: vscode.env.language,
+  });
+
   extensionLog.init(context);
   extensionLog.info('[Extension] Cursor Accounts activated');
 
@@ -313,7 +319,7 @@ export function activate(context: vscode.ExtensionContext): void {
         '@id:cursor'
       );
       vscode.window.showInformationMessage(
-        'Open Cursor Settings and select the Usage section to view full quota details.'
+        t('commands.openUsage.message')
       );
     }),
     vscode.commands.registerCommand(

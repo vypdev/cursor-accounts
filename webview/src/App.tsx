@@ -5,6 +5,7 @@ import { EditProfileForm } from './components/EditProfileForm';
 import { EmptyState } from './components/EmptyState';
 import { ImportDialog } from './components/ImportDialog';
 import { ProfileList } from './components/ProfileList';
+import { L10nProvider, useL10n } from './l10n/context';
 import {
   ImportOptions,
   Profile,
@@ -16,7 +17,8 @@ import {
 } from './types';
 import './App.css';
 
-export const App: React.FC = () => {
+const AppContent: React.FC = () => {
+  const { t } = useL10n();
   const persisted = vscodeApi.getState();
 
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -233,7 +235,7 @@ export const App: React.FC = () => {
 
   const activeAccountLabel = (() => {
     if (accountsLoading && !activeAccount?.accountName) {
-      return 'Loading account…';
+      return t('app.loadingAccount');
     }
     if (activeAccount?.accountName) {
       return activeAccount.accountName;
@@ -241,7 +243,7 @@ export const App: React.FC = () => {
     if (currentProfile) {
       return currentProfile.displayName;
     }
-    return 'Default Profile';
+    return t('app.defaultProfile');
   })();
 
   const showActiveFooter =
@@ -251,7 +253,7 @@ export const App: React.FC = () => {
     return (
       <div className="loading">
         <div className="spinner" aria-hidden="true" />
-        <p>Loading profiles...</p>
+        <p>{t('app.loadingProfiles')}</p>
       </div>
     );
   }
@@ -260,21 +262,21 @@ export const App: React.FC = () => {
     <div className="app">
       <div className="app-main">
         <div className="header">
-          <h2>Cursor Accounts</h2>
+          <h2>{t('app.title')}</h2>
           <div className="header-actions">
             <button
               type="button"
               className="btn-secondary"
               onClick={() => setShowImportDialog(true)}
-              title="Import profiles"
+              title={t('app.importTitle')}
             >
-              Import
+              {t('app.import')}
             </button>
             <button
               type="button"
               className="btn-secondary"
               onClick={() => vscodeApi.refresh()}
-              title="Refresh profiles"
+              title={t('app.refreshTitle')}
             >
               ↻
             </button>
@@ -282,9 +284,9 @@ export const App: React.FC = () => {
               type="button"
               className="btn-primary"
               onClick={openAddForm}
-              title="Add new profile"
+              title={t('app.addTitle')}
             >
-              + Add
+              {t('app.add')}
             </button>
           </div>
         </div>
@@ -325,7 +327,7 @@ export const App: React.FC = () => {
           type="button"
           className="active-account-footer"
           disabled
-          aria-label="Active account"
+          aria-label={t('app.activeAccount')}
         >
           {currentProfile?.emoji && (
             <span className="active-account-emoji" aria-hidden="true">
@@ -361,5 +363,27 @@ export const App: React.FC = () => {
         />
       )}
     </div>
+  );
+};
+
+export const App: React.FC = () => {
+  const [locale, setLocale] = useState('en');
+  const [messages, setMessages] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const unsubscribe = vscodeApi.onMessage((message: ToWebviewMessage) => {
+      if (message.type === 'init') {
+        setLocale(message.data.locale);
+        setMessages(message.data.messages);
+      }
+    });
+
+    return unsubscribe;
+  }, []);
+
+  return (
+    <L10nProvider locale={locale} messages={messages}>
+      <AppContent />
+    </L10nProvider>
   );
 };

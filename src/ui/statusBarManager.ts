@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as extensionLog from '../logging/extensionLog';
 import { QuotaUsage, getEffectiveUsagePercent, getPersonalModeAveragePercent, isEnterpriseUsage } from '../api/types';
 import { getCursorAccountsConfig } from '../config';
+import { t } from '../l10n';
 import { ProfileDetector } from '../profiles/profileDetector';
 import {
   clampPercent,
@@ -32,7 +33,7 @@ export class StatusBarManager {
       );
       this.profileItem.name = 'cursorAccounts.profile';
       this.profileItem.command = 'cursorAccounts.showCurrentProfile';
-      this.profileItem.tooltip = 'Click to see current profile details';
+      this.profileItem.tooltip = t('statusBar.profileTooltip');
       context.subscriptions.push(this.profileItem);
     }
 
@@ -74,11 +75,11 @@ export class StatusBarManager {
 
     if (isEnterprise ? cfg.showTotal : showPersonalQuota) {
       this.totalItem.text = isEnterprise
-        ? '$(sync~spin) Monthly usage…'
-        : '$(sync~spin) Usage…';
+        ? t('statusBar.loadingMonthlyUsage')
+        : t('statusBar.loadingUsage');
       this.totalItem.tooltip = isEnterprise
-        ? 'Loading Cursor monthly usage…'
-        : 'Loading Cursor usage…';
+        ? t('statusBar.loadingMonthlyUsageTooltip')
+        : t('statusBar.loadingUsageTooltip');
       this.totalItem.backgroundColor = undefined;
       this.totalItem.show();
     } else {
@@ -109,11 +110,11 @@ export class StatusBarManager {
       } else if (isMonthlySpend) {
         const spend = usage.monthlySpend ?? usage.totalSpend;
         const limit = usage.monthlyLimit;
-        this.totalItem.text = `$(pulse) ${bar} ${formatMonthlySpend(spend, limit)} monthly`;
+        this.totalItem.text = `$(pulse) ${bar} ${formatMonthlySpend(spend, limit)} ${t('statusBar.monthlySuffix')}`;
       } else if (isPersonalPercent) {
-        this.totalItem.text = `$(pulse) ${bar} ${formatPercent(averagePct)} usage`;
+        this.totalItem.text = `$(pulse) ${bar} ${formatPercent(averagePct)} ${t('statusBar.usageSuffix')}`;
       } else {
-        this.totalItem.text = `$(pulse) ${bar} ${formatPercent(effectivePct)} plan`;
+        this.totalItem.text = `$(pulse) ${bar} ${formatPercent(effectivePct)} ${t('statusBar.planSuffix')}`;
       }
 
       this.totalItem.tooltip = tooltip;
@@ -128,7 +129,7 @@ export class StatusBarManager {
 
   showError(message: string): void {
     const cfg = getCursorAccountsConfig();
-    const text = `$(warning) Quota unavailable`;
+    const text = t('statusBar.quotaUnavailable');
     const cached = this.readCache();
     const isEnterprise = isEnterpriseUsage(cached);
     const showPersonalQuota = cfg.showTotal || cfg.showIncluded;
@@ -174,12 +175,14 @@ export class StatusBarManager {
 
       if (profile) {
         this.profileItem.text = `$(account) ${profile.displayName}`;
-        this.profileItem.tooltip = `Profile: ${profile.displayName}\nEmail: ${profile.email}\n\nClick for details`;
+        this.profileItem.tooltip = t('statusBar.profileActiveTooltip', {
+          name: profile.displayName,
+          email: profile.email,
+        });
         this.profileItem.show();
       } else {
-        this.profileItem.text = '$(account) Default';
-        this.profileItem.tooltip =
-          'Using default Cursor profile\n\nClick for details';
+        this.profileItem.text = t('statusBar.profileDefault');
+        this.profileItem.tooltip = t('statusBar.defaultProfileTooltip');
         this.profileItem.show();
       }
     } catch (error) {
@@ -202,15 +205,21 @@ export class StatusBarManager {
     md.isTrusted = true;
 
     const isMonthlySpend = usage.displayMode === 'monthlySpend';
-    const title = isMonthlySpend ? 'Cursor Monthly Usage' : 'Cursor plan quota';
+    const title = isMonthlySpend
+      ? t('statusBar.tooltipMonthlyTitle')
+      : t('statusBar.tooltipQuotaTitle');
     md.appendMarkdown(`### ${title}\n\n`);
 
     if (showEmail && usage.accountEmail) {
-      md.appendMarkdown(`**Account:** ${usage.accountEmail}\n\n`);
+      md.appendMarkdown(
+        t('statusBar.tooltipAccount', { email: usage.accountEmail }) + '\n\n'
+      );
     }
 
     if (usage.membershipType) {
-      md.appendMarkdown(`**Plan:** ${usage.membershipType}\n\n`);
+      md.appendMarkdown(
+        t('statusBar.tooltipPlan', { plan: usage.membershipType }) + '\n\n'
+      );
     }
 
     if (isMonthlySpend) {
@@ -218,28 +227,71 @@ export class StatusBarManager {
       const limit = usage.monthlyLimit;
       md.appendMarkdown(
         `| | |\n|---|---|\n` +
-          `| **Monthly spend** | ${formatMonthlySpend(spend, limit)} |\n` +
-          `| **Used (on-demand)** | ${formatCents(spend)} |\n` +
-          `| **Limit** | ${limit == null ? 'unlimited' : formatCents(limit)} |\n` +
-          `| **Remaining** | ${formatCents(usage.remaining)} |\n` +
-          `| **Billing cycle** | ${formatBillingDate(usage.billingCycleStart)} → ${formatBillingDate(usage.billingCycleEnd)} |\n`
+          t('statusBar.tooltipMonthlySpend', {
+            value: formatMonthlySpend(spend, limit),
+          }) +
+          '\n' +
+          t('statusBar.tooltipUsedOnDemand', {
+            value: formatCents(spend),
+          }) +
+          '\n' +
+          t('statusBar.tooltipLimit', {
+            value: limit == null ? t('formatters.unlimited') : formatCents(limit),
+          }) +
+          '\n' +
+          t('statusBar.tooltipRemaining', {
+            value: formatCents(usage.remaining),
+          }) +
+          '\n' +
+          t('statusBar.tooltipBillingCycle', {
+            start: formatBillingDate(usage.billingCycleStart),
+            end: formatBillingDate(usage.billingCycleEnd),
+          }) +
+          '\n'
       );
 
       if (usage.teamMonthlySpend != null) {
         md.appendMarkdown(
-          `| **Team pool spend** | ${formatMonthlySpend(usage.teamMonthlySpend, usage.teamMonthlyLimit)} |\n`
+          t('statusBar.tooltipTeamPoolSpend', {
+            value: formatMonthlySpend(
+              usage.teamMonthlySpend,
+              usage.teamMonthlyLimit
+            ),
+          }) + '\n'
         );
       }
     } else {
       md.appendMarkdown(
         `| | |\n|---|---|\n` +
-          `| **Total plan used** | ${formatPercent(usage.totalPercentUsed)} |\n` +
-          `| **Included (API) used** | ${formatPercent(usage.apiPercentUsed)} |\n` +
-          `| **Auto mode used** | ${formatPercent(usage.autoPercentUsed)} |\n` +
-          `| **Spend** | ${formatCents(usage.totalSpend)} / ${formatCents(usage.limit)} |\n` +
-          `| **Included spend** | ${formatCents(usage.includedSpend)} |\n` +
-          `| **Remaining** | ${formatCents(usage.remaining)} |\n` +
-          `| **Billing cycle** | ${formatBillingDate(usage.billingCycleStart)} → ${formatBillingDate(usage.billingCycleEnd)} |\n`
+          t('statusBar.tooltipTotalPlanUsed', {
+            value: formatPercent(usage.totalPercentUsed),
+          }) +
+          '\n' +
+          t('statusBar.tooltipIncludedApiUsed', {
+            value: formatPercent(usage.apiPercentUsed),
+          }) +
+          '\n' +
+          t('statusBar.tooltipAutoModeUsed', {
+            value: formatPercent(usage.autoPercentUsed),
+          }) +
+          '\n' +
+          t('statusBar.tooltipSpend', {
+            value: `${formatCents(usage.totalSpend)} / ${formatCents(usage.limit)}`,
+          }) +
+          '\n' +
+          t('statusBar.tooltipIncludedSpend', {
+            value: formatCents(usage.includedSpend),
+          }) +
+          '\n' +
+          t('statusBar.tooltipRemaining', {
+            value: formatCents(usage.remaining),
+          }) +
+          '\n' +
+          t('statusBar.tooltipBillingCycle', {
+            start: formatBillingDate(usage.billingCycleStart),
+            end: formatBillingDate(usage.billingCycleEnd),
+          }) +
+          '\n'
       );
     }
 
@@ -247,9 +299,7 @@ export class StatusBarManager {
       md.appendMarkdown(`\n_${usage.displayMessage}_\n`);
     }
 
-    md.appendMarkdown(
-      '\n\nClick to open usage details. Use **Cursor Accounts: Refresh Now** to update.'
-    );
+    md.appendMarkdown(t('statusBar.tooltipClickToOpen'));
     return md;
   }
 }

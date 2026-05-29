@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { PromptMetadata, ScoringResult } from './types';
+import { t } from '../l10n';
 
 export interface ModelEfficiencyConfig {
   showNotificationOnHigh: boolean;
@@ -21,7 +22,9 @@ export class OutputPresenter {
   private readonly channel: vscode.OutputChannel;
 
   constructor() {
-    this.channel = vscode.window.createOutputChannel('Cursor Model Efficiency');
+    this.channel = vscode.window.createOutputChannel(
+      t('efficiency.output.channelName')
+    );
   }
 
   dispose(): void {
@@ -41,44 +44,65 @@ export class OutputPresenter {
   presentError(message: string, metadata?: PromptMetadata): void {
     this.channel.appendLine('═'.repeat(60));
     this.channel.appendLine(
-      `[${new Date().toLocaleTimeString()}] Error de análisis de eficiencia`
+      `[${new Date().toLocaleTimeString()}] ${t('efficiency.output.errorTitle')}`
     );
     if (metadata) {
       this.channel.appendLine(
-        `Prompt: "${metadata.prompt.slice(0, 80)}${metadata.prompt.length > 80 ? '...' : ''}"`
+        `${t('efficiency.output.promptLabel')} "${metadata.prompt.slice(0, 80)}${metadata.prompt.length > 80 ? '...' : ''}"`
       );
-      this.channel.appendLine(`Modelo: ${metadata.model}`);
+      this.channel.appendLine(
+        `${t('efficiency.output.modelLabel')} ${metadata.model}`
+      );
     }
-    this.channel.appendLine(`Error: ${message}`);
+    this.channel.appendLine(`${t('efficiency.output.errorLabel')} ${message}`);
     this.channel.appendLine('═'.repeat(60));
     this.channel.appendLine('');
   }
 
   present(result: ScoringResult, _metadata: PromptMetadata): void {
     const settings = getModelEfficiencyConfig();
+    const viewDetailsLabel = t('efficiency.output.viewDetails');
 
     this.channel.appendLine('═'.repeat(60));
     this.channel.appendLine(
-      `[${new Date(result.scoredAt).toLocaleTimeString()}] Análisis de eficiencia`
+      `[${new Date(result.scoredAt).toLocaleTimeString()}] ${t('efficiency.output.analysisTitle')}`
     );
     this.channel.appendLine('─'.repeat(60));
-    this.channel.appendLine(`Prompt: "${result.promptExcerpt}..."`);
-    this.channel.appendLine(`Modelo seleccionado: ${result.selectedModel}`);
-    this.channel.appendLine(`Tipo de tarea: ${result.taskType}`);
+    this.channel.appendLine(`${t('efficiency.output.promptLabel')} "${result.promptExcerpt}..."`);
     this.channel.appendLine(
-      `Score de eficiencia: ${(result.efficiencyScore * 100).toFixed(0)}%`
+      t('efficiency.output.selectedModel', { model: result.selectedModel })
     );
-    this.channel.appendLine(`Severidad: ${result.severity.toUpperCase()}`);
     this.channel.appendLine(
-      `Confianza: ${(result.confidence * 100).toFixed(0)}%`
+      t('efficiency.output.taskType', { type: result.taskType })
+    );
+    this.channel.appendLine(
+      t('efficiency.output.efficiencyScore', {
+        score: (result.efficiencyScore * 100).toFixed(0),
+      })
+    );
+    this.channel.appendLine(
+      t('efficiency.output.severity', {
+        severity: result.severity.toUpperCase(),
+      })
+    );
+    this.channel.appendLine(
+      t('efficiency.output.confidence', {
+        confidence: (result.confidence * 100).toFixed(0),
+      })
     );
 
     if (result.efficiencyScore < 0.7) {
       this.channel.appendLine('');
-      this.channel.appendLine(`Aviso: ${result.opinion}`);
-      this.channel.appendLine(`Recomendación: ${result.recommendedModel}`);
+      this.channel.appendLine(
+        t('efficiency.output.notice', { opinion: result.opinion })
+      );
+      this.channel.appendLine(
+        t('efficiency.output.recommendation', {
+          model: result.recommendedModel,
+        })
+      );
     } else {
-      this.channel.appendLine('Selección de modelo adecuada.');
+      this.channel.appendLine(t('efficiency.output.modelAdequate'));
     }
 
     this.channel.appendLine('═'.repeat(60));
@@ -95,11 +119,13 @@ export class OutputPresenter {
     ) {
       void vscode.window
         .showInformationMessage(
-          `Modelo ineficiente: ${result.opinion}`,
-          'Ver detalles'
+          t('efficiency.output.inefficientNotification', {
+            opinion: result.opinion,
+          }),
+          viewDetailsLabel
         )
         .then((action) => {
-          if (action === 'Ver detalles') {
+          if (action === viewDetailsLabel) {
             this.channel.show(true);
           }
         });

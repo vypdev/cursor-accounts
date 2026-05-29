@@ -1,4 +1,5 @@
 import React from 'react';
+import { useL10n } from '../l10n/context';
 import {
   InstanceInfoMap,
   Profile,
@@ -34,6 +35,8 @@ export const ProfileList: React.FC<ProfileListProps> = ({
   onExport,
   onToggleEfficiency,
 }) => {
+  const { t } = useL10n();
+
   return (
     <div className="profile-list-container">
       <div className="list-header">
@@ -41,9 +44,9 @@ export const ProfileList: React.FC<ProfileListProps> = ({
           type="button"
           className="btn-secondary"
           onClick={() => onExport(profiles.map((p) => p.id), false)}
-          title="Export all profiles"
+          title={t('profileList.exportAllTitle')}
         >
-          Export All
+          {t('profileList.exportAll')}
         </button>
       </div>
       <div className="profile-list" role="list">

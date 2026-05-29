@@ -1,8 +1,8 @@
-import './../registerVscodeMock';
+import './registerVscodeMock';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
-  EFFICIENCY_WRONG_WINDOW_MESSAGE,
+  getEfficiencyWrongWindowMessage,
   EfficiencyService,
 } from '../../modelEfficiency/efficiencyService';
 import { Profile } from '../../profiles/types';
@@ -64,7 +64,7 @@ describe('EfficiencyService.setEfficiencyEnabled', () => {
     await assert.rejects(
       () => service.setEfficiencyEnabled('profile-b', true),
       (error: Error) => {
-        assert.equal(error.message, EFFICIENCY_WRONG_WINDOW_MESSAGE);
+        assert.equal(error.message, getEfficiencyWrongWindowMessage());
         return true;
       }
     );
@@ -107,7 +107,7 @@ describe('EfficiencyService.setEfficiencyEnabled', () => {
     await assert.rejects(
       () => service.setEfficiencyEnabled('profile-b', false),
       (error: Error) => {
-        assert.equal(error.message, EFFICIENCY_WRONG_WINDOW_MESSAGE);
+        assert.equal(error.message, getEfficiencyWrongWindowMessage());
         return true;
       }
     );

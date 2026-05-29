@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useL10n } from '../l10n/context';
 import { DEFAULT_PROFILE_EMOJI, EmojiPicker } from './EmojiPicker';
 
 interface AddProfileFormProps {
@@ -22,6 +23,7 @@ export const AddProfileForm: React.FC<AddProfileFormProps> = ({
   suggestedDisplayName,
   notice,
 }) => {
+  const { t } = useL10n();
   const [email, setEmail] = useState(suggestedEmail || '');
   const [displayName, setDisplayName] = useState(suggestedDisplayName || '');
   const [theme, setTheme] = useState('');
@@ -42,12 +44,12 @@ export const AddProfileForm: React.FC<AddProfileFormProps> = ({
     e.preventDefault();
 
     if (!email.trim()) {
-      setError('Email is required');
+      setError(t('addProfile.emailRequired'));
       return;
     }
 
     if (!email.includes('@')) {
-      setError('Invalid email format');
+      setError(t('addProfile.invalidEmail'));
       return;
     }
 
@@ -69,12 +71,12 @@ export const AddProfileForm: React.FC<AddProfileFormProps> = ({
         aria-labelledby="add-profile-title"
       >
         <div className="modal-header">
-          <h3 id="add-profile-title">Add Profile</h3>
+          <h3 id="add-profile-title">{t('addProfile.title')}</h3>
           <button
             type="button"
             className="btn-close"
             onClick={onCancel}
-            aria-label="Close"
+            aria-label={t('addProfile.close')}
           >
             ×
           </button>
@@ -89,52 +91,52 @@ export const AddProfileForm: React.FC<AddProfileFormProps> = ({
 
           {suggestedEmail && (
             <div className="info-banner">
-              Detected current account: {suggestedEmail}
+              {t('addProfile.detectedAccount', { email: suggestedEmail })}
             </div>
           )}
 
           <div className="form-group">
-            <label htmlFor="email">Email *</label>
+            <label htmlFor="email">{t('addProfile.emailLabel')}</label>
             <input
               id="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="user@example.com"
+              placeholder={t('addProfile.emailPlaceholder')}
               autoFocus
               required
             />
           </div>
 
           <div className="form-group">
-            <label htmlFor="displayName">Display Name</label>
+            <label htmlFor="displayName">{t('addProfile.displayNameLabel')}</label>
             <input
               id="displayName"
               type="text"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="e.g., Work, Personal"
+              placeholder={t('addProfile.displayNamePlaceholder')}
             />
           </div>
 
           <div className="form-group">
-            <label>Emoji</label>
+            <label>{t('addProfile.emojiLabel')}</label>
             <EmojiPicker value={emoji} onChange={setEmoji} />
           </div>
 
           <div className="form-group">
-            <label htmlFor="theme">Theme (optional)</label>
+            <label htmlFor="theme">{t('addProfile.themeLabel')}</label>
             <input
               id="theme"
               type="text"
               value={theme}
               onChange={(e) => setTheme(e.target.value)}
-              placeholder="Dark+, Light+"
+              placeholder={t('addProfile.themePlaceholder')}
             />
           </div>
 
           <div className="form-group">
-            <label htmlFor="color">Color</label>
+            <label htmlFor="color">{t('addProfile.colorLabel')}</label>
             <input
               id="color"
               type="color"
@@ -147,10 +149,10 @@ export const AddProfileForm: React.FC<AddProfileFormProps> = ({
 
           <div className="form-actions">
             <button type="button" onClick={onCancel}>
-              Cancel
+              {t('addProfile.cancel')}
             </button>
             <button type="submit" className="btn-primary">
-              Create Profile
+              {t('addProfile.create')}
             </button>
           </div>
         </form>

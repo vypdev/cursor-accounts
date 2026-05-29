@@ -298,6 +298,8 @@ export interface InitData {
   profileAccounts: ProfileAccountMap;
   activeAccount?: ProfileAccountView | null;
   runningInstances: InstanceInfoMap;
+  locale: string;
+  messages: Record<string, string>;
 }
 
 /** Schema version for webview persisted state */

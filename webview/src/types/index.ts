@@ -185,6 +185,8 @@ export interface InitData {
   profileAccounts: ProfileAccountMap;
   activeAccount?: ProfileAccountView | null;
   runningInstances: InstanceInfoMap;
+  locale: string;
+  messages: Record<string, string>;
 }
 
 export type ToWebviewMessage =

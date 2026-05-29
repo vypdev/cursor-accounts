@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useL10n } from '../l10n/context';
 import {
   getEffectiveUsagePercent,
   getPersonalModeAveragePercent,
@@ -26,9 +27,12 @@ interface ProfileCardProps {
   onToggleEfficiency: (id: string, enabled: boolean) => void;
 }
 
-function formatResetDate(isoString: string): string {
+function formatResetDate(
+  isoString: string,
+  t: (key: string, args?: Record<string, string | number | undefined>) => string
+): string {
   if (!isoString) {
-    return 'Unknown';
+    return t('profileCard.unknownDate');
   }
 
   const numeric = Number(isoString);
@@ -37,7 +41,7 @@ function formatResetDate(isoString: string): string {
     : new Date(isoString);
 
   if (Number.isNaN(date.getTime())) {
-    return 'Unknown';
+    return t('profileCard.unknownDate');
   }
 
   const now = new Date();
@@ -46,12 +50,12 @@ function formatResetDate(isoString: string): string {
   );
 
   if (days <= 0) {
-    return 'Today';
+    return t('profileCard.today');
   }
   if (days === 1) {
-    return 'Tomorrow';
+    return t('profileCard.tomorrow');
   }
-  return `${days} days`;
+  return t('profileCard.daysUntilReset', { days });
 }
 
 function isAuthError(error: string): boolean {
@@ -97,16 +101,19 @@ function QuotaBarRow({ percent, label, fillStatus = 'ok' }: QuotaBarRowProps) {
   );
 }
 
-function renderQuotaStatusIcons(quotaStatus: QuotaStatus) {
+function renderQuotaStatusIcons(
+  quotaStatus: QuotaStatus,
+  t: (key: string) => string
+) {
   return (
     <>
       {quotaStatus === 'warning' && (
-        <span className="warning-icon" aria-label="Warning">
+        <span className="warning-icon" aria-label={t('profileCard.warning')}>
           ⚠️
         </span>
       )}
       {quotaStatus === 'critical' && (
-        <span className="error-icon" aria-label="Critical">
+        <span className="error-icon" aria-label={t('profileCard.critical')}>
           🔴
         </span>
       )}
@@ -126,6 +133,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
   onShowInExplorer,
   onToggleEfficiency,
 }) => {
+  const { t } = useL10n();
   const [showMenu, setShowMenu] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
   const [leaderboardExpanded, setLeaderboardExpanded] = useState(false);
@@ -150,8 +158,8 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
     (entry) => entry.email.toLowerCase() === profile.email.toLowerCase()
   );
   const leaderboardStatusMessage = isInTopActivity
-    ? "You're in the Top AI Activity 🔥"
-    : "You're not in Cursor's Top Activity";
+    ? t('profileCard.topActivity')
+    : t('profileCard.notTopActivity');
 
   const accountName = account?.accountName ?? profile.email;
   const showAvatar = account?.pictureUrl && !avatarError;
@@ -185,7 +193,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
   };
 
   const handleDelete = () => {
-    if (confirm(`Delete profile "${profile.displayName}"?`)) {
+    if (confirm(t('profileCard.deleteConfirm', { name: profile.displayName }))) {
       onDelete(profile.id);
       setShowMenu(false);
     }
@@ -202,7 +210,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
       <div className="profile-header">
         <div className="profile-info">
           {isRunning && (
-            <span className="running-indicator" title="Currently running">
+            <span className="running-indicator" title={t('profileCard.running')}>
               ●
             </span>
           )}
@@ -232,19 +240,21 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
             </div>
           </div>
         </div>
-        {isCurrent && <span className="badge">Active</span>}
+        {isCurrent && <span className="badge">{t('profileCard.active')}</span>}
       </div>
 
       {profile.theme && (
         <div className="profile-meta">
-          <span className="theme">Theme: {profile.theme}</span>
+          <span className="theme">{t('profileCard.theme', { theme: profile.theme })}</span>
         </div>
       )}
 
       {profile.lastLaunched && (
         <div className="profile-meta">
           <span className="last-launched">
-            Last launched: {new Date(profile.lastLaunched).toLocaleDateString()}
+            {t('profileCard.lastLaunched', {
+              date: new Date(profile.lastLaunched).toLocaleDateString(),
+            })}
           </span>
         </div>
       )}
@@ -259,7 +269,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
                 </span>
                 <span>{quota.error}</span>
                 <button type="button" onClick={handleLaunch}>
-                  Sign In
+                  {t('profileCard.signIn')}
                 </button>
               </div>
             ) : (
@@ -283,8 +293,8 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
                     <QuotaBarRow percent={averagePercent} fillStatus={quotaStatus} />
                     <div className="quota-text">
                       <span className="percent">{averagePercent}%</span>
-                      <span className="label">used</span>
-                      {renderQuotaStatusIcons(quotaStatus)}
+                      <span className="label">{t('profileCard.used')}</span>
+                      {renderQuotaStatusIcons(quotaStatus, t)}
                     </div>
                   </div>
                   <span className="quota-chevron" aria-hidden="true">
@@ -295,19 +305,25 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
                   <div className="quota-bars-expanded">
                     <QuotaBarRow
                       percent={quota.quota!.autoPercentUsed}
-                      label="Auto mode"
+                      label={t('profileCard.autoMode')}
                     />
                     <QuotaBarRow
                       percent={quota.quota!.apiPercentUsed}
-                      label="API mode"
+                      label={t('profileCard.apiMode')}
                     />
                   </div>
                 )}
                 <div className="quota-details">
                   <span>
-                    Remaining: ${(quota.quota!.remaining / 100).toFixed(2)}
+                    {t('profileCard.remaining', {
+                      amount: (quota.quota!.remaining / 100).toFixed(2),
+                    })}
                   </span>
-                  <span>Resets: {formatResetDate(quota.quota!.billingCycleEnd)}</span>
+                  <span>
+                    {t('profileCard.resets', {
+                      date: formatResetDate(quota.quota!.billingCycleEnd, t),
+                    })}
+                  </span>
                 </div>
               </>
             ) : (
@@ -326,45 +342,55 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
                       <span className="percent">
                         {formatEnterpriseUsageLabel(quota.quota!)}
                       </span>
-                      <span className="label">used</span>
+                      <span className="label">{t('profileCard.used')}</span>
                     </>
                   ) : isMonthlySpend ? (
                     <>
                       <span className="percent">
                         {formatMonthlySpendLabel(quota.quota!)}
                       </span>
-                      <span className="label">monthly</span>
+                      <span className="label">{t('profileCard.monthly')}</span>
                     </>
                   ) : (
                     <>
                       <span className="percent">
                         {quota.quota!.totalPercentUsed.toFixed(0)}%
                       </span>
-                      <span className="label">used</span>
+                      <span className="label">{t('profileCard.used')}</span>
                     </>
                   )}
-                  {renderQuotaStatusIcons(quotaStatus)}
+                  {renderQuotaStatusIcons(quotaStatus, t)}
                 </div>
                 <div className="quota-details">
                   {isEnterprise && isMonthlySpend ? (
                     <span>
-                      Used: {formatEnterpriseUsageLabel(quota.quota!)}
+                      {t('profileCard.usedLabel', {
+                        value: formatEnterpriseUsageLabel(quota.quota!),
+                      })}
                     </span>
                   ) : isMonthlySpend ? (
                     <span>
-                      Monthly: {formatMonthlySpendLabel(quota.quota!)}
+                      {t('profileCard.monthlyLabel', {
+                        value: formatMonthlySpendLabel(quota.quota!),
+                      })}
                     </span>
                   ) : (
                     <span>
-                      Remaining: ${(quota.quota!.remaining / 100).toFixed(2)}
+                      {t('profileCard.remaining', {
+                        amount: (quota.quota!.remaining / 100).toFixed(2),
+                      })}
                     </span>
                   )}
-                  <span>Resets: {formatResetDate(quota.quota!.billingCycleEnd)}</span>
+                  <span>
+                    {t('profileCard.resets', {
+                      date: formatResetDate(quota.quota!.billingCycleEnd, t),
+                    })}
+                  </span>
                 </div>
               </>
             )
           ) : (
-            <div className="quota-unavailable">Quota data unavailable</div>
+            <div className="quota-unavailable">{t('profileCard.quotaUnavailable')}</div>
           )}
         </div>
       )}
@@ -378,7 +404,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
             aria-expanded={leaderboardExpanded}
           >
             <span className="leaderboard-status">{leaderboardStatusMessage}</span>
-            <span className="leaderboard-period">30d</span>
+            <span className="leaderboard-period">{t('profileCard.leaderboardPeriod')}</span>
             <span className="leaderboard-chevron" aria-hidden="true">
               {leaderboardExpanded ? '▾' : '▸'}
             </span>
@@ -397,7 +423,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
                   <span className="rank">#{entry.rank}</span>
                   <span className="name">{entry.displayName}</span>
                   <span className="metric">
-                    {formatCompactNumber(entry.composerLinesAccepted)} lines
+                    {formatCompactNumber(entry.composerLinesAccepted)} {t('profileCard.lines')}
                   </span>
                 </li>
               ))}
@@ -418,14 +444,14 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
             />
             <span>
               {profile.efficiencyAnalysisEnabled
-                ? 'Análisis de eficiencia activo'
-                : 'Activar análisis de eficiencia'}
+                ? t('profileCard.efficiencyActive')
+                : t('profileCard.efficiencyEnable')}
             </span>
           </label>
         </div>
       ) : profile.efficiencyAnalysisEnabled ? (
         <p className="efficiency-hint">
-          Análisis activo — gestiona desde la ventana de este perfil
+          {t('profileCard.efficiencyHint')}
         </p>
       ) : null}
 
@@ -437,10 +463,10 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
           disabled={isCurrent || isRunning}
         >
           {isCurrent
-            ? 'Current Window'
+            ? t('profileCard.currentWindow')
             : isRunning
-              ? 'Already Running'
-              : 'Launch'}
+              ? t('profileCard.alreadyRunning')
+              : t('profileCard.launch')}
         </button>
 
         <div className="menu-container" ref={menuRef}>
@@ -448,7 +474,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
             type="button"
             className="btn-menu"
             onClick={() => setShowMenu(!showMenu)}
-            aria-label="Profile actions"
+            aria-label={t('profileCard.profileActions')}
             aria-expanded={showMenu}
           >
             ⋮
@@ -464,7 +490,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
                   setShowMenu(false);
                 }}
               >
-                Edit
+                {t('profileCard.edit')}
               </button>
               <button
                 type="button"
@@ -474,10 +500,10 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
                   setShowMenu(false);
                 }}
               >
-                Show in Explorer
+                {t('profileCard.showInExplorer')}
               </button>
               <button type="button" role="menuitem" onClick={handleDelete} disabled={isRunning}>
-                Delete
+                {t('profileCard.delete')}
               </button>
             </div>
           )}

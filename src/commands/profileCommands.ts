@@ -3,6 +3,7 @@ import * as os from 'os';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import * as extensionLog from '../logging/extensionLog';
+import { t } from '../l10n';
 import { ProfileExporter } from '../profiles/profileExporter';
 import { ProfileImporter } from '../profiles/profileImporter';
 import { ProfileDetector } from '../profiles/profileDetector';
@@ -20,8 +21,8 @@ export function registerProfileCommands(
     vscode.commands.registerCommand('cursorAccounts.addProfile', async () => {
       try {
         const email = await vscode.window.showInputBox({
-          prompt: 'Enter Cursor account email',
-          placeHolder: 'user@example.com',
+          prompt: t('commands.addProfile.promptEmail'),
+          placeHolder: t('commands.addProfile.emailPlaceholder'),
           validateInput: (value) => {
             const validation = profileManager.validateEmail(value);
             return validation.valid ? null : validation.errors.join(', ');
@@ -35,14 +36,14 @@ export function registerProfileCommands(
         const existing = await profileManager.findProfileByEmail(email);
         if (existing) {
           vscode.window.showErrorMessage(
-            `Profile with email ${email} already exists`
+            t('commands.addProfile.profileExists', { email })
           );
           return;
         }
 
         const displayName = await vscode.window.showInputBox({
-          prompt: 'Enter profile display name (optional)',
-          placeHolder: 'e.g., Work, Personal, Client',
+          prompt: t('commands.addProfile.promptDisplayName'),
+          placeHolder: t('commands.addProfile.displayNamePlaceholder'),
         });
 
         const profile = await profileManager.createProfile({
@@ -51,26 +52,30 @@ export function registerProfileCommands(
         });
 
         const launch = await vscode.window.showInformationMessage(
-          `Profile "${profile.displayName}" created. Launch now?`,
-          'Launch',
-          'Later'
+          t('commands.addProfile.createdLaunchNow', { name: profile.displayName }),
+          t('commands.addProfile.launch'),
+          t('commands.addProfile.later')
         );
 
-        if (launch === 'Launch') {
+        if (launch === t('commands.addProfile.launch')) {
           const result = await profileLauncher.launch(profile.id);
           if (result.success) {
             vscode.window.showInformationMessage(
-              `Launching ${profile.displayName}...`
+              t('commands.addProfile.launching', { name: profile.displayName })
             );
           } else {
             vscode.window.showErrorMessage(
-              `Failed to launch profile: ${result.error}`
+              t('commands.addProfile.failedLaunch', {
+                error: result.error ?? t('errors.unknown'),
+              })
             );
           }
         }
       } catch (error) {
         vscode.window.showErrorMessage(
-          `Failed to create profile: ${error instanceof Error ? error.message : 'Unknown error'}`
+          t('commands.addProfile.failedCreate', {
+            error: error instanceof Error ? error.message : t('errors.unknown'),
+          })
         );
       }
     })
@@ -83,8 +88,8 @@ export function registerProfileCommands(
 
         if (profiles.length === 0) {
           const create = await vscode.window.showInformationMessage(
-            'No profiles configured. Create one now?',
-            'Create Profile'
+            t('commands.launchProfile.noProfilesCreate'),
+            t('commands.launchProfile.createProfile')
           );
           if (create) {
             await vscode.commands.executeCommand('cursorAccounts.addProfile');
@@ -96,11 +101,15 @@ export function registerProfileCommands(
           profiles.map((p) => ({
             label: p.displayName,
             description: p.email,
-            detail: `Last launched: ${p.lastLaunched ? new Date(p.lastLaunched).toLocaleString() : 'Never'}`,
+            detail: t('commands.launchProfile.lastLaunched', {
+              date: p.lastLaunched
+                ? new Date(p.lastLaunched).toLocaleString()
+                : t('commands.launchProfile.lastLaunchedNever'),
+            }),
             profile: p,
           })),
           {
-            placeHolder: 'Select profile to launch',
+            placeHolder: t('commands.launchProfile.selectPlaceholder'),
           }
         );
 
@@ -111,7 +120,7 @@ export function registerProfileCommands(
         const validation = await profileLauncher.validateExecutable();
         if (!validation.valid) {
           vscode.window.showErrorMessage(
-            validation.error ?? 'Cursor executable not found'
+            validation.error ?? t('errors.cursorExecutableNotFound')
           );
           return;
         }
@@ -120,16 +129,22 @@ export function registerProfileCommands(
 
         if (result.success) {
           vscode.window.showInformationMessage(
-            `Launching ${selected.profile.displayName}...`
+            t('commands.addProfile.launching', {
+              name: selected.profile.displayName,
+            })
           );
         } else {
           vscode.window.showErrorMessage(
-            `Failed to launch profile: ${result.error}`
+            t('commands.launchProfile.failedLaunch', {
+              error: result.error ?? t('errors.unknown'),
+            })
           );
         }
       } catch (error) {
         vscode.window.showErrorMessage(
-          `Failed to launch profile: ${error instanceof Error ? error.message : 'Unknown error'}`
+          t('commands.launchProfile.failedLaunch', {
+            error: error instanceof Error ? error.message : t('errors.unknown'),
+          })
         );
       }
     })
@@ -143,13 +158,13 @@ export function registerProfileCommands(
 
         if (profiles.length === 0) {
           vscode.window.showInformationMessage(
-            'No profiles configured. Use "Cursor Accounts: Add Profile" to create one.'
+            t('commands.listProfiles.noProfiles')
           );
           return;
         }
 
         extensionLog.clear();
-        extensionLog.appendLine('Configured Cursor Profiles:');
+        extensionLog.appendLine(t('commands.listProfiles.header'));
         extensionLog.appendLine('');
 
         for (const profile of profiles) {
@@ -157,11 +172,17 @@ export function registerProfileCommands(
           extensionLog.appendLine(
             `${isCurrent ? '● ' : '○ '}${profile.displayName}`
           );
-          extensionLog.appendLine(`  Email: ${profile.email}`);
-          extensionLog.appendLine(`  Path: ${profile.userDataDir}`);
+          extensionLog.appendLine(
+            t('commands.listProfiles.email', { email: profile.email })
+          );
+          extensionLog.appendLine(
+            t('commands.listProfiles.path', { path: profile.userDataDir })
+          );
           if (profile.lastLaunched) {
             extensionLog.appendLine(
-              `  Last launched: ${new Date(profile.lastLaunched).toLocaleString()}`
+              t('commands.listProfiles.lastLaunched', {
+                date: new Date(profile.lastLaunched).toLocaleString(),
+              })
             );
           }
           extensionLog.appendLine('');
@@ -170,7 +191,9 @@ export function registerProfileCommands(
         extensionLog.show();
       } catch (error) {
         vscode.window.showErrorMessage(
-          `Failed to list profiles: ${error instanceof Error ? error.message : 'Unknown error'}`
+          t('commands.listProfiles.failed', {
+            error: error instanceof Error ? error.message : t('errors.unknown'),
+          })
         );
       }
     })
@@ -182,7 +205,9 @@ export function registerProfileCommands(
         const profiles = await profileManager.getProfiles();
 
         if (profiles.length === 0) {
-          vscode.window.showInformationMessage('No profiles to delete.');
+          vscode.window.showInformationMessage(
+            t('commands.deleteProfile.noProfiles')
+          );
           return;
         }
 
@@ -193,7 +218,7 @@ export function registerProfileCommands(
             profile: p,
           })),
           {
-            placeHolder: 'Select profile to delete',
+            placeHolder: t('commands.deleteProfile.selectPlaceholder'),
           }
         );
 
@@ -201,24 +226,31 @@ export function registerProfileCommands(
           return;
         }
 
+        const deleteLabel = t('commands.deleteProfile.delete');
         const confirm = await vscode.window.showWarningMessage(
-          `Delete profile "${selected.profile.displayName}"? This will NOT delete the user data directory.`,
+          t('commands.deleteProfile.confirm', {
+            name: selected.profile.displayName,
+          }),
           { modal: true },
-          'Delete'
+          deleteLabel
         );
 
-        if (confirm !== 'Delete') {
+        if (confirm !== deleteLabel) {
           return;
         }
 
         await profileManager.deleteProfile(selected.profile.id);
 
         vscode.window.showInformationMessage(
-          `Profile "${selected.profile.displayName}" deleted.`
+          t('commands.deleteProfile.deleted', {
+            name: selected.profile.displayName,
+          })
         );
       } catch (error) {
         vscode.window.showErrorMessage(
-          `Failed to delete profile: ${error instanceof Error ? error.message : 'Unknown error'}`
+          t('commands.deleteProfile.failed', {
+            error: error instanceof Error ? error.message : t('errors.unknown'),
+          })
         );
       }
     })
@@ -233,17 +265,22 @@ export function registerProfileCommands(
 
           if (!current) {
             vscode.window.showInformationMessage(
-              'Using default Cursor profile (no custom profile active)'
+              t('commands.showCurrentProfile.default')
             );
             return;
           }
 
           vscode.window.showInformationMessage(
-            `Current profile: ${current.displayName} (${current.email})`
+            t('commands.showCurrentProfile.current', {
+              name: current.displayName,
+              email: current.email,
+            })
           );
         } catch (error) {
           vscode.window.showErrorMessage(
-            `Failed to detect current profile: ${error instanceof Error ? error.message : 'Unknown error'}`
+            t('commands.showCurrentProfile.failed', {
+              error: error instanceof Error ? error.message : t('errors.unknown'),
+            })
           );
         }
       }
@@ -256,13 +293,18 @@ export function registerProfileCommands(
         const profiles = await profileManager.getProfiles();
 
         if (profiles.length === 0) {
-          vscode.window.showInformationMessage('No profiles to export.');
+          vscode.window.showInformationMessage(
+            t('commands.exportProfiles.noProfiles')
+          );
           return;
         }
 
         const selected = await vscode.window.showQuickPick(
           [
-            { label: 'Export All Profiles', id: 'all' },
+            {
+              label: t('commands.exportProfiles.exportAll'),
+              id: 'all',
+            },
             ...profiles.map((p) => ({
               label: p.displayName,
               description: p.email,
@@ -271,7 +313,7 @@ export function registerProfileCommands(
             })),
           ],
           {
-            placeHolder: 'Select profiles to export',
+            placeHolder: t('commands.exportProfiles.selectPlaceholder'),
             canPickMany: true,
           }
         );
@@ -285,9 +327,13 @@ export function registerProfileCommands(
           ? profiles.map((p) => p.id)
           : selected.filter((s) => s.id !== 'all').map((s) => s.id);
 
-        const includeSettings = await vscode.window.showQuickPick(['Yes', 'No'], {
-          placeHolder: 'Include VS Code settings.json?',
-        });
+        const yesLabel = t('commands.exportProfiles.yes');
+        const includeSettings = await vscode.window.showQuickPick(
+          [yesLabel, t('commands.exportProfiles.no')],
+          {
+            placeHolder: t('commands.exportProfiles.includeSettings'),
+          }
+        );
 
         const uri = await vscode.window.showSaveDialog({
           defaultUri: vscode.Uri.file(
@@ -304,15 +350,20 @@ export function registerProfileCommands(
         await exporter.exportToFile(
           profileIds,
           uri.fsPath,
-          includeSettings === 'Yes'
+          includeSettings === yesLabel
         );
 
         vscode.window.showInformationMessage(
-          `Exported ${profileIds.length} profile(s) to ${uri.fsPath}`
+          t('commands.exportProfiles.exported', {
+            count: profileIds.length,
+            path: uri.fsPath,
+          })
         );
       } catch (error) {
         vscode.window.showErrorMessage(
-          `Failed to export profiles: ${error instanceof Error ? error.message : 'Unknown error'}`
+          t('commands.exportProfiles.failed', {
+            error: error instanceof Error ? error.message : t('errors.unknown'),
+          })
         );
       }
     })
@@ -339,18 +390,23 @@ export function registerProfileCommands(
 
         if (!validation.valid) {
           vscode.window.showErrorMessage(
-            `Invalid import file: ${validation.errors.join(', ')}`
+            t('commands.importProfiles.invalidFile', {
+              errors: validation.errors.join(', '),
+            })
           );
           return;
         }
 
         if (validation.warnings.length > 0) {
+          const continueLabel = t('commands.importProfiles.continue');
           const proceed = await vscode.window.showWarningMessage(
-            `Warnings:\n${validation.warnings.join('\n')}\n\nContinue?`,
+            t('commands.importProfiles.warningsContinue', {
+              warnings: validation.warnings.join('\n'),
+            }),
             { modal: true },
-            'Continue'
+            continueLabel
           );
-          if (proceed !== 'Continue') {
+          if (proceed !== continueLabel) {
             return;
           }
         }
@@ -359,13 +415,25 @@ export function registerProfileCommands(
 
         const messages: string[] = [];
         if (result.imported.length > 0) {
-          messages.push(`Imported: ${result.imported.length}`);
+          messages.push(
+            t('commands.importProfiles.imported', {
+              count: result.imported.length,
+            })
+          );
         }
         if (result.skipped.length > 0) {
-          messages.push(`Skipped: ${result.skipped.length}`);
+          messages.push(
+            t('commands.importProfiles.skipped', {
+              count: result.skipped.length,
+            })
+          );
         }
         if (result.errors.length > 0) {
-          messages.push(`Errors: ${result.errors.length}`);
+          messages.push(
+            t('commands.importProfiles.errors', {
+              count: result.errors.length,
+            })
+          );
         }
 
         if (result.success) {
@@ -375,7 +443,9 @@ export function registerProfileCommands(
         }
       } catch (error) {
         vscode.window.showErrorMessage(
-          `Failed to import profiles: ${error instanceof Error ? error.message : 'Unknown error'}`
+          t('commands.importProfiles.failed', {
+            error: error instanceof Error ? error.message : t('errors.unknown'),
+          })
         );
       }
     })

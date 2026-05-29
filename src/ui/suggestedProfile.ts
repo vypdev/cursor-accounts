@@ -1,4 +1,5 @@
 import { Profile, ToWebviewMessage } from '../profiles/types';
+import { t } from '../l10n';
 
 export function generateDisplayNameFromEmail(email: string): string {
   const localPart = email.split('@')[0];
@@ -24,7 +25,9 @@ export function buildSuggestedProfileResponse(
   if (existingProfile) {
     return {
       type: 'suggestedProfile',
-      notice: `La cuenta ${detectedEmail} ya está configurada. Introduce el email y nombre de la nueva cuenta.`,
+      notice: t('suggestedProfile.accountAlreadyConfigured', {
+        email: detectedEmail,
+      }),
     };
   }
 

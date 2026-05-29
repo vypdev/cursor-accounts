@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useL10n } from '../l10n/context';
 import { Profile } from '../types';
 import { DEFAULT_PROFILE_EMOJI, EmojiPicker } from './EmojiPicker';
 
@@ -13,6 +14,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
   onSubmit,
   onCancel,
 }) => {
+  const { t } = useL10n();
   const [displayName, setDisplayName] = useState(profile.displayName);
   const [theme, setTheme] = useState(profile.theme ?? '');
   const [color, setColor] = useState(profile.color ?? '#3b82f6');
@@ -24,7 +26,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
     e.preventDefault();
 
     if (!displayName.trim()) {
-      setError('Display name is required');
+      setError(t('editProfile.displayNameRequired'));
       return;
     }
 
@@ -49,12 +51,12 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
         aria-labelledby="edit-profile-title"
       >
         <div className="modal-header">
-          <h3 id="edit-profile-title">Edit Profile</h3>
+          <h3 id="edit-profile-title">{t('editProfile.title')}</h3>
           <button
             type="button"
             className="btn-close"
             onClick={onCancel}
-            aria-label="Close"
+            aria-label={t('addProfile.close')}
           >
             ×
           </button>
@@ -62,7 +64,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label htmlFor="edit-email">Email</label>
+            <label htmlFor="edit-email">{t('editProfile.emailLabel')}</label>
             <input
               id="edit-email"
               type="email"
@@ -73,7 +75,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
           </div>
 
           <div className="form-group">
-            <label htmlFor="edit-displayName">Display Name *</label>
+            <label htmlFor="edit-displayName">{t('editProfile.displayNameLabel')}</label>
             <input
               id="edit-displayName"
               type="text"
@@ -85,23 +87,23 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
           </div>
 
           <div className="form-group">
-            <label>Emoji</label>
+            <label>{t('editProfile.emojiLabel')}</label>
             <EmojiPicker value={emoji} onChange={setEmoji} />
           </div>
 
           <div className="form-group">
-            <label htmlFor="edit-theme">Theme (optional)</label>
+            <label htmlFor="edit-theme">{t('editProfile.themeLabel')}</label>
             <input
               id="edit-theme"
               type="text"
               value={theme}
               onChange={(e) => setTheme(e.target.value)}
-              placeholder="Dark+, Light+"
+              placeholder={t('editProfile.themePlaceholder')}
             />
           </div>
 
           <div className="form-group">
-            <label htmlFor="edit-color">Color</label>
+            <label htmlFor="edit-color">{t('editProfile.colorLabel')}</label>
             <input
               id="edit-color"
               type="color"
@@ -111,13 +113,13 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
           </div>
 
           <div className="form-group">
-            <label htmlFor="edit-notes">Notes (optional)</label>
+            <label htmlFor="edit-notes">{t('editProfile.notesLabel')}</label>
             <input
               id="edit-notes"
               type="text"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Personal projects, client work, etc."
+              placeholder={t('editProfile.notesPlaceholder')}
             />
           </div>
 
@@ -125,10 +127,10 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
 
           <div className="form-actions">
             <button type="button" onClick={onCancel}>
-              Cancel
+              {t('editProfile.cancel')}
             </button>
             <button type="submit" className="btn-primary">
-              Save Changes
+              {t('editProfile.save')}
             </button>
           </div>
         </form>

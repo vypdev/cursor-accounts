@@ -2,6 +2,7 @@ import { ProfileDetector } from '../profiles/profileDetector';
 import { ProfileManager } from '../profiles/profileManager';
 import { Profile } from '../profiles/types';
 import * as extensionLog from '../logging/extensionLog';
+import { t } from '../l10n';
 import { ApiKeyManager } from './apiKeyManager';
 import { OutputPresenter } from './outputPresenter';
 import { SdkClassifier } from './sdkClassifier';
@@ -83,7 +84,7 @@ export class EfficiencyAnalyzer {
         `[EfficiencyAnalyzer] No API key for profile ${profile.id}; skip analysis`
       );
       this.outputPresenter.presentError(
-        'No hay API key de eficiencia para este perfil. Reactiva el análisis en Accounts.',
+        t('efficiency.noApiKey'),
         metadata
       );
       return;

@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { getProfileStateDbPath } from '../auth/cursorPaths';
 import { readAuthFromStateDb } from '../auth/tokenReader';
 import * as extensionLog from '../logging/extensionLog';
+import { t } from '../l10n';
 import { Profile } from '../profiles/types';
 import { ProfileManager } from '../profiles/profileManager';
 import { ApiKeyManager, ApiKeyManagerError } from './apiKeyManager';
@@ -11,11 +12,9 @@ import { OutputPresenter } from './outputPresenter';
 import { CursorSdkClassifier } from './sdkClassifier';
 import { ProfileDetector } from '../profiles/profileDetector';
 
-const EFFICIENCY_CONSENT_MESSAGE =
-  'Se creará una API key de Cursor llamada "Cursor Accounts - API Key" vinculada a esta cuenta para analizar la eficiencia del modelo en segundo plano.';
-
-export const EFFICIENCY_WRONG_WINDOW_MESSAGE =
-  'El análisis de eficiencia solo se puede activar o desactivar en la ventana de ese perfil.';
+export function getEfficiencyWrongWindowMessage(): string {
+  return t('errors.efficiencyWrongWindow');
+}
 
 export class EfficiencyService {
   private readonly apiKeyManager: ApiKeyManager;
@@ -89,24 +88,25 @@ export class EfficiencyService {
   ): Promise<{ profile: Profile; message: string }> {
     const current = await this.profileDetector.detectCurrentProfile();
     if (!current || current.id !== profileId) {
-      throw new Error(EFFICIENCY_WRONG_WINDOW_MESSAGE);
+      throw new Error(getEfficiencyWrongWindowMessage());
     }
 
     const profile = await this.profileManager.getProfile(profileId);
     if (!profile) {
-      throw new Error('Profile not found');
+      throw new Error(t('errors.profileNotFound'));
     }
 
     if (enabled) {
+      const confirmLabel = t('efficiency.consent.confirm');
       const consent = await vscode.window.showInformationMessage(
-        EFFICIENCY_CONSENT_MESSAGE,
+        t('efficiency.consent.message'),
         { modal: true },
-        'Crear API key y activar',
-        'Cancelar'
+        confirmLabel,
+        t('efficiency.consent.cancel')
       );
 
-      if (consent !== 'Crear API key y activar') {
-        throw new Error('Activación cancelada');
+      if (consent !== confirmLabel) {
+        throw new Error(t('errors.efficiencyActivationCancelled'));
       }
 
       const dbPath = getProfileStateDbPath(profile.userDataDir);
@@ -115,9 +115,7 @@ export class EfficiencyService {
         this.context.extensionPath
       );
       if (!auth?.accessToken) {
-        throw new Error(
-          'No access token in profile storage. Sign in to Cursor with this profile first.'
-        );
+        throw new Error(t('errors.noAccessToken'));
       }
 
       try {
@@ -142,7 +140,7 @@ export class EfficiencyService {
 
       return {
         profile: updated,
-        message: `Análisis de eficiencia activado para ${profile.displayName}`,
+        message: t('efficiency.activated', { name: profile.displayName }),
       };
     }
 
@@ -155,7 +153,7 @@ export class EfficiencyService {
 
     return {
       profile: updated,
-      message: `Análisis de eficiencia desactivado para ${profile.displayName}`,
+      message: t('efficiency.deactivated', { name: profile.displayName }),
     };
   }
 
@@ -167,8 +165,6 @@ export class EfficiencyService {
     if (profiles.some((p) => p.efficiencyAnalysisEnabled)) {
       this.startPoller();
     }
-    vscode.window.showInformationMessage(
-      'Detector de prompts reiniciado (lectura de state.vscdb cada 10 s).'
-    );
+    vscode.window.showInformationMessage(t('efficiency.restartDetector'));
   }
 }

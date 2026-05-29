@@ -31,10 +31,12 @@ import {
   ProfileAccountFetcher,
 } from '../services/profileAccountFetcher';
 import { buildSuggestedProfileResponse } from './suggestedProfile';
+import { EfficiencyService, getEfficiencyWrongWindowMessage } from '../modelEfficiency/efficiencyService';
 import {
-  EFFICIENCY_WRONG_WINDOW_MESSAGE,
-  EfficiencyService,
-} from '../modelEfficiency/efficiencyService';
+  getLocale,
+  getWebviewMessages,
+  t,
+} from '../l10n';
 
 /** Activity bar container id (must match package.json viewsContainers). */
 export const ACCOUNTS_VIEW_CONTAINER = 'cursorAccounts';
@@ -102,9 +104,9 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
       webviewView.webview.html = this.getHtmlContent(webviewView.webview);
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : 'Unknown error';
+        error instanceof Error ? error.message : t('errors.unknown');
       vscode.window.showErrorMessage(
-        `Cursor Accounts: failed to load Accounts panel (${message})`
+        t('panel.loadFailed', { error: message })
       );
       throw error;
     }
@@ -132,7 +134,7 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
 
     this.panel = vscode.window.createWebviewPanel(
       ACCOUNTS_SIDEBAR_VIEW_ID,
-      'Cursor Accounts',
+      t('panel.title'),
       vscode.ViewColumn.Active,
       {
         enableScripts: true,
@@ -179,6 +181,8 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
         profileAccounts: {},
         activeAccount: null,
         runningInstances,
+        locale: getLocale(),
+        messages: getWebviewMessages(),
       };
 
       await this.postMessage({ type: 'init', data: initData });
@@ -190,7 +194,7 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
       );
       await this.postMessage({
         type: 'error',
-        message: 'Failed to load profiles',
+        message: t('errors.failedLoadProfiles'),
       });
     }
   }
@@ -363,7 +367,7 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
     } catch (error) {
       await this.postMessage({
         type: 'error',
-        message: error instanceof Error ? error.message : 'Unknown error',
+        message: error instanceof Error ? error.message : t('errors.unknown'),
       });
     }
   }
@@ -387,14 +391,16 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
         const profile = await this.profileManager.getProfile(profileId);
         await this.postMessage({
           type: 'success',
-          message: `Launched ${profile?.displayName ?? 'profile'}`,
+          message: t('panel.launched', {
+            name: profile?.displayName ?? t('panel.profileFallback'),
+          }),
         });
         await this.refresh();
         void this.refreshInstances();
       } else {
         await this.postMessage({
           type: 'error',
-          message: result.error ?? 'Failed to launch profile',
+          message: result.error ?? t('errors.failedLaunchProfile'),
         });
       }
     } finally {
@@ -416,7 +422,7 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
 
     await this.postMessage({
       type: 'success',
-      message: `Profile "${profile.displayName}" created`,
+      message: t('panel.profileCreated', { name: profile.displayName }),
     });
     await this.refresh();
   }
@@ -429,7 +435,7 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
 
     await this.postMessage({
       type: 'success',
-      message: `Profile "${profile.displayName}" updated`,
+      message: t('panel.profileUpdated', { name: profile.displayName }),
     });
     await this.refresh();
   }
@@ -437,13 +443,13 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
   private async handleDelete(profileId: string): Promise<void> {
     extensionLog.info(`[AccountsPanel] Delete profile requested (${profileId})`);
     const profile = await this.profileManager.getProfile(profileId);
-    const displayName = profile?.displayName ?? 'Unknown';
+    const displayName = profile?.displayName ?? t('panel.unknownProfile');
 
     await this.profileManager.deleteProfile(profileId, this.instanceDetector);
 
     await this.postMessage({
       type: 'success',
-      message: `Profile "${displayName}" deleted`,
+      message: t('panel.profileDeleted', { name: displayName }),
     });
     await this.refresh();
   }
@@ -451,7 +457,7 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
   private async handleShowInExplorer(profileId: string): Promise<void> {
     const profile = await this.profileManager.getProfile(profileId);
     if (!profile) {
-      throw new Error('Profile not found');
+      throw new Error(t('errors.profileNotFound'));
     }
 
     const uri = vscode.Uri.file(profile.userDataDir);
@@ -464,7 +470,7 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
   ): Promise<void> {
     const current = await this.profileDetector.detectCurrentProfile();
     if (!current || current.id !== profileId) {
-      throw new Error(EFFICIENCY_WRONG_WINDOW_MESSAGE);
+      throw new Error(getEfficiencyWrongWindowMessage());
     }
 
     extensionLog.info(
@@ -539,7 +545,7 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
 
     await this.postMessage({
       type: 'success',
-      message: `Exported ${exportData.profiles.length} profile(s)`,
+      message: t('panel.exported', { count: exportData.profiles.length }),
     });
   }
 
@@ -553,13 +559,13 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
 
     const messages: string[] = [];
     if (result.imported.length > 0) {
-      messages.push(`Imported ${result.imported.length}`);
+      messages.push(t('panel.imported', { count: result.imported.length }));
     }
     if (result.skipped.length > 0) {
-      messages.push(`Skipped ${result.skipped.length}`);
+      messages.push(t('panel.importSkipped', { count: result.skipped.length }));
     }
     if (result.errors.length > 0) {
-      messages.push(`${result.errors.length} error(s)`);
+      messages.push(t('panel.importErrors', { count: result.errors.length }));
     }
 
     if (result.imported.length > 0 || result.skipped.length > 0) {
@@ -569,14 +575,14 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
     if (result.success) {
       await this.postMessage({
         type: 'success',
-        message: messages.join(', ') || 'Import completed',
+        message: messages.join(', ') || t('panel.importCompleted'),
       });
     } else {
       await this.postMessage({
         type: 'error',
         message:
           messages.join(', ') ||
-          'Import completed with errors',
+          t('panel.importCompletedWithErrors'),
       });
     }
   }
@@ -608,26 +614,28 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
 
     const nonce = getNonce();
 
+    const locale = getLocale();
+
     return `<!DOCTYPE html>
-<html lang="en">
+<html lang="${locale}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src ${webview.cspSource} 'nonce-${nonce}'; font-src ${webview.cspSource}; img-src ${webview.cspSource} https:;">
   <link rel="stylesheet" href="${styleUri}">
-  <title>Cursor Accounts</title>
+  <title>${t('panel.title')}</title>
 </head>
 <body>
   <div id="root">
     <p style="padding: 12px; color: var(--vscode-foreground, #ccc); font-family: var(--vscode-font-family, sans-serif);">
-      Loading Cursor Accounts…
+      ${t('panel.loadingHtml')}
     </p>
   </div>
   <script nonce="${nonce}">
     window.__cursorAccountsReportScriptError = function() {
       var root = document.getElementById('root');
       if (root) {
-        root.innerHTML = '<p style="padding:12px;color:var(--vscode-errorForeground,#f88);">Failed to load Cursor Accounts UI script.</p>';
+        root.innerHTML = '<p style="padding:12px;color:var(--vscode-errorForeground,#f88);">${t('panel.scriptLoadFailed')}</p>';
       }
     };
   </script>

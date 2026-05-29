@@ -1,7 +1,7 @@
 {
   "name": "cursor-accounts",
-  "displayName": "Cursor Accounts",
-  "description": "Manage Cursor accounts and show plan quota usage in the status bar without opening Settings.",
+  "displayName": "%extension.displayName%",
+  "description": "%extension.description%",
   "version": "0.1.22",
   "publisher": "vypdev",
   "license": "MIT",
@@ -26,7 +26,7 @@
       "activitybar": [
         {
           "id": "cursorAccounts",
-          "title": "Cursor Accounts",
+          "title": "%viewsContainers.activitybar.title%",
           "icon": "$(account)"
         }
       ]
@@ -36,137 +36,137 @@
         {
           "type": "webview",
           "id": "cursorAccounts.accountsPanel",
-          "name": "Accounts"
+          "name": "%views.accounts.name%"
         }
       ]
     },
     "commands": [
       {
         "command": "cursorAccounts.openAccounts",
-        "title": "Cursor Accounts: Open Accounts Panel",
+        "title": "%commands.openAccounts.title%",
         "icon": "$(account)"
       },
       {
         "command": "cursorAccounts.refresh",
-        "title": "Cursor Accounts: Refresh Now",
+        "title": "%commands.refresh.title%",
         "icon": "$(refresh)"
       },
       {
         "command": "cursorAccounts.openUsage",
-        "title": "Cursor Accounts: Open Usage in Settings"
+        "title": "%commands.openUsage.title%"
       },
       {
         "command": "cursorAccounts.addProfile",
-        "title": "Cursor Accounts: Add Profile",
+        "title": "%commands.addProfile.title%",
         "icon": "$(add)"
       },
       {
         "command": "cursorAccounts.launchProfile",
-        "title": "Cursor Accounts: Launch Profile",
+        "title": "%commands.launchProfile.title%",
         "icon": "$(rocket)"
       },
       {
         "command": "cursorAccounts.listProfiles",
-        "title": "Cursor Accounts: List Profiles"
+        "title": "%commands.listProfiles.title%"
       },
       {
         "command": "cursorAccounts.deleteProfile",
-        "title": "Cursor Accounts: Delete Profile",
+        "title": "%commands.deleteProfile.title%",
         "icon": "$(trash)"
       },
       {
         "command": "cursorAccounts.showCurrentProfile",
-        "title": "Cursor Accounts: Show Current Profile"
+        "title": "%commands.showCurrentProfile.title%"
       },
       {
         "command": "cursorAccounts.exportProfiles",
-        "title": "Cursor Accounts: Export Profiles",
+        "title": "%commands.exportProfiles.title%",
         "icon": "$(export)"
       },
       {
         "command": "cursorAccounts.importProfiles",
-        "title": "Cursor Accounts: Import Profiles",
+        "title": "%commands.importProfiles.title%",
         "icon": "$(folder-opened)"
       },
       {
         "command": "cursorAccounts.efficiency.showOutput",
-        "title": "Cursor Accounts: Show Model Efficiency Output"
+        "title": "%commands.efficiency.showOutput.title%"
       },
       {
         "command": "cursorAccounts.efficiency.restartDetector",
-        "title": "Cursor Accounts: Restart Prompt Detector"
+        "title": "%commands.efficiency.restartDetector.title%"
       }
     ],
     "configuration": {
-      "title": "Cursor Accounts",
+      "title": "%configuration.title%",
       "properties": {
         "cursorAccounts.refresh.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Automatically refresh quota data from Cursor."
+          "description": "%configuration.refresh.enabled.description%"
         },
         "cursorAccounts.refresh.intervalSeconds": {
           "type": "number",
           "default": 60,
           "minimum": 30,
           "maximum": 300,
-          "description": "Polling interval in seconds (30–300)."
+          "description": "%configuration.refresh.intervalSeconds.description%"
         },
         "cursorAccounts.statusBar.showIncluded": {
           "type": "boolean",
           "default": true,
-          "description": "Show included quota usage progress in the status bar."
+          "description": "%configuration.statusBar.showIncluded.description%"
         },
         "cursorAccounts.statusBar.showTotal": {
           "type": "boolean",
           "default": true,
-          "description": "Show total plan usage percentage in the status bar."
+          "description": "%configuration.statusBar.showTotal.description%"
         },
         "cursorAccounts.statusBar.showAccountEmail": {
           "type": "boolean",
           "default": false,
-          "description": "Append logged-in email (read from local Cursor auth cache) to tooltips."
+          "description": "%configuration.statusBar.showAccountEmail.description%"
         },
         "cursorAccounts.profiles.autoDetectRunning": {
           "type": "boolean",
           "default": true,
-          "description": "Automatically detect running Cursor instances for each profile."
+          "description": "%configuration.profiles.autoDetectRunning.description%"
         },
         "cursorAccounts.profiles.showProfileInStatusBar": {
           "type": "boolean",
           "default": true,
-          "description": "Show current profile name in the status bar."
+          "description": "%configuration.profiles.showProfileInStatusBar.description%"
         },
         "cursorAccounts.profiles.refreshAllInterval": {
           "type": "number",
           "default": 300,
           "minimum": 60,
           "maximum": 3600,
-          "description": "Interval in seconds for refreshing all profile quotas."
+          "description": "%configuration.profiles.refreshAllInterval.description%"
         },
         "cursorAccounts.profiles.instanceDetectionInterval": {
           "type": "number",
           "default": 30,
           "minimum": 15,
           "maximum": 120,
-          "description": "Interval in seconds for detecting running Cursor instances."
+          "description": "%configuration.profiles.instanceDetectionInterval.description%"
         },
         "cursorAccounts.modelEfficiency.showNotificationOnHigh": {
           "type": "boolean",
           "default": true,
-          "description": "Show an information notification when model efficiency severity is high."
+          "description": "%configuration.modelEfficiency.showNotificationOnHigh.description%"
         },
         "cursorAccounts.modelEfficiency.autoShowOutputChannel": {
           "type": "boolean",
           "default": false,
-          "description": "Automatically open the Model Efficiency output channel on each analysis."
+          "description": "%configuration.modelEfficiency.autoShowOutputChannel.description%"
         },
         "cursorAccounts.modelEfficiency.pollIntervalSeconds": {
           "type": "number",
           "default": 10,
           "minimum": 5,
           "maximum": 60,
-          "description": "Interval in seconds for polling the profile state.vscdb for new Composer user messages (5–60)."
+          "description": "%configuration.modelEfficiency.pollIntervalSeconds.description%"
         }
       }
     }
@@ -182,6 +182,7 @@
     "watch": "tsc -watch -p ./",
     "watch:webview": "pnpm --dir webview run watch",
     "lint": "tsc -p ./ --noEmit",
+    "validate:l10n": "node scripts/validate-l10n.mjs",
     "test": "node --test out/test/*.test.js",
     "pretest": "tsc -p ./",
     "build:all": "pnpm run compile && pnpm run package:all:fast",

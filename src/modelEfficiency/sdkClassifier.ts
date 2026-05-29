@@ -1,4 +1,5 @@
 import * as extensionLog from '../logging/extensionLog';
+import { t } from '../l10n';
 import {
   EfficiencySeverity,
   EfficiencyTaskType,
@@ -46,7 +47,7 @@ export function buildClassificationPrompt(metadata: PromptMetadata): string {
     '  "efficiencyScore": 0.0,',
     '  "severity": "low|medium|high",',
     '  "confidence": 0.0,',
-    '  "opinion": "short explanation in Spanish",',
+    `  "opinion": "${t('efficiency.classifier.opinionLang')}",`,
     '  "recommendedModel": "suggested model id if inefficient"',
     '}',
     'Tier rules: 1=light (fast/mini), 2=balanced (sonnet/composer), 3=premium (opus/thinking).',
@@ -67,7 +68,7 @@ export function parseClassificationJson(raw: string): SdkClassificationPayload {
   try {
     return JSON.parse(candidate) as SdkClassificationPayload;
   } catch {
-    throw new SdkClassifierError('SDK returned non-JSON classification output');
+    throw new SdkClassifierError(t('efficiency.classifier.sdkNonJson'));
   }
 }
 
@@ -107,7 +108,7 @@ export function mapPayloadToScoringResult(
     opinion:
       typeof payload.opinion === 'string' && payload.opinion.trim()
         ? payload.opinion.trim()
-        : 'Sin opinión adicional.',
+        : t('efficiency.classifier.noOpinion'),
     recommendedModel:
       typeof payload.recommendedModel === 'string'
         ? payload.recommendedModel
@@ -147,7 +148,7 @@ export class CursorSdkClassifier implements SdkClassifier {
 
       const text = result.result?.trim();
       if (!text) {
-        throw new SdkClassifierError('Classification run returned empty result');
+        throw new SdkClassifierError(t('efficiency.classifier.sdkEmpty'));
       }
 
       const payload = parseClassificationJson(text);
@@ -160,7 +161,7 @@ export class CursorSdkClassifier implements SdkClassifier {
         `[SdkClassifier] ${error instanceof Error ? error.message : String(error)}`
       );
       throw new SdkClassifierError(
-        error instanceof Error ? error.message : 'SDK classification failed'
+        error instanceof Error ? error.message : t('efficiency.classifier.sdkFailed')
       );
     }
   }

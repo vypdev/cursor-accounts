@@ -3,6 +3,11 @@
  * Must be imported before any extension module that requires 'vscode'.
  */
 import Module from 'node:module';
+import * as path from 'path';
+import { initL10n } from '../l10n';
+
+const repoRoot = path.join(__dirname, '..', '..');
+initL10n({ extensionPath: repoRoot, language: 'en' });
 
 function createLogOutputChannelStub() {
   return {
@@ -29,6 +34,9 @@ const vscodeMock = {
       fsPath: filePath,
       toString: () => filePath,
     }),
+  },
+  env: {
+    language: 'en',
   },
   window: {
     registerWebviewViewProvider: () => ({ dispose: () => undefined }),

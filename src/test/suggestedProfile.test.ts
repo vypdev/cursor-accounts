@@ -1,3 +1,4 @@
+import './registerVscodeMock';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { Profile } from '../profiles/types';
@@ -37,7 +38,7 @@ describe('suggestedProfile', () => {
     assert.equal(response.displayName, undefined);
     assert.match(
       response.notice ?? '',
-      /La cuenta user@example\.com ya está configurada/
+      /Account user@example\.com is already configured/
     );
   });
 

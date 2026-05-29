@@ -1,3 +1,5 @@
+import { t } from '../l10n';
+
 /**
  * Render a compact Unicode progress bar for the status bar.
  */
@@ -30,7 +32,7 @@ export function formatCents(cents: number): string {
 /** Parse ms timestamp strings or ISO 8601 dates from Cursor API responses. */
 export function formatBillingDate(dateString: string | undefined): string {
   if (!dateString) {
-    return '—';
+    return t('formatters.dash');
   }
 
   const ms = Number(dateString);
@@ -39,7 +41,7 @@ export function formatBillingDate(dateString: string | undefined): string {
     : new Date(dateString);
 
   if (Number.isNaN(date.getTime())) {
-    return '—';
+    return t('formatters.dash');
   }
 
   return date.toLocaleDateString(undefined, {
@@ -56,7 +58,7 @@ export function formatMonthlySpend(
 ): string {
   const spend = formatCents(spendCents);
   if (limitCents == null) {
-    return `${spend} / unlimited`;
+    return `${spend} / ${t('formatters.unlimited')}`;
   }
   return `${spend} / ${formatCents(limitCents)}`;
 }

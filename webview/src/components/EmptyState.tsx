@@ -1,19 +1,22 @@
 import React from 'react';
+import { useL10n } from '../l10n/context';
 
 interface EmptyStateProps {
   onAddProfile: () => void;
 }
 
 export const EmptyState: React.FC<EmptyStateProps> = ({ onAddProfile }) => {
+  const { t } = useL10n();
+
   return (
     <div className="empty-state">
       <div className="icon" aria-hidden="true">
         👤
       </div>
-      <h3>No profiles yet</h3>
-      <p>Create a profile to manage multiple Cursor accounts</p>
+      <h3>{t('emptyState.title')}</h3>
+      <p>{t('emptyState.description')}</p>
       <button type="button" className="btn-primary" onClick={onAddProfile}>
-        Add Your First Profile
+        {t('emptyState.button')}
       </button>
     </div>
   );
