@@ -2,6 +2,17 @@
 
 Cursor extension that shows **plan quota usage** in the IDE status bar after activation—no need to open **Settings** manually.
 
+<p align="center">
+    <img width="48%" alt="bottom_bar_dark" src="https://github.com/user-attachments/assets/47b20eb4-1880-48df-be96-2c6e43eb838b" />
+    <img width="48%" alt="bottom_bar_light" src="https://github.com/user-attachments/assets/6cac986f-f7b1-466b-b175-d06b3ed8492f" />
+</p>
+
+<p align="center">
+    <img width="48%" alt="account_selector_dark" src="https://github.com/user-attachments/assets/3bfc7063-63ca-4c35-9c2d-f72a08f81e34" />
+    <img width="48%" alt="account_selector_light" src="https://github.com/user-attachments/assets/d023de43-51f4-4531-a38f-b6cd12fd5e3e" />
+</p>
+
+
 ## What it does
 
 - Shows plan quota in the status bar — averaged **API mode** and **auto mode** usage for personal accounts, **Monthly Usage** spend for enterprise
