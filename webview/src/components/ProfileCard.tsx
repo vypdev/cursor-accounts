@@ -16,6 +16,7 @@ import {
   hasDistinctTeamBudget,
   isEnterpriseUsage
 } from '../types';
+import { formatMembershipType } from '../utils/formatters';
 
 interface ProfileCardProps {
   profile: Profile;
@@ -28,6 +29,7 @@ interface ProfileCardProps {
   onDelete: (id: string) => void;
   onShowInExplorer: (id: string) => void;
   onToggleEfficiency: (id: string, enabled: boolean) => void;
+  onManageStorage: (id: string) => void;
 }
 
 function formatResetDate(
@@ -138,6 +140,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
   onDelete,
   onShowInExplorer,
   onToggleEfficiency,
+  onManageStorage,
 }) => {
   const { t } = useL10n();
   const [showMenu, setShowMenu] = useState(false);
@@ -169,6 +172,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
 
   const accountName = account?.accountName ?? profile.email;
   const showAvatar = account?.pictureUrl && !avatarError;
+  const membershipLabel = formatMembershipType(quota?.quota?.membershipType);
 
   useEffect(() => {
     setAvatarError(false);
@@ -242,7 +246,14 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
             </div>
             <div className="profile-text">
               <h3>{accountName}</h3>
-              <span className="email">{profile.email}</span>
+              <div className="profile-email-row">
+                <span className="email">{profile.email}</span>
+                {membershipLabel && (
+                  <span className="account-type-badge" title={t('profileCard.accountType')}>
+                    {membershipLabel}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -509,6 +520,16 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
                 }}
               >
                 {t('profileCard.showInExplorer')}
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  onManageStorage(profile.id);
+                  setShowMenu(false);
+                }}
+              >
+                {t('profileCard.manageStorage')}
               </button>
               <button type="button" role="menuitem" onClick={handleDelete} disabled={isRunning}>
                 {t('profileCard.delete')}

@@ -1,5 +1,7 @@
 import * as vscode from 'vscode';
 import type { IProfileAuthReader } from '../domain/ports/IProfileAuthReader';
+import type { IProfileStorageAnalyzer } from '../domain/ports/IProfileStorageAnalyzer';
+import type { IStorageCleanupService } from '../domain/ports/IStorageCleanupService';
 import * as extensionLog from '../logging/extensionLog';
 import { t } from '../l10n';
 import type { EfficiencyService } from '../modelEfficiency/efficiencyService';
@@ -15,8 +17,10 @@ import type {
   Profile,
   ToWebviewMessage,
 } from '../profiles/types';
+import type { StorageCleanupOptions } from '@cursor-accounts/types';
 import type { ProfileDetector } from '../profiles/profileDetector';
 import { buildSuggestedProfileResponse } from './suggestedProfile';
+import { calculateProfileStorageSize } from '../utils/storageSize';
 
 /** Callbacks the panel provides for webview messaging and refresh orchestration. */
 export interface AccountsPanelHandlerCallbacks {
@@ -34,6 +38,8 @@ export interface AccountsPanelHandlerDeps {
   efficiencyService: EfficiencyService;
   authReader: IProfileAuthReader;
   instanceDetector: InstanceDetector;
+  storageCleanupService: IStorageCleanupService;
+  storageAnalyzer?: IProfileStorageAnalyzer;
 }
 
 /**
@@ -84,6 +90,14 @@ export class AccountsPanelHandlers {
 
       case 'toggleEfficiency':
         await this.handleToggleEfficiency(message.profileId, message.enabled);
+        break;
+
+      case 'requestStorageInfo':
+        await this.handleRequestStorageInfo(message.profileId);
+        break;
+
+      case 'cleanStorage':
+        await this.handleCleanStorage(message.profileId, message.options);
         break;
 
       default:
@@ -244,6 +258,76 @@ export class AccountsPanelHandlers {
           displayName: undefined,
         });
       }
+    }
+  }
+
+  private async getStorageBreakdown(profileId: string, userDataDir: string) {
+    if (this.deps.storageAnalyzer) {
+      return this.deps.storageAnalyzer.calculateProfileStorageSize(
+        profileId,
+        userDataDir
+      );
+    }
+    return calculateProfileStorageSize(profileId, userDataDir);
+  }
+
+  private async handleRequestStorageInfo(profileId: string): Promise<void> {
+    const profile = await this.deps.profileManager.getProfile(profileId);
+    if (!profile) {
+      throw new Error(t('errors.profileNotFound'));
+    }
+
+    const breakdown = await this.getStorageBreakdown(
+      profileId,
+      profile.userDataDir
+    );
+
+    await this.callbacks.postMessage({
+      type: 'storageInfo',
+      data: breakdown,
+    });
+  }
+
+  private async handleCleanStorage(
+    profileId: string,
+    options: StorageCleanupOptions
+  ): Promise<void> {
+    extensionLog.info(
+      `[AccountsPanel] Storage cleanup requested for ${profileId}: ${options.action}`
+    );
+
+    const result = await this.deps.storageCleanupService.cleanProfileStorage(
+      profileId,
+      options
+    );
+
+    await this.callbacks.postMessage({
+      type: 'storageCleanupResult',
+      data: result,
+    });
+
+    if (result.success) {
+      await this.callbacks.postMessage({
+        type: 'success',
+        message: result.message,
+      });
+
+      const profile = await this.deps.profileManager.getProfile(profileId);
+      if (profile) {
+        const breakdown = await this.getStorageBreakdown(
+          profileId,
+          profile.userDataDir
+        );
+        await this.callbacks.postMessage({
+          type: 'storageInfo',
+          data: breakdown,
+        });
+      }
+    } else {
+      await this.callbacks.postMessage({
+        type: 'error',
+        message: result.message,
+      });
     }
   }
 

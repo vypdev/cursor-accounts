@@ -5,6 +5,7 @@ import { EditProfileForm } from './components/EditProfileForm';
 import { EmptyState } from './components/EmptyState';
 import { ImportDialog } from './components/ImportDialog';
 import { ProfileList } from './components/ProfileList';
+import { StorageManagementModal } from './components/StorageManagementModal';
 import { L10nProvider, useL10n } from './l10n/context';
 import type {
   ImportOptions,
@@ -13,6 +14,9 @@ import type {
   ProfileAccountView,
   ProfileQuotaMap,
   InstanceInfoMap,
+  StorageBreakdown,
+  StorageCleanupAction,
+  StorageCleanupResult,
   ToWebviewMessage,
 } from './types';
 import './App.css';
@@ -45,6 +49,13 @@ const AppContent: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [storageProfileId, setStorageProfileId] = useState<string | null>(null);
+  const [storageInfo, setStorageInfo] = useState<StorageBreakdown | undefined>();
+  const [storageLoading, setStorageLoading] = useState(false);
+  const [cleanupInProgress, setCleanupInProgress] = useState(false);
+  const [lastCleanupResult, setLastCleanupResult] = useState<
+    StorageCleanupResult | undefined
+  >();
 
   const persistUiState = useCallback(
     (showAdd: boolean, editingId: string | null) => {
@@ -129,13 +140,27 @@ const AppContent: React.FC = () => {
             setSuggestedNotice(undefined);
           }
           break;
+
+        case 'storageInfo':
+          if (message.data.profileId === storageProfileId) {
+            setStorageInfo(message.data);
+            setStorageLoading(false);
+          }
+          break;
+
+        case 'storageCleanupResult':
+          if (storageProfileId) {
+            setLastCleanupResult(message.data);
+            setCleanupInProgress(false);
+          }
+          break;
       }
     });
 
     vscodeApi.ready();
 
     return unsubscribe;
-  }, []);
+  }, [storageProfileId]);
 
   const handleLaunch = useCallback((profileId: string) => {
     vscodeApi.launch(profileId);
@@ -229,8 +254,42 @@ const AppContent: React.FC = () => {
     []
   );
 
+  const handleManageStorage = useCallback((profileId: string) => {
+    setStorageProfileId(profileId);
+    setStorageInfo(undefined);
+    setStorageLoading(true);
+    setCleanupInProgress(false);
+    setLastCleanupResult(undefined);
+  }, []);
+
+  const handleCloseStorageModal = useCallback(() => {
+    setStorageProfileId(null);
+    setStorageInfo(undefined);
+    setStorageLoading(false);
+    setCleanupInProgress(false);
+    setLastCleanupResult(undefined);
+  }, []);
+
+  const handleRequestStorageInfo = useCallback((profileId: string) => {
+    setStorageLoading(true);
+    vscodeApi.requestStorageInfo(profileId);
+  }, []);
+
+  const handleCleanStorage = useCallback(
+    (profileId: string, action: StorageCleanupAction, chatAgeDays?: number) => {
+      setCleanupInProgress(true);
+      setLastCleanupResult(undefined);
+      vscodeApi.cleanStorage(profileId, { action, chatAgeDays });
+    },
+    []
+  );
+
   const editingProfile = editingProfileId
     ? profiles.find((p) => p.id === editingProfileId)
+    : undefined;
+
+  const storageProfile = storageProfileId
+    ? profiles.find((p) => p.id === storageProfileId)
     : undefined;
 
   const activeAccountLabel = (() => {
@@ -318,6 +377,7 @@ const AppContent: React.FC = () => {
             onShowInExplorer={handleShowInExplorer}
             onExport={handleExport}
             onToggleEfficiency={handleToggleEfficiency}
+            onManageStorage={handleManageStorage}
           />
         )}
       </div>
@@ -360,6 +420,21 @@ const AppContent: React.FC = () => {
           profile={editingProfile}
           onSubmit={(updates) => handleEditSubmit(editingProfile.id, updates)}
           onCancel={closeEditForm}
+        />
+      )}
+
+      {storageProfile && (
+        <StorageManagementModal
+          profile={storageProfile}
+          isCurrent={storageProfile.id === currentProfile?.id}
+          isRunning={storageProfile.id in runningInstances}
+          storageInfo={storageInfo}
+          storageLoading={storageLoading}
+          cleanupInProgress={cleanupInProgress}
+          lastCleanupResult={lastCleanupResult}
+          onRequestStorageInfo={handleRequestStorageInfo}
+          onCleanStorage={handleCleanStorage}
+          onClose={handleCloseStorageModal}
         />
       )}
     </div>

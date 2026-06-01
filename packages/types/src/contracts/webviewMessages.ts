@@ -2,6 +2,11 @@ import type { ActivityLeaderboardSnapshot } from '../entities/ActivityLeaderboar
 import type { ProfileAccountView } from '../entities/AccountView';
 import type { Profile, ImportOptions } from '../entities/Profile';
 import type { QuotaUsage } from '../entities/QuotaUsage';
+import type {
+  StorageBreakdown,
+  StorageCleanupOptions,
+  StorageCleanupResult,
+} from '../entities/StorageInfo';
 
 /** Quota information for a specific profile. */
 export interface ProfileQuota {
@@ -58,7 +63,9 @@ export type ToWebviewMessage =
   | { type: 'error'; message: string }
   | { type: 'success'; message: string }
   | { type: 'exportData'; data: string; filename: string }
-  | { type: 'suggestedProfile'; email?: string; displayName?: string; notice?: string };
+  | { type: 'suggestedProfile'; email?: string; displayName?: string; notice?: string }
+  | { type: 'storageInfo'; data: StorageBreakdown }
+  | { type: 'storageCleanupResult'; data: StorageCleanupResult };
 
 /** Messages sent from webview to extension. */
 export type FromWebviewMessage =
@@ -79,4 +86,6 @@ export type FromWebviewMessage =
   | { type: 'export'; profileIds: string[]; includeSettings: boolean }
   | { type: 'import'; data: string; options: ImportOptions }
   | { type: 'requestSuggestedProfile' }
-  | { type: 'toggleEfficiency'; profileId: string; enabled: boolean };
+  | { type: 'toggleEfficiency'; profileId: string; enabled: boolean }
+  | { type: 'requestStorageInfo'; profileId: string }
+  | { type: 'cleanStorage'; profileId: string; options: StorageCleanupOptions };

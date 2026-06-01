@@ -2,6 +2,7 @@ import type {
   FromWebviewMessage,
   ImportOptions,
   Profile,
+  StorageCleanupOptions,
   ToWebviewMessage,
   WebviewPersistedState} from '../types';
 import {
@@ -99,6 +100,14 @@ class VSCodeAPI {
 
   toggleEfficiency(profileId: string, enabled: boolean): void {
     this.postMessage({ type: 'toggleEfficiency', profileId, enabled });
+  }
+
+  requestStorageInfo(profileId: string): void {
+    this.postMessage({ type: 'requestStorageInfo', profileId });
+  }
+
+  cleanStorage(profileId: string, options: StorageCleanupOptions): void {
+    this.postMessage({ type: 'cleanStorage', profileId, options });
   }
 
   saveState(state: Omit<WebviewPersistedState, 'version'>): void {

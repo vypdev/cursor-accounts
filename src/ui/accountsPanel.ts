@@ -22,6 +22,11 @@ import { accountMapToRecord } from '../services/profileAccountFetcher';
 import type { EfficiencyService } from '../modelEfficiency/efficiencyService';
 import { getLocale, getWebviewMessages, isRtlLocale, t } from '../l10n';
 import { AccountsPanelHandlers } from './accountsPanelHandlers';
+import { NodeFileSystemService } from '../storage/nodeFileSystemService';
+import { ProfileStorageAnalyzer } from '../storage/profileStorageAnalyzer';
+import { SqliteCleanupService } from '../storage/sqliteCleanupService';
+import { StorageCleanupService } from '../services/storageCleanupService';
+import { VSCodeCacheService } from '../storage/vscodeCacheService';
 
 /** Activity bar container id (must match package.json viewsContainers). */
 export const ACCOUNTS_VIEW_CONTAINER = 'cursorAccounts';
@@ -55,6 +60,28 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
     efficiencyService: EfficiencyService,
     authReader: IProfileAuthReader
   ) {
+    const fileSystem = new NodeFileSystemService();
+    const storageAnalyzer = new ProfileStorageAnalyzer(fileSystem);
+    const storageCleanupService = new StorageCleanupService({
+      profileManager,
+      profileDetector,
+      instanceDetector,
+      storageAnalyzer,
+      cacheCleanup: new VSCodeCacheService({
+        context,
+        fileSystem,
+        efficiencyService,
+        isCurrentProfile: async (profileId) => {
+          const current = await profileDetector.detectCurrentProfile();
+          return current?.id === profileId;
+        },
+      }),
+      databaseCleanup: new SqliteCleanupService({
+        extensionPath: context.extensionPath,
+        fileSystem,
+      }),
+    });
+
     this.handlers = new AccountsPanelHandlers(
       {
         profileManager,
@@ -63,6 +90,8 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
         efficiencyService,
         authReader,
         instanceDetector,
+        storageCleanupService,
+        storageAnalyzer,
       },
       {
         postMessage: (message) => this.postMessage(message),

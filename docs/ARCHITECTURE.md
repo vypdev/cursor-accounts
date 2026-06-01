@@ -2,7 +2,7 @@
 
 This document describes how the extension is structured, how data flows, and why key decisions were made. For API and quota research, see [RESEARCH.md](RESEARCH.md). For multi-profile product behavior, see [FEATURE-MULTI-PROFILE.md](FEATURE-MULTI-PROFILE.md).
 
-**Last reviewed:** 2026-06-01
+**Last reviewed:** 2026-06-02
 
 ## Overview
 
@@ -48,6 +48,13 @@ graph TB
     AccountFetch[ProfileAccountFetcher]
     Instance[InstanceDetector]
     Efficiency[EfficiencyService]
+    StorageCleanup[StorageCleanupService]
+  end
+  subgraph storageInfra [Storage adapters]
+    FileSystem[NodeFileSystemService]
+    SqliteCleanup[SqliteCleanupService]
+    VSCodeCache[VSCodeCacheService]
+    StorageAnalyzer[ProfileStorageAnalyzer]
   end
   subgraph presentation [Presentation]
     StatusBar[StatusBarManager]
@@ -72,14 +79,15 @@ graph TB
 | Layer | Path | Responsibility |
 |-------|------|----------------|
 | Composition root | `src/extension.ts` | `activate`/`deactivate`, DI wiring, migrations from `cursorQuota`, command registration |
-| Domain ports | `src/domain/ports/` | `IQuotaService`, `ITokenProvider`, `IProfileStorage`, `IProfileAuthReader`, `IUserService`, `IActivityLeaderboardService` |
+| Domain ports | `src/domain/ports/` | `IQuotaService`, `ITokenProvider`, `IProfileStorage`, `IProfileAuthReader`, `IUserService`, `IActivityLeaderboardService`, `IStorageCleanupService`, `IFileSystemService`, `IDatabaseCleanupService`, `ICacheCleanupService`, `IProfileStorageAnalyzer` |
 | Shared kernel | `packages/types/` | Entities, quota business rules, webview message contracts |
 | HTTP / adapters | `src/api/` | Quota, usage summary, user, team metadata, leaderboard clients; DTO→domain mappers in `quotaMappers.ts` |
 | Local auth | `src/auth/` | Read `state.vscdb`, OAuth refresh, `ProfileAuthReader`, token providers |
 | Profiles | `src/profiles/` | Config JSON, CRUD, detect active dir, launch instances, import/export |
 | Validation | `src/validation/` | Zod schemas for IDE OAuth and export payloads |
 | Migrations | `src/migrations/` | Settings/secrets migration from legacy `cursor-quota` |
-| Scheduling | `src/services/` | Interval refresh for status bar and all-profile quotas |
+| Scheduling | `src/services/` | Interval refresh for status bar and all-profile quotas; storage cleanup orchestration |
+| Storage adapters | `src/storage/` | Filesystem, SQLite maintenance, VS Code cache/command cleanup, profile storage analysis |
 | UI (host) | `src/ui/` | Status bar items, webview provider and message routing |
 | Efficiency | `src/modelEfficiency/` | Composer DB poll, SDK classify, output channel |
 | Webview | `webview/src/` | React Accounts panel (profiles, quotas, actions) |
@@ -184,7 +192,7 @@ Implementation references:
 1. `AccountsPanelProvider` implements `WebviewViewProvider`
 2. Built assets served from `webview-dist/` (esbuild)
 3. CSP with nonce; no arbitrary remote scripts
-4. User actions (`launch`, `add`, `edit`, `delete`, `export`, `import`, `toggleEfficiency`, etc.) are messages defined in `packages/types/src/contracts/webviewMessages.ts`
+4. User actions (`launch`, `add`, `edit`, `delete`, `export`, `import`, `toggleEfficiency`, `requestStorageInfo`, `cleanStorage`, etc.) are messages defined in `packages/types/src/contracts/webviewMessages.ts`
 
 React UI: `webview/src/App.tsx` and components under `webview/src/components/`.
 
@@ -200,6 +208,66 @@ Scoped submodule under `src/modelEfficiency/`:
 - `OutputPresenter` — VS Code output channel
 
 Enabled only for the **active window’s profile**; secrets live in that window’s extension host.
+
+## Storage management
+
+The Accounts panel **File Management** modal lets users inspect per-profile disk usage and run cleanup actions.
+
+```mermaid
+sequenceDiagram
+  participant Modal as StorageManagementModal
+  participant Handlers as AccountsPanelHandlers
+  participant Cleanup as StorageCleanupService
+  participant Analyzer as ProfileStorageAnalyzer
+  participant Cache as VSCodeCacheService
+  participant DB as SqliteCleanupService
+  participant FS as NodeFileSystemService
+
+  Modal->>Handlers: requestStorageInfo
+  Handlers->>Analyzer: calculateProfileStorageSize
+  Analyzer->>FS: getFileSize / getPathSize
+  Analyzer-->>Handlers: StorageBreakdown
+  Handlers-->>Modal: storageInfo
+
+  Modal->>Handlers: cleanStorage
+  Handlers->>Cleanup: cleanProfileStorage
+  alt extension or editor cache
+    Cleanup->>Cache: cleanExtensionCache / cleanEditorCache
+    Cache->>FS: removeDirectory
+  else vacuum or deep clean
+    Cleanup->>DB: vacuum / deepClean
+    DB->>FS: copyFile backup + sqlite3 CLI
+  else built-in Cursor commands
+    Cleanup->>Cache: deleteOldChats / gcAgentKvBlobs
+  end
+  Cleanup-->>Handlers: StorageCleanupResult
+  Handlers->>Analyzer: refresh breakdown
+  Handlers-->>Modal: storageCleanupResult + storageInfo
+```
+
+| Component | Path | Role |
+|-----------|------|------|
+| Domain entities | `packages/types/src/entities/StorageInfo.ts` | `StorageBreakdown`, `StorageCleanupOptions`, `StorageCleanupResult` |
+| Ports | `src/domain/ports/IStorageCleanupService.ts`, `IFileSystemService.ts`, etc. | Hexagonal boundaries for cleanup orchestration |
+| Orchestrator | `src/services/storageCleanupService.ts` | Validates profile state, dispatches cleanup actions |
+| Filesystem adapter | `src/storage/nodeFileSystemService.ts` | Node.js `fs/promises` implementation |
+| SQLite adapter | `src/storage/sqliteCleanupService.ts` | `VACUUM` and deep clean via bundled `sqlite3` |
+| Cache adapter | `src/storage/vscodeCacheService.ts` | Editor cache dirs + extension globalState + VS Code commands |
+| Size analyzer | `src/storage/profileStorageAnalyzer.ts` | Per-profile storage breakdown |
+| UI | `webview/src/components/StorageManagementModal.tsx` | Breakdown table and cleanup actions |
+
+**Cleanup action requirements:**
+
+| Action | Profile state | Data loss risk |
+|--------|---------------|----------------|
+| `cleanExtensionCache` | Any | None (extension cache only) |
+| `deleteOldChats` | Must be active in current window | Old chats only |
+| `gcAgentKvBlobs` | Must be active in current window | None |
+| `cleanEditorCache` | Must be closed | None (cache rebuilds on launch) |
+| `vacuumDatabase` | Must be closed | None (compacts DB) |
+| `deepCleanDatabase` | Must be closed | Deletes composer/agent KV rows; backup created first |
+
+**Security:** All profile paths are validated with `validateUserDataPath()` before filesystem or SQLite access. Database paths are additionally checked with `validateStateDbPath()`.
 
 ## External dependencies
 
@@ -232,6 +300,7 @@ Enabled only for the **active window’s profile**; secrets live in that window�
 - **CI:** `pnpm test`, `pnpm run test:types-sync`, ESLint layer rules
 - **Canonical quota rule tests:** `src/test/domain/quotaRules.test.ts` (imports `@cursor-accounts/types` directly)
 - **Webview protocol tests:** `src/test/accountsPanel.test.ts` (extension-side webview messaging and HTML setup)
+- **Storage tests:** `src/test/storageSize.test.ts`, `src/test/storageCleanupService.test.ts`, `src/test/storageCleanupService.full.test.ts`, `src/test/accountsPanelHandlers.storage.test.ts`, `src/test/fileSystemErrors.test.ts`
 
 ## Known maintainability notes
 
