@@ -5,20 +5,13 @@ on:
     branches:
       - develop
     types: [opened, synchronize, reopened]
-  # TODO: remove after validating self-hosted runners
-  push:
-    branches:
-      - develop
 
 jobs:
   validate:
     name: validate (${{ matrix.platform }})
     if: >-
-      github.event_name == 'push' ||
-      (
-        !startsWith(github.event.pull_request.head.ref, 'release/') &&
-        !startsWith(github.event.pull_request.head.ref, 'hotfix/')
-      )
+      !startsWith(github.event.pull_request.head.ref, 'release/') &&
+      !startsWith(github.event.pull_request.head.ref, 'hotfix/')
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
