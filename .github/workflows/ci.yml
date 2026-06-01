@@ -30,6 +30,8 @@ jobs:
             platform: macos-arm64
           - os: [self-hosted, macOS, X64]
             platform: macos-x64
+          - os: [self-hosted, Windows, X64]
+            platform: win32-x64
     steps:
       - uses: actions/checkout@v4
 
