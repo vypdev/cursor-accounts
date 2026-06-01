@@ -39,7 +39,7 @@ Useful scripts:
 ## Project structure
 
 ```
-cursor-usage/
+cursor-accounts/
 ├── packages/types/      # @cursor-accounts/types — shared entities, rules, contracts
 ├── src/                 # Extension host (TypeScript)
 │   ├── extension.ts     # Composition root: activate, wiring, commands
@@ -119,4 +119,4 @@ Release notes for published versions are maintained in [CHANGELOG.md](CHANGELOG.
 
 ## Questions
 
-Open a [GitHub issue](https://github.com/vypdev/cursor-usage/issues) using the appropriate template (bug, feature, doc update, or help).
+Open a [GitHub issue](https://github.com/vypdev/cursor-accounts/issues) using the appropriate template (bug, feature, doc update, or help).

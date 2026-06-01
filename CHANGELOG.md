@@ -4,7 +4,7 @@ All notable changes to **Cursor Accounts** (`vypdev.cursor-accounts`) are docume
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-For older release notes entered only in GitHub Actions workflows, see [GitHub Releases](https://github.com/vypdev/cursor-usage/releases).
+For older release notes entered only in GitHub Actions workflows, see [GitHub Releases](https://github.com/vypdev/cursor-accounts/releases).
 
 ## [Unreleased]
 
@@ -55,10 +55,10 @@ For older release notes entered only in GitHub Actions workflows, see [GitHub Re
 - Token read from local `state.vscdb`, refresh via OAuth, polling with cache and backoff.
 - Research-backed API usage documented in `docs/RESEARCH.md`.
 
-[Unreleased]: https://github.com/vypdev/cursor-usage/compare/v0.1.23...HEAD
-[0.1.23]: https://github.com/vypdev/cursor-usage/releases
-[0.1.22]: https://github.com/vypdev/cursor-usage/releases
-[0.1.21]: https://github.com/vypdev/cursor-usage/releases
-[0.1.20]: https://github.com/vypdev/cursor-usage/releases
-[0.1.x]: https://github.com/vypdev/cursor-usage/releases
-[0.1.0]: https://github.com/vypdev/cursor-usage/releases
+[Unreleased]: https://github.com/vypdev/cursor-accounts/compare/v0.1.23...HEAD
+[0.1.23]: https://github.com/vypdev/cursor-accounts/releases
+[0.1.22]: https://github.com/vypdev/cursor-accounts/releases
+[0.1.21]: https://github.com/vypdev/cursor-accounts/releases
+[0.1.20]: https://github.com/vypdev/cursor-accounts/releases
+[0.1.x]: https://github.com/vypdev/cursor-accounts/releases
+[0.1.0]: https://github.com/vypdev/cursor-accounts/releases

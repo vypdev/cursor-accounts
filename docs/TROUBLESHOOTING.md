@@ -59,7 +59,7 @@ The extension uses bundled SQLite 3.53.1 binaries (see [PLATFORM-SUPPORT.md](PLA
 
 ## When to file a bug report
 
-Open a [GitHub issue](https://github.com/vypdev/cursor-usage/issues) if:
+Open a [GitHub issue](https://github.com/vypdev/cursor-accounts/issues) if:
 
 - **Cursor Settings → Usage** works but the extension shows `Quota unavailable` after refresh
 - Status bar percentages consistently differ from the native Usage UI after comparing both
