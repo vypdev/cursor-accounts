@@ -31,7 +31,8 @@ Useful scripts:
 | `pnpm run watch` | Recompile extension TypeScript on save |
 | `pnpm run watch:webview` | Rebuild Accounts panel webview on save |
 | `pnpm test` | Run unit tests (`pretest` compiles first) |
-| `pnpm run lint` | Typecheck (`tsc --noEmit`) |
+| `pnpm run test:types-sync` | Validate webview ↔ shared types alignment |
+| `pnpm run lint` | Typecheck + ESLint (includes layer boundary rules) |
 | `pnpm run validate:l10n` | Ensure all `locales/*.json` keys match `en.json` |
 | `pnpm run package` | Build a `.vsix` for local install |
 
@@ -39,12 +40,16 @@ Useful scripts:
 
 ```
 cursor-usage/
+├── packages/types/      # @cursor-accounts/types — shared entities, rules, contracts
 ├── src/                 # Extension host (TypeScript)
 │   ├── extension.ts     # Composition root: activate, wiring, commands
-│   ├── api/             # HTTP clients for Cursor APIs
-│   ├── auth/            # Tokens, SQLite state.vscdb, refresh
+│   ├── domain/          # Ports + re-exports from shared types
+│   ├── api/             # HTTP clients and DTO mappers for Cursor APIs
+│   ├── auth/            # Tokens, SQLite state.vscdb, refresh, ProfileAuthReader
 │   ├── profiles/        # Multi-profile CRUD, launch, detection
 │   ├── services/        # Refresh and multi-profile quota polling
+│   ├── validation/      # Zod schemas for API responses
+│   ├── migrations/      # Legacy cursor-quota migration
 │   ├── ui/              # Status bar, Accounts webview provider
 │   ├── modelEfficiency/ # Composer polling + @cursor/sdk analysis
 │   ├── commands/        # VS Code command handlers
@@ -53,7 +58,7 @@ cursor-usage/
 ├── webview/             # React UI for Accounts panel
 ├── locales/             # UI strings (25+ languages)
 ├── docs/                # Design and architecture docs
-├── scripts/             # Build, l10n validation, debug tools
+├── scripts/             # Build, l10n validation, type-sync, debug tools
 └── bin/                 # Prebuilt SQLite binaries per platform
 ```
 
@@ -76,7 +81,7 @@ pnpm test
 
 Tests live under `src/test/` and run against compiled output in `out/test/`. Prefer testing pure functions (mappers, parsers, path utils) with the Node.js built-in test runner.
 
-When changing UI message protocols, update types in `src/profiles/types.ts` and add or extend tests in `src/test/accountsPanel.test.ts` where applicable.
+When changing shared types or webview message protocols, update `packages/types/src/` (entities, rules, or `contracts/webviewMessages.ts`), then run `pnpm run test:types-sync` and add or extend tests in `src/test/accountsPanel.test.ts` where applicable.
 
 Manual checks for profile/multi-window work:
 

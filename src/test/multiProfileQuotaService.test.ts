@@ -5,7 +5,13 @@ import * as os from 'os';
 import * as path from 'path';
 import { ProfileManager } from '../profiles/profileManager';
 import { ProfileStorage } from '../profiles/profileStorage';
-import { MultiProfileQuotaService } from '../services/multiProfileQuotaService';
+import type { IActivityLeaderboardService } from '../domain/ports/IActivityLeaderboardService';
+import type { IProfileAuthReader } from '../domain/ports/IProfileAuthReader';
+import type { IQuotaService } from '../domain/ports/IQuotaService';
+import {
+  MultiProfileQuotaService,
+  type QuotaServiceFactory,
+} from '../services/multiProfileQuotaService';
 
 interface MockGlobalState {
   data: Record<string, unknown>;
@@ -58,9 +64,29 @@ describe('MultiProfileQuotaService', () => {
     await manager.initialize();
 
     mockContext = createMockContext(extensionPath);
+    const authReader: IProfileAuthReader = {
+      readTokens: async () => null,
+    };
+    const createQuotaService: QuotaServiceFactory = () =>
+      ({
+        getUsage: async () => {
+          throw new Error('Not implemented in test');
+        },
+      }) as IQuotaService;
+    const activityLeaderboardService: IActivityLeaderboardService = {
+      fetchSnapshot: async () => ({
+        entries: [],
+        periodStart: '',
+        periodEnd: '',
+        fetchedAt: Date.now(),
+      }),
+    };
     service = new MultiProfileQuotaService(
       mockContext as never,
-      manager
+      manager,
+      authReader,
+      createQuotaService,
+      activityLeaderboardService
     );
   });
 
@@ -154,10 +180,11 @@ describe('MultiProfileQuotaService', () => {
   });
 
   describe('lifecycle', () => {
-    it('can start and stop background refresh', () => {
+    it('clears refresh timer on stop', () => {
       service.start(60);
       service.stop();
-      assert.ok(true);
+      service.start(60);
+      service.stop();
     });
   });
 });

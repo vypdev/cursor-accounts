@@ -1,3 +1,4 @@
+import type { IUserService } from '../domain/ports/IUserService';
 import { buildWorkosSessionCookie } from '../auth/sessionCookie';
 import type { CursorAccountInfo } from './types';
 
@@ -49,4 +50,15 @@ export async function fetchCurrentUser(
   }
 
   return (await response.json()) as CursorAccountInfo;
+}
+
+/** HTTP adapter for {@link IUserService}. */
+export class UserClient implements IUserService {
+  async fetchAccount(
+    accessToken: string,
+    signal?: AbortSignal
+  ): Promise<{ name?: string; picture?: string; email?: string }> {
+    const info = await fetchCurrentUser(accessToken, signal);
+    return mapAccountInfoResponse(info);
+  }
 }

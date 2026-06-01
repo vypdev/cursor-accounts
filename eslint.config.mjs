@@ -43,6 +43,54 @@ export default tseslint.config(
     },
   },
   {
+    files: ['src/domain/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/api/*', '**/ui/*', '**/profiles/*', '**/services/*', '**/commands/*'],
+              message: 'Domain layer must not import from outer layers.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ['src/api/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/ui/*'],
+              message: 'Infrastructure must not import from UI.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ['src/profiles/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/ui/*'],
+              message: 'Profiles module must not import from UI.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ['packages/types/src/**/*.ts'],
     extends: [...tseslint.configs.recommendedTypeChecked],
     languageOptions: {

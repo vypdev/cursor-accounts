@@ -6,7 +6,7 @@ import {
   mapUsageResponse,
   mergeWebUsage,
   shouldFetchWebUsageSummary,
-} from '../application/mappers/quotaMappers';
+} from './quotaMappers';
 import {
   fetchUsageSummary,
   isEnterpriseOrTeamSummary,
@@ -31,7 +31,7 @@ export class QuotaApiError extends Error {
   }
 }
 
-export { mapUsageResponse, mergeWebUsage } from '../application/mappers/quotaMappers';
+export { mapUsageResponse, mergeWebUsage } from './quotaMappers';
 
 export async function fetchCurrentPeriodUsage(
   accessToken: string,

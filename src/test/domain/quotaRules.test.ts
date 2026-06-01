@@ -30,41 +30,138 @@ function makePersonalQuota(
 }
 
 describe('domain quota rules', () => {
-  it('computes personal mode average percent', () => {
-    const quota = makePersonalQuota({
-      apiPercentUsed: 46.4,
-      autoPercentUsed: 30.2,
+  describe('getPersonalModeAveragePercent', () => {
+    it('computes personal mode average percent', () => {
+      const quota = makePersonalQuota({
+        apiPercentUsed: 46.4,
+        autoPercentUsed: 30.2,
+      });
+      assert.equal(getPersonalModeAveragePercent(quota), 38);
     });
-    assert.equal(getPersonalModeAveragePercent(quota), 38);
-  });
 
-  it('computes monthly spend effective percent', () => {
-    const quota = makePersonalQuota({
-      displayMode: 'monthlySpend',
-      monthlySpend: 3000,
-      monthlyLimit: 6000,
-      totalPercentUsed: 0,
+    it('returns 0 for null quota', () => {
+      assert.equal(getPersonalModeAveragePercent(null), 0);
     });
-    assert.equal(getEffectiveUsagePercent(quota), 50);
+
+    it('clamps to 0 and 100', () => {
+      assert.equal(
+        getPersonalModeAveragePercent(
+          makePersonalQuota({ apiPercentUsed: 0, autoPercentUsed: 0 })
+        ),
+        0
+      );
+      assert.equal(
+        getPersonalModeAveragePercent(
+          makePersonalQuota({ apiPercentUsed: 100, autoPercentUsed: 100 })
+        ),
+        100
+      );
+      assert.equal(
+        getPersonalModeAveragePercent(
+          makePersonalQuota({ apiPercentUsed: 200, autoPercentUsed: 200 })
+        ),
+        100
+      );
+    });
+
+    it('handles non-finite values as 0', () => {
+      assert.equal(
+        getPersonalModeAveragePercent(
+          makePersonalQuota({
+            apiPercentUsed: Number.NaN,
+            autoPercentUsed: 50,
+          })
+        ),
+        0
+      );
+    });
   });
 
-  it('returns critical status above 95%', () => {
-    assert.equal(
-      getQuotaStatus(
-        makePersonalQuota({
-          apiPercentUsed: 96,
-          autoPercentUsed: 96,
-          totalPercentUsed: 96,
-        })
-      ),
-      'critical'
-    );
+  describe('getEffectiveUsagePercent', () => {
+    it('computes monthly spend effective percent', () => {
+      const quota = makePersonalQuota({
+        displayMode: 'monthlySpend',
+        monthlySpend: 3000,
+        monthlyLimit: 6000,
+        totalPercentUsed: 0,
+      });
+      assert.equal(getEffectiveUsagePercent(quota), 50);
+    });
   });
 
-  it('detects enterprise usage', () => {
-    assert.equal(
-      isEnterpriseUsage(makePersonalQuota({ membershipType: 'enterprise' })),
-      true
-    );
+  describe('getQuotaStatus', () => {
+    it('returns critical status above 95%', () => {
+      assert.equal(
+        getQuotaStatus(
+          makePersonalQuota({
+            apiPercentUsed: 96,
+            autoPercentUsed: 96,
+            totalPercentUsed: 96,
+          })
+        ),
+        'critical'
+      );
+    });
+
+    it('returns warning status at 85%', () => {
+      assert.equal(
+        getQuotaStatus(
+          makePersonalQuota({
+            apiPercentUsed: 85,
+            autoPercentUsed: 85,
+            totalPercentUsed: 85,
+          })
+        ),
+        'warning'
+      );
+    });
+
+    it('returns ok status below 85%', () => {
+      assert.equal(
+        getQuotaStatus(
+          makePersonalQuota({
+            apiPercentUsed: 50,
+            autoPercentUsed: 50,
+            totalPercentUsed: 50,
+          })
+        ),
+        'ok'
+      );
+    });
+
+    it('returns unavailable for null quota', () => {
+      assert.equal(getQuotaStatus(null), 'unavailable');
+    });
+
+    it('uses monthly spend threshold for enterprise display mode', () => {
+      assert.equal(
+        getQuotaStatus(
+          makePersonalQuota({
+            membershipType: 'enterprise',
+            displayMode: 'monthlySpend',
+            monthlySpend: 9600,
+            monthlyLimit: 10000,
+            totalPercentUsed: 96,
+          })
+        ),
+        'critical'
+      );
+    });
+  });
+
+  describe('isEnterpriseUsage', () => {
+    it('detects enterprise membership', () => {
+      assert.equal(
+        isEnterpriseUsage(makePersonalQuota({ membershipType: 'enterprise' })),
+        true
+      );
+    });
+
+    it('detects team limit type', () => {
+      assert.equal(
+        isEnterpriseUsage(makePersonalQuota({ limitType: 'team' })),
+        true
+      );
+    });
   });
 });

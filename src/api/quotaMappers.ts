@@ -4,7 +4,7 @@ import type {
   GetCurrentPeriodUsageResponse,
   PlanUsageRaw,
   SpendLimitUsageRaw,
-} from '../../api/types';
+} from './types';
 
 function normalizePlanUsage(raw: PlanUsageRaw | undefined): QuotaUsage {
   const plan = raw ?? {};

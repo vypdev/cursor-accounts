@@ -64,9 +64,6 @@ export interface UsageSummarySpendBucketRaw {
   remaining?: number | string | null;
 }
 
-/** @deprecated Use UsageSummarySpendBucketRaw */
-export type UsageSummaryOnDemandRaw = UsageSummarySpendBucketRaw;
-
 export interface UsageSummaryPlanRaw {
   enabled?: boolean;
   used?: number;

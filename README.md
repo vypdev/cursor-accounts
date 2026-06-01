@@ -9,8 +9,10 @@ Cursor extension that shows **plan quota usage** in the IDE status bar after act
 - API mode, auto mode, and plan breakdown in tooltips
 - Auto-refresh (default 60s, configurable)
 - Cached last-known usage on startup while fetching
-- Click status bar → **Cursor Settings → Usage** (Pro/Ultra) or **cursor.com/dashboard/usage** (enterprise)
+- Click status bar → **Accounts** sidebar (multi-profile panel)
+- **Multi-profile management** — Accounts panel with profile cards, parallel quota display, launch, export/import
 - Command: **Cursor Accounts: Refresh Now**
+- Command: **Cursor Accounts: Open Usage** — opens **Cursor Settings → Usage** (personal) or **cursor.com/dashboard/usage** (enterprise)
 
 ## Prerequisites
 
@@ -58,6 +60,32 @@ The extension was renamed to **Cursor Accounts** (`vypdev.cursor-accounts`). Uni
 | `cursorAccounts.statusBar.showAccountEmail` | `false` | Show cached email in tooltips |
 | `cursorAccounts.modelEfficiency.showNotificationOnHigh` | `true` | Notify when efficiency severity is high |
 | `cursorAccounts.modelEfficiency.autoShowOutputChannel` | `false` | Open Model Efficiency output on each analysis |
+| `cursorAccounts.profiles.autoDetectRunning` | `true` | Detect running Cursor instances per profile |
+| `cursorAccounts.profiles.showProfileInStatusBar` | `true` | Show active profile name in status bar |
+| `cursorAccounts.profiles.refreshAllInterval` | `300` | Background quota refresh for all profiles (60–3600 s) |
+| `cursorAccounts.profiles.instanceDetectionInterval` | `30` | How often to scan for running instances (15–120 s) |
+
+## Multi-profile accounts
+
+The **Accounts** activity bar panel lets you manage multiple Cursor profiles (separate `--user-data-dir` instances):
+
+- Add, edit, delete, launch, export, and import profiles
+- View parallel quota usage and account info per profile
+- Detect running Cursor instances and see which profile each window uses
+- Enterprise team leaderboard on profile cards (when applicable)
+
+Each profile uses its own user data directory — the official Cursor approach for running multiple accounts. See [docs/FEATURE-MULTI-PROFILE.md](docs/FEATURE-MULTI-PROFILE.md) for product design and flows.
+
+| Command | Description |
+|---------|-------------|
+| `Cursor Accounts: Open Accounts` | Focus the Accounts sidebar |
+| `Cursor Accounts: Add Profile` | Create a new profile |
+| `Cursor Accounts: Launch Profile` | Launch Cursor with a profile's user data dir |
+| `Cursor Accounts: List Profiles` | Quick pick of configured profiles |
+| `Cursor Accounts: Delete Profile` | Remove a profile from config |
+| `Cursor Accounts: Export Profiles` | Export profile config to JSON |
+| `Cursor Accounts: Import Profiles` | Import profiles from JSON |
+| `Cursor Accounts: Show Current Profile` | Show the active window's profile |
 
 ## Model efficiency analysis (per profile)
 
@@ -101,9 +129,11 @@ See [docs/RESEARCH.md](docs/RESEARCH.md) for data sources, limitations, and acco
 | [docs/FEATURE-MULTI-PROFILE.md](docs/FEATURE-MULTI-PROFILE.md) | Multi-profile product design |
 | [docs/RESEARCH.md](docs/RESEARCH.md) | Quota APIs and platform constraints |
 
-## Multi-account / account switching
+## Multi-account / in-window switching
 
-**Not supported by this extension.** Cursor does not expose a supported API for switching subscription accounts inside one window.
+**In-window account switching is not supported.** Cursor does not expose a supported API for switching subscription accounts inside one window.
+
+**What this extension does support:** managing and launching **separate Cursor instances** with different user data directories via the Accounts panel and profile commands. Each profile is an isolated Cursor install path — not a snapshot swap inside a single window.
 
 **Recommended approach (official workaround):** run separate Cursor instances with different user data directories:
 

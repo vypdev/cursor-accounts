@@ -1,16 +1,12 @@
 import type * as vscode from 'vscode';
-import {
-  defaultLeaderboardPeriod,
-  fetchUsageLeaderboard,
-} from '../api/analyticsLeaderboardClient';
-import { QuotaClient } from '../api/quotaClient';
-import { fetchDashboardTeams } from '../api/teamMetadataClient';
-import type { ActivityLeaderboardSnapshot } from '../api/types';
-import { isEnterpriseUsage } from '../api/types';
+import type { ActivityLeaderboardSnapshot } from '../domain';
+import { isEnterpriseUsage } from '../domain';
+import type { IActivityLeaderboardService } from '../domain/ports/IActivityLeaderboardService';
+import type { IProfileAuthReader } from '../domain/ports/IProfileAuthReader';
+import type { IQuotaService } from '../domain/ports/IQuotaService';
+import type { ITokenProvider } from '../domain/ports/ITokenProvider';
 import * as extensionLog from '../logging/extensionLog';
-import { getProfileStateDbPath } from '../auth/cursorPaths';
 import { StaticTokenProvider } from '../auth/tokenProvider';
-import { readAuthFromStateDb } from '../auth/tokenReader';
 import type { ProfileManager } from '../profiles/profileManager';
 import type { Profile, ProfileQuota } from '../profiles/types';
 import { validateUserDataPath } from '../utils/pathUtils';
@@ -30,6 +26,8 @@ export class MultiProfileQuotaServiceError extends Error {
   }
 }
 
+export type QuotaServiceFactory = (provider: ITokenProvider) => IQuotaService;
+
 export class MultiProfileQuotaService {
   private refreshTimer: NodeJS.Timeout | undefined;
   private inFlight = false;
@@ -39,7 +37,10 @@ export class MultiProfileQuotaService {
 
   constructor(
     private readonly context: vscode.ExtensionContext,
-    private readonly profileManager: ProfileManager
+    private readonly profileManager: ProfileManager,
+    private readonly authReader: IProfileAuthReader,
+    private readonly createQuotaService: QuotaServiceFactory,
+    private readonly activityLeaderboardService: IActivityLeaderboardService
   ) {}
 
   /** Register callback for background quota updates (e.g. Accounts panel). */
@@ -122,11 +123,7 @@ export class MultiProfileQuotaService {
         };
       }
 
-      const stateDbPath = getProfileStateDbPath(profile.userDataDir);
-      const tokens = await readAuthFromStateDb(
-        stateDbPath,
-        this.context.extensionPath
-      );
+      const tokens = await this.authReader.readTokens(profile.userDataDir);
 
       if (!tokens?.accessToken) {
         return {
@@ -138,7 +135,7 @@ export class MultiProfileQuotaService {
       }
 
       const tokenProvider = new StaticTokenProvider(tokens);
-      const quotaClient = new QuotaClient(tokenProvider);
+      const quotaClient = this.createQuotaService(tokenProvider);
       const quota = await quotaClient.getUsage();
 
       let activityLeaderboard = null;
@@ -269,29 +266,8 @@ export class MultiProfileQuotaService {
     }
 
     try {
-      const team = await fetchDashboardTeams(
+      const snapshot = await this.activityLeaderboardService.fetchSnapshot(
         accessToken,
-        AbortSignal.timeout(15_000)
-      );
-      if (!team?.teamId) {
-        return {
-          entries: [],
-          periodStart: '',
-          periodEnd: '',
-          fetchedAt: Date.now(),
-          error: 'Team not found',
-        };
-      }
-
-      const { startDate, endDate } = defaultLeaderboardPeriod();
-      const snapshot = await fetchUsageLeaderboard(
-        accessToken,
-        {
-          teamId: team.teamId,
-          startDate,
-          endDate,
-          pageSize: 10,
-        },
         AbortSignal.timeout(15_000)
       );
       await this.saveLeaderboardCache(profileId, snapshot);
@@ -302,11 +278,10 @@ export class MultiProfileQuotaService {
       extensionLog.debug(
         `[MultiProfileQuotaService] Activity leaderboard failed: ${message}`
       );
-      const { startDate, endDate } = defaultLeaderboardPeriod();
       return {
         entries: [],
-        periodStart: startDate,
-        periodEnd: endDate,
+        periodStart: '',
+        periodEnd: '',
         fetchedAt: Date.now(),
         error: message,
       };

@@ -23,7 +23,7 @@ export type {
   ProfileQuotaMap,
   ToWebviewMessage,
   WebviewPersistedState,
-} from '../ui/messages/webviewMessages';
+} from '@cursor-accounts/types';
 
 export {
   DEFAULT_CONFIG_DIR,

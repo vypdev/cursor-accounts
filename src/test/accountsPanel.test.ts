@@ -13,6 +13,7 @@ import type { FromWebviewMessage, ToWebviewMessage } from '../profiles/types';
 import type { MultiProfileQuotaService } from '../services/multiProfileQuotaService';
 import type { ProfileAccountFetcher } from '../services/profileAccountFetcher';
 import type { EfficiencyService } from '../modelEfficiency/efficiencyService';
+import type { IProfileAuthReader } from '../domain/ports/IProfileAuthReader';
 import { AccountsPanelProvider } from '../ui/accountsPanel';
 import { first } from './testUtils';
 
@@ -68,6 +69,12 @@ function createMockQuotaService(): MultiProfileQuotaService {
     getAllCachedQuotas: () => new Map(),
     onRefresh: () => undefined,
   } as unknown as MultiProfileQuotaService;
+}
+
+function createMockAuthReader(): IProfileAuthReader {
+  return {
+    readTokens: async () => null,
+  };
 }
 
 function createMockEfficiencyService(): EfficiencyService {
@@ -178,7 +185,8 @@ describe('AccountsPanelProvider', () => {
       quotaService,
       accountFetcher,
       instanceDetector,
-      createMockEfficiencyService()
+      createMockEfficiencyService(),
+      createMockAuthReader()
     );
 
     mockWebview = createMockWebview();
@@ -380,7 +388,8 @@ describe('AccountsPanelProvider', () => {
       quotaService,
       accountFetcher,
       instanceDetector,
-      createMockEfficiencyService()
+      createMockEfficiencyService(),
+      createMockAuthReader()
     );
 
     failingProvider.resolveWebviewView(

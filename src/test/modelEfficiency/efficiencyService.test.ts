@@ -54,10 +54,15 @@ describe('EfficiencyService.setEfficiencyEnabled', () => {
       },
     } as unknown as import('vscode').ExtensionContext;
 
+    const authReader = {
+      readTokens: async () => null,
+    };
+
     const service = new EfficiencyService(
       context,
       profileManager as never,
-      profileDetector as never
+      profileDetector as never,
+      authReader
     );
 
     await assert.rejects(
@@ -97,10 +102,15 @@ describe('EfficiencyService.setEfficiencyEnabled', () => {
       },
     } as unknown as import('vscode').ExtensionContext;
 
+    const authReader = {
+      readTokens: async () => null,
+    };
+
     const service = new EfficiencyService(
       context,
       profileManager as never,
-      profileDetector as never
+      profileDetector as never,
+      authReader
     );
 
     await assert.rejects(

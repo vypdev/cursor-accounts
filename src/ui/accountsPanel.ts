@@ -1,9 +1,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
+import type { IProfileAuthReader } from '../domain/ports/IProfileAuthReader';
 import * as extensionLog from '../logging/extensionLog';
-import { getProfileStateDbPath } from '../auth/cursorPaths';
-import { readAuthFromStateDb } from '../auth/tokenReader';
 import type {
   InstanceDetector} from '../profiles/instanceDetector';
 import {
@@ -72,7 +71,8 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
     private readonly quotaService: MultiProfileQuotaService,
     private readonly accountFetcher: ProfileAccountFetcher,
     private readonly instanceDetector: InstanceDetector,
-    private readonly efficiencyService: EfficiencyService
+    private readonly efficiencyService: EfficiencyService,
+    private readonly authReader: IProfileAuthReader
   ) {
     this.quotaService.onRefresh((quotas) => {
       void this.postQuotas(quotas);
@@ -501,12 +501,8 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
 
     try {
       const userDataDir = this.profileDetector.getCurrentUserDataDir();
-      const stateDbPath = getProfileStateDbPath(userDataDir);
 
-      const tokens = await readAuthFromStateDb(
-        stateDbPath,
-        this.context.extensionPath
-      );
+      const tokens = await this.authReader.readTokens(userDataDir);
 
       const existing = tokens?.email
         ? await this.profileManager.findProfileByEmail(tokens.email)

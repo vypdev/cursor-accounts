@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
-import { getProfileStateDbPath } from '../auth/cursorPaths';
-import { readAuthFromStateDb } from '../auth/tokenReader';
+import type { IProfileAuthReader } from '../domain/ports/IProfileAuthReader';
 import * as extensionLog from '../logging/extensionLog';
 import { t } from '../l10n';
 import type { Profile } from '../profiles/types';
@@ -26,7 +25,8 @@ export class EfficiencyService {
   constructor(
     private readonly context: vscode.ExtensionContext,
     private readonly profileManager: ProfileManager,
-    private readonly profileDetector: ProfileDetector
+    private readonly profileDetector: ProfileDetector,
+    private readonly authReader: IProfileAuthReader
   ) {
     this.apiKeyManager = new ApiKeyManager(context);
     this.outputPresenter = new OutputPresenter();
@@ -110,11 +110,7 @@ export class EfficiencyService {
         throw new Error(t('errors.efficiencyActivationCancelled'));
       }
 
-      const dbPath = getProfileStateDbPath(profile.userDataDir);
-      const auth = await readAuthFromStateDb(
-        dbPath,
-        this.context.extensionPath
-      );
+      const auth = await this.authReader.readTokens(profile.userDataDir);
       if (!auth?.accessToken) {
         throw new Error(t('errors.noAccessToken'));
       }

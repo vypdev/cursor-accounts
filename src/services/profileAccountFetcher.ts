@@ -1,13 +1,14 @@
-import type * as vscode from 'vscode';
-import { fetchCurrentUser } from '../api/userClient';
-import type { ProfileAccountView } from '../api/types';
-import { getProfileStateDbPath } from '../auth/cursorPaths';
-import { readAuthFromStateDb } from '../auth/tokenReader';
+import type { ProfileAccountView } from '../domain';
+import type { IProfileAuthReader } from '../domain/ports/IProfileAuthReader';
+import type { IUserService } from '../domain/ports/IUserService';
 import type { Profile } from '../profiles/types';
 import { validateUserDataPath } from '../utils/pathUtils';
 
 export class ProfileAccountFetcher {
-  constructor(private readonly context: vscode.ExtensionContext) {}
+  constructor(
+    private readonly authReader: IProfileAuthReader,
+    private readonly userService: IUserService
+  ) {}
 
   /** Fetch live account info for all configured profiles (parallel). */
   async fetchAllProfileAccounts(
@@ -65,11 +66,7 @@ export class ProfileAccountFetcher {
         };
       }
 
-      const stateDbPath = getProfileStateDbPath(userDataDir);
-      const tokens = await readAuthFromStateDb(
-        stateDbPath,
-        this.context.extensionPath
-      );
+      const tokens = await this.authReader.readTokens(userDataDir);
 
       if (!tokens?.accessToken) {
         return {
@@ -104,11 +101,7 @@ export class ProfileAccountFetcher {
         };
       }
 
-      const stateDbPath = getProfileStateDbPath(profile.userDataDir);
-      const tokens = await readAuthFromStateDb(
-        stateDbPath,
-        this.context.extensionPath
-      );
+      const tokens = await this.authReader.readTokens(profile.userDataDir);
 
       if (!tokens?.accessToken) {
         return {
@@ -134,7 +127,7 @@ export class ProfileAccountFetcher {
     profileId: string,
     accessToken: string
   ): Promise<ProfileAccountView> {
-    const info = await fetchCurrentUser(accessToken);
+    const info = await this.userService.fetchAccount(accessToken);
 
     return {
       profileId,

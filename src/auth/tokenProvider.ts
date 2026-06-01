@@ -4,9 +4,6 @@ import type { ITokenProvider } from '../domain/ports/ITokenProvider';
 export type { ITokenProvider, IRefreshableTokenProvider } from '../domain/ports/ITokenProvider';
 export { isRefreshableTokenProvider } from '../domain/ports/ITokenProvider';
 
-/** @deprecated Use ITokenProvider from domain ports. */
-export type TokenProvider = ITokenProvider;
-
 /** Token provider that returns pre-loaded tokens without refresh (for other profiles). */
 export class StaticTokenProvider implements ITokenProvider {
   constructor(private readonly tokens: CursorAuthTokens) {}

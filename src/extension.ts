@@ -1,6 +1,10 @@
 import * as vscode from 'vscode';
 import { QuotaClient } from './api/quotaClient';
-import type { QuotaUsage } from './api/types';
+import { ActivityLeaderboardService } from './api/activityLeaderboardService';
+import { UserClient } from './api/userClient';
+import type { QuotaUsage } from './domain';
+import { isEnterpriseUsage } from './domain';
+import { ProfileAuthReader } from './auth/profileAuthReader';
 import { TokenService } from './auth/tokenRefresh';
 import { registerProfileCommands } from './commands/profileCommands';
 import { affectsCursorAccountsConfig } from './config';
@@ -97,17 +101,26 @@ export function activate(context: vscode.ExtensionContext): void {
   const instanceDetector = new InstanceDetector(profileManager);
   const profileLauncher = new ProfileLauncher(profileManager, instanceDetector);
 
+  const profileAuthReader = new ProfileAuthReader(context);
+
   multiProfileQuotaService = new MultiProfileQuotaService(
     context,
-    profileManager
+    profileManager,
+    profileAuthReader,
+    (provider) => new QuotaClient(provider),
+    new ActivityLeaderboardService()
   );
 
-  const profileAccountFetcher = new ProfileAccountFetcher(context);
+  const profileAccountFetcher = new ProfileAccountFetcher(
+    profileAuthReader,
+    new UserClient()
+  );
 
   efficiencyService = new EfficiencyService(
     context,
     profileManager,
-    profileDetector
+    profileDetector,
+    profileAuthReader
   );
 
   const accountsPanel = new AccountsPanelProvider(
@@ -118,7 +131,8 @@ export function activate(context: vscode.ExtensionContext): void {
     multiProfileQuotaService,
     profileAccountFetcher,
     instanceDetector,
-    efficiencyService
+    efficiencyService,
+    profileAuthReader
   );
 
   context.subscriptions.push(
@@ -216,9 +230,7 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
     vscode.commands.registerCommand('cursorAccounts.openUsage', async () => {
       const cached = context.globalState.get<QuotaUsage>('lastQuota');
-      const isEnterprise =
-        cached?.membershipType === 'enterprise' ||
-        cached?.displayMode === 'monthlySpend';
+      const isEnterprise = cached != null && isEnterpriseUsage(cached);
 
       if (isEnterprise) {
         await vscode.env.openExternal(

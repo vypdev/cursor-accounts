@@ -5,4 +5,4 @@ export * from './entities/ActivityLeaderboard';
 export * from './entities/AccountView';
 export * from './constants/profileConstants';
 export * from './rules/quotaRules';
-export * from './messages/webviewMessages';
+export * from './contracts/webviewMessages';

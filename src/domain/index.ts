@@ -45,3 +45,6 @@ export {
 export * from './ports/ITokenProvider';
 export * from './ports/IProfileStorage';
 export * from './ports/IQuotaService';
+export * from './ports/IProfileAuthReader';
+export * from './ports/IUserService';
+export * from './ports/IActivityLeaderboardService';
