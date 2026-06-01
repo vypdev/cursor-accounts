@@ -3,14 +3,14 @@ import { getProfileStateDbPath } from '../auth/cursorPaths';
 import { readAuthFromStateDb } from '../auth/tokenReader';
 import * as extensionLog from '../logging/extensionLog';
 import { t } from '../l10n';
-import { Profile } from '../profiles/types';
-import { ProfileManager } from '../profiles/profileManager';
+import type { Profile } from '../profiles/types';
+import type { ProfileManager } from '../profiles/profileManager';
 import { ApiKeyManager, ApiKeyManagerError } from './apiKeyManager';
 import { ComposerDbPoller } from './composerDbPoller';
 import { EfficiencyAnalyzer } from './efficiencyAnalyzer';
 import { OutputPresenter } from './outputPresenter';
 import { CursorSdkClassifier } from './sdkClassifier';
-import { ProfileDetector } from '../profiles/profileDetector';
+import type { ProfileDetector } from '../profiles/profileDetector';
 
 export function getEfficiencyWrongWindowMessage(): string {
   return t('errors.efficiencyWrongWindow');

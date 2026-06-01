@@ -11,12 +11,16 @@ export function formatError(err: unknown): string {
   return String(err);
 }
 
+function loadVscodeApi(): typeof import('vscode') {
+  return require('vscode') as typeof import('vscode');
+}
+
 export function init(context: vscode.ExtensionContext): void {
   if (channel) {
     return;
   }
 
-  const vscodeApi = require('vscode') as typeof import('vscode');
+  const vscodeApi = loadVscodeApi();
   channel = vscodeApi.window.createOutputChannel(OUTPUT_CHANNEL_NAME, {
     log: true,
   });
@@ -25,6 +29,10 @@ export function init(context: vscode.ExtensionContext): void {
 
 function getChannel(): vscode.LogOutputChannel | undefined {
   return channel;
+}
+
+export function debug(message: string): void {
+  getChannel()?.debug(message);
 }
 
 export function info(message: string): void {
@@ -39,18 +47,18 @@ export function error(message: string): void {
   getChannel()?.error(message);
 }
 
-export function debug(message: string): void {
-  getChannel()?.debug(message);
+export function trace(message: string): void {
+  getChannel()?.trace(message);
 }
 
-export function appendLine(line: string): void {
-  getChannel()?.appendLine(line);
+export function show(): void {
+  getChannel()?.show(true);
+}
+
+export function appendLine(value: string): void {
+  getChannel()?.appendLine(value);
 }
 
 export function clear(): void {
   getChannel()?.clear();
-}
-
-export function show(preserveFocus?: boolean): void {
-  getChannel()?.show(preserveFocus);
 }

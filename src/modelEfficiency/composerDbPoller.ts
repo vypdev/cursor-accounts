@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { getProfileStateDbPath } from '../auth/cursorPaths';
-import { ProfileDetector } from '../profiles/profileDetector';
-import { Profile } from '../profiles/types';
+import type { ProfileDetector } from '../profiles/profileDetector';
+import type { Profile } from '../profiles/types';
 import * as extensionLog from '../logging/extensionLog';
 import {
   bubbleCreatedAtMs,
@@ -12,9 +12,10 @@ import {
   parseComposerData,
   parseComposerHeaders,
 } from './composerDbParse';
-import { EfficiencyAnalyzer } from './efficiencyAnalyzer';
+import type { EfficiencyAnalyzer } from './efficiencyAnalyzer';
+import type {
+  ModelCatalogEntry} from './modelConfigResolver';
 import {
-  ModelCatalogEntry,
   parseModelCatalog,
   resolveModelConfig,
 } from './modelConfigResolver';
@@ -26,11 +27,12 @@ import {
   readCursorDiskKV,
   readItemTableKey,
 } from './stateDbReader';
-import {
+import type {
   ComposerHeaderEntry,
-  DB_POLLER_STATE_KEY,
   DbPollerState,
-  PromptMetadata,
+  PromptMetadata} from './types';
+import {
+  DB_POLLER_STATE_KEY,
   SEEN_BUBBLES_CAP_PER_COMPOSER,
 } from './types';
 
@@ -99,7 +101,7 @@ export class ComposerDbPoller {
     extensionLog.info('[ComposerDbPoller] Cleared poller state');
   }
 
-  private async loadState(): Promise<DbPollerState> {
+  private loadState(): DbPollerState {
     return (
       this.context.globalState.get<DbPollerState>(DB_POLLER_STATE_KEY) ??
       emptyPollerState()
@@ -157,7 +159,7 @@ export class ComposerDbPoller {
         return;
       }
 
-      const state = await this.loadState();
+      const state = this.loadState();
       if (!state.enabledAt) {
         state.enabledAt = new Date().toISOString();
         await this.seedExistingBubbles(

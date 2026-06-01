@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useL10n } from '../l10n/context';
-import { Profile } from '../types';
+import type { Profile } from '../types';
 import { DEFAULT_PROFILE_EMOJI, EmojiPicker } from './EmojiPicker';
 
 interface EditProfileFormProps {

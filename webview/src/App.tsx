@@ -6,7 +6,7 @@ import { EmptyState } from './components/EmptyState';
 import { ImportDialog } from './components/ImportDialog';
 import { ProfileList } from './components/ProfileList';
 import { L10nProvider, useL10n } from './l10n/context';
-import {
+import type {
   ImportOptions,
   Profile,
   ProfileAccountMap,

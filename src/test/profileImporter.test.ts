@@ -10,10 +10,12 @@ import {
 } from '../profiles/profileImporter';
 import { ProfileManager } from '../profiles/profileManager';
 import { ProfileStorage } from '../profiles/profileStorage';
+import type {
+  ProfileExport} from '../profiles/types';
 import {
-  PROFILE_EXPORT_VERSION,
-  ProfileExport,
+  PROFILE_EXPORT_VERSION
 } from '../profiles/types';
+import { first } from './testUtils';
 
 describe('ProfileImporter', () => {
   let tempDir: string;
@@ -64,9 +66,10 @@ describe('ProfileImporter', () => {
     assert.equal(result.imported.length, 1);
     assert.equal(result.skipped.length, 0);
     assert.equal(result.errors.length, 0);
-    assert.equal(result.imported[0].email, 'new@example.com');
-    assert.equal(result.imported[0].metadata?.source, 'imported');
-    assert.equal(result.imported[0].metadata?.notes, 'Imported note');
+    const importedProfile = first(result.imported);
+    assert.equal(importedProfile.email, 'new@example.com');
+    assert.equal(importedProfile.metadata?.source, 'imported');
+    assert.equal(importedProfile.metadata?.notes, 'Imported note');
   });
 
   it('skips duplicate profiles by default', async () => {
@@ -105,7 +108,7 @@ describe('ProfileImporter', () => {
     assert.equal(result.imported.length, 1);
 
     const settingsPath = path.join(
-      result.imported[0].userDataDir,
+      first(result.imported).userDataDir,
       'User',
       'settings.json'
     );
@@ -138,7 +141,7 @@ describe('ProfileImporter', () => {
     assert.equal(result.success, false);
     assert.equal(result.imported.length, 2);
     assert.equal(result.errors.length, 1);
-    assert.equal(result.errors[0].profile.email, 'not-an-email');
+    assert.equal(first(result.errors).profile.email, 'not-an-email');
   });
 
   it('throws on incompatible export version', async () => {
@@ -165,7 +168,7 @@ describe('ProfileImporter', () => {
 
     assert.equal(validation.valid, true);
     assert.equal(validation.warnings.length, 1);
-    assert.match(validation.warnings[0], /already exist/);
+    assert.match(first(validation.warnings), /already exist/);
   });
 
   it('round-trips export to import', async () => {
@@ -200,13 +203,13 @@ describe('ProfileImporter', () => {
     assert.equal(result.success, true);
     assert.equal(result.imported.length, 1);
 
-    const imported = result.imported[0];
+    const imported = first(result.imported);
     assert.equal(imported.email, 'roundtrip@example.com');
     assert.equal(imported.displayName, 'Round Trip');
     assert.equal(imported.theme, 'Dark+');
     assert.equal(imported.color, '#10b981');
     assert.equal(imported.metadata?.notes, 'Round trip note');
-    assert.equal(imported.metadata?.tags?.[0], 'team');
+    assert.equal(first(imported.metadata?.tags ?? [], 'tag'), 'team');
     assert.equal(imported.metadata?.source, 'imported');
 
     const settingsPath = path.join(imported.userDataDir, 'User', 'settings.json');
@@ -225,6 +228,6 @@ describe('ProfileImporter', () => {
     const result = await importer.importFromString(JSON.stringify(exportData));
 
     assert.equal(result.imported.length, 1);
-    assert.equal(result.imported[0].email, 'string@example.com');
+    assert.equal(first(result.imported).email, 'string@example.com');
   });
 });

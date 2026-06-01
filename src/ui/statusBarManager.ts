@@ -1,15 +1,16 @@
 import * as vscode from 'vscode';
 import * as extensionLog from '../logging/extensionLog';
+import type {
+  QuotaUsage} from '../api/types';
 import {
-  QuotaUsage,
   getEffectiveUsagePercent,
   getPersonalModeAveragePercent,
   isEnterpriseUsage,
 } from '../api/types';
 import { getCursorAccountsConfig } from '../config';
 import { t } from '../l10n';
-import { ProfileDetector } from '../profiles/profileDetector';
-import { Profile } from '../profiles/types';
+import type { ProfileDetector } from '../profiles/profileDetector';
+import type { Profile } from '../profiles/types';
 import {
   clampPercent,
   formatBillingDate,

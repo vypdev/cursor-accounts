@@ -106,7 +106,7 @@ export const SEEN_BUBBLES_CAP_PER_COMPOSER = 200;
 export interface ScoringResult {
   promptExcerpt: string;
   selectedModel: string;
-  taskType: EfficiencyTaskType | string;
+  taskType: EfficiencyTaskType;
   requiredTier: number;
   actualTier: number;
   efficiencyScore: number;

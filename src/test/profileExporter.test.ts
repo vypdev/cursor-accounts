@@ -10,6 +10,7 @@ import {
 import { ProfileManager } from '../profiles/profileManager';
 import { ProfileStorage } from '../profiles/profileStorage';
 import { PROFILE_EXPORT_VERSION } from '../profiles/types';
+import { first } from './testUtils';
 
 describe('ProfileExporter', () => {
   let tempDir: string;
@@ -46,13 +47,13 @@ describe('ProfileExporter', () => {
     assert.ok(exportData.exportedAt);
     assert.equal(exportData.profiles.length, 1);
 
-    const exported = exportData.profiles[0];
+    const exported = first(exportData.profiles);
     assert.equal(exported.email, 'export@example.com');
     assert.equal(exported.displayName, 'Export Test');
     assert.equal(exported.theme, 'Dark+');
     assert.equal(exported.color, '#3b82f6');
     assert.equal(exported.metadata?.notes, 'Team profile');
-    assert.equal(exported.metadata?.tags?.[0], 'work');
+    assert.equal(first(exported.metadata?.tags ?? [], 'tag'), 'work');
     assert.equal(exported.settings, undefined);
 
     assert.equal('id' in exported, false);
@@ -79,7 +80,7 @@ describe('ProfileExporter', () => {
     );
 
     const exportData = await exporter.exportProfiles([profile.id], true);
-    const settings = exportData.profiles[0].settings;
+    const settings = first(exportData.profiles).settings;
 
     assert.ok(settings);
     assert.equal(settings['editor.fontSize'], 14);

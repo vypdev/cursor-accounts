@@ -1,7 +1,7 @@
 import * as extensionLog from '../logging/extensionLog';
 import { getLocale, t } from '../l10n';
 import { modelBaseComparisonKey } from './modelBaseName';
-import {
+import type {
   EfficiencySeverity,
   EfficiencyTaskType,
   PromptMetadata,
@@ -82,7 +82,7 @@ function clamp01(value: number): number {
   return Math.min(1, Math.max(0, value));
 }
 
-function normalizeTaskType(value: unknown): EfficiencyTaskType | string {
+function normalizeTaskType(value: unknown): EfficiencyTaskType {
   if (typeof value === 'string' && VALID_TASK_TYPES.has(value)) {
     return value as EfficiencyTaskType;
   }

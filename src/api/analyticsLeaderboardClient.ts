@@ -1,5 +1,5 @@
 import { buildWorkosSessionCookie } from '../auth/sessionCookie';
-import {
+import type {
   ActivityLeaderboardEntry,
   ActivityLeaderboardSnapshot,
 } from './types';

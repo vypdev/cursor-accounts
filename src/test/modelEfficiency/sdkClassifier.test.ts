@@ -8,7 +8,7 @@ import {
   mapPayloadToScoringResult,
   parseClassificationJson,
 } from '../../modelEfficiency/sdkClassifier';
-import { PromptMetadata } from '../../modelEfficiency/types';
+import type { PromptMetadata } from '../../modelEfficiency/types';
 
 const repoRoot = path.join(__dirname, '..', '..', '..');
 

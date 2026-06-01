@@ -2,7 +2,7 @@ import { execFileSync } from 'child_process';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
-import { CursorAuthTokens } from '../api/types';
+import type { CursorAuthTokens } from '@cursor-accounts/types';
 import { CURSOR_AUTH_KEYS } from './cursorPaths';
 import { getSqlite3Binary } from './sqliteBinary';
 
@@ -119,7 +119,7 @@ export async function readAuthFromStateDb(
 /** Decode JWT payload without verification (exp check only). */
 export function decodeJwtPayload(token: string): Record<string, unknown> | null {
   const parts = token.split('.');
-  if (parts.length < 2) {
+  if (parts.length < 2 || !parts[1]) {
     return null;
   }
   try {

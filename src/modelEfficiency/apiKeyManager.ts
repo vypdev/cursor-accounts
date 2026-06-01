@@ -1,4 +1,4 @@
-import * as vscode from 'vscode';
+import type * as vscode from 'vscode';
 import { buildWorkosSessionCookie } from '../auth/sessionCookie';
 import * as extensionLog from '../logging/extensionLog';
 import { EFFICIENCY_API_KEY_NAME } from './types';

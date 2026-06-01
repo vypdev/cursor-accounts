@@ -6,10 +6,10 @@ import * as extensionLog from '../logging/extensionLog';
 import { t } from '../l10n';
 import { ProfileExporter } from '../profiles/profileExporter';
 import { ProfileImporter } from '../profiles/profileImporter';
-import { ProfileDetector } from '../profiles/profileDetector';
-import { ProfileLauncher } from '../profiles/profileLauncher';
-import { ProfileManager } from '../profiles/profileManager';
-import { ProfileExport } from '../profiles/types';
+import type { ProfileDetector } from '../profiles/profileDetector';
+import type { ProfileLauncher } from '../profiles/profileLauncher';
+import type { ProfileManager } from '../profiles/profileManager';
+import type { ProfileExport } from '../profiles/types';
 
 export function registerProfileCommands(
   context: vscode.ExtensionContext,
@@ -382,9 +382,14 @@ export function registerProfileCommands(
           return;
         }
 
+        const importUri = uris[0];
+        if (!importUri) {
+          return;
+        }
+
         const importer = new ProfileImporter(profileManager);
 
-        const content = await fs.readFile(uris[0].fsPath, 'utf-8');
+        const content = await fs.readFile(importUri.fsPath, 'utf-8');
         const exportData = JSON.parse(content) as ProfileExport;
         const validation = await importer.validateImport(exportData);
 
@@ -411,7 +416,7 @@ export function registerProfileCommands(
           }
         }
 
-        const result = await importer.importFromFile(uris[0].fsPath);
+        const result = await importer.importFromFile(importUri.fsPath);
 
         const messages: string[] = [];
         if (result.imported.length > 0) {

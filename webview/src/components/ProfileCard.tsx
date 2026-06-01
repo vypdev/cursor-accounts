@@ -1,5 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useL10n } from '../l10n/context';
+import type {
+  Profile,
+  ProfileAccountView,
+  ProfileQuota,
+  QuotaStatus} from '../types';
 import {
   getEffectiveUsagePercent,
   getPersonalModeAveragePercent,
@@ -9,11 +14,7 @@ import {
   formatTeamBudgetLabel,
   formatCompactNumber,
   hasDistinctTeamBudget,
-  isEnterpriseUsage,
-  Profile,
-  ProfileAccountView,
-  ProfileQuota,
-  QuotaStatus,
+  isEnterpriseUsage
 } from '../types';
 
 interface ProfileCardProps {
@@ -76,9 +77,12 @@ function getInitials(name: string): string {
     return '?';
   }
   if (parts.length === 1) {
-    return parts[0].charAt(0).toUpperCase();
+    const only = parts[0] ?? '?';
+    return only.charAt(0).toUpperCase();
   }
-  return `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
+  const first = parts[0] ?? '?';
+  const last = parts[parts.length - 1] ?? first;
+  return `${first.charAt(0)}${last.charAt(0)}`.toUpperCase();
 }
 
 interface QuotaBarRowProps {
@@ -221,7 +225,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
               {showAvatar ? (
                 <img
                   className="profile-avatar"
-                  src={account!.pictureUrl}
+                  src={account.pictureUrl}
                   alt=""
                   onError={() => setAvatarError(true)}
                 />
@@ -306,11 +310,11 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
                 {quotaExpanded && (
                   <div className="quota-bars-expanded">
                     <QuotaBarRow
-                      percent={quota.quota!.autoPercentUsed}
+                      percent={quota.quota.autoPercentUsed}
                       label={t('profileCard.autoMode')}
                     />
                     <QuotaBarRow
-                      percent={quota.quota!.apiPercentUsed}
+                      percent={quota.quota.apiPercentUsed}
                       label={t('profileCard.apiMode')}
                     />
                   </div>
@@ -318,12 +322,12 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
                 <div className="quota-details">
                   <span>
                     {t('profileCard.remaining', {
-                      amount: (quota.quota!.remaining / 100).toFixed(2),
+                      amount: (quota.quota.remaining / 100).toFixed(2),
                     })}
                   </span>
                   <span>
                     {t('profileCard.resets', {
-                      date: formatResetDate(quota.quota!.billingCycleEnd, t),
+                      date: formatResetDate(quota.quota.billingCycleEnd, t),
                     })}
                   </span>
                 </div>
@@ -342,21 +346,21 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
                   {isEnterprise && isMonthlySpend ? (
                     <>
                       <span className="percent">
-                        {formatEnterpriseUsageLabel(quota.quota!)}
+                        {formatEnterpriseUsageLabel(quota.quota)}
                       </span>
                       <span className="label">{t('profileCard.used')}</span>
                     </>
                   ) : isMonthlySpend ? (
                     <>
                       <span className="percent">
-                        {formatMonthlySpendLabel(quota.quota!)}
+                        {formatMonthlySpendLabel(quota.quota)}
                       </span>
                       <span className="label">{t('profileCard.monthly')}</span>
                     </>
                   ) : (
                     <>
                       <span className="percent">
-                        {quota.quota!.totalPercentUsed.toFixed(0)}%
+                        {quota.quota.totalPercentUsed.toFixed(0)}%
                       </span>
                       <span className="label">{t('profileCard.used')}</span>
                     </>
@@ -365,29 +369,29 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
                 </div>
                 <div className="quota-details">
                   {isEnterprise && isMonthlySpend ? (
-                    hasDistinctTeamBudget(quota.quota!) ? (
+                    hasDistinctTeamBudget(quota.quota) ? (
                       <span>
                         {t('profileCard.teamBudgetLabel', {
-                          value: formatTeamBudgetLabel(quota.quota!),
+                          value: formatTeamBudgetLabel(quota.quota),
                         })}
                       </span>
                     ) : null
                   ) : isMonthlySpend ? (
                     <span>
                       {t('profileCard.monthlyLabel', {
-                        value: formatMonthlySpendLabel(quota.quota!),
+                        value: formatMonthlySpendLabel(quota.quota),
                       })}
                     </span>
                   ) : (
                     <span>
                       {t('profileCard.remaining', {
-                        amount: (quota.quota!.remaining / 100).toFixed(2),
+                        amount: (quota.quota.remaining / 100).toFixed(2),
                       })}
                     </span>
                   )}
                   <span>
                     {t('profileCard.resets', {
-                      date: formatResetDate(quota.quota!.billingCycleEnd, t),
+                      date: formatResetDate(quota.quota.billingCycleEnd, t),
                     })}
                   </span>
                 </div>

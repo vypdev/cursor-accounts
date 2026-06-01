@@ -1,6 +1,6 @@
 import React from 'react';
 import { useL10n } from '../l10n/context';
-import {
+import type {
   InstanceInfoMap,
   Profile,
   ProfileAccountMap,

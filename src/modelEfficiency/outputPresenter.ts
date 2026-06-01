@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { PromptMetadata, ScoringResult } from './types';
+import type { PromptMetadata, ScoringResult } from './types';
 import { t } from '../l10n';
 
 export interface ModelEfficiencyConfig {

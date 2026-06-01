@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { useL10n } from '../l10n/context';
-import { ImportOptions } from '../types';
+import type { ImportOptions } from '../types';
 
 interface ImportDialogProps {
   onImport: (json: string, options: ImportOptions) => void;
@@ -64,7 +64,11 @@ export const ImportDialog: React.FC<ImportDialogProps> = ({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit}>
+        <form
+          onSubmit={(event) => {
+            void handleSubmit(event);
+          }}
+        >
           <div className="form-group">
             <label htmlFor="import-file">{t('import.fileLabel')}</label>
             <input

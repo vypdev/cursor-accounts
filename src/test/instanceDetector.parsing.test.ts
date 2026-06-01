@@ -10,6 +10,7 @@ import {
   parseWindowsPowerShellJson,
   parseWindowsWmicOutput,
 } from '../profiles/instanceDetector';
+import { first, required } from './testUtils';
 
 const FIXTURES_DIR = path.join(
   __dirname,
@@ -72,12 +73,13 @@ describe('InstanceDetector Process Parsing', () => {
       const processes = parseMacOSPsOutput(stdout);
 
       assert.equal(processes.length, 2);
-      assert.deepEqual(processes[0], {
+      assert.deepEqual(first(processes), {
         pid: 12345,
         userDataDir: '/Users/test/.cursor-work',
       });
-      assert.equal(processes[1].pid, 12347);
-      assert.equal(processes[1].userDataDir, undefined);
+      const secondProcess = required(processes[1], 'second process');
+      assert.equal(secondProcess.pid, 12347);
+      assert.equal(secondProcess.userDataDir, undefined);
     });
 
     it('handles malformed ps output gracefully', async () => {
@@ -93,7 +95,7 @@ describe('InstanceDetector Process Parsing', () => {
 
       assert.equal(processes.length, 1);
       assert.equal(
-        processes[0].userDataDir,
+        first(processes).userDataDir,
         '/Users/test/My Profiles/work'
       );
     });
@@ -110,12 +112,13 @@ describe('InstanceDetector Process Parsing', () => {
       const processes = parseWindowsPowerShellJson(stdout);
 
       assert.equal(processes.length, 2);
-      assert.deepEqual(processes[0], {
+      assert.deepEqual(first(processes), {
         pid: 8888,
         userDataDir: 'C:\\Users\\test\\.cursor-work',
       });
-      assert.equal(processes[1].pid, 8890);
-      assert.equal(processes[1].userDataDir, undefined);
+      const secondProcess = required(processes[1], 'second process');
+      assert.equal(secondProcess.pid, 8890);
+      assert.equal(secondProcess.userDataDir, undefined);
     });
 
     it('handles single process object output', () => {
@@ -127,7 +130,7 @@ describe('InstanceDetector Process Parsing', () => {
 
       const processes = parseWindowsPowerShellJson(stdout);
       assert.equal(processes.length, 1);
-      assert.equal(processes[0].pid, 1234);
+      assert.equal(first(processes).pid, 1234);
     });
 
     it('handles invalid JSON gracefully', () => {
@@ -148,11 +151,9 @@ describe('InstanceDetector Process Parsing', () => {
       const processes = parseWindowsWmicOutput(stdout);
 
       assert.equal(processes.length, 1);
-      assert.equal(processes[0].pid, 7777);
-      assert.equal(
-        processes[0].userDataDir,
-        'C:\\Users\\test\\.cursor-work'
-      );
+      const process = first(processes);
+      assert.equal(process.pid, 7777);
+      assert.equal(process.userDataDir, 'C:\\Users\\test\\.cursor-work');
     });
   });
 
@@ -162,12 +163,13 @@ describe('InstanceDetector Process Parsing', () => {
       const processes = parseLinuxPsOutput(stdout);
 
       assert.equal(processes.length, 2);
-      assert.deepEqual(processes[0], {
+      assert.deepEqual(first(processes), {
         pid: 9999,
         userDataDir: '/home/test/.cursor-work',
       });
-      assert.equal(processes[1].pid, 10001);
-      assert.equal(processes[1].userDataDir, undefined);
+      const secondProcess = required(processes[1], 'second process');
+      assert.equal(secondProcess.pid, 10001);
+      assert.equal(secondProcess.userDataDir, undefined);
     });
 
     it('handles malformed output gracefully', async () => {
@@ -185,7 +187,7 @@ describe('InstanceDetector Process Parsing', () => {
       const processes = parseLinuxPsOutput(stdout);
 
       assert.equal(processes.length, 1);
-      assert.equal(processes[0].userDataDir, '/home/test/.cursor-work');
+      assert.equal(first(processes).userDataDir, '/home/test/.cursor-work');
     });
   });
 });

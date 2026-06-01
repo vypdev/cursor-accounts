@@ -1,12 +1,12 @@
-import { ProfileDetector } from '../profiles/profileDetector';
-import { ProfileManager } from '../profiles/profileManager';
-import { Profile } from '../profiles/types';
+import type { ProfileDetector } from '../profiles/profileDetector';
+import type { ProfileManager } from '../profiles/profileManager';
+import type { Profile } from '../profiles/types';
 import * as extensionLog from '../logging/extensionLog';
 import { t } from '../l10n';
-import { ApiKeyManager } from './apiKeyManager';
-import { OutputPresenter } from './outputPresenter';
-import { SdkClassifier } from './sdkClassifier';
-import { PromptMetadata } from './types';
+import type { ApiKeyManager } from './apiKeyManager';
+import type { OutputPresenter } from './outputPresenter';
+import type { SdkClassifier } from './sdkClassifier';
+import type { PromptMetadata } from './types';
 
 export class EfficiencyAnalyzer {
   private readonly processing = new Set<string>();

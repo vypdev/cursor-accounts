@@ -2,15 +2,16 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { validateUserDataPath } from '../utils/pathUtils';
 import { ProfileExporter } from './profileExporter';
-import { ProfileManager } from './profileManager';
-import {
+import type { ProfileManager } from './profileManager';
+import type {
   ExportedProfile,
   ImportOptions,
   ImportResult,
   ImportValidationResult,
-  PROFILE_EXPORT_VERSION,
   Profile,
-  ProfileExport,
+  ProfileExport} from './types';
+import {
+  PROFILE_EXPORT_VERSION
 } from './types';
 
 const DEFAULT_IMPORT_OPTIONS: ImportOptions = {

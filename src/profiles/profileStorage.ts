@@ -1,13 +1,14 @@
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
+import type { ProfileConfig } from '@cursor-accounts/types';
 import {
   DEFAULT_CONFIG_DIR,
   DEFAULT_CONFIG_FILE,
   DEFAULT_PROFILE_SETTINGS,
   PROFILE_CONFIG_VERSION,
-  ProfileConfig,
-} from './types';
+} from '@cursor-accounts/types';
+import type { IProfileStorage } from '../domain/ports/IProfileStorage';
 
 export class ProfileStorageError extends Error {
   constructor(
@@ -19,7 +20,7 @@ export class ProfileStorageError extends Error {
   }
 }
 
-export class ProfileStorage {
+export class ProfileStorage implements IProfileStorage {
   private readonly configPath: string;
   private configCache: ProfileConfig | null = null;
 

@@ -5,6 +5,7 @@ import {
   formatDateYmd,
   mapLeaderboardResponse,
 } from '../api/analyticsLeaderboardClient';
+import { first } from './testUtils';
 
 describe('mapLeaderboardResponse', () => {
   it('maps composer leaderboard entries from v2 response', () => {
@@ -35,10 +36,11 @@ describe('mapLeaderboardResponse', () => {
     );
 
     assert.equal(snapshot.entries.length, 2);
-    assert.equal(snapshot.entries[0].rank, 1);
-    assert.equal(snapshot.entries[0].displayName, 'Karmelo Nofuentes');
-    assert.equal(snapshot.entries[0].composerLinesAccepted, 456728);
-    assert.equal(snapshot.entries[0].favoriteModel, 'default');
+    const topEntry = first(snapshot.entries);
+    assert.equal(topEntry.rank, 1);
+    assert.equal(topEntry.displayName, 'Karmelo Nofuentes');
+    assert.equal(topEntry.composerLinesAccepted, 456728);
+    assert.equal(topEntry.favoriteModel, 'default');
     assert.equal(snapshot.totalRankedUsers, 610);
     assert.equal(snapshot.periodStart, '2026-04-29');
     assert.equal(snapshot.periodEnd, '2026-05-28');

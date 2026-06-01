@@ -68,6 +68,19 @@ const vscodeMock = {
   commands: {
     executeCommand: async () => undefined,
   },
+  workspace: {
+    getConfiguration: (_section?: string) => ({
+      inspect: () => undefined,
+      get: () => undefined,
+      update: async () => undefined,
+    }),
+    onDidChangeConfiguration: () => ({ dispose: () => undefined }),
+  },
+  ConfigurationTarget: {
+    Global: 1,
+    Workspace: 2,
+    WorkspaceFolder: 3,
+  },
 };
 
 type LoadFn = (

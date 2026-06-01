@@ -1,11 +1,10 @@
-import './registerVscodeMock';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   getEfficiencyWrongWindowMessage,
   EfficiencyService,
 } from '../../modelEfficiency/efficiencyService';
-import { Profile } from '../../profiles/types';
+import type { Profile } from '../../profiles/types';
 
 function makeProfile(overrides: Partial<Profile> = {}): Profile {
   return {

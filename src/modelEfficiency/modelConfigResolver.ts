@@ -1,4 +1,4 @@
-import {
+import type {
   ComposerModelConfig,
   ModelParameter,
   ResolvedModel,
@@ -51,10 +51,13 @@ function parametersMatch(
   if (a.length !== b.length) {
     return false;
   }
-  return a.every(
-    (param, index) =>
-      param.id === b[index].id && param.value === b[index].value
-  );
+  return a.every((param, index) => {
+    const rightParam = b[index];
+    if (!rightParam) {
+      return false;
+    }
+    return param.id === rightParam.id && param.value === rightParam.value;
+  });
 }
 
 function findCatalogEntry(

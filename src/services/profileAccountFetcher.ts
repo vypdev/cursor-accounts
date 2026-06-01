@@ -1,9 +1,9 @@
-import * as vscode from 'vscode';
+import type * as vscode from 'vscode';
 import { fetchCurrentUser } from '../api/userClient';
-import { ProfileAccountView } from '../api/types';
+import type { ProfileAccountView } from '../api/types';
 import { getProfileStateDbPath } from '../auth/cursorPaths';
 import { readAuthFromStateDb } from '../auth/tokenReader';
-import { Profile } from '../profiles/types';
+import type { Profile } from '../profiles/types';
 import { validateUserDataPath } from '../utils/pathUtils';
 
 export class ProfileAccountFetcher {
@@ -26,13 +26,20 @@ export class ProfileAccountFetcher {
     for (let i = 0; i < profiles.length; i++) {
       const profile = profiles[i];
       const result = results[i];
+      if (!profile || !result) {
+        continue;
+      }
 
       if (result.status === 'fulfilled') {
         accountMap.set(profile.id, result.value);
       } else {
+        const reason: unknown = result.reason;
         accountMap.set(profile.id, {
           profileId: profile.id,
-          error: result.reason?.message ?? 'Failed to fetch account info',
+          error:
+            reason instanceof Error
+              ? reason.message
+              : 'Failed to fetch account info',
           fetchedAt: Date.now(),
         });
       }

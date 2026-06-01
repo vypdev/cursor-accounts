@@ -1,5 +1,5 @@
 import { buildWorkosSessionCookie } from '../auth/sessionCookie';
-import { CursorAccountInfo } from './types';
+import type { CursorAccountInfo } from './types';
 
 export { buildWorkosSessionCookie };
 

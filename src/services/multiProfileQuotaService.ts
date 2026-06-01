@@ -1,17 +1,18 @@
-import * as vscode from 'vscode';
+import type * as vscode from 'vscode';
 import {
   defaultLeaderboardPeriod,
   fetchUsageLeaderboard,
 } from '../api/analyticsLeaderboardClient';
 import { QuotaClient } from '../api/quotaClient';
 import { fetchDashboardTeams } from '../api/teamMetadataClient';
-import { isEnterpriseUsage, ActivityLeaderboardSnapshot } from '../api/types';
+import type { ActivityLeaderboardSnapshot } from '../api/types';
+import { isEnterpriseUsage } from '../api/types';
 import * as extensionLog from '../logging/extensionLog';
 import { getProfileStateDbPath } from '../auth/cursorPaths';
 import { StaticTokenProvider } from '../auth/tokenProvider';
 import { readAuthFromStateDb } from '../auth/tokenReader';
-import { ProfileManager } from '../profiles/profileManager';
-import { Profile, ProfileQuota } from '../profiles/types';
+import type { ProfileManager } from '../profiles/profileManager';
+import type { Profile, ProfileQuota } from '../profiles/types';
 import { validateUserDataPath } from '../utils/pathUtils';
 
 const QUOTA_CACHE_KEY = 'multiProfileQuotaCache';
@@ -86,14 +87,19 @@ export class MultiProfileQuotaService {
     for (let i = 0; i < profiles.length; i++) {
       const profile = profiles[i];
       const result = results[i];
+      if (!profile || !result) {
+        continue;
+      }
 
       if (result.status === 'fulfilled') {
         quotaMap.set(profile.id, result.value);
       } else {
+        const reason: unknown = result.reason;
         quotaMap.set(profile.id, {
           profileId: profile.id,
           quota: null,
-          error: result.reason?.message ?? 'Failed to fetch quota',
+          error:
+            reason instanceof Error ? reason.message : 'Failed to fetch quota',
           fetchedAt: Date.now(),
         });
       }
@@ -197,8 +203,8 @@ export class MultiProfileQuotaService {
   }
 
   /** Get cached quota for a profile if still valid. */
-  async getCachedQuota(profileId: string): Promise<ProfileQuota | undefined> {
-    const cache = await this.loadCache();
+  getCachedQuota(profileId: string): ProfileQuota | undefined {
+    const cache = this.loadCache();
     const cached = cache.get(profileId);
 
     if (!cached) {
@@ -214,7 +220,7 @@ export class MultiProfileQuotaService {
   }
 
   /** Get all cached quotas regardless of age. */
-  async getAllCachedQuotas(): Promise<Map<string, ProfileQuota>> {
+  getAllCachedQuotas(): Map<string, ProfileQuota> {
     return this.loadCache();
   }
 
@@ -224,9 +230,9 @@ export class MultiProfileQuotaService {
     await this.context.globalState.update(LEADERBOARD_CACHE_KEY, undefined);
   }
 
-  private async getCachedLeaderboard(
+  private getCachedLeaderboard(
     profileId: string
-  ): Promise<ActivityLeaderboardSnapshot | undefined> {
+  ): ActivityLeaderboardSnapshot | undefined {
     const cached = this.context.globalState.get<
       Record<string, ActivityLeaderboardSnapshot>
     >(LEADERBOARD_CACHE_KEY);
@@ -257,7 +263,7 @@ export class MultiProfileQuotaService {
     accessToken: string,
     profileId: string
   ): Promise<ActivityLeaderboardSnapshot> {
-    const cached = await this.getCachedLeaderboard(profileId);
+    const cached = this.getCachedLeaderboard(profileId);
     if (cached) {
       return cached;
     }
@@ -331,7 +337,7 @@ export class MultiProfileQuotaService {
     await this.context.globalState.update(QUOTA_CACHE_KEY, array);
   }
 
-  private async loadCache(): Promise<Map<string, ProfileQuota>> {
+  private loadCache(): Map<string, ProfileQuota> {
     const cached = this.context.globalState.get<
       Array<{ id: string; quota: ProfileQuota }>
     >(QUOTA_CACHE_KEY);

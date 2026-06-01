@@ -1,10 +1,10 @@
 import * as os from 'os';
 import * as path from 'path';
-import * as vscode from 'vscode';
+import type * as vscode from 'vscode';
 import * as extensionLog from '../logging/extensionLog';
 import { pathsEqual } from '../utils/pathUtils';
-import { ProfileManager } from './profileManager';
-import { Profile } from './types';
+import type { ProfileManager } from './profileManager';
+import type { Profile } from './types';
 
 export class ProfileDetectorError extends Error {
   constructor(
@@ -99,9 +99,10 @@ export class ProfileDetector {
 
     const args = process.argv;
     const userDataDirIndex = args.findIndex((arg) => arg === '--user-data-dir');
-    if (userDataDirIndex !== -1 && userDataDirIndex < args.length - 1) {
+    const userDataDirArg = userDataDirIndex >= 0 ? args[userDataDirIndex + 1] : undefined;
+    if (userDataDirArg) {
       this.lastUserDataDirSource = 'argv';
-      return path.normalize(args[userDataDirIndex + 1]);
+      return path.normalize(userDataDirArg);
     }
 
     this.lastUserDataDirSource = 'default';

@@ -17,6 +17,7 @@ docs/**
 scripts/**
 .tmp/**
 .bin-all-backup/**
+webview/node_modules/**
 # Ensure bundled SQLite binaries are included in the VSIX
 !bin/**
 # Webview bundle (Phase 3)

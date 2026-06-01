@@ -2,7 +2,7 @@
   "name": "cursor-accounts",
   "displayName": "%extension.displayName%",
   "description": "%extension.description%",
-  "version": "0.1.24",
+  "version": "0.1.25",
   "publisher": "vypdev",
   "license": "MIT",
   "engines": {
@@ -172,19 +172,23 @@
     }
   },
   "dependencies": {
-    "@cursor/sdk": "^1.0.15"
+    "@cursor-accounts/types": "workspace:*",
+    "@cursor/sdk": "^1.0.15",
+    "zod": "^3.24.2"
   },
   "scripts": {
     "vscode:prepublish": "node scripts/prepublish.mjs",
     "debug:usage": "node scripts/debug-usage.mjs",
-    "compile": "tsc -p ./ && pnpm --dir webview run build",
+    "compile": "pnpm --dir packages/types run build && tsc -p ./ && pnpm --dir webview run build",
     "compile:webview": "pnpm --dir webview run build",
     "watch": "tsc -watch -p ./",
     "watch:webview": "pnpm --dir webview run watch",
-    "lint": "tsc -p ./ --noEmit",
+    "lint": "pnpm --dir packages/types run build && tsc -p ./ --noEmit && tsc -p webview --noEmit && eslint .",
+    "lint:eslint": "eslint .",
     "validate:l10n": "node scripts/validate-l10n.mjs",
-    "test": "node --test out/test/*.test.js",
-    "pretest": "tsc -p ./",
+    "test": "node --import ./out/test/registerVscodeMock.js --test 'out/test/**/*.test.js'",
+    "test:types-sync": "node scripts/validate-type-sync.mjs",
+    "pretest": "pnpm --dir packages/types run build && tsc -p ./",
     "build:all": "pnpm run compile && pnpm run package:all:fast",
     "verify:vsix": "node scripts/verify-vsix.mjs",
     "verify:installed": "node scripts/verify-installed-extension.mjs",
@@ -207,9 +211,14 @@
     "package:fast:win32-arm64": "node scripts/prepare-bin-for-target.mjs win32-arm64 && SKIP_PREPUBLISH=1 vsce package --target win32-arm64 --allow-missing-repository --no-rewrite-relative-links && node scripts/restore-bin.mjs"
   },
   "devDependencies": {
+    "@eslint/js": "^9.22.0",
     "@types/node": "^22.0.0",
     "@types/vscode": "^1.85.0",
     "@vscode/vsce": "^3.2.1",
-    "typescript": "^5.5.0"
+    "eslint": "^9.22.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "globals": "^16.0.0",
+    "typescript": "^5.5.0",
+    "typescript-eslint": "^8.26.1"
   }
 }

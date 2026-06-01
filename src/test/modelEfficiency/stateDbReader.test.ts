@@ -13,6 +13,7 @@ import {
   readItemTableKey,
 } from '../../modelEfficiency/stateDbReader';
 import { parseModelCatalog } from '../../modelEfficiency/modelConfigResolver';
+import { first, required } from '../testUtils';
 
 const extensionPath = path.join(__dirname, '..', '..', '..');
 
@@ -123,7 +124,7 @@ describe('stateDbReader', () => {
     const parsed = JSON.parse(raw) as {
       allComposers: Array<{ composerId: string }>;
     };
-    assert.equal(parsed.allComposers[0].composerId, 'composer-1');
+    assert.equal(first(parsed.allComposers).composerId, 'composer-1');
   });
 
   it('readCursorDiskKV returns composerData and bubble rows', async () => {
@@ -141,7 +142,10 @@ describe('stateDbReader', () => {
       };
     };
     assert.equal(data.modelConfig.modelName, 'composer-2.5');
-    assert.equal(data.modelConfig.selectedModels?.[0].parameters[0].id, 'fast');
+    const selectedModel = first(
+      required(data.modelConfig.selectedModels, 'selectedModels')
+    );
+    assert.equal(first(selectedModel.parameters).id, 'fast');
 
     const bubbleRaw = await readCursorDiskKV(
       dbPath,
@@ -163,7 +167,7 @@ describe('stateDbReader', () => {
     );
     assert.ok(raw);
     const catalog = parseModelCatalog(raw);
-    assert.equal(catalog[0].name, 'composer-2.5');
+    assert.equal(first(catalog).name, 'composer-2.5');
   });
 
   it('returns null for missing database file', async () => {

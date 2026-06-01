@@ -4,16 +4,17 @@ import * as vscode from 'vscode';
 import * as extensionLog from '../logging/extensionLog';
 import { getProfileStateDbPath } from '../auth/cursorPaths';
 import { readAuthFromStateDb } from '../auth/tokenReader';
+import type {
+  InstanceDetector} from '../profiles/instanceDetector';
 import {
-  instanceMapToRecord,
-  InstanceDetector,
+  instanceMapToRecord
 } from '../profiles/instanceDetector';
-import { ProfileDetector } from '../profiles/profileDetector';
+import type { ProfileDetector } from '../profiles/profileDetector';
 import { ProfileExporter } from '../profiles/profileExporter';
 import { ProfileImporter } from '../profiles/profileImporter';
-import { ProfileLauncher } from '../profiles/profileLauncher';
-import { ProfileManager } from '../profiles/profileManager';
-import {
+import type { ProfileLauncher } from '../profiles/profileLauncher';
+import type { ProfileManager } from '../profiles/profileManager';
+import type {
   FromWebviewMessage,
   ImportOptions,
   InitData,
@@ -22,16 +23,19 @@ import {
   ProfileQuota,
   ToWebviewMessage,
 } from '../profiles/types';
+import type {
+  MultiProfileQuotaService} from '../services/multiProfileQuotaService';
 import {
-  MultiProfileQuotaService,
   quotaMapToRecord,
 } from '../services/multiProfileQuotaService';
+import type {
+  ProfileAccountFetcher} from '../services/profileAccountFetcher';
 import {
-  accountMapToRecord,
-  ProfileAccountFetcher,
+  accountMapToRecord
 } from '../services/profileAccountFetcher';
 import { buildSuggestedProfileResponse } from './suggestedProfile';
-import { EfficiencyService, getEfficiencyWrongWindowMessage } from '../modelEfficiency/efficiencyService';
+import type { EfficiencyService} from '../modelEfficiency/efficiencyService';
+import { getEfficiencyWrongWindowMessage } from '../modelEfficiency/efficiencyService';
 import {
   getLocale,
   getWebviewMessages,
@@ -169,7 +173,7 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
     try {
       const profiles = await this.profileManager.getProfiles();
       const currentProfile = await this.profileDetector.detectCurrentProfile();
-      const cachedQuotas = await this.quotaService.getAllCachedQuotas();
+      const cachedQuotas = this.quotaService.getAllCachedQuotas();
       const quotas = quotaMapToRecord(cachedQuotas);
       const runningInstances = instanceMapToRecord(
         await this.instanceDetector.detectRunningInstances()
@@ -614,6 +618,7 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
     );
 
     const nonce = getNonce();
+    const cspSource = webview.cspSource.toString();
 
     const locale = getLocale();
     const dir = isRtlLocale(locale) ? 'rtl' : 'ltr';
@@ -623,8 +628,8 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src ${webview.cspSource} 'nonce-${nonce}'; font-src ${webview.cspSource}; img-src ${webview.cspSource} https:;">
-  <link rel="stylesheet" href="${styleUri}">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${cspSource} 'unsafe-inline'; script-src ${cspSource} 'nonce-${nonce}'; font-src ${cspSource}; img-src ${cspSource} https:;">
+  <link rel="stylesheet" href="${styleUri.toString()}">
   <title>${t('panel.title')}</title>
 </head>
 <body>
@@ -641,7 +646,7 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
       }
     };
   </script>
-  <script nonce="${nonce}" src="${scriptUri}" onerror="window.__cursorAccountsReportScriptError && window.__cursorAccountsReportScriptError()"></script>
+  <script nonce="${nonce}" src="${scriptUri.toString()}" onerror="window.__cursorAccountsReportScriptError && window.__cursorAccountsReportScriptError()"></script>
 </body>
 </html>`;
   }

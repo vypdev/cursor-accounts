@@ -1,8 +1,8 @@
-import { Profile, ToWebviewMessage } from '../profiles/types';
+import type { Profile, ToWebviewMessage } from '../profiles/types';
 import { t } from '../l10n';
 
 export function generateDisplayNameFromEmail(email: string): string {
-  const localPart = email.split('@')[0];
+  const localPart = email.split('@')[0] ?? email;
   return localPart
     .replace(/[._]/g, ' ')
     .split(' ')

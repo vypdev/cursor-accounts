@@ -1,15 +1,17 @@
-import { CursorAuthTokens } from '../api/types';
+import type { CursorAuthTokens } from '@cursor-accounts/types';
+import type { ITokenProvider } from '../domain/ports/ITokenProvider';
 
-/** Abstraction for obtaining valid auth tokens (current window or static profile tokens). */
-export interface TokenProvider {
-  getValidTokens(signal?: AbortSignal): Promise<CursorAuthTokens>;
-}
+export type { ITokenProvider, IRefreshableTokenProvider } from '../domain/ports/ITokenProvider';
+export { isRefreshableTokenProvider } from '../domain/ports/ITokenProvider';
+
+/** @deprecated Use ITokenProvider from domain ports. */
+export type TokenProvider = ITokenProvider;
 
 /** Token provider that returns pre-loaded tokens without refresh (for other profiles). */
-export class StaticTokenProvider implements TokenProvider {
+export class StaticTokenProvider implements ITokenProvider {
   constructor(private readonly tokens: CursorAuthTokens) {}
 
-  async getValidTokens(): Promise<CursorAuthTokens> {
-    return this.tokens;
+  getValidTokens(): Promise<CursorAuthTokens> {
+    return Promise.resolve(this.tokens);
   }
 }

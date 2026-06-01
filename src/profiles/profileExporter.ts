@@ -3,13 +3,15 @@ import * as os from 'os';
 import * as path from 'path';
 import * as extensionLog from '../logging/extensionLog';
 import { validateUserDataPath } from '../utils/pathUtils';
-import { ProfileManager } from './profileManager';
-import {
+import { profileExportSchema } from '../validation/apiSchemas';
+import type { ProfileManager } from './profileManager';
+import type {
   ExportedProfile,
-  PROFILE_EXPORT_VERSION,
   Profile,
   ProfileExport,
-  ProfileMetadata,
+  ProfileMetadata} from './types';
+import {
+  PROFILE_EXPORT_VERSION
 } from './types';
 
 export class ProfileExporterError extends Error {
@@ -89,37 +91,7 @@ export class ProfileExporter {
    * Validate export data format.
    */
   static validateExport(data: unknown): data is ProfileExport {
-    if (typeof data !== 'object' || data === null) {
-      return false;
-    }
-
-    const obj = data as Record<string, unknown>;
-
-    if (typeof obj.version !== 'string') {
-      return false;
-    }
-    if (typeof obj.exportedAt !== 'string') {
-      return false;
-    }
-    if (!Array.isArray(obj.profiles)) {
-      return false;
-    }
-
-    for (const profile of obj.profiles) {
-      if (typeof profile !== 'object' || profile === null) {
-        return false;
-      }
-
-      const exported = profile as Record<string, unknown>;
-      if (typeof exported.email !== 'string') {
-        return false;
-      }
-      if (typeof exported.displayName !== 'string') {
-        return false;
-      }
-    }
-
-    return true;
+    return profileExportSchema.safeParse(data).success;
   }
 
   private async exportSingleProfile(

@@ -9,7 +9,8 @@ import {
 } from '../profiles/instanceDetector';
 import { ProfileManager } from '../profiles/profileManager';
 import { ProfileStorage } from '../profiles/profileStorage';
-import { InstanceInfo } from '../profiles/types';
+import type { InstanceInfo } from '../profiles/types';
+import { required } from './testUtils';
 
 describe('InstanceDetector', () => {
   let tempDir: string;
@@ -177,7 +178,7 @@ describe('InstanceDetector', () => {
       ]);
 
       const record = instanceMapToRecord(map);
-      assert.deepEqual(record['profile-1'].pid, 100);
+      assert.deepEqual(required(record['profile-1'], 'profile-1').pid, 100);
     });
   });
 });

@@ -4,16 +4,17 @@ import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
-import { InstanceDetector } from '../profiles/instanceDetector';
+import type { InstanceDetector } from '../profiles/instanceDetector';
 import { ProfileDetector } from '../profiles/profileDetector';
 import { ProfileLauncher } from '../profiles/profileLauncher';
 import { ProfileManager } from '../profiles/profileManager';
 import { ProfileStorage } from '../profiles/profileStorage';
-import { FromWebviewMessage, ToWebviewMessage } from '../profiles/types';
-import { MultiProfileQuotaService } from '../services/multiProfileQuotaService';
-import { ProfileAccountFetcher } from '../services/profileAccountFetcher';
-import { EfficiencyService } from '../modelEfficiency/efficiencyService';
+import type { FromWebviewMessage, ToWebviewMessage } from '../profiles/types';
+import type { MultiProfileQuotaService } from '../services/multiProfileQuotaService';
+import type { ProfileAccountFetcher } from '../services/profileAccountFetcher';
+import type { EfficiencyService } from '../modelEfficiency/efficiencyService';
 import { AccountsPanelProvider } from '../ui/accountsPanel';
+import { first } from './testUtils';
 
 interface MockWebview {
   options: { enableScripts?: boolean; localResourceRoots?: unknown[] };
@@ -64,7 +65,7 @@ function createMockAccountFetcher(): ProfileAccountFetcher {
 function createMockQuotaService(): MultiProfileQuotaService {
   return {
     fetchAllQuotas: async () => new Map(),
-    getAllCachedQuotas: async () => new Map(),
+    getAllCachedQuotas: () => new Map(),
     onRefresh: () => undefined,
   } as unknown as MultiProfileQuotaService;
 }
@@ -259,7 +260,7 @@ describe('AccountsPanelProvider', () => {
     assert.ok(initMessage);
     if (initMessage?.type === 'init') {
       assert.equal(initMessage.data.profiles.length, 1);
-      assert.equal(initMessage.data.profiles[0].displayName, 'Work');
+      assert.equal(first(initMessage.data.profiles).displayName, 'Work');
     }
   });
 
@@ -284,7 +285,7 @@ describe('AccountsPanelProvider', () => {
     const lastInit = init[init.length - 1];
     if (lastInit?.type === 'init') {
       assert.equal(lastInit.data.profiles.length, 1);
-      assert.equal(lastInit.data.profiles[0].email, 'new@example.com');
+      assert.equal(first(lastInit.data.profiles).email, 'new@example.com');
     }
   });
 

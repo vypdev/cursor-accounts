@@ -8,6 +8,7 @@ import {
   ProfileStorageError,
 } from '../profiles/profileStorage';
 import { PROFILE_CONFIG_VERSION } from '../profiles/types';
+import { first } from './testUtils';
 
 describe('ProfileStorage', () => {
   let tempDir: string;
@@ -49,7 +50,7 @@ describe('ProfileStorage', () => {
     const loaded = await storage2.load();
 
     assert.equal(loaded.profiles.length, 1);
-    assert.equal(loaded.profiles[0].email, 'test@example.com');
+    assert.equal(first(loaded.profiles).email, 'test@example.com');
   });
 
   it('handles atomic writes', async () => {
@@ -92,13 +93,13 @@ describe('ProfileStorage', () => {
 
     const backupPath = await storage.backup();
 
-    config.profiles[0].email = 'modified@example.com';
+    first(config.profiles).email = 'modified@example.com';
     await storage.save(config);
 
     await storage.restore(backupPath);
     const restored = await storage.load();
 
-    assert.equal(restored.profiles[0].email, 'original@example.com');
+    assert.equal(first(restored.profiles).email, 'original@example.com');
   });
 
   it('throws on invalid JSON', async () => {

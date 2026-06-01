@@ -1,18 +1,22 @@
-import { TokenProvider } from '../auth/tokenProvider';
-import { TokenService } from '../auth/tokenRefresh';
+import type { ITokenProvider } from '../domain/ports/ITokenProvider';
+import { isRefreshableTokenProvider } from '../domain/ports/ITokenProvider';
+import type { IQuotaService } from '../domain/ports/IQuotaService';
 import * as extensionLog from '../logging/extensionLog';
+import {
+  mapUsageResponse,
+  mergeWebUsage,
+  shouldFetchWebUsageSummary,
+} from '../application/mappers/quotaMappers';
 import {
   fetchUsageSummary,
   isEnterpriseOrTeamSummary,
   mapUsageSummaryResponse,
 } from './usageSummaryClient';
+import type { GetCurrentPeriodUsageResponse, QuotaUsage } from './types';
 import {
-  GetCurrentPeriodUsageResponse,
-  isEnterpriseUsage,
-  PlanUsageRaw,
-  QuotaUsage,
-  SpendLimitUsageRaw,
-} from './types';
+  getCurrentPeriodUsageResponseSchema,
+  parseJsonWithSchema,
+} from '../validation/apiSchemas';
 
 const USAGE_ENDPOINT =
   'https://api2.cursor.sh/aiserver.v1.DashboardService/GetCurrentPeriodUsage';
@@ -27,142 +31,7 @@ export class QuotaApiError extends Error {
   }
 }
 
-function normalizePlanUsage(raw: PlanUsageRaw | undefined): QuotaUsage {
-  const plan = raw ?? {};
-  return {
-    totalPercentUsed: plan.totalPercentUsed ?? 0,
-    autoPercentUsed: plan.autoPercentUsed ?? 0,
-    apiPercentUsed: plan.apiPercentUsed ?? 0,
-    totalSpend: plan.totalSpend ?? 0,
-    includedSpend: plan.includedSpend ?? 0,
-    remaining: plan.remaining ?? 0,
-    limit: plan.limit ?? 0,
-    billingCycleStart: '',
-    billingCycleEnd: '',
-    fetchedAt: Date.now(),
-    displayMode: 'percent',
-    dataSource: 'ide',
-  };
-}
-
-function applySpendLimitUsage(
-  usage: QuotaUsage,
-  spendLimit?: SpendLimitUsageRaw
-): QuotaUsage {
-  if (!spendLimit) {
-    return usage;
-  }
-
-  const limitType = spendLimit.limitType;
-  const individualUsed = spendLimit.individualUsed ?? 0;
-  const individualLimit = spendLimit.individualLimit ?? null;
-  const pooledUsed = spendLimit.pooledUsed ?? 0;
-  const pooledLimit = spendLimit.pooledLimit ?? null;
-
-  const hasIndividualSpend =
-    individualLimit != null && individualLimit > 0 && individualUsed >= 0;
-  const hasTeamSpend = pooledLimit != null && pooledLimit > 0 && pooledUsed >= 0;
-
-  if (limitType === 'team' && hasTeamSpend) {
-    return {
-      ...usage,
-      limitType: 'team',
-      displayMode: 'monthlySpend',
-      monthlySpend: pooledUsed,
-      monthlyLimit: pooledLimit,
-      teamMonthlySpend: pooledUsed,
-      teamMonthlyLimit: pooledLimit,
-      totalSpend: pooledUsed,
-      limit: pooledLimit ?? usage.limit,
-      remaining: spendLimit.pooledRemaining ?? usage.remaining,
-      totalPercentUsed: Math.min(
-        100,
-        Math.max(0, (pooledUsed / pooledLimit!) * 100)
-      ),
-    };
-  }
-
-  if (hasIndividualSpend) {
-    return {
-      ...usage,
-      limitType: limitType ?? 'user',
-      displayMode: 'monthlySpend',
-      monthlySpend: individualUsed,
-      monthlyLimit: individualLimit,
-      totalSpend: individualUsed,
-      limit: individualLimit ?? usage.limit,
-      remaining: spendLimit.individualRemaining ?? usage.remaining,
-      totalPercentUsed: Math.min(
-        100,
-        Math.max(0, (individualUsed / individualLimit!) * 100)
-      ),
-    };
-  }
-
-  return usage;
-}
-
-export function mapUsageResponse(
-  response: GetCurrentPeriodUsageResponse,
-  accountEmail?: string
-): QuotaUsage {
-  let usage = normalizePlanUsage(response.planUsage);
-  usage.billingCycleStart = response.billingCycleStart ?? '';
-  usage.billingCycleEnd = response.billingCycleEnd ?? '';
-  usage.displayMessage =
-    response.displayMessage ??
-    response.namedModelSelectedDisplayMessage ??
-    response.autoModelSelectedDisplayMessage;
-  usage.accountEmail = accountEmail;
-  usage = applySpendLimitUsage(usage, response.spendLimitUsage);
-  return usage;
-}
-
-function shouldFetchWebUsageSummary(ideUsage: QuotaUsage): boolean {
-  if (ideUsage.displayMode === 'monthlySpend') {
-    return false;
-  }
-
-  const emptyPlan =
-    ideUsage.totalPercentUsed === 0 &&
-    ideUsage.limit === 0 &&
-    ideUsage.totalSpend === 0;
-
-  if (!emptyPlan) {
-    return false;
-  }
-
-  // IDE may return billing cycle dates but zero spend (typical enterprise case).
-  return true;
-}
-
-export function mergeWebUsage(
-  ideUsage: QuotaUsage,
-  webUsage: QuotaUsage
-): QuotaUsage {
-  if (isEnterpriseUsage(webUsage) || webUsage.displayMode === 'monthlySpend') {
-    return {
-      ...webUsage,
-      autoPercentUsed: webUsage.autoPercentUsed || ideUsage.autoPercentUsed,
-      apiPercentUsed: webUsage.apiPercentUsed || ideUsage.apiPercentUsed,
-      displayMessage: webUsage.displayMessage ?? ideUsage.displayMessage,
-      accountEmail: webUsage.accountEmail ?? ideUsage.accountEmail,
-      billingCycleStart:
-        webUsage.billingCycleStart || ideUsage.billingCycleStart,
-      billingCycleEnd: webUsage.billingCycleEnd || ideUsage.billingCycleEnd,
-    };
-  }
-
-  return {
-    ...ideUsage,
-    membershipType: webUsage.membershipType ?? ideUsage.membershipType,
-    limitType: webUsage.limitType ?? ideUsage.limitType,
-    billingCycleStart: webUsage.billingCycleStart || ideUsage.billingCycleStart,
-    billingCycleEnd: webUsage.billingCycleEnd || ideUsage.billingCycleEnd,
-    displayMessage: webUsage.displayMessage ?? ideUsage.displayMessage,
-    dataSource: 'web',
-  };
-}
+export { mapUsageResponse, mergeWebUsage } from '../application/mappers/quotaMappers';
 
 export async function fetchCurrentPeriodUsage(
   accessToken: string,
@@ -187,11 +56,15 @@ export async function fetchCurrentPeriodUsage(
     );
   }
 
-  return (await response.json()) as GetCurrentPeriodUsageResponse;
+  return parseJsonWithSchema(
+    getCurrentPeriodUsageResponseSchema,
+    await response.json(),
+    'GetCurrentPeriodUsage response'
+  );
 }
 
-export class QuotaClient {
-  constructor(private readonly tokenProvider: TokenProvider) {}
+export class QuotaClient implements IQuotaService {
+  constructor(private readonly tokenProvider: ITokenProvider) {}
 
   async getUsage(signal?: AbortSignal): Promise<QuotaUsage> {
     const tokens = await this.tokenProvider.getValidTokens(signal);
@@ -203,7 +76,7 @@ export class QuotaClient {
         error instanceof QuotaApiError &&
         error.statusCode === 401 &&
         tokens.refreshToken &&
-        this.tokenProvider instanceof TokenService
+        isRefreshableTokenProvider(this.tokenProvider)
       ) {
         extensionLog.debug(
           '[QuotaClient] Usage API returned 401; retrying after token refresh'
@@ -239,8 +112,11 @@ export class QuotaClient {
       const raw = await fetchCurrentPeriodUsage(accessToken, signal);
       ideUsage = mapUsageResponse(raw, accountEmail);
     } catch (error) {
+      if (error instanceof QuotaApiError && error.statusCode === 401) {
+        throw error;
+      }
       extensionLog.debug(
-        `[QuotaClient] IDE usage fetch failed, will try web summary: ${error instanceof Error ? error.message : error}`
+        `[QuotaClient] IDE usage fetch failed, will try web summary: ${extensionLog.formatError(error)}`
       );
     }
 
@@ -256,7 +132,7 @@ export class QuotaClient {
       }
     } catch (error) {
       extensionLog.debug(
-        `[QuotaClient] Web usage summary fetch failed: ${error instanceof Error ? error.message : error}`
+        `[QuotaClient] Web usage summary fetch failed: ${extensionLog.formatError(error)}`
       );
     }
 

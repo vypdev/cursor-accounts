@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { mapUsageResponse, mergeWebUsage } from '../api/quotaClient';
 import { mapUsageSummaryResponse } from '../api/usageSummaryClient';
-import { QuotaUsage } from '../api/types';
+import type { QuotaUsage } from '../api/types';
 
 describe('mapUsageResponse', () => {
   it('maps plan usage and billing cycle from API shape', () => {

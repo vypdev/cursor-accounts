@@ -1,25 +1,20 @@
-import * as vscode from 'vscode';
-import { CursorAuthTokens } from '../api/types';
+import type * as vscode from 'vscode';
+import type { CursorAuthTokens } from '@cursor-accounts/types';
+import type { IRefreshableTokenProvider } from '../domain/ports/ITokenProvider';
 import * as extensionLog from '../logging/extensionLog';
-import { ProfileDetector } from '../profiles/profileDetector';
+import type { ProfileDetector } from '../profiles/profileDetector';
 import {
   getProfileSecretsKeys,
   getProfileStateDbPath,
   SECRETS_KEYS,
 } from './cursorPaths';
 import { isTokenExpired, readAuthFromStateDb } from './tokenReader';
+import { oauthTokenResponseSchema, parseJsonWithSchema } from '../validation/apiSchemas';
 
 const OAUTH_TOKEN_URL = 'https://api2.cursor.sh/oauth/token';
 const OAUTH_CLIENT_ID = 'KbZUR41cY7W6zRSdpSUJ7I7mLYBKOCmB';
 
-interface OAuthTokenResponse {
-  access_token?: string;
-  refresh_token?: string;
-  error?: string;
-  error_description?: string;
-}
-
-export class TokenService {
+export class TokenService implements IRefreshableTokenProvider {
   private readonly extensionPath: string;
 
   constructor(
@@ -141,7 +136,11 @@ export class TokenService {
       signal,
     });
 
-    const body = (await response.json()) as OAuthTokenResponse;
+    const body = parseJsonWithSchema(
+      oauthTokenResponseSchema,
+      await response.json(),
+      'OAuth token response'
+    );
 
     if (!response.ok || !body.access_token) {
       const detail =

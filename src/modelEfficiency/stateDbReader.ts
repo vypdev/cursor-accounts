@@ -15,8 +15,7 @@ const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 50;
 
 function isBusyError(error: unknown): boolean {
-  const message =
-    error instanceof Error ? error.message : String(error ?? '');
+  const message = extensionLog.formatError(error);
   return (
     message.includes('database is locked') ||
     message.includes('SQLITE_BUSY') ||

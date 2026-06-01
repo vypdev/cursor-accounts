@@ -2,8 +2,8 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import * as extensionLog from '../logging/extensionLog';
 import { pathsEqual } from '../utils/pathUtils';
-import { ProfileManager } from './profileManager';
-import { InstanceInfo, InstanceInfoMap } from './types';
+import type { ProfileManager } from './profileManager';
+import type { InstanceInfo, InstanceInfoMap } from './types';
 
 const execAsync = promisify(exec);
 
@@ -66,12 +66,16 @@ export function parseMacOSPsOutput(stdout: string): CursorProcess[] {
         continue;
       }
 
-      const pid = parseInt(match[1], 10);
-      if (isNaN(pid)) {
+      const pidStr = match[1];
+      const command = match[3];
+      if (!pidStr || !command) {
         continue;
       }
 
-      const command = match[3];
+      const pid = parseInt(pidStr, 10);
+      if (isNaN(pid)) {
+        continue;
+      }
 
       if (isHelperProcess(command)) {
         continue;
@@ -104,12 +108,16 @@ export function parseLinuxPsOutput(stdout: string): CursorProcess[] {
         continue;
       }
 
-      const pid = parseInt(match[1], 10);
-      if (isNaN(pid)) {
+      const pidStr = match[1];
+      const command = match[2];
+      if (!pidStr || !command) {
         continue;
       }
 
-      const command = match[2];
+      const pid = parseInt(pidStr, 10);
+      if (isNaN(pid)) {
+        continue;
+      }
 
       if (isHelperProcess(command)) {
         continue;
@@ -195,12 +203,17 @@ export function parseWindowsWmicOutput(stdout: string): CursorProcess[] {
         continue;
       }
 
-      const pid = parseInt(pidMatch[1], 10);
+      const pidStr = pidMatch[1];
+      if (!pidStr) {
+        continue;
+      }
+
+      const pid = parseInt(pidStr, 10);
       if (isNaN(pid)) {
         continue;
       }
 
-      const command = commandMatch ? commandMatch[1] : '';
+      const command = commandMatch?.[1] ?? '';
 
       if (isHelperProcess(command)) {
         continue;

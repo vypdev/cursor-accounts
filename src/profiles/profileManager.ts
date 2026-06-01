@@ -8,14 +8,15 @@ import {
   validateSlug,
 } from '../utils/emailToSlug';
 import { pathsEqual, validateUserDataPath } from '../utils/pathUtils';
-import { InstanceDetector } from './instanceDetector';
+import type { InstanceDetector } from './instanceDetector';
 import { ProfileStorage } from './profileStorage';
-import {
+import type {
   CreateProfileOptions,
-  PROFILE_DIR_PREFIX,
   Profile,
   ProfileConfig,
-  ValidationResult,
+  ValidationResult} from './types';
+import {
+  PROFILE_DIR_PREFIX
 } from './types';
 
 export class ProfileManagerError extends Error {
@@ -199,6 +200,9 @@ export class ProfileManager {
     }
 
     const profile = config.profiles[index];
+    if (!profile) {
+      throw new ProfileManagerError(`Profile with ID ${id} not found`);
+    }
     config.profiles[index] = {
       ...profile,
       ...updates,
@@ -210,7 +214,11 @@ export class ProfileManager {
 
     await this.storage.save(config);
 
-    return config.profiles[index];
+    const updated = config.profiles[index];
+    if (!updated) {
+      throw new ProfileManagerError(`Profile with ID ${id} not found after update`);
+    }
+    return updated;
   }
 
   /**
@@ -231,6 +239,9 @@ export class ProfileManager {
       const isRunning = await instanceDetector.isProfileRunning(id);
       if (isRunning) {
         const profile = config.profiles[index];
+        if (!profile) {
+          throw new ProfileManagerError(`Profile with ID ${id} not found`);
+        }
         throw new ProfileManagerError(
           `Cannot delete running profile "${profile.displayName}". ` +
             `Close the Cursor window first.`
@@ -239,6 +250,9 @@ export class ProfileManager {
     }
 
     const removed = config.profiles[index];
+    if (!removed) {
+      throw new ProfileManagerError(`Profile with ID ${id} not found`);
+    }
     config.profiles.splice(index, 1);
     await this.storage.save(config);
 
@@ -318,7 +332,7 @@ export class ProfileManager {
   }
 
   private generateDisplayName(email: string): string {
-    const localPart = email.split('@')[0];
+    const localPart = email.split('@')[0] ?? email;
     return localPart
       .replace(/[._]/g, ' ')
       .split(' ')
@@ -337,6 +351,7 @@ export class ProfileManager {
       '#06b6d4',
       '#f97316',
     ];
-    return colors[Math.floor(Math.random() * colors.length)];
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    return color ?? '#3b82f6';
   }
 }

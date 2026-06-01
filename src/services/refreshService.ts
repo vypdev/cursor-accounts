@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
-import { QuotaUsage } from '../api/types';
-import { QuotaClient } from '../api/quotaClient';
+import type { QuotaUsage } from '@cursor-accounts/types';
+import type { IQuotaService } from '../domain/ports/IQuotaService';
 import {
   affectsCursorAccountsConfig,
   getCursorAccountsConfig,
@@ -20,7 +20,7 @@ export class RefreshService {
 
   constructor(
     private readonly context: vscode.ExtensionContext,
-    private readonly quotaClient: QuotaClient,
+    private readonly quotaClient: IQuotaService,
     private readonly onSuccess: (usage: QuotaUsage) => void,
     private readonly onError: (message: string) => void
   ) {

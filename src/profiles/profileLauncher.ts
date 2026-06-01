@@ -1,10 +1,11 @@
-import { ChildProcess, spawn } from 'child_process';
+import type { ChildProcess} from 'child_process';
+import { spawn } from 'child_process';
 import * as path from 'path';
 import * as extensionLog from '../logging/extensionLog';
 import { ensureDirectory } from '../utils/pathUtils';
-import { InstanceDetector } from './instanceDetector';
-import { ProfileManager } from './profileManager';
-import { Profile } from './types';
+import type { InstanceDetector } from './instanceDetector';
+import type { ProfileManager } from './profileManager';
+import type { Profile } from './types';
 
 export interface LaunchResult {
   success: boolean;

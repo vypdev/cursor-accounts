@@ -7,6 +7,7 @@ import {
   parseBubbleRow,
   USER_BUBBLE_TYPE,
 } from '../../modelEfficiency/composerDbParse';
+import { first, required } from '../testUtils';
 
 describe('composerDbParse', () => {
   it('parseComposerHeaders reads allComposers', () => {
@@ -15,8 +16,9 @@ describe('composerDbParse', () => {
         allComposers: [{ composerId: 'abc', lastUpdatedAt: 42 }],
       })
     );
-    assert.equal(payload?.allComposers?.[0].composerId, 'abc');
-    assert.equal(payload?.allComposers?.[0].lastUpdatedAt, 42);
+    const composer = first(required(payload?.allComposers, 'allComposers'));
+    assert.equal(composer.composerId, 'abc');
+    assert.equal(composer.lastUpdatedAt, 42);
   });
 
   it('getUserBubbleHeaders filters type 1 only', () => {
@@ -27,7 +29,7 @@ describe('composerDbParse', () => {
       ],
     });
     assert.equal(headers.length, 1);
-    assert.equal(headers[0].bubbleId, 'u1');
+    assert.equal(first(headers).bubbleId, 'u1');
   });
 
   it('parseBubbleRow extracts user text', () => {

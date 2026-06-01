@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import type {
+  ModelCatalogEntry} from '../../modelEfficiency/modelConfigResolver';
 import {
   buildVariantString,
-  ModelCatalogEntry,
   parseModelCatalog,
   resolveModelConfig,
 } from '../../modelEfficiency/modelConfigResolver';
+import { required } from '../testUtils';
 
 const testCatalog: ModelCatalogEntry[] = [
   {
@@ -76,7 +78,7 @@ describe('modelConfigResolver', () => {
       JSON.stringify({ availableDefaultModels2: testCatalog })
     );
     assert.equal(catalog.length, 3);
-    assert.equal(catalog[1].name, 'composer-2.5');
+    assert.equal(required(catalog[1], 'catalog entry').name, 'composer-2.5');
   });
 
   it('resolves composer-2.5 fast variant', () => {

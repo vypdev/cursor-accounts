@@ -1,9 +1,10 @@
-import {
+import type {
   FromWebviewMessage,
   ImportOptions,
   Profile,
   ToWebviewMessage,
-  WebviewPersistedState,
+  WebviewPersistedState} from '../types';
+import {
   WEBVIEW_STATE_VERSION,
 } from '../types';
 

@@ -1,5 +1,5 @@
 import { buildWorkosSessionCookie } from '../auth/sessionCookie';
-import {
+import type {
   QuotaUsage,
   UsageSummaryResponse,
   UsageSummarySpendBucketRaw,
@@ -76,7 +76,7 @@ function resolveBucketFields(
   monthlyLimit: number | null;
   monthlyRemaining: number;
 } {
-  let monthlySpend = toFiniteNumber(bucket.used) ?? 0;
+  const monthlySpend = toFiniteNumber(bucket.used) ?? 0;
   let monthlyLimit =
     bucket.limit != null ? (toFiniteNumber(bucket.limit) ?? null) : null;
   let monthlyRemaining = toFiniteNumber(bucket.remaining);

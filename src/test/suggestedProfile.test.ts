@@ -1,7 +1,7 @@
 import './registerVscodeMock';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { Profile } from '../profiles/types';
+import type { Profile } from '../profiles/types';
 import {
   buildSuggestedProfileResponse,
   generateDisplayNameFromEmail,

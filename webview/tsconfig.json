@@ -10,7 +10,15 @@
     "noEmit": true,
     "isolatedModules": true,
     "esModuleInterop": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noUncheckedIndexedAccess": true,
+    "paths": {
+      "@cursor-accounts/types": ["../packages/types/src/index.ts"],
+      "@cursor-accounts/types/*": ["../packages/types/src/*"]
+    }
   },
   "include": ["src/**/*"]
 }
