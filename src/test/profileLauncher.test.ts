@@ -38,7 +38,16 @@ describe('ProfileLauncher', () => {
 
       assert.ok(execPath);
       assert.ok(path.isAbsolute(execPath));
-      assert.ok(execPath.includes('Cursor'));
+      switch (process.platform) {
+        case 'darwin':
+          assert.ok(execPath.includes('Cursor'));
+          break;
+        case 'win32':
+          assert.ok(execPath.endsWith('Cursor.exe'));
+          break;
+        default:
+          assert.equal(execPath, '/usr/bin/cursor');
+      }
     });
 
     it('returns correct path for macOS', () => {

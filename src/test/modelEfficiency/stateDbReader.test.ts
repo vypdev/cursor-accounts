@@ -12,13 +12,16 @@ import {
   readCursorDiskKV,
   readItemTableKey,
 } from '../../modelEfficiency/stateDbReader';
+import { getSqlite3Binary } from '../../auth/sqliteBinary';
 import { parseModelCatalog } from '../../modelEfficiency/modelConfigResolver';
 import { first, required } from '../testUtils';
 
 const extensionPath = path.join(__dirname, '..', '..', '..');
 
 function runSqlite(dbPath: string, sql: string): void {
-  execFileSync('sqlite3', [dbPath, sql], { encoding: 'utf8' });
+  execFileSync(getSqlite3Binary(extensionPath), [dbPath, sql], {
+    encoding: 'utf8',
+  });
 }
 
 async function createFixtureDb(dir: string): Promise<string> {
