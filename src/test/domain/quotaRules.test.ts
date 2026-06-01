@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  formatCompactNumber,
   getEffectiveUsagePercent,
   getPersonalModeAveragePercent,
   getQuotaStatus,
@@ -162,6 +163,13 @@ describe('domain quota rules', () => {
         isEnterpriseUsage(makePersonalQuota({ limitType: 'team' })),
         true
       );
+    });
+  });
+
+  describe('formatCompactNumber', () => {
+    it('formats compact numbers', () => {
+      assert.equal(formatCompactNumber(456728), '457k');
+      assert.equal(formatCompactNumber(0), '0');
     });
   });
 });

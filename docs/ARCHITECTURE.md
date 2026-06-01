@@ -229,8 +229,9 @@ Enabled only for the **active windowâ€™s profile**; secrets live in that windowâ
 - **Runner:** Node.js `node:test` on compiled `out/test/**/*.test.js`
 - **Mocks:** `src/test/registerVscodeMock.ts` for `vscode` module
 - **Fixtures:** process output samples under `src/test/fixtures/`
-- **CI:** `pnpm test`, `pnpm run test:types-sync`, `pnpm --dir webview test`, ESLint layer rules
+- **CI:** `pnpm test`, `pnpm run test:types-sync`, ESLint layer rules
 - **Canonical quota rule tests:** `src/test/domain/quotaRules.test.ts` (imports `@cursor-accounts/types` directly)
+- **Webview protocol tests:** `src/test/accountsPanel.test.ts` (extension-side webview messaging and HTML setup)
 
 ## Known maintainability notes
 
