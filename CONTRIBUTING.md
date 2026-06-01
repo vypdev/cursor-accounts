@@ -107,6 +107,7 @@ Release notes for published versions are maintained in [CHANGELOG.md](CHANGELOG.
 | [docs/GETTING-STARTED.md](docs/GETTING-STARTED.md) | End users: installation, first launch, upgrade |
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | End users: all settings |
 | [docs/FEATURES.md](docs/FEATURES.md) | End users: feature overview |
+| [docs/COMMANDS.md](docs/COMMANDS.md) | End users: command reference |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | End users: common issues |
 | [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md) | Users/contributors: technical overview |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Contributors: structure, flows, decisions |

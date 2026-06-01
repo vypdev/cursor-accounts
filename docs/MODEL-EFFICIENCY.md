@@ -14,7 +14,7 @@ Example: prompt *"¿Cuál es la capital de España?"* with **Opus** should score
 
 ## How to enable
 
-1. Open the **Accounts** sidebar (click the status bar or run **Cursor Accounts: Open Accounts**).
+1. Open the **Accounts** sidebar (click the status bar or run **Cursor Accounts: Open Accounts Panel**).
 2. Find the profile card for **this window's active profile** (marked as "Current Window").
 3. Toggle **Análisis de eficiencia** on the profile card.
 4. Confirm API key creation when prompted.
@@ -23,10 +23,7 @@ The efficiency toggle appears only on the profile card for **this window's activ
 
 ## Commands
 
-| Command | Description |
-|---------|-------------|
-| `Cursor Accounts: Show Model Efficiency Output` | Open the analysis output channel |
-| `Cursor Accounts: Restart Prompt Detector` | Clear detection state and restart `state.vscdb` polling |
+See [COMMANDS.md](COMMANDS.md#model-efficiency) for model efficiency commands.
 
 ## Configuration
 
@@ -53,6 +50,7 @@ See [CONFIGURATION.md](CONFIGURATION.md) for all settings.
 
 ## Related documentation
 
+- [COMMANDS.md](COMMANDS.md) — full command reference
 - [FEATURES.md](FEATURES.md) — feature overview
 - [CONFIGURATION.md](CONFIGURATION.md) — all settings
 - [ARCHITECTURE.md](ARCHITECTURE.md) — implementation details (`src/modelEfficiency/`)

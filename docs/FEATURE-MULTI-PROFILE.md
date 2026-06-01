@@ -143,16 +143,7 @@ Full TypeScript definitions: `src/profiles/types.ts`.
 
 ## Commands
 
-| Command | Description |
-|---------|-------------|
-| `Cursor Accounts: Open Accounts` | Focus the Accounts sidebar |
-| `Cursor Accounts: Add Profile` | Create a new profile |
-| `Cursor Accounts: Launch Profile` | Launch Cursor with a profile's user data dir |
-| `Cursor Accounts: List Profiles` | Quick pick of configured profiles |
-| `Cursor Accounts: Delete Profile` | Remove a profile from config |
-| `Cursor Accounts: Export Profiles` | Export profile config to JSON |
-| `Cursor Accounts: Import Profiles` | Import profiles from JSON |
-| `Cursor Accounts: Show Current Profile` | Show the active window's profile |
+See [COMMANDS.md](COMMANDS.md#profiles) for profile-related commands (add, launch, list, delete, export, import, show current).
 
 ## Webview message protocol
 
@@ -230,6 +221,7 @@ Config save failures should use backup/restore in `ProfileStorage` (see tests in
 
 ## Related documentation
 
+- [COMMANDS.md](COMMANDS.md) — full command reference
 - [FEATURES.md](FEATURES.md) — feature overview
 - [CONFIGURATION.md](CONFIGURATION.md) — profile-related settings
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md) — account and profile issues

@@ -48,6 +48,7 @@ No additional installation required. See [docs/PLATFORM-SUPPORT.md](docs/PLATFOR
 ### Features
 
 - [Feature Overview](docs/FEATURES.md)
+- [Command Reference](docs/COMMANDS.md)
 - [Multi-Profile Management](docs/FEATURE-MULTI-PROFILE.md)
 - [Model Efficiency Analysis](docs/MODEL-EFFICIENCY.md)
 

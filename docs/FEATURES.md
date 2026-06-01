@@ -15,10 +15,7 @@ The extension shows plan quota usage directly in the IDE status bar after activa
 
 ### Commands
 
-| Command | Description |
-|---------|-------------|
-| `Cursor Accounts: Refresh Now` | Force an immediate quota refresh |
-| `Cursor Accounts: Open Usage` | Opens **Cursor Settings → Usage** (personal) or **cursor.com/dashboard/usage** (enterprise) |
+See [COMMANDS.md](COMMANDS.md) for the full command reference (quota, profiles, and model efficiency).
 
 Configure display and refresh behavior in [CONFIGURATION.md](CONFIGURATION.md).
 
@@ -49,6 +46,7 @@ The extension reads your local Cursor session and calls Cursor's quota APIs. No 
 
 ## Related documentation
 
+- [COMMANDS.md](COMMANDS.md) — full command reference
 - [GETTING-STARTED.md](GETTING-STARTED.md) — installation and first launch
 - [CONFIGURATION.md](CONFIGURATION.md) — all settings
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md) — common issues
