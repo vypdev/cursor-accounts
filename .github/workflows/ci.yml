@@ -2,13 +2,34 @@ name: CI
 
 on:
   pull_request:
+    branches:
+      - develop
+    types: [opened, synchronize, reopened]
+  # TODO: remove after validating self-hosted runners
   push:
     branches:
-      - main
+      - develop
 
 jobs:
   validate:
-    runs-on: ubuntu-latest
+    name: validate (${{ matrix.platform }})
+    if: >-
+      github.event_name == 'push' ||
+      (
+        !startsWith(github.event.pull_request.head.ref, 'release/') &&
+        !startsWith(github.event.pull_request.head.ref, 'hotfix/')
+      )
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: [self-hosted, Linux, X64]
+            platform: linux-x64
+          - os: [self-hosted, macOS, ARM64]
+            platform: macos-arm64
+          - os: [self-hosted, macOS, X64]
+            platform: macos-x64
     steps:
       - uses: actions/checkout@v4
 
