@@ -91,6 +91,22 @@ export default tseslint.config(
     },
   },
   {
+    files: ['src/services/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/ui/*'],
+              message: 'Services layer must not import from UI.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ['packages/types/src/**/*.ts'],
     extends: [...tseslint.configs.recommendedTypeChecked],
     languageOptions: {

@@ -3,44 +3,25 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import type { IProfileAuthReader } from '../domain/ports/IProfileAuthReader';
 import * as extensionLog from '../logging/extensionLog';
-import type {
-  InstanceDetector} from '../profiles/instanceDetector';
-import {
-  instanceMapToRecord
-} from '../profiles/instanceDetector';
+import type { InstanceDetector } from '../profiles/instanceDetector';
+import { instanceMapToRecord } from '../profiles/instanceDetector';
 import type { ProfileDetector } from '../profiles/profileDetector';
-import { ProfileExporter } from '../profiles/profileExporter';
-import { ProfileImporter } from '../profiles/profileImporter';
 import type { ProfileLauncher } from '../profiles/profileLauncher';
 import type { ProfileManager } from '../profiles/profileManager';
 import type {
   FromWebviewMessage,
-  ImportOptions,
   InitData,
   InstanceInfo,
-  Profile,
   ProfileQuota,
   ToWebviewMessage,
 } from '../profiles/types';
-import type {
-  MultiProfileQuotaService} from '../services/multiProfileQuotaService';
-import {
-  quotaMapToRecord,
-} from '../services/multiProfileQuotaService';
-import type {
-  ProfileAccountFetcher} from '../services/profileAccountFetcher';
-import {
-  accountMapToRecord
-} from '../services/profileAccountFetcher';
-import { buildSuggestedProfileResponse } from './suggestedProfile';
-import type { EfficiencyService} from '../modelEfficiency/efficiencyService';
-import { getEfficiencyWrongWindowMessage } from '../modelEfficiency/efficiencyService';
-import {
-  getLocale,
-  getWebviewMessages,
-  isRtlLocale,
-  t,
-} from '../l10n';
+import type { MultiProfileQuotaService } from '../services/multiProfileQuotaService';
+import { quotaMapToRecord } from '../services/multiProfileQuotaService';
+import type { ProfileAccountFetcher } from '../services/profileAccountFetcher';
+import { accountMapToRecord } from '../services/profileAccountFetcher';
+import type { EfficiencyService } from '../modelEfficiency/efficiencyService';
+import { getLocale, getWebviewMessages, isRtlLocale, t } from '../l10n';
+import { AccountsPanelHandlers } from './accountsPanelHandlers';
 
 /** Activity bar container id (must match package.json viewsContainers). */
 export const ACCOUNTS_VIEW_CONTAINER = 'cursorAccounts';
@@ -53,7 +34,7 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
   private view?: vscode.WebviewView;
   private panel?: vscode.WebviewPanel;
   private accountsFetchInFlight = false;
-  private launchInFlight = new Set<string>();
+  private readonly handlers: AccountsPanelHandlers;
 
   public hasResolvedView(): boolean {
     return this.view !== undefined || this.panel !== undefined;
@@ -66,14 +47,31 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
   constructor(
     private readonly context: vscode.ExtensionContext,
     private readonly profileManager: ProfileManager,
-    private readonly profileLauncher: ProfileLauncher,
+    profileLauncher: ProfileLauncher,
     private readonly profileDetector: ProfileDetector,
     private readonly quotaService: MultiProfileQuotaService,
     private readonly accountFetcher: ProfileAccountFetcher,
     private readonly instanceDetector: InstanceDetector,
-    private readonly efficiencyService: EfficiencyService,
-    private readonly authReader: IProfileAuthReader
+    efficiencyService: EfficiencyService,
+    authReader: IProfileAuthReader
   ) {
+    this.handlers = new AccountsPanelHandlers(
+      {
+        profileManager,
+        profileLauncher,
+        profileDetector,
+        efficiencyService,
+        authReader,
+        instanceDetector,
+      },
+      {
+        postMessage: (message) => this.postMessage(message),
+        refresh: () => this.refresh(),
+        refreshInstances: () => this.refreshInstances(),
+        hasActiveWebview: () => this.getActiveWebview() !== undefined,
+      }
+    );
+
     this.quotaService.onRefresh((quotas) => {
       void this.postQuotas(quotas);
     });
@@ -316,58 +314,19 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
     try {
       switch (message.type) {
         case 'ready':
-          await this.refresh();
-          break;
-
         case 'refresh':
           await this.refresh();
           break;
 
-        case 'launch':
-          await this.handleLaunch(message.profileId);
-          break;
-
-        case 'add':
-          await this.handleAdd(message);
-          break;
-
-        case 'edit':
-          await this.handleEdit(message.profileId, message.updates);
-          break;
-
-        case 'delete':
-          await this.handleDelete(message.profileId);
-          break;
-
-        case 'showInExplorer':
-          await this.handleShowInExplorer(message.profileId);
-          break;
-
-        case 'export':
-          await this.handleExport(message.profileIds, message.includeSettings);
-          break;
-
-        case 'import':
-          await this.handleImport(message.data, message.options);
-          break;
-
-        case 'requestSuggestedProfile':
-          await this.handleRequestSuggestedProfile();
-          break;
-
-        case 'toggleEfficiency':
-          await this.handleToggleEfficiency(
-            message.profileId,
-            message.enabled
-          );
-          break;
-
-        default: {
-          const unknown = message as { type?: string };
-          extensionLog.warn(
-            `[AccountsPanel] Unknown webview message type: ${unknown.type ?? 'undefined'}`
-          );
-        }
+        default:
+          if (this.isActionMessage(message)) {
+            await this.handlers.handle(message);
+          } else {
+            const unknown = message as { type?: string };
+            extensionLog.warn(
+              `[AccountsPanel] Unknown webview message type: ${unknown.type ?? 'undefined'}`
+            );
+          }
       }
     } catch (error) {
       await this.postMessage({
@@ -377,215 +336,13 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  private async handleLaunch(profileId: string): Promise<void> {
-    if (this.launchInFlight.has(profileId)) {
-      extensionLog.debug(
-        `[AccountsPanel] Launch ignored for ${profileId} (already in flight)`
-      );
-      return;
-    }
-
-    this.launchInFlight.add(profileId);
-    try {
-      extensionLog.info(
-        `[AccountsPanel] Launch requested for profile ${profileId}`
-      );
-      const result = await this.profileLauncher.launch(profileId);
-
-      if (result.success) {
-        const profile = await this.profileManager.getProfile(profileId);
-        await this.postMessage({
-          type: 'success',
-          message: t('panel.launched', {
-            name: profile?.displayName ?? t('panel.profileFallback'),
-          }),
-        });
-        await this.refresh();
-        void this.refreshInstances();
-      } else {
-        await this.postMessage({
-          type: 'error',
-          message: result.error ?? t('errors.failedLaunchProfile'),
-        });
-      }
-    } finally {
-      this.launchInFlight.delete(profileId);
-    }
-  }
-
-  private async handleAdd(
-    data: Extract<FromWebviewMessage, { type: 'add' }>
-  ): Promise<void> {
-    extensionLog.info(`[AccountsPanel] Add profile requested (${data.email})`);
-    const profile = await this.profileManager.createProfile({
-      email: data.email,
-      displayName: data.displayName,
-      theme: data.theme,
-      color: data.color,
-      emoji: data.emoji,
-    });
-
-    await this.postMessage({
-      type: 'success',
-      message: t('panel.profileCreated', { name: profile.displayName }),
-    });
-    await this.refresh();
-  }
-
-  private async handleEdit(
-    profileId: string,
-    updates: Partial<Profile>
-  ): Promise<void> {
-    const profile = await this.profileManager.updateProfile(profileId, updates);
-
-    await this.postMessage({
-      type: 'success',
-      message: t('panel.profileUpdated', { name: profile.displayName }),
-    });
-    await this.refresh();
-  }
-
-  private async handleDelete(profileId: string): Promise<void> {
-    extensionLog.info(`[AccountsPanel] Delete profile requested (${profileId})`);
-    const profile = await this.profileManager.getProfile(profileId);
-    const displayName = profile?.displayName ?? t('panel.unknownProfile');
-
-    await this.profileManager.deleteProfile(profileId, this.instanceDetector);
-
-    await this.postMessage({
-      type: 'success',
-      message: t('panel.profileDeleted', { name: displayName }),
-    });
-    await this.refresh();
-  }
-
-  private async handleShowInExplorer(profileId: string): Promise<void> {
-    const profile = await this.profileManager.getProfile(profileId);
-    if (!profile) {
-      throw new Error(t('errors.profileNotFound'));
-    }
-
-    const uri = vscode.Uri.file(profile.userDataDir);
-    await vscode.commands.executeCommand('revealFileInOS', uri);
-  }
-
-  private async handleToggleEfficiency(
-    profileId: string,
-    enabled: boolean
-  ): Promise<void> {
-    const current = await this.profileDetector.detectCurrentProfile();
-    if (!current || current.id !== profileId) {
-      throw new Error(getEfficiencyWrongWindowMessage());
-    }
-
-    extensionLog.info(
-      `[AccountsPanel] Toggle efficiency ${enabled ? 'on' : 'off'} for ${profileId}`
-    );
-
-    const result = await this.efficiencyService.setEfficiencyEnabled(
-      profileId,
-      enabled
-    );
-
-    await this.postMessage({
-      type: 'success',
-      message: result.message,
-    });
-    await this.refresh();
-  }
-
-  private async handleRequestSuggestedProfile(): Promise<void> {
-    if (!this.getActiveWebview()) {
-      return;
-    }
-
-    try {
-      const userDataDir = this.profileDetector.getCurrentUserDataDir();
-
-      const tokens = await this.authReader.readTokens(userDataDir);
-
-      const existing = tokens?.email
-        ? await this.profileManager.findProfileByEmail(tokens.email)
-        : undefined;
-
-      await this.postMessage(
-        buildSuggestedProfileResponse(tokens?.email, existing)
-      );
-    } catch (error) {
-      extensionLog.error(
-        `[AccountsPanel] Failed to detect current profile email: ${extensionLog.formatError(error)}`
-      );
-
-      if (this.getActiveWebview()) {
-        await this.postMessage({
-          type: 'suggestedProfile',
-          email: undefined,
-          displayName: undefined,
-        });
-      }
-    }
-  }
-
-  private async handleExport(
-    profileIds: string[],
-    includeSettings: boolean
-  ): Promise<void> {
-    extensionLog.info(
-      `[AccountsPanel] Export requested (${profileIds.length} profile(s), settings=${includeSettings})`
-    );
-    const exporter = new ProfileExporter(this.profileManager);
-    const exportData = await exporter.exportProfiles(profileIds, includeSettings);
-    const json = JSON.stringify(exportData, null, 2);
-    const timestamp = new Date().toISOString().slice(0, 10);
-
-    await this.postMessage({
-      type: 'exportData',
-      data: json,
-      filename: `cursor-profiles-export-${timestamp}.json`,
-    });
-
-    await this.postMessage({
-      type: 'success',
-      message: t('panel.exported', { count: exportData.profiles.length }),
-    });
-  }
-
-  private async handleImport(
-    json: string,
-    options: ImportOptions
-  ): Promise<void> {
-    extensionLog.info('[AccountsPanel] Import requested');
-    const importer = new ProfileImporter(this.profileManager);
-    const result = await importer.importFromString(json, options);
-
-    const messages: string[] = [];
-    if (result.imported.length > 0) {
-      messages.push(t('panel.imported', { count: result.imported.length }));
-    }
-    if (result.skipped.length > 0) {
-      messages.push(t('panel.importSkipped', { count: result.skipped.length }));
-    }
-    if (result.errors.length > 0) {
-      messages.push(t('panel.importErrors', { count: result.errors.length }));
-    }
-
-    if (result.imported.length > 0 || result.skipped.length > 0) {
-      await this.refresh();
-    }
-
-    if (result.success) {
-      await this.postMessage({
-        type: 'success',
-        message: messages.join(', ') || t('panel.importCompleted'),
-      });
-    } else {
-      await this.postMessage({
-        type: 'error',
-        message:
-          messages.join(', ') ||
-          t('panel.importCompletedWithErrors'),
-      });
-    }
+  private isActionMessage(
+    message: FromWebviewMessage
+  ): message is Exclude<
+    FromWebviewMessage,
+    { type: 'ready' } | { type: 'refresh' }
+  > {
+    return message.type !== 'ready' && message.type !== 'refresh';
   }
 
   private async postMessage(message: ToWebviewMessage): Promise<void> {

@@ -4,7 +4,7 @@ Design reference for the multi-profile feature in **Cursor Accounts** (`vypdev.c
 
 **Status:** Shipped (all planned capabilities are implemented in `src/` and the Accounts webview).
 
-**Last reviewed:** 2026-05-29
+**Last reviewed:** 2026-06-01
 
 ## Overview
 

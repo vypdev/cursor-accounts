@@ -105,7 +105,7 @@ graph TB
 
 **Not allowed:** `api` → `ui`; `profiles` → `ui`; `domain` → outer layers.
 
-ESLint enforces import boundaries for `domain`, `api`, and `profiles`. `services/` and `ui/` rely on convention and code review.
+ESLint enforces import boundaries for `domain`, `api`, `profiles`, and `services`. `ui/` relies on convention and code review.
 
 ## Structural migration (2026-06)
 
@@ -175,7 +175,7 @@ Implementation references:
 | Domain ports | `src/domain/ports/` |
 | CRUD | `src/profiles/profileManager.ts`, `profileStorage.ts` |
 | Launch / detect | `src/profiles/profileLauncher.ts`, `profileDetector.ts`, `instanceDetector.ts` |
-| Panel orchestration | `src/ui/accountsPanel.ts` |
+| Panel orchestration | `src/ui/accountsPanel.ts`, `src/ui/accountsPanelHandlers.ts` |
 | Account metadata | `src/services/profileAccountFetcher.ts` |
 | Commands | `src/commands/profileCommands.ts` |
 
@@ -235,7 +235,7 @@ Enabled only for the **active window’s profile**; secrets live in that window�
 ## Known maintainability notes
 
 - `extension.ts` concentrates wiring and migrations (~270 lines)
-- `accountsPanel.ts` and `instanceDetector.ts` are large orchestration files (candidate for extracted use-case services)
+- `accountsPanel.ts` delegates webview user actions to `accountsPanelHandlers.ts`; `instanceDetector.ts` remains a large orchestration file (candidate for further extraction)
 - HTTP clients in `src/api/` share similar fetch/error patterns (candidate for a small internal helper)
 - `RefreshService` creates an `AbortController` that is not wired to in-flight fetch cancellation today
 
