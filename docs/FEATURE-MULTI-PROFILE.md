@@ -141,6 +141,19 @@ Full TypeScript definitions: `src/profiles/types.ts`.
 2. JSON bundle contains metadata only — no tokens
 3. Import uses best-effort: successes kept, failures reported per profile
 
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `Cursor Accounts: Open Accounts` | Focus the Accounts sidebar |
+| `Cursor Accounts: Add Profile` | Create a new profile |
+| `Cursor Accounts: Launch Profile` | Launch Cursor with a profile's user data dir |
+| `Cursor Accounts: List Profiles` | Quick pick of configured profiles |
+| `Cursor Accounts: Delete Profile` | Remove a profile from config |
+| `Cursor Accounts: Export Profiles` | Export profile config to JSON |
+| `Cursor Accounts: Import Profiles` | Import profiles from JSON |
+| `Cursor Accounts: Show Current Profile` | Show the active window's profile |
+
 ## Webview message protocol
 
 Bidirectional messages are discriminated unions shared between host and webview:
@@ -217,7 +230,10 @@ Config save failures should use backup/restore in `ProfileStorage` (see tests in
 
 ## Related documentation
 
+- [FEATURES.md](FEATURES.md) — feature overview
+- [CONFIGURATION.md](CONFIGURATION.md) — profile-related settings
+- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) — account and profile issues
 - [ARCHITECTURE.md](ARCHITECTURE.md) — technical structure and quota pipelines
 - [RESEARCH.md](RESEARCH.md) — APIs and why in-window switching is not supported
-- [README.md](../README.md) — user setup and troubleshooting
+- [README.md](../README.md) — project overview and documentation index
 - [CONTRIBUTING.md](../CONTRIBUTING.md) — how to change the codebase

@@ -241,7 +241,8 @@ Enabled only for the **active window’s profile**; secrets live in that window�
 
 ## Related documentation
 
-- [README.md](../README.md) — install, settings, troubleshooting
-- [CONTRIBUTING.md](../CONTRIBUTING.md) — dev setup and PR process
-- [RESEARCH.md](RESEARCH.md) — quota APIs and account-switching limits
+- [HOW-IT-WORKS.md](HOW-IT-WORKS.md) — user-facing technical overview
 - [FEATURE-MULTI-PROFILE.md](FEATURE-MULTI-PROFILE.md) — product flows and terminology
+- [RESEARCH.md](RESEARCH.md) — quota APIs and account-switching limits
+- [README.md](../README.md) — project overview and documentation index
+- [CONTRIBUTING.md](../CONTRIBUTING.md) — dev setup and PR process

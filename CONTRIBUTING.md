@@ -103,10 +103,18 @@ Release notes for published versions are maintained in [CHANGELOG.md](CHANGELOG.
 
 | Document | Audience |
 |----------|----------|
-| [README.md](README.md) | End users: install, settings, troubleshooting |
+| [README.md](README.md) | End users: overview, install, documentation index |
+| [docs/GETTING-STARTED.md](docs/GETTING-STARTED.md) | End users: installation, first launch, upgrade |
+| [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | End users: all settings |
+| [docs/FEATURES.md](docs/FEATURES.md) | End users: feature overview |
+| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | End users: common issues |
+| [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md) | Users/contributors: technical overview |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Contributors: structure, flows, decisions |
 | [docs/FEATURE-MULTI-PROFILE.md](docs/FEATURE-MULTI-PROFILE.md) | Product/design: multi-profile feature |
+| [docs/MODEL-EFFICIENCY.md](docs/MODEL-EFFICIENCY.md) | Users: model efficiency analysis |
 | [docs/RESEARCH.md](docs/RESEARCH.md) | APIs, quotas, account-switching constraints |
+| [docs/PLATFORM-SUPPORT.md](docs/PLATFORM-SUPPORT.md) | Platform compatibility and binaries |
+| [docs/PRIVACY.md](docs/PRIVACY.md) | Privacy and security |
 
 ## Questions
 

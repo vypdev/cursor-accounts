@@ -120,6 +120,23 @@ Auth: `WorkosCursorSessionToken` cookie (same as usage-summary). Response includ
 
 The Accounts panel fetches this for enterprise profiles (30-day window) and shows the top 10 under each profile card.
 
+## 5. Known limitations
+
+- **Unofficial API** — may change without notice when Cursor updates.
+- **Enterprise teams** — Monthly Usage uses the web dashboard API; team Admin/Analytics APIs at `api.cursor.com` are not used (admin API keys required).
+- **Credits vs included pool** — UI follows combined IDE + web sources; "100% included" in Settings can still allow usage via credits.
+- **Cursor-only** — built for Cursor; standard VS Code may lack `state.vscdb` auth keys.
+- **No push/subscribe** — quota changes are detected via polling only; there is no official event API for usage updates.
+
+For privacy and data handling, see [PRIVACY.md](PRIVACY.md).
+
+## Related documentation
+
+- [HOW-IT-WORKS.md](HOW-IT-WORKS.md) — user-facing technical overview
+- [ARCHITECTURE.md](ARCHITECTURE.md) — extension structure and data flows
+- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) — common issues and account-switching guidance
+- [PRIVACY.md](PRIVACY.md) — privacy and security
+
 ## References
 
 - [Cursor API docs](https://cursor.com/docs/api)
