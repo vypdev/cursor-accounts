@@ -34,15 +34,16 @@ pnpm run build -- --target darwin-arm64
 
 `pnpm run build` is the single entry point for packaging. It:
 
-1. Compiles shared types, the extension host, and the Accounts webview
-2. Installs dependencies and rebuilds the `sqlite3` native binding
-3. Converts workspace dependencies to a production layout compatible with `vsce`
-4. Removes hoisted devDependencies that break npm dependency validation
-5. Packages a platform-specific `.vsix` with bundled binaries and native modules
-6. Verifies the VSIX contains the webview bundle, `sqlite3`, and `@cursor/sdk`
-7. Restores the workspace to its original development state
+1. **Bundles** the extension code with esbuild for optimal performance
+2. Compiles shared types and the Accounts webview
+3. Installs dependencies and rebuilds the `sqlite3` native binding
+4. Converts workspace dependencies to a production layout compatible with `vsce`
+5. Removes hoisted devDependencies that break npm dependency validation
+6. Packages a platform-specific `.vsix` with bundled code and native modules
+7. Verifies the VSIX contains the webview bundle, `sqlite3`, and `@cursor/sdk`
+8. Restores the workspace to its original development state
 
-No manual patches or intermediate workarounds are required.
+The extension code is bundled into a single `out/extension-bundle.js` file (~1.2MB), with only `@cursor/sdk` and its native dependencies left external.
 
 ## Platform Targets
 
@@ -75,14 +76,22 @@ Or in Cursor/VS Code: **Extensions → ⋯ → Install from VSIX…**
 
 ## What Gets Bundled
 
-| Component | Source | Included in VSIX |
-|-----------|--------|------------------|
-| Extension host | `out/` | Yes |
-| Accounts webview | `webview-dist/` | Yes |
-| Shared types | `@cursor-accounts/types` | Yes (production copy) |
-| Cursor SDK | `@cursor/sdk` + platform package | Yes (installed per target) |
-| SQLite CLI | `bin/<target>/sqlite3` | Yes |
-| SQLite native binding | `node_modules/sqlite3` | Yes |
+The extension uses **esbuild** to bundle all TypeScript code into a single file, significantly reducing file count and improving load performance.
+
+| Component | Source | Build Output | Included in VSIX |
+|-----------|--------|--------------|------------------|
+| Extension code (bundled) | `src/` | `out/extension-bundle.js` (~1.2MB) | Yes |
+| Accounts webview (bundled) | `webview/src/` | `webview-dist/bundle.js` | Yes |
+| Shared types | `packages/types/` | Bundled in extension | No (bundled) |
+| Cursor SDK | `@cursor/sdk` (external) | `node_modules/@cursor/sdk` | Yes |
+| Platform SDK | `@cursor/sdk-<platform>` | `node_modules/@cursor/sdk-*` | Yes (one per target) |
+| SQLite CLI | `bin/<target>/sqlite3` | Same path | Yes (one per target) |
+| SQLite native binding | `node_modules/sqlite3` | Same path | Yes |
+| Zod | `node_modules/zod` | Same path | Yes |
+
+**Note**: `@cursor/sdk` is marked as `external` in the bundle because it dynamically imports native modules. All other extension code is bundled for optimal performance.
+
+**VSIX Size**: ~14MB per platform (down from ~26MB before bundling)
 
 ## Clean Build
 
