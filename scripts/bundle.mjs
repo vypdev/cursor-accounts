@@ -28,6 +28,9 @@ run('pnpm --dir webview run build');
 console.log('\n3. Compiling TypeScript...');
 run('tsc -p ./');
 
+console.log('\n3b. Copying SQL migrations to out/...');
+run('node scripts/copy-migrations.mjs');
+
 // Step 4: Bundle extension code with esbuild
 console.log('\n4. Bundling extension with esbuild...');
 

@@ -182,6 +182,10 @@ function verifyVsix(target) {
     },
     { label: 'undici', pattern: 'extension/node_modules/undici/package.json' },
     { label: 'bindings', pattern: 'extension/node_modules/bindings/package.json' },
+    {
+      label: 'efficiency SQL migrations',
+      pattern: 'extension/out/persistence/migrations/001_initial_schema.sql',
+    },
   ];
 
   const sdkPackage = PLATFORM_SDK_PACKAGE[target];

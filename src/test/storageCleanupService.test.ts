@@ -62,6 +62,7 @@ function createService(overrides: {
         workspaceStorageBytes: 0,
         editorCacheBytes: 0,
         extensionCacheBytes: 0,
+        efficiencyDbBytes: 0,
         totalBytes: 0,
       }),
       ...overrides.storageAnalyzer,
@@ -78,6 +79,7 @@ function createService(overrides: {
       deepClean: async () => ({ backupPath: '/tmp/b', bytesReclaimed: 0 }),
       ...overrides.databaseCleanup,
     },
+    extensionPath: path.join(__dirname, '..', '..'),
   });
 }
 

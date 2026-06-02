@@ -5,6 +5,7 @@ import type { IFileSystemService } from '../domain/ports/IFileSystemService';
 import type { IProfileStorageAnalyzer } from '../domain/ports/IProfileStorageAnalyzer';
 import { getProfileStateDbPath } from '../auth/cursorPaths';
 import { validateUserDataPath } from '../utils/pathUtils';
+import { EFFICIENCY_DB_FILENAME } from '../persistence/types';
 import { EDITOR_CACHE_DIRS, isDeepCleanBackupFile } from './storageConstants';
 
 /**
@@ -46,13 +47,22 @@ export class ProfileStorageAnalyzer implements IProfileStorageAnalyzer {
         );
       }
 
+      const efficiencyDbPath = path.join(globalStorageDir, EFFICIENCY_DB_FILENAME);
+      const efficiencyDbBytes =
+        (await this.fileSystem.getFileSize(efficiencyDbPath)) +
+        (await this.fileSystem.getFileSize(`${efficiencyDbPath}-wal`)) +
+        (await this.fileSystem.getFileSize(`${efficiencyDbPath}-shm`));
+
       const globalStorageBytes = await this.fileSystem.getPathSize(
         globalStorageDir,
         { exclude: isDeepCleanBackupFile }
       );
       const extensionCacheBytes = Math.max(
         0,
-        globalStorageBytes - databaseBytes - walBytes
+        globalStorageBytes -
+          databaseBytes -
+          walBytes -
+          efficiencyDbBytes
       );
 
       const totalBytes =
@@ -60,7 +70,8 @@ export class ProfileStorageAnalyzer implements IProfileStorageAnalyzer {
         walBytes +
         workspaceStorageBytes +
         editorCacheBytes +
-        extensionCacheBytes;
+        extensionCacheBytes +
+        efficiencyDbBytes;
 
       return {
         profileId,
@@ -69,6 +80,7 @@ export class ProfileStorageAnalyzer implements IProfileStorageAnalyzer {
         workspaceStorageBytes,
         editorCacheBytes,
         extensionCacheBytes,
+        efficiencyDbBytes,
         totalBytes,
       };
     } catch (error) {

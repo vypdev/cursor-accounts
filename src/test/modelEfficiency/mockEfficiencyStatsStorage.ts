@@ -22,6 +22,9 @@ export function createMockEfficiencyStatsStorage(): EfficiencyStatsStorage {
     recordAnalysis: async () => {
       listener?.('profile-a');
     },
+    recordEvent: async () => {
+      listener?.('profile-a');
+    },
     deleteStats: async () => {},
   } as unknown as EfficiencyStatsStorage;
 }

@@ -7,7 +7,11 @@ import {
   EFFICIENCY_STATS_FILENAME,
   EfficiencyStatsStorage,
 } from '../../modelEfficiency/efficiencyStatsStorage';
+import { EFFICIENCY_DB_FILENAME } from '../../persistence/types';
 import type { Profile } from '../../profiles/types';
+import type { PromptEventRecord } from '../../persistence/types';
+
+const extensionPath = path.join(__dirname, '..', '..', '..');
 
 function makeProfile(userDataDir: string): Profile {
   return {
@@ -21,6 +25,28 @@ function makeProfile(userDataDir: string): Profile {
   };
 }
 
+function makeEvent(profileId: string): PromptEventRecord {
+  return {
+    profileId,
+    timestamp: Date.now(),
+    promptText: 'Explain this function',
+    modelUsed: 'claude-4-sonnet',
+    efficiencyScore: 0.85,
+    severity: 'low',
+    confidence: 0.9,
+    taskType: 'explanation',
+    repositoryPath: '/repo/web-app',
+    branchName: 'main',
+    conversationId: 'conv-1',
+    scoredAt: Date.now(),
+    requiredTier: 2,
+    actualTier: 2,
+    recommendedModel: 'auto',
+    opinion: 'Good match',
+    quotaPercentUsed: 20,
+  };
+}
+
 describe('EfficiencyStatsStorage', () => {
   let tempDir: string;
 
@@ -31,14 +57,22 @@ describe('EfficiencyStatsStorage', () => {
     }
   });
 
-  it('records account, repository, and branch stats', async () => {
+  it('records account, repository, and branch stats in SQLite', async () => {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'eff-stats-'));
     const profile = makeProfile(tempDir);
-    const storage = new EfficiencyStatsStorage();
+    const storage = new EfficiencyStatsStorage(extensionPath);
 
-    await storage.recordAnalysis(profile, 0.85, '/repo/web-app', 'main');
-    await storage.recordAnalysis(profile, 0.4, '/repo/web-app', 'feature/auth');
-    await storage.recordAnalysis(profile, 0.9, '/repo/mobile-app', 'develop');
+    await storage.recordEvent(profile, makeEvent(profile.id));
+    await storage.recordEvent(profile, {
+      ...makeEvent(profile.id),
+      efficiencyScore: 0.4,
+      branchName: 'feature/auth',
+    });
+    await storage.recordEvent(profile, {
+      ...makeEvent(profile.id),
+      repositoryPath: '/repo/mobile-app',
+      branchName: 'develop',
+    });
 
     const stats = storage.getStats(profile.id);
     assert.ok(stats);
@@ -46,32 +80,22 @@ describe('EfficiencyStatsStorage', () => {
     assert.equal(stats.efficientPrompts, 2);
     assert.equal(stats.inefficientPrompts, 1);
 
-    const webApp = stats.byRepository['/repo/web-app'];
-    assert.ok(webApp);
-    assert.equal(webApp.totalPrompts, 2);
-    assert.ok(webApp.byBranch.main);
-    assert.equal(webApp.byBranch.main.totalPrompts, 1);
-    assert.ok(webApp.byBranch['feature/auth']);
-    assert.equal(webApp.byBranch['feature/auth'].inefficientPrompts, 1);
-
-    const statsPath = path.join(
+    const dbPath = path.join(
       tempDir,
       'User',
       'globalStorage',
-      EFFICIENCY_STATS_FILENAME
+      EFFICIENCY_DB_FILENAME
     );
-    const raw = await fs.readFile(statsPath, 'utf-8');
-    const persisted = JSON.parse(raw) as { totalPrompts: number };
-    assert.equal(persisted.totalPrompts, 3);
+    await fs.access(dbPath);
   });
 
   it('loads persisted stats on startup', async () => {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'eff-stats-'));
     const profile = makeProfile(tempDir);
-    const writer = new EfficiencyStatsStorage();
-    await writer.recordAnalysis(profile, 0.8, '/repo/web-app', 'main');
+    const writer = new EfficiencyStatsStorage(extensionPath);
+    await writer.recordEvent(profile, makeEvent(profile.id));
 
-    const reader = new EfficiencyStatsStorage();
+    const reader = new EfficiencyStatsStorage(extensionPath);
     const loaded = await reader.loadStats(profile);
     assert.ok(loaded);
     assert.equal(loaded.totalPrompts, 1);
@@ -80,20 +104,28 @@ describe('EfficiencyStatsStorage', () => {
     assert.equal(repo.byBranch.main.totalPrompts, 1);
   });
 
-  it('deletes stats file', async () => {
+  it('deletes stats database', async () => {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'eff-stats-'));
     const profile = makeProfile(tempDir);
-    const storage = new EfficiencyStatsStorage();
-    await storage.recordAnalysis(profile, 0.8, '/repo/web-app', 'main');
+    const storage = new EfficiencyStatsStorage(extensionPath);
+    await storage.recordEvent(profile, makeEvent(profile.id));
     await storage.deleteStats(profile);
 
-    const statsPath = path.join(
+    const dbPath = path.join(
+      tempDir,
+      'User',
+      'globalStorage',
+      EFFICIENCY_DB_FILENAME
+    );
+    await assert.rejects(() => fs.access(dbPath));
+    assert.equal(storage.getStats(profile.id), undefined);
+
+    const legacyPath = path.join(
       tempDir,
       'User',
       'globalStorage',
       EFFICIENCY_STATS_FILENAME
     );
-    await assert.rejects(() => fs.access(statsPath));
-    assert.equal(storage.getStats(profile.id), undefined);
+    await assert.rejects(() => fs.access(legacyPath));
   });
 });

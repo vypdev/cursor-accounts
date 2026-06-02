@@ -11,6 +11,7 @@ import type { EfficiencyStatsStorage } from './efficiencyStatsStorage';
 import { OutputPresenter } from './outputPresenter';
 import { CursorSdkClassifier } from './sdkClassifier';
 import type { ProfileDetector } from '../profiles/profileDetector';
+import type { MultiProfileQuotaService } from '../services/multiProfileQuotaService';
 
 export function getEfficiencyWrongWindowMessage(): string {
   return t('errors.efficiencyWrongWindow');
@@ -28,7 +29,8 @@ export class EfficiencyService {
     private readonly profileManager: ProfileManager,
     private readonly profileDetector: ProfileDetector,
     private readonly authReader: IProfileAuthReader,
-    private readonly statsStorage: EfficiencyStatsStorage
+    private readonly statsStorage: EfficiencyStatsStorage,
+    private readonly multiProfileQuotaService: MultiProfileQuotaService
   ) {
     this.apiKeyManager = new ApiKeyManager(context);
     this.outputPresenter = new OutputPresenter();
@@ -38,7 +40,8 @@ export class EfficiencyService {
       this.apiKeyManager,
       this.sdkClassifier,
       this.outputPresenter,
-      this.statsStorage
+      this.statsStorage,
+      this.multiProfileQuotaService
     );
   }
 

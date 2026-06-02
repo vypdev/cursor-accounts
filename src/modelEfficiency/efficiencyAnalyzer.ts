@@ -3,8 +3,11 @@ import type { ProfileManager } from '../profiles/profileManager';
 import type { Profile } from '../profiles/types';
 import * as extensionLog from '../logging/extensionLog';
 import { t } from '../l10n';
+import type { MultiProfileQuotaService } from '../services/multiProfileQuotaService';
+import type { PromptEventRecord } from '../persistence/types';
 import type { ApiKeyManager } from './apiKeyManager';
 import type { EfficiencyStatsStorage } from './efficiencyStatsStorage';
+import { buildQuotaFieldsFromProfileQuota } from './quotaSnapshot';
 import type { OutputPresenter } from './outputPresenter';
 import type { SdkClassifier } from './sdkClassifier';
 import type { PromptMetadata } from './types';
@@ -21,7 +24,8 @@ export class EfficiencyAnalyzer {
     private readonly apiKeyManager: ApiKeyManager,
     private readonly sdkClassifier: SdkClassifier,
     private readonly outputPresenter: OutputPresenter,
-    private readonly statsStorage: EfficiencyStatsStorage
+    private readonly statsStorage: EfficiencyStatsStorage,
+    private readonly multiProfileQuotaService: MultiProfileQuotaService
   ) {}
 
   enqueue(metadata: PromptMetadata): void {
@@ -95,12 +99,30 @@ export class EfficiencyAnalyzer {
     const result = await this.sdkClassifier.classify(metadata, apiKey);
     this.outputPresenter.present(result, metadata);
 
-    void this.statsStorage.recordAnalysis(
-      profile,
-      result.efficiencyScore,
-      metadata.workspaceRoots[0],
-      metadata.gitBranch
-    );
+    const cachedQuota = this.multiProfileQuotaService.getCachedQuota(profile.id);
+    const quotaFields = buildQuotaFieldsFromProfileQuota(cachedQuota);
+
+    const eventRecord: PromptEventRecord = {
+      profileId: profile.id,
+      timestamp: metadata.timestamp,
+      promptText: metadata.prompt,
+      modelUsed: metadata.model,
+      efficiencyScore: result.efficiencyScore,
+      severity: result.severity,
+      confidence: result.confidence,
+      taskType: result.taskType,
+      repositoryPath: metadata.workspaceRoots[0],
+      branchName: metadata.gitBranch,
+      conversationId: metadata.conversationId,
+      scoredAt: result.scoredAt,
+      requiredTier: result.requiredTier,
+      actualTier: result.actualTier,
+      recommendedModel: result.recommendedModel,
+      opinion: result.opinion,
+      ...quotaFields,
+    };
+
+    void this.statsStorage.recordEvent(profile, eventRecord);
 
     await this.profileManager.updateProfile(profile.id, {
       metadata: {

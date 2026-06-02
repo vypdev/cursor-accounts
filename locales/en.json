@@ -278,6 +278,7 @@
   "webview.storage.workspace": "Workspace storage",
   "webview.storage.editorCache": "Editor cache",
   "webview.storage.extensionCache": "Other global storage",
+  "webview.storage.efficiencyDb": "Efficiency events database",
   "webview.storage.quickActions": "Quick actions",
   "webview.storage.advancedActions": "Advanced actions",
   "webview.storage.deleteOldChats": "Delete old chats",
@@ -299,6 +300,9 @@
   "webview.storage.confirmEditorCache": "Remove editor cache folders for this profile?",
   "webview.storage.confirmVacuum": "Vacuum the database to reclaim unused space?",
   "webview.storage.confirmDeepClean": "Deep clean will remove chat and composer history from the local database. A backup will be created. Continue?",
+  "webview.storage.cleanEfficiencyEvents": "Clean old efficiency events",
+  "webview.storage.cleanEfficiencyEventsHint": "Removes efficiency events older than 90 days and compacts the database. Close this profile before running.",
+  "webview.storage.confirmCleanEfficiencyEvents": "Remove efficiency events older than 90 days and vacuum the database?",
 
   "storageCleanup.profileNotFound": "Profile not found",
   "storageCleanup.invalidPath": "Invalid profile storage path",
@@ -315,5 +319,6 @@
   "storageCleanup.profileRunning": "Close this profile before running this cleanup action.",
   "storageCleanup.editorCacheCleared": "Editor cache cleared ({amount})",
   "storageCleanup.vacuumCompleted": "Database vacuum completed",
-  "storageCleanup.deepCleanCompleted": "Deep clean completed ({amount} reclaimed from database)"
+  "storageCleanup.deepCleanCompleted": "Deep clean completed ({amount} reclaimed from database)",
+  "storageCleanup.efficiencyEventsCleaned": "Removed {count} efficiency event(s) older than {days} days ({amount} reclaimed)"
 }

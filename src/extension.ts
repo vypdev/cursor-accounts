@@ -90,14 +90,17 @@ export function activate(context: vscode.ExtensionContext): void {
     new UserClient()
   );
 
-  const efficiencyStatsStorage = new EfficiencyStatsStorage();
+  const efficiencyStatsStorage = new EfficiencyStatsStorage(
+    context.extensionPath
+  );
 
   efficiencyService = new EfficiencyService(
     context,
     profileManager,
     profileDetector,
     profileAuthReader,
-    efficiencyStatsStorage
+    efficiencyStatsStorage,
+    multiProfileQuotaService
   );
 
   const accountsPanel = new AccountsPanelProvider(

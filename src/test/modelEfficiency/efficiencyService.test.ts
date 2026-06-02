@@ -59,12 +59,17 @@ describe('EfficiencyService.setEfficiencyEnabled', () => {
       readTokens: async () => null,
     };
 
+    const multiProfileQuotaService = {
+      getCachedQuota: () => undefined,
+    };
+
     const service = new EfficiencyService(
       context,
       profileManager as never,
       profileDetector as never,
       authReader,
-      createMockEfficiencyStatsStorage()
+      createMockEfficiencyStatsStorage(),
+      multiProfileQuotaService as never
     );
 
     await assert.rejects(
@@ -108,12 +113,17 @@ describe('EfficiencyService.setEfficiencyEnabled', () => {
       readTokens: async () => null,
     };
 
+    const multiProfileQuotaService = {
+      getCachedQuota: () => undefined,
+    };
+
     const service = new EfficiencyService(
       context,
       profileManager as never,
       profileDetector as never,
       authReader,
-      createMockEfficiencyStatsStorage()
+      createMockEfficiencyStatsStorage(),
+      multiProfileQuotaService as never
     );
 
     await assert.rejects(

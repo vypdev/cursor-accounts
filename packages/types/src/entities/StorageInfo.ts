@@ -6,6 +6,7 @@ export interface StorageBreakdown {
   workspaceStorageBytes: number;
   editorCacheBytes: number;
   extensionCacheBytes: number;
+  efficiencyDbBytes: number;
   totalBytes: number;
   error?: string;
 }
@@ -21,6 +22,7 @@ export function createEmptyStorageBreakdown(
     workspaceStorageBytes: 0,
     editorCacheBytes: 0,
     extensionCacheBytes: 0,
+    efficiencyDbBytes: 0,
     totalBytes: 0,
     error,
   };
@@ -32,7 +34,8 @@ export type StorageCleanupAction =
   | 'cleanExtensionCache'
   | 'cleanEditorCache'
   | 'vacuumDatabase'
-  | 'deepCleanDatabase';
+  | 'deepCleanDatabase'
+  | 'cleanEfficiencyEvents';
 
 export interface StorageCleanupOptions {
   action: StorageCleanupAction;

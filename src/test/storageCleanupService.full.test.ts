@@ -81,6 +81,7 @@ function createService(overrides: {
         workspaceStorageBytes: 0,
         editorCacheBytes: 0,
         extensionCacheBytes: 0,
+        efficiencyDbBytes: 0,
         totalBytes: 1000,
       }),
       ...overrides.storageAnalyzer,
@@ -100,6 +101,7 @@ function createService(overrides: {
       }),
       ...overrides.databaseCleanup,
     },
+    extensionPath: path.join(__dirname, '..', '..'),
   });
 }
 
@@ -269,6 +271,7 @@ describe('StorageCleanupService full coverage', () => {
           workspaceStorageBytes: 0,
           editorCacheBytes: 0,
           extensionCacheBytes: 0,
+          efficiencyDbBytes: 0,
           totalBytes: 1000,
         }),
       },
@@ -291,6 +294,7 @@ describe('StorageCleanupService full coverage', () => {
           workspaceStorageBytes: 0,
           editorCacheBytes: 0,
           extensionCacheBytes: 0,
+          efficiencyDbBytes: 0,
           totalBytes: 1000,
         }),
       },
@@ -326,6 +330,7 @@ describe('StorageCleanupService full coverage', () => {
           workspaceStorageBytes: 0,
           editorCacheBytes: 0,
           extensionCacheBytes: 0,
+          efficiencyDbBytes: 0,
           totalBytes: 400,
         }),
       },

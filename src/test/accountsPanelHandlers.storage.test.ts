@@ -72,6 +72,7 @@ function createHandlers(overrides: {
           workspaceStorageBytes: 0,
           editorCacheBytes: 0,
           extensionCacheBytes: 0,
+          efficiencyDbBytes: 0,
           totalBytes: 1024,
         }),
         getProfileTotalBytes: async () => 1024,

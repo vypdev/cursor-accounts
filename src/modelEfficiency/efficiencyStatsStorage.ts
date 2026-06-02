@@ -4,54 +4,66 @@ import type {
   EfficiencyStats,
   EfficiencyStatsMap,
 } from '@cursor-accounts/types';
-import {
-  createEmptyEfficiencyStats,
-  EFFICIENCY_SCORE_THRESHOLD,
-} from '@cursor-accounts/types';
 import type { Profile } from '../profiles/types';
 import * as extensionLog from '../logging/extensionLog';
+import {
+  EfficiencyDatabase,
+  getEfficiencyDbPath,
+} from '../persistence/efficiencyDatabase';
+import type { PromptEventRecord } from '../persistence/types';
 
+/** @deprecated Legacy JSON filename; DB replaces this storage. */
 export const EFFICIENCY_STATS_FILENAME = 'cursor-accounts-efficiency.json';
 
 export type StatsUpdatedListener = (profileId: string) => void;
 
 export class EfficiencyStatsStorage {
   private readonly statsCache = new Map<string, EfficiencyStats>();
+  private readonly databases = new Map<string, EfficiencyDatabase>();
   private statsUpdatedListener?: StatsUpdatedListener;
+
+  constructor(private readonly extensionPath: string) {}
 
   setStatsUpdatedListener(listener: StatsUpdatedListener | undefined): void {
     this.statsUpdatedListener = listener;
   }
 
-  private getStatsPath(userDataDir: string): string {
-    return path.join(
-      userDataDir,
-      'User',
-      'globalStorage',
-      EFFICIENCY_STATS_FILENAME
-    );
+  private getDbPath(userDataDir: string): string {
+    return getEfficiencyDbPath(userDataDir);
   }
 
-  private normalizeStats(raw: EfficiencyStats, profileId: string): EfficiencyStats {
-    return {
-      profileId: raw.profileId ?? profileId,
-      totalPrompts: raw.totalPrompts ?? 0,
-      efficientPrompts: raw.efficientPrompts ?? 0,
-      inefficientPrompts: raw.inefficientPrompts ?? 0,
-      lastUpdated: raw.lastUpdated ?? new Date().toISOString(),
-      byRepository: raw.byRepository ?? {},
-    };
+  private async getDatabase(userDataDir: string): Promise<EfficiencyDatabase> {
+    const existing = this.databases.get(userDataDir);
+    if (existing) {
+      return existing;
+    }
+
+    const db = new EfficiencyDatabase(
+      this.getDbPath(userDataDir),
+      this.extensionPath
+    );
+    await db.initialize();
+    this.databases.set(userDataDir, db);
+    return db;
   }
 
   async loadStats(profile: Profile): Promise<EfficiencyStats | undefined> {
-    const statsPath = this.getStatsPath(profile.userDataDir);
+    if (!profile.efficiencyAnalysisEnabled) {
+      return undefined;
+    }
+
     try {
-      const content = await fs.readFile(statsPath, 'utf-8');
-      const parsed = JSON.parse(content) as EfficiencyStats;
-      const stats = this.normalizeStats(parsed, profile.id);
+      const db = await this.getDatabase(profile.userDataDir);
+      const stats = await db.getAggregatedStats(profile.id);
+      if (stats.totalPrompts === 0) {
+        return undefined;
+      }
       this.statsCache.set(profile.id, stats);
       return stats;
-    } catch {
+    } catch (error) {
+      extensionLog.error(
+        `[EfficiencyStatsStorage] Failed to load stats for ${profile.id}: ${extensionLog.formatError(error)}`
+      );
       return undefined;
     }
   }
@@ -73,16 +85,25 @@ export class EfficiencyStatsStorage {
     return Object.fromEntries(this.statsCache);
   }
 
-  async saveStats(profile: Profile, stats: EfficiencyStats): Promise<void> {
-    const statsPath = this.getStatsPath(profile.userDataDir);
-    const dir = path.dirname(statsPath);
-    await fs.mkdir(dir, { recursive: true });
+  async recordEvent(
+    profile: Profile,
+    event: PromptEventRecord
+  ): Promise<void> {
+    if (!profile.efficiencyAnalysisEnabled) {
+      return;
+    }
 
-    const tempPath = `${statsPath}.tmp`;
-    await fs.writeFile(tempPath, JSON.stringify(stats, null, 2), 'utf-8');
-    await fs.rename(tempPath, statsPath);
-
-    this.statsCache.set(profile.id, stats);
+    try {
+      const db = await this.getDatabase(profile.userDataDir);
+      await db.insertEvent(event);
+      const stats = await db.getAggregatedStats(profile.id);
+      this.statsCache.set(profile.id, stats);
+      this.statsUpdatedListener?.(profile.id);
+    } catch (error) {
+      extensionLog.error(
+        `[EfficiencyStatsStorage] Failed to save event for ${profile.id}: ${extensionLog.formatError(error)}`
+      );
+    }
   }
 
   async recordAnalysis(
@@ -91,81 +112,47 @@ export class EfficiencyStatsStorage {
     workspaceRoot?: string,
     gitBranch?: string
   ): Promise<void> {
-    if (!profile.efficiencyAnalysisEnabled) {
-      return;
-    }
+    const event: PromptEventRecord = {
+      profileId: profile.id,
+      timestamp: Date.now(),
+      promptText: '',
+      modelUsed: 'unknown',
+      efficiencyScore,
+      severity: 'medium',
+      confidence: 0,
+      taskType: 'unknown',
+      repositoryPath: workspaceRoot,
+      branchName: gitBranch,
+      conversationId: '',
+      scoredAt: Date.now(),
+      requiredTier: 0,
+      actualTier: 0,
+      recommendedModel: '',
+      opinion: '',
+    };
 
-    const existing = this.statsCache.get(profile.id);
-    const stats = existing ?? createEmptyEfficiencyStats(profile.id);
-    const isEfficient = efficiencyScore >= EFFICIENCY_SCORE_THRESHOLD;
-    const now = new Date().toISOString();
-
-    stats.totalPrompts += 1;
-    if (isEfficient) {
-      stats.efficientPrompts += 1;
-    } else {
-      stats.inefficientPrompts += 1;
-    }
-    stats.lastUpdated = now;
-
-    if (workspaceRoot) {
-      const repoStats = stats.byRepository[workspaceRoot] ?? {
-        repositoryPath: workspaceRoot,
-        totalPrompts: 0,
-        efficientPrompts: 0,
-        inefficientPrompts: 0,
-        lastAnalyzed: now,
-        byBranch: {},
-      };
-
-      repoStats.totalPrompts += 1;
-      if (isEfficient) {
-        repoStats.efficientPrompts += 1;
-      } else {
-        repoStats.inefficientPrompts += 1;
-      }
-      repoStats.lastAnalyzed = now;
-
-      if (gitBranch) {
-        const branchStats = repoStats.byBranch[gitBranch] ?? {
-          branchName: gitBranch,
-          totalPrompts: 0,
-          efficientPrompts: 0,
-          inefficientPrompts: 0,
-          lastAnalyzed: now,
-        };
-
-        branchStats.totalPrompts += 1;
-        if (isEfficient) {
-          branchStats.efficientPrompts += 1;
-        } else {
-          branchStats.inefficientPrompts += 1;
-        }
-        branchStats.lastAnalyzed = now;
-
-        repoStats.byBranch[gitBranch] = branchStats;
-      }
-
-      stats.byRepository[workspaceRoot] = repoStats;
-    }
-
-    try {
-      await this.saveStats(profile, stats);
-      this.statsUpdatedListener?.(profile.id);
-    } catch (error) {
-      extensionLog.error(
-        `[EfficiencyStatsStorage] Failed to save stats for ${profile.id}: ${extensionLog.formatError(error)}`
-      );
-    }
+    await this.recordEvent(profile, event);
   }
 
   async deleteStats(profile: Profile): Promise<void> {
-    const statsPath = this.getStatsPath(profile.userDataDir);
+    const dbPath = this.getDbPath(profile.userDataDir);
+    this.databases.delete(profile.userDataDir);
+    this.statsCache.delete(profile.id);
+
     try {
-      await fs.unlink(statsPath);
+      await fs.unlink(dbPath);
     } catch {
       // File may not exist.
     }
-    this.statsCache.delete(profile.id);
+    await fs.unlink(`${dbPath}-wal`).catch(() => {});
+    await fs.unlink(`${dbPath}-shm`).catch(() => {});
+
+    const legacyJson = path.join(
+      profile.userDataDir,
+      'User',
+      'globalStorage',
+      EFFICIENCY_STATS_FILENAME
+    );
+    await fs.unlink(legacyJson).catch(() => {});
   }
 }

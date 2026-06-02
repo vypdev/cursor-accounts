@@ -88,6 +88,10 @@ export const StorageManagementModal: React.FC<StorageManagementModalProps> = ({
           label: t('storage.extensionCache'),
           value: formatBytes(storageInfo.extensionCacheBytes),
         },
+        {
+          label: t('storage.efficiencyDb'),
+          value: formatBytes(storageInfo.efficiencyDbBytes),
+        },
       ]
     : [];
 
@@ -304,6 +308,26 @@ export const StorageManagementModal: React.FC<StorageManagementModalProps> = ({
                   </button>
                 </div>
                 <p className="storage-hint">{t('storage.deepCleanHint')}</p>
+
+                <div className="storage-action-row">
+                  <span>{t('storage.cleanEfficiencyEvents')}</span>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    disabled={cleanupInProgress || isRunning}
+                    onClick={() =>
+                      handleAction(
+                        'cleanEfficiencyEvents',
+                        'storage.confirmCleanEfficiencyEvents'
+                      )
+                    }
+                  >
+                    {t('storage.run')}
+                  </button>
+                </div>
+                <p className="storage-hint">
+                  {t('storage.cleanEfficiencyEventsHint')}
+                </p>
               </div>
             )}
           </section>

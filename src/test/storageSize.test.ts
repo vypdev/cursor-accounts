@@ -58,13 +58,22 @@ describe('storageSize', () => {
       await fs.writeFile(path.join(workspaceDir, 'state.vscdb'), Buffer.alloc(512));
       await fs.writeFile(path.join(cacheDir, 'entry.bin'), Buffer.alloc(128));
 
+      const efficiencyDbPath = path.join(
+        userDataDir,
+        'User',
+        'globalStorage',
+        'cursor-accounts-efficiency.db'
+      );
+      await fs.writeFile(efficiencyDbPath, Buffer.alloc(64));
+
       const breakdown = await calculateProfileStorageSize('profile-a', userDataDir);
 
       assert.equal(breakdown.databaseBytes, 1024);
       assert.equal(breakdown.walBytes, 256);
       assert.equal(breakdown.workspaceStorageBytes, 512);
       assert.equal(breakdown.editorCacheBytes, 128);
-      assert.equal(breakdown.totalBytes, 1024 + 256 + 512 + 128);
+      assert.equal(breakdown.efficiencyDbBytes, 64);
+      assert.equal(breakdown.totalBytes, 1024 + 256 + 512 + 128 + 64);
       assert.equal(breakdown.error, undefined);
     });
 

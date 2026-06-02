@@ -95,6 +95,7 @@ export class AccountsPanelProvider {
         extensionPath: context.extensionPath,
         fileSystem,
       }),
+      extensionPath: context.extensionPath,
     });
 
     this.handlers = new AccountsPanelHandlers(

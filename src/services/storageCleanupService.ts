@@ -14,6 +14,7 @@ import type { ProfileDetector } from '../profiles/profileDetector';
 import type { ProfileManager } from '../profiles/profileManager';
 import { validateUserDataPath } from '../utils/pathUtils';
 import { formatBytes } from '@cursor-accounts/shared';
+import { EfficiencyDatabase, getEfficiencyDbPath } from '../persistence/efficiencyDatabase';
 
 const ACTIONS_WITHOUT_FS_DELTA = new Set<StorageCleanupOptions['action']>([
   'deleteOldChats',
@@ -22,6 +23,8 @@ const ACTIONS_WITHOUT_FS_DELTA = new Set<StorageCleanupOptions['action']>([
   'deepCleanDatabase',
 ]);
 
+const EFFICIENCY_EVENTS_RETENTION_DAYS = 90;
+
 export interface StorageCleanupServiceDeps {
   profileManager: ProfileManager;
   profileDetector: ProfileDetector;
@@ -29,6 +32,7 @@ export interface StorageCleanupServiceDeps {
   storageAnalyzer: IProfileStorageAnalyzer;
   cacheCleanup: ICacheCleanupService;
   databaseCleanup: IDatabaseCleanupService;
+  extensionPath: string;
 }
 
 /**
@@ -107,6 +111,12 @@ export class StorageCleanupService implements IStorageCleanupService {
           break;
         case 'deepCleanDatabase':
           result = await this.runDeepCleanDatabase(
+            profileId,
+            profile.userDataDir
+          );
+          break;
+        case 'cleanEfficiencyEvents':
+          result = await this.runCleanEfficiencyEvents(
             profileId,
             profile.userDataDir
           );
@@ -290,6 +300,42 @@ export class StorageCleanupService implements IStorageCleanupService {
       success: true,
       bytesReclaimed,
       message: t('storageCleanup.deepCleanCompleted', {
+        amount: formatBytes(bytesReclaimed),
+      }),
+    };
+  }
+
+  private async runCleanEfficiencyEvents(
+    profileId: string,
+    userDataDir: string
+  ): Promise<StorageCleanupResult> {
+    await this.ensureProfileClosed(profileId);
+
+    const dbPath = getEfficiencyDbPath(userDataDir);
+    const beforeBytes = await this.deps.storageAnalyzer
+      .calculateProfileStorageSize(profileId, userDataDir)
+      .then((b) => b.efficiencyDbBytes);
+
+    const cutoffSeconds =
+      Math.floor(Date.now() / 1000) -
+      EFFICIENCY_EVENTS_RETENTION_DAYS * 24 * 60 * 60;
+
+    const db = new EfficiencyDatabase(dbPath, this.deps.extensionPath);
+    await db.initialize();
+    const removed = await db.deleteOldEvents(profileId, cutoffSeconds);
+    await db.vacuum();
+
+    const afterBytes = await this.deps.storageAnalyzer
+      .calculateProfileStorageSize(profileId, userDataDir)
+      .then((b) => b.efficiencyDbBytes);
+    const bytesReclaimed = Math.max(0, beforeBytes - afterBytes);
+
+    return {
+      success: true,
+      bytesReclaimed,
+      message: t('storageCleanup.efficiencyEventsCleaned', {
+        count: removed,
+        days: EFFICIENCY_EVENTS_RETENTION_DAYS,
         amount: formatBytes(bytesReclaimed),
       }),
     };
