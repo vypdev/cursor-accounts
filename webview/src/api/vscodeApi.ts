@@ -9,14 +9,65 @@ import {
   WEBVIEW_STATE_VERSION,
 } from '../types';
 
-declare function acquireVsCodeApi(): {
+type VsCodeApiInstance = {
   postMessage(message: FromWebviewMessage): void;
   getState(): WebviewPersistedState | undefined;
   setState(state: WebviewPersistedState): void;
 };
 
-function getVsCodeApi() {
-  return acquireVsCodeApi();
+declare global {
+  interface Window {
+    __cursorAccountsVscodeApi?: VsCodeApiInstance;
+    __cursorAccountsBridge?: VSCodeAPI;
+  }
+}
+
+function getVsCodeApi(): VsCodeApiInstance {
+  const api = window.__cursorAccountsVscodeApi;
+  if (!api) {
+    throw new Error(
+      'VS Code API not initialized. Inline bootstrap script must run before bundle.js.'
+    );
+  }
+  return api;
+}
+
+function waitForServiceWorker(): Promise<void> {
+  return new Promise((resolve) => {
+    if (!navigator.serviceWorker) {
+      resolve();
+      return;
+    }
+
+    let settled = false;
+    const finish = (): void => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      resolve();
+    };
+
+    const onControllerChange = (): void => {
+      navigator.serviceWorker?.removeEventListener(
+        'controllerchange',
+        onControllerChange
+      );
+      finish();
+    };
+
+    navigator.serviceWorker.addEventListener(
+      'controllerchange',
+      onControllerChange
+    );
+    window.setTimeout(() => {
+      navigator.serviceWorker?.removeEventListener(
+        'controllerchange',
+        onControllerChange
+      );
+      finish();
+    }, 2000);
+  });
 }
 
 type MessageHandler = (message: ToWebviewMessage) => void;
@@ -24,7 +75,6 @@ type MessageHandler = (message: ToWebviewMessage) => void;
 class VSCodeAPI {
   private handlers: MessageHandler[] = [];
   private pendingMessages: ToWebviewMessage[] = [];
-  private vscodeApi?: ReturnType<typeof getVsCodeApi>;
 
   constructor() {
     window.addEventListener('message', (event) => {
@@ -35,11 +85,8 @@ class VSCodeAPI {
     });
   }
 
-  private get vscode() {
-    if (!this.vscodeApi) {
-      this.vscodeApi = getVsCodeApi();
-    }
-    return this.vscodeApi;
+  private get vscode(): VsCodeApiInstance {
+    return getVsCodeApi();
   }
 
   private dispatchMessage(message: ToWebviewMessage): void {
@@ -73,6 +120,11 @@ class VSCodeAPI {
 
   sendMessage(message: FromWebviewMessage): void {
     this.vscode.postMessage(message);
+  }
+
+  async ready(): Promise<void> {
+    await waitForServiceWorker();
+    this.sendMessage({ type: 'ready' });
   }
 
   requestInit(): void {
@@ -149,4 +201,11 @@ class VSCodeAPI {
   }
 }
 
-export const vscodeApi = new VSCodeAPI();
+function getBridge(): VSCodeAPI {
+  if (!window.__cursorAccountsBridge) {
+    window.__cursorAccountsBridge = new VSCodeAPI();
+  }
+  return window.__cursorAccountsBridge;
+}
+
+export const vscodeApi = getBridge();

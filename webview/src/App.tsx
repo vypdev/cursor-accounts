@@ -111,6 +111,7 @@ const AppContent: React.FC = () => {
           break;
 
         case 'error':
+          setLoading(false);
           setError(message.message);
           setTimeout(() => setError(null), 5000);
           break;
@@ -165,6 +166,8 @@ const AppContent: React.FC = () => {
           break;
       }
     });
+
+    void vscodeApi.ready();
 
     const fallbackTimer = window.setTimeout(() => {
       if (!initReceivedRef.current) {

@@ -449,42 +449,9 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
         root.innerHTML = '<p style="padding:12px;color:var(--vscode-errorForeground,#f88);">${t('panel.scriptLoadFailed')}</p>';
       }
     };
-  </script>
-  <script nonce="${nonce}">
-    (function() {
-      var vscode = acquireVsCodeApi();
-      function sendMessage(message) {
-        vscode.postMessage(message);
-      }
-      function waitForServiceWorker() {
-        return new Promise(function(resolve) {
-          if (!navigator.serviceWorker) {
-            resolve();
-            return;
-          }
-          var settled = false;
-          function finish() {
-            if (settled) {
-              return;
-            }
-            settled = true;
-            resolve();
-          }
-          function onControllerChange() {
-            navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
-            finish();
-          }
-          navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
-          setTimeout(function() {
-            navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
-            finish();
-          }, 2000);
-        });
-      }
-      waitForServiceWorker().then(function() {
-        sendMessage({ type: 'ready' });
-      });
-    })();
+    if (!window.__cursorAccountsVscodeApi) {
+      window.__cursorAccountsVscodeApi = acquireVsCodeApi();
+    }
   </script>
   <script nonce="${nonce}" src="${scriptUri.toString()}" onerror="window.__cursorAccountsReportScriptError && window.__cursorAccountsReportScriptError()"></script>
 </body>

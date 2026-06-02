@@ -2,7 +2,7 @@
   "name": "cursor-accounts",
   "displayName": "%extension.displayName%",
   "description": "%extension.description%",
-  "version": "0.1.26",
+  "version": "0.1.27",
   "publisher": "vypdev",
   "icon": "images/icon.png",
   "license": "MIT",

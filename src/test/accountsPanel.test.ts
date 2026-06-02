@@ -245,7 +245,12 @@ describe('AccountsPanelProvider', () => {
     assert.ok(mockWebview.html.includes('Loading Cursor Accounts'));
     assert.ok(mockWebview.html.includes('img-src'));
     assert.ok(mockWebview.html.includes('https:'));
-    assert.ok(mockWebview.html.includes('waitForServiceWorker'));
+    assert.ok(mockWebview.html.includes('acquireVsCodeApi'));
+    assert.ok(
+      mockWebview.html.indexOf('acquireVsCodeApi') <
+        mockWebview.html.indexOf('bundle.js')
+    );
+    assert.ok(!mockWebview.html.includes('waitForServiceWorker'));
   });
 
   it('sends init message on ready with empty profiles', async () => {
