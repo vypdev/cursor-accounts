@@ -2,16 +2,8 @@ import type { ITokenProvider } from '../domain/ports/ITokenProvider';
 import { isRefreshableTokenProvider } from '../domain/ports/ITokenProvider';
 import type { IQuotaService } from '../domain/ports/IQuotaService';
 import * as extensionLog from '../logging/extensionLog';
-import {
-  mapUsageResponse,
-  mergeWebUsage,
-  shouldFetchWebUsageSummary,
-} from './quotaMappers';
-import {
-  fetchUsageSummary,
-  isEnterpriseOrTeamSummary,
-  mapUsageSummaryResponse,
-} from './usageSummaryClient';
+import { mapUsageResponse, mergeWebUsage } from './quotaMappers';
+import { fetchUsageSummary, mapUsageSummaryResponse } from './usageSummaryClient';
 import type { GetCurrentPeriodUsageResponse, QuotaUsage } from './types';
 import {
   getCurrentPeriodUsageResponseSchema,
@@ -120,24 +112,17 @@ export class QuotaClient implements IQuotaService {
       );
     }
 
-    let webSummary: QuotaUsage | undefined;
     try {
       const summaryRaw = await fetchUsageSummary(accessToken, signal);
-      if (
-        isEnterpriseOrTeamSummary(summaryRaw) ||
-        !ideUsage ||
-        shouldFetchWebUsageSummary(ideUsage)
-      ) {
-        webSummary = mapUsageSummaryResponse(summaryRaw, accountEmail);
+      const webMapped = mapUsageSummaryResponse(summaryRaw, accountEmail);
+      if (ideUsage) {
+        return mergeWebUsage(ideUsage, webMapped);
       }
+      return webMapped;
     } catch (error) {
       extensionLog.debug(
         `[QuotaClient] Web usage summary fetch failed: ${extensionLog.formatError(error)}`
       );
-    }
-
-    if (webSummary) {
-      return ideUsage ? mergeWebUsage(ideUsage, webSummary) : webSummary;
     }
 
     if (ideUsage) {

@@ -135,6 +135,62 @@ describe('mergeWebUsage', () => {
     );
 
     assert.equal(merged.totalPercentUsed, 42);
+    assert.equal(merged.membershipType, 'pro');
     assert.equal(merged.billingCycleEnd, '2026-05-02T14:11:55.000Z');
+  });
+
+  it('merges pro_plus membership from web while keeping IDE percent usage', () => {
+    const ideUsage = mapUsageResponse(
+      {
+        billingCycleStart: '1780348749000',
+        billingCycleEnd: '1782940749000',
+        planUsage: {
+          totalSpend: 2177,
+          includedSpend: 2177,
+          remaining: 4823,
+          limit: 7000,
+          autoPercentUsed: 4.15,
+          apiPercentUsed: 4.68,
+          totalPercentUsed: 4.27,
+        },
+        displayMessage: "You've used 31% of your included usage",
+        spendLimitUsage: { limitType: 'user' },
+      },
+      'efraespada@gmail.com'
+    );
+
+    const webUsage = mapUsageSummaryResponse(
+      {
+        billingCycleStart: '2026-06-01T21:19:09.000Z',
+        billingCycleEnd: '2026-07-01T21:19:09.000Z',
+        membershipType: 'pro_plus',
+        limitType: 'user',
+        namedModelSelectedDisplayMessage:
+          "You've used 5% of your included API usage",
+        individualUsage: {
+          plan: {
+            enabled: true,
+            used: 2177,
+            limit: 7000,
+            totalPercentUsed: 4.268627450980392,
+            apiPercentUsed: 4.6818181818181825,
+            autoPercentUsed: 4.154999999999999,
+          },
+          onDemand: { enabled: false, used: 0, limit: null },
+        },
+      },
+      'efraespada@gmail.com'
+    );
+
+    const merged = mergeWebUsage(ideUsage, webUsage);
+
+    assert.equal(merged.membershipType, 'pro_plus');
+    assert.equal(merged.limitType, 'user');
+    assert.equal(merged.totalPercentUsed, 4.27);
+    assert.equal(merged.limit, 7000);
+    assert.equal(
+      merged.displayMessage,
+      "You've used 5% of your included API usage"
+    );
   });
 });
