@@ -267,5 +267,6 @@
   "storageCleanup.deepCleanCompleted": "गहन सफ़ाई पूर्ण (डेटाबेस से {amount} पुनर्प्राप्त)",
   "panel.launchedWithProject": "Launched {name} with project {project}",
   "webview.profileCard.recentProjects": "Opened Projects",
-  "webview.profileCard.openProject": "Open"
+  "webview.profileCard.openProject": "Open",
+  "webview.profileCard.projectAlreadyOpen": "Already open"
 }

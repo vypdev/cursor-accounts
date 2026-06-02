@@ -92,6 +92,10 @@ const AppContent: React.FC = () => {
           setLoading(false);
           break;
 
+        case 'openWorkspaces':
+          setProfileWorkspaces(message.data.profileWorkspaces);
+          break;
+
         case 'profiles':
           setProfiles(message.data);
           break;

@@ -237,6 +237,7 @@
   "webview.profileCard.launch": "Launch",
   "webview.profileCard.recentProjects": "Opened Projects",
   "webview.profileCard.openProject": "Open",
+  "webview.profileCard.projectAlreadyOpen": "Already open",
   "webview.profileCard.profileActions": "Profile actions",
   "webview.profileCard.edit": "Edit",
   "webview.profileCard.showInExplorer": "Show in Explorer",

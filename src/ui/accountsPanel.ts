@@ -13,15 +13,21 @@ import type {
   FromWebviewMessage,
   InitData,
   InstanceInfo,
+  Profile,
   ProfileQuota,
   ToWebviewMessage,
   WorkspaceInfo,
 } from '../profiles/types';
+import type { ProfileWithWorkspaces } from '@cursor-accounts/types';
 import type { MultiProfileQuotaService } from '../services/multiProfileQuotaService';
 import { quotaMapToRecord } from '../services/multiProfileQuotaService';
 import type { ProfileAccountFetcher } from '../services/profileAccountFetcher';
 import { accountMapToRecord } from '../services/profileAccountFetcher';
 import type { ProfileWorkspaceService } from '../services/profileWorkspaceService';
+import {
+  getOpenWorkspacePaths,
+  isWorkspacePathOpen,
+} from '../services/activeWorkspaceService';
 import type { EfficiencyService } from '../modelEfficiency/efficiencyService';
 import { getLocale, getWebviewMessages, isRtlLocale, t } from '../l10n';
 import { AccountsPanelHandlers } from './accountsPanelHandlers';
@@ -111,6 +117,59 @@ export class AccountsPanelProvider {
     this.instanceDetector.onDetectionChange((instances) => {
       void this.postRunningInstances(instances);
     });
+
+    context.subscriptions.push(
+      vscode.workspace.onDidChangeWorkspaceFolders(() => {
+        void this.refreshOpenWorkspaces();
+      })
+    );
+  }
+
+  private buildProfileWorkspaces(
+    profilesWithWorkspaces: ProfileWithWorkspaces[],
+    currentProfile: Profile | null,
+    openPaths: string[]
+  ): Record<string, WorkspaceInfo[]> {
+    const profileWorkspaces: Record<string, WorkspaceInfo[]> = {};
+
+    for (const profile of profilesWithWorkspaces) {
+      profileWorkspaces[profile.id] = profile.workspaces.map((workspace) => ({
+        ...workspace,
+        isOpenInSession:
+          currentProfile?.id === profile.id &&
+          isWorkspacePathOpen(workspace.path, openPaths),
+      }));
+    }
+
+    return profileWorkspaces;
+  }
+
+  /** Push updated open-workspace state when folders change in the active window. */
+  public async refreshOpenWorkspaces(): Promise<void> {
+    if (!this.getActiveWebview()) {
+      return;
+    }
+
+    try {
+      const openPaths = getOpenWorkspacePaths();
+      const currentProfile = await this.profileDetector.detectCurrentProfile();
+      const profilesWithWorkspaces =
+        await this.profileWorkspaceService.getProfilesWithWorkspaces();
+      const profileWorkspaces = this.buildProfileWorkspaces(
+        profilesWithWorkspaces,
+        currentProfile,
+        openPaths
+      );
+
+      await this.postMessage({
+        type: 'openWorkspaces',
+        data: { paths: openPaths, profileWorkspaces },
+      });
+    } catch (error) {
+      extensionLog.error(
+        `[AccountsPanel] Failed to refresh open workspaces: ${extensionLog.formatError(error)}`
+      );
+    }
   }
 
   /** Open the accounts panel in the editor area. */
@@ -182,10 +241,12 @@ export class AccountsPanelProvider {
 
       const profilesWithWorkspaces =
         await this.profileWorkspaceService.getProfilesWithWorkspaces();
-      const profileWorkspaces: Record<string, WorkspaceInfo[]> = {};
-      for (const profile of profilesWithWorkspaces) {
-        profileWorkspaces[profile.id] = profile.workspaces;
-      }
+      const openPaths = getOpenWorkspacePaths();
+      const profileWorkspaces = this.buildProfileWorkspaces(
+        profilesWithWorkspaces,
+        currentProfile,
+        openPaths
+      );
 
       const initData: InitData = {
         profiles,
@@ -195,6 +256,7 @@ export class AccountsPanelProvider {
         profileAccounts: {},
         activeAccount: null,
         runningInstances,
+        openWorkspacePaths: openPaths,
         locale: getLocale(),
         messages: getWebviewMessages(),
       };

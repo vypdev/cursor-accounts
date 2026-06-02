@@ -494,21 +494,30 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
             {t('profileCard.recentProjects')}
           </h4>
           <ul className="workspace-list">
-            {displayedWorkspaces.map((workspace) => (
-              <li key={workspace.storageHash} className="workspace-item">
+            {displayedWorkspaces.map((workspace) => {
+              const isProjectOpen = Boolean(workspace.isOpenInSession);
+
+              return (
+              <li
+                key={workspace.storageHash}
+                className={`workspace-item${isProjectOpen ? ' is-open' : ''}`}
+              >
                 <span className="workspace-name" title={workspace.path}>
                   {workspace.name}
                 </span>
                 <button
                   type="button"
-                  className="btn-open-project"
+                  className={`btn-open-project${isProjectOpen ? ' is-open' : ''}`}
                   onClick={() => handleOpenProject(workspace.path)}
-                  disabled={isCurrent || isRunning}
+                  disabled={isRunning || (isCurrent && isProjectOpen)}
                 >
-                  {t('profileCard.openProject')}
+                  {isCurrent && isProjectOpen
+                    ? t('profileCard.projectAlreadyOpen')
+                    : t('profileCard.openProject')}
                 </button>
               </li>
-            ))}
+              );
+            })}
           </ul>
         </div>
       ) : null}

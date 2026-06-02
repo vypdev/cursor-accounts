@@ -506,6 +506,7 @@ describe('AccountsPanelProvider', () => {
     if (initMessage?.type === 'init') {
       assert.equal(initMessage.data.profiles.length, 1);
       assert.ok(initMessage.data.profileWorkspaces);
+      assert.ok(Array.isArray(initMessage.data.openWorkspacePaths));
     }
   });
 });

@@ -267,5 +267,6 @@
   "storageCleanup.deepCleanCompleted": "Gründliche Bereinigung abgeschlossen ({amount} aus der Datenbank zurückgewonnen)",
   "panel.launchedWithProject": "Launched {name} with project {project}",
   "webview.profileCard.recentProjects": "Opened Projects",
-  "webview.profileCard.openProject": "Open"
+  "webview.profileCard.openProject": "Open",
+  "webview.profileCard.projectAlreadyOpen": "Already open"
 }

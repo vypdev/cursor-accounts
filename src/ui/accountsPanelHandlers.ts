@@ -22,6 +22,7 @@ import type { StorageCleanupOptions } from '@cursor-accounts/types';
 import { createEmptyStorageBreakdown } from '@cursor-accounts/types';
 import type { ProfileDetector } from '../profiles/profileDetector';
 import type { ProfileWorkspaceService } from '../services/profileWorkspaceService';
+import { isWorkspacePathOpen } from '../services/activeWorkspaceService';
 import { buildSuggestedProfileResponse } from './suggestedProfile';
 import { calculateProfileStorageSize } from '../utils/storageSize';
 
@@ -127,6 +128,25 @@ export class AccountsPanelHandlers {
           projectPath ? ` with project ${projectPath}` : ''
         }`
       );
+
+      const current = await this.deps.profileDetector.detectCurrentProfile();
+
+      if (projectPath && current?.id === profileId) {
+        if (isWorkspacePathOpen(projectPath)) {
+          extensionLog.debug(
+            `[AccountsPanel] Project already open in session: ${projectPath}`
+          );
+          return;
+        }
+
+        await vscode.commands.executeCommand(
+          'vscode.openFolder',
+          vscode.Uri.file(projectPath),
+          { forceNewWindow: false }
+        );
+        await this.callbacks.refresh();
+        return;
+      }
 
       const resolvedProjectPath =
         projectPath ??

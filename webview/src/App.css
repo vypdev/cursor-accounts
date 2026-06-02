@@ -392,6 +392,14 @@ body {
   background: var(--vscode-list-hoverBackground);
 }
 
+.workspace-item.is-open {
+  opacity: 0.85;
+}
+
+.workspace-item.is-open .workspace-name {
+  color: var(--fg-secondary);
+}
+
 .workspace-name {
   flex: 1;
   min-width: 0;
@@ -419,6 +427,11 @@ body {
 .btn-open-project:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.btn-open-project.is-open:disabled {
+  opacity: 0.7;
+  cursor: default;
 }
 
 .btn-launch {

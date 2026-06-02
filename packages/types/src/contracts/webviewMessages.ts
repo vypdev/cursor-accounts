@@ -32,6 +32,12 @@ export interface InstanceInfo {
 
 export type InstanceInfoMap = Record<string, InstanceInfo>;
 
+/** Live update of workspace folders open in the active window. */
+export interface OpenWorkspacesData {
+  paths: string[];
+  profileWorkspaces: Record<string, WorkspaceInfo[]>;
+}
+
 /** Initial data sent when webview loads. */
 export interface InitData {
   profiles: Profile[];
@@ -41,6 +47,7 @@ export interface InitData {
   profileAccounts: ProfileAccountMap;
   activeAccount?: ProfileAccountView | null;
   runningInstances: InstanceInfoMap;
+  openWorkspacePaths: string[];
   locale: string;
   messages: Record<string, string>;
 }
@@ -62,6 +69,7 @@ export type ToWebviewMessage =
   | { type: 'activeAccount'; data: ProfileAccountView | null }
   | { type: 'accountsLoading'; data: boolean }
   | { type: 'runningInstances'; data: InstanceInfoMap }
+  | { type: 'openWorkspaces'; data: OpenWorkspacesData }
   | { type: 'error'; message: string }
   | { type: 'success'; message: string }
   | { type: 'exportData'; data: string; filename: string }

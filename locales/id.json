@@ -267,5 +267,6 @@
   "storageCleanup.deepCleanCompleted": "Pembersihan mendalam selesai ({amount} dipulihkan dari basis data)",
   "panel.launchedWithProject": "Launched {name} with project {project}",
   "webview.profileCard.recentProjects": "Opened Projects",
-  "webview.profileCard.openProject": "Open"
+  "webview.profileCard.openProject": "Open",
+  "webview.profileCard.projectAlreadyOpen": "Already open"
 }

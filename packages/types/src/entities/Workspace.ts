@@ -8,4 +8,6 @@ export interface WorkspaceInfo {
   lastModified: string;
   /** Hash folder name under workspaceStorage. */
   storageHash: string;
+  /** True when this project is open in the active Cursor window session. */
+  isOpenInSession?: boolean;
 }

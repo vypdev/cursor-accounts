@@ -69,12 +69,15 @@ const vscodeMock = {
     executeCommand: async () => undefined,
   },
   workspace: {
+    workspaceFolders: [] as Array<{ uri: { fsPath: string } }>,
+    workspaceFile: undefined as { fsPath: string } | undefined,
     getConfiguration: (_section?: string) => ({
       inspect: () => undefined,
       get: () => undefined,
       update: async () => undefined,
     }),
     onDidChangeConfiguration: () => ({ dispose: () => undefined }),
+    onDidChangeWorkspaceFolders: () => ({ dispose: () => undefined }),
   },
   ConfigurationTarget: {
     Global: 1,
