@@ -3,8 +3,9 @@ import { spawn } from 'child_process';
 import * as path from 'path';
 import * as extensionLog from '../logging/extensionLog';
 import { ensureDirectory } from '../utils/pathUtils';
-import type { InstanceDetector } from './instanceDetector';
-import type { ProfileManager } from './profileManager';
+import type { IInstanceDetector } from '../domain/ports/IInstanceDetector';
+import type { IProfileLauncher } from '../domain/ports/IProfileLauncher';
+import type { IProfileManager } from '../domain/ports/IProfileManager';
 import type { Profile } from './types';
 
 export interface LaunchResult {
@@ -72,10 +73,10 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export class ProfileLauncher {
+export class ProfileLauncher implements IProfileLauncher {
   constructor(
-    private readonly profileManager: ProfileManager,
-    private readonly instanceDetector?: InstanceDetector
+    private readonly profileManager: IProfileManager,
+    private readonly instanceDetector?: IInstanceDetector
   ) {}
 
   /**

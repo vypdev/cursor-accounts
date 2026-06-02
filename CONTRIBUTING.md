@@ -31,6 +31,9 @@ Useful scripts:
 | `pnpm run watch` | Recompile extension TypeScript on save |
 | `pnpm run watch:webview` | Rebuild Accounts panel webview on save |
 | `pnpm test` | Run unit tests (`pretest` compiles first) |
+| `pnpm run test:coverage` | Run tests with c8 coverage thresholds |
+| `pnpm --dir webview test` | Run Accounts panel Vitest suite |
+| `pnpm run docs:api` | Generate Typedoc HTML under `docs/api/` |
 | `pnpm run test:types-sync` | Validate webview ↔ shared types alignment |
 | `pnpm run lint` | Typecheck + ESLint (includes layer boundary rules) |
 | `pnpm run validate:l10n` | Ensure all `locales/*.json` keys match `en.json` |
@@ -44,6 +47,7 @@ cursor-accounts/
 ├── packages/types/      # @cursor-accounts/types — shared entities, rules, contracts
 ├── src/                 # Extension host (TypeScript)
 │   ├── extension.ts     # Composition root: activate, wiring, commands
+│   ├── composition/     # DI factories (e.g. storage cleanup bundle)
 │   ├── domain/          # Ports + re-exports from shared types
 │   ├── api/             # HTTP clients and DTO mappers for Cursor APIs
 │   ├── auth/            # Tokens, SQLite state.vscdb, refresh, ProfileAuthReader

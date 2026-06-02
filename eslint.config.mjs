@@ -108,6 +108,28 @@ export default tseslint.config(
     },
   },
   {
+    files: ['src/auth/**/*.ts', 'src/storage/**/*.ts', 'src/persistence/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/ui/*'],
+              message: 'Infrastructure must not import from UI.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ['src/composition/**/*.ts'],
+    rules: {
+      'no-restricted-imports': 'off',
+    },
+  },
+  {
     files: ['packages/shared/src/**/*.ts'],
     extends: [...tseslint.configs.recommendedTypeChecked],
     languageOptions: {

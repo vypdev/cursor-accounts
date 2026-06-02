@@ -25,7 +25,6 @@ import { resolveRecentProjectLaunch } from '../profiles/recentProjectLaunchRoute
 import type { ProfileWorkspaceService } from '../services/profileWorkspaceService';
 import { getOpenWorkspacePaths } from '../services/activeWorkspaceService';
 import { buildSuggestedProfileResponse } from './suggestedProfile';
-import { calculateProfileStorageSize } from '../utils/storageSize';
 
 /** Callbacks the panel provides for webview messaging and refresh orchestration. */
 export interface AccountsPanelHandlerCallbacks {
@@ -45,7 +44,7 @@ export interface AccountsPanelHandlerDeps {
   authReader: IProfileAuthReader;
   instanceDetector: InstanceDetector;
   storageCleanupService: IStorageCleanupService;
-  storageAnalyzer?: IProfileStorageAnalyzer;
+  storageAnalyzer: IProfileStorageAnalyzer;
   profileWorkspaceService: ProfileWorkspaceService;
 }
 
@@ -340,13 +339,10 @@ export class AccountsPanelHandlers {
   }
 
   private async getStorageBreakdown(profileId: string, userDataDir: string) {
-    if (this.deps.storageAnalyzer) {
-      return this.deps.storageAnalyzer.calculateProfileStorageSize(
-        profileId,
-        userDataDir
-      );
-    }
-    return calculateProfileStorageSize(profileId, userDataDir);
+    return this.deps.storageAnalyzer.calculateProfileStorageSize(
+      profileId,
+      userDataDir
+    );
   }
 
   private async handleRequestStorageInfo(profileId: string): Promise<void> {

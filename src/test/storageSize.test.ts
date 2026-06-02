@@ -3,19 +3,19 @@ import { after, before, describe, it } from 'node:test';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
-import {
-  calculateProfileStorageSize,
-  formatBytes,
-  getDirectorySize,
-} from '../utils/storageSize';
+import { NodeFileSystemService } from '../storage/nodeFileSystemService';
+import { ProfileStorageAnalyzer } from '../storage/profileStorageAnalyzer';
+import { formatBytes } from '../utils/storageSize';
 
 describe('storageSize', () => {
   let tempRoot = '';
+  let analyzer: ProfileStorageAnalyzer;
 
   before(async () => {
     tempRoot = await fs.mkdtemp(
       path.join(os.homedir(), '.cursor-accounts-storage-test-')
     );
+    analyzer = new ProfileStorageAnalyzer(new NodeFileSystemService());
   });
 
   after(async () => {
@@ -37,7 +37,7 @@ describe('storageSize', () => {
     });
   });
 
-  describe('calculateProfileStorageSize', () => {
+  describe('ProfileStorageAnalyzer', () => {
     it('sums database, workspace, and cache directories', async () => {
       const userDataDir = path.join(tempRoot, 'profile-a');
       const stateDbPath = path.join(
@@ -66,7 +66,10 @@ describe('storageSize', () => {
       );
       await fs.writeFile(efficiencyDbPath, Buffer.alloc(64));
 
-      const breakdown = await calculateProfileStorageSize('profile-a', userDataDir);
+      const breakdown = await analyzer.calculateProfileStorageSize(
+        'profile-a',
+        userDataDir
+      );
 
       assert.equal(breakdown.databaseBytes, 1024);
       assert.equal(breakdown.walBytes, 256);
@@ -94,7 +97,7 @@ describe('storageSize', () => {
         Buffer.alloc(5000)
       );
 
-      const breakdown = await calculateProfileStorageSize(
+      const breakdown = await analyzer.calculateProfileStorageSize(
         'profile-backup',
         userDataDir
       );
@@ -104,7 +107,7 @@ describe('storageSize', () => {
     });
 
     it('rejects unsafe paths', async () => {
-      const breakdown = await calculateProfileStorageSize(
+      const breakdown = await analyzer.calculateProfileStorageSize(
         'profile-b',
         process.platform === 'win32' ? 'C:\\Windows\\Temp\\cursor' : '/etc/cursor'
       );
@@ -114,10 +117,11 @@ describe('storageSize', () => {
     });
   });
 
-  describe('getDirectorySize', () => {
+  describe('getPathSize via IFileSystemService', () => {
     it('returns zero for missing paths', async () => {
+      const fileSystem = new NodeFileSystemService();
       assert.equal(
-        await getDirectorySize(path.join(tempRoot, 'missing-dir')),
+        await fileSystem.getPathSize(path.join(tempRoot, 'missing-dir')),
         0
       );
     });

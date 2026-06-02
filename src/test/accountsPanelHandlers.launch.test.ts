@@ -51,6 +51,19 @@ function createHandlers(deps: {
       authReader: {} as never,
       instanceDetector: {} as never,
       storageCleanupService: {} as never,
+      storageAnalyzer: {
+        calculateProfileStorageSize: async () => ({
+          profileId: 'p1',
+          databaseBytes: 0,
+          walBytes: 0,
+          workspaceStorageBytes: 0,
+          editorCacheBytes: 0,
+          extensionCacheBytes: 0,
+          efficiencyDbBytes: 0,
+          totalBytes: 0,
+        }),
+        getProfileTotalBytes: async () => 0,
+      },
       profileWorkspaceService: {
         getMostRecentWorkspace: async () => undefined,
         ...deps.profileWorkspaceService,

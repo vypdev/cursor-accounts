@@ -8,8 +8,9 @@ import {
   validateSlug,
 } from '../utils/emailToSlug';
 import { pathsEqual, validateUserDataPath } from '../utils/pathUtils';
-import type { InstanceDetector } from './instanceDetector';
-import { ProfileStorage } from './profileStorage';
+import type { IProfileManager } from '../domain/ports/IProfileManager';
+import type { IProfileStorage } from '../domain/ports/IProfileStorage';
+import type { IInstanceDetector } from '../domain/ports/IInstanceDetector';
 import type {
   CreateProfileOptions,
   Profile,
@@ -29,12 +30,12 @@ export class ProfileManagerError extends Error {
   }
 }
 
-export class ProfileManager {
-  private storage: ProfileStorage;
+export class ProfileManager implements IProfileManager {
+  private readonly storage: IProfileStorage;
   private config: ProfileConfig | null = null;
 
-  constructor(storage?: ProfileStorage) {
-    this.storage = storage ?? new ProfileStorage();
+  constructor(storage: IProfileStorage) {
+    this.storage = storage;
   }
 
   /**
@@ -226,7 +227,7 @@ export class ProfileManager {
    */
   async deleteProfile(
     id: string,
-    instanceDetector?: InstanceDetector
+    instanceDetector?: IInstanceDetector
   ): Promise<void> {
     const config = await this.ensureLoaded();
 

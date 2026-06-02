@@ -2,6 +2,8 @@
 
 This document describes the canonical build pipeline for producing installable `.vsix` packages.
 
+For historical notes on extension bundling and prepublish simplification, see [SIMPLIFICATION-SUMMARY.md](SIMPLIFICATION-SUMMARY.md).
+
 ## Prerequisites
 
 - [Node.js 22+](https://nodejs.org/) (`nvm use` — see [.nvmrc](../.nvmrc))

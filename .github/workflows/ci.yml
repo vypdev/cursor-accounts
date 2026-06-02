@@ -49,3 +49,9 @@ jobs:
 
       - name: Test extension
         run: pnpm test
+
+      - name: Test extension with coverage
+        run: pnpm run test:coverage
+
+      - name: Test webview
+        run: pnpm --dir webview test

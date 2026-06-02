@@ -33,12 +33,9 @@ import {
 import { shouldAutoOpenAccountsPanel } from './accountsPanelStartup';
 import type { EfficiencyService } from '../modelEfficiency/efficiencyService';
 import { getLocale, getWebviewMessages, isRtlLocale, t } from '../l10n';
+import type { IProfileStorageAnalyzer } from '../domain/ports/IProfileStorageAnalyzer';
+import type { IStorageCleanupService } from '../domain/ports/IStorageCleanupService';
 import { AccountsPanelHandlers } from './accountsPanelHandlers';
-import { NodeFileSystemService } from '../storage/nodeFileSystemService';
-import { ProfileStorageAnalyzer } from '../storage/profileStorageAnalyzer';
-import { SqliteCleanupService } from '../storage/sqliteCleanupService';
-import { StorageCleanupService } from '../services/storageCleanupService';
-import { VSCodeCacheService } from '../storage/vscodeCacheService';
 
 /** Webview panel view type id. */
 export const ACCOUNTS_PANEL_VIEW_ID = 'cursorAccounts.accountsPanel';
@@ -72,31 +69,11 @@ export class AccountsPanelProvider {
     private readonly instanceDetector: InstanceDetector,
     private readonly profileWorkspaceService: ProfileWorkspaceService,
     efficiencyService: EfficiencyService,
-    authReader: IProfileAuthReader
+    authReader: IProfileAuthReader,
+    storageCleanupService: IStorageCleanupService,
+    storageAnalyzer: IProfileStorageAnalyzer
   ) {
     this.efficiencyService = efficiencyService;
-    const fileSystem = new NodeFileSystemService();
-    const storageAnalyzer = new ProfileStorageAnalyzer(fileSystem);
-    const storageCleanupService = new StorageCleanupService({
-      profileManager,
-      profileDetector,
-      instanceDetector,
-      storageAnalyzer,
-      cacheCleanup: new VSCodeCacheService({
-        context,
-        fileSystem,
-        efficiencyService,
-        isCurrentProfile: async (profileId) => {
-          const current = await profileDetector.detectCurrentProfile();
-          return current?.id === profileId;
-        },
-      }),
-      databaseCleanup: new SqliteCleanupService({
-        extensionPath: context.extensionPath,
-        fileSystem,
-      }),
-      extensionPath: context.extensionPath,
-    });
 
     this.handlers = new AccountsPanelHandlers(
       {

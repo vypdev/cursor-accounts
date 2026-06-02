@@ -16,6 +16,8 @@ import type { ProfileAccountFetcher } from '../services/profileAccountFetcher';
 import type { ProfileWorkspaceService } from '../services/profileWorkspaceService';
 import type { EfficiencyService } from '../modelEfficiency/efficiencyService';
 import type { IProfileAuthReader } from '../domain/ports/IProfileAuthReader';
+import type { IProfileStorageAnalyzer } from '../domain/ports/IProfileStorageAnalyzer';
+import type { IStorageCleanupService } from '../domain/ports/IStorageCleanupService';
 import { AccountsPanelProvider } from '../ui/accountsPanel';
 import { first } from './testUtils';
 
@@ -97,6 +99,32 @@ function createMockEfficiencyService(): EfficiencyService {
       getAllStats: () => ({}),
     }),
   } as unknown as EfficiencyService;
+}
+
+function createMockStorageAnalyzer(): IProfileStorageAnalyzer {
+  return {
+    calculateProfileStorageSize: async (profileId) => ({
+      profileId,
+      databaseBytes: 0,
+      walBytes: 0,
+      workspaceStorageBytes: 0,
+      editorCacheBytes: 0,
+      extensionCacheBytes: 0,
+      efficiencyDbBytes: 0,
+      totalBytes: 0,
+    }),
+    getProfileTotalBytes: async () => 0,
+  };
+}
+
+function createMockStorageCleanupService(): IStorageCleanupService {
+  return {
+    cleanProfileStorage: async () => ({
+      success: true,
+      bytesReclaimed: 0,
+      message: 'ok',
+    }),
+  };
 }
 
 function createMockWebview(): MockWebview {
@@ -201,7 +229,9 @@ describe('AccountsPanelProvider', () => {
       instanceDetector,
       createMockProfileWorkspaceService(),
       createMockEfficiencyService(),
-      createMockAuthReader()
+      createMockAuthReader(),
+      createMockStorageCleanupService(),
+      createMockStorageAnalyzer()
     );
 
     mockWebview = createMockWebview();
@@ -477,7 +507,9 @@ describe('AccountsPanelProvider', () => {
       instanceDetector,
       createMockProfileWorkspaceService(),
       createMockEfficiencyService(),
-      createMockAuthReader()
+      createMockAuthReader(),
+      createMockStorageCleanupService(),
+      createMockStorageAnalyzer()
     );
 
     failingProvider.openPanel();

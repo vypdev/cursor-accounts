@@ -26,6 +26,9 @@ webview/src/**/*.js.map
 .env.*
 !.env.example
 
+# Generated API reference (pnpm run docs:api)
+docs/api/
+
 # Test coverage and reports
 coverage/
 .nyc_output/

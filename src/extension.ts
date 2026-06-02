@@ -18,7 +18,9 @@ import {
 import { InstanceDetector } from './profiles/instanceDetector';
 import { ProfileDetector } from './profiles/profileDetector';
 import { ProfileLauncher } from './profiles/profileLauncher';
+import { createAccountsPanelStorageBundle } from './composition/createStorageServices';
 import { ProfileManager } from './profiles/profileManager';
+import { ProfileStorage } from './profiles/profileStorage';
 import { WorkspaceScanner } from './profiles/workspaceScanner';
 import { MultiProfileQuotaService } from './services/multiProfileQuotaService';
 import { ProfileAccountFetcher } from './services/profileAccountFetcher';
@@ -34,6 +36,7 @@ import { EfficiencyStatsStorage } from './modelEfficiency/efficiencyStatsStorage
 let refreshService: RefreshService | undefined;
 let multiProfileQuotaService: MultiProfileQuotaService | undefined;
 let efficiencyService: EfficiencyService | undefined;
+let instanceDetectorRef: InstanceDetector | undefined;
 
 export function activate(context: vscode.ExtensionContext): void {
   const activateTimestamp = lifecycleLog.markActivate();
@@ -65,9 +68,10 @@ export function activate(context: vscode.ExtensionContext): void {
     }
   });
 
-  const profileManager = new ProfileManager();
+  const profileManager = new ProfileManager(new ProfileStorage());
   const profileDetector = new ProfileDetector(profileManager, context);
   const instanceDetector = new InstanceDetector(profileManager);
+  instanceDetectorRef = instanceDetector;
   const profileLauncher = new ProfileLauncher(profileManager, instanceDetector);
   const workspaceScanner = new WorkspaceScanner();
   const profileWorkspaceService = new ProfileWorkspaceService(
@@ -103,6 +107,14 @@ export function activate(context: vscode.ExtensionContext): void {
     multiProfileQuotaService
   );
 
+  const storageBundle = createAccountsPanelStorageBundle({
+    context,
+    profileManager,
+    profileDetector,
+    instanceDetector,
+    efficiencyService,
+  });
+
   const accountsPanel = new AccountsPanelProvider(
     context,
     profileManager,
@@ -113,7 +125,9 @@ export function activate(context: vscode.ExtensionContext): void {
     instanceDetector,
     profileWorkspaceService,
     efficiencyService,
-    profileAuthReader
+    profileAuthReader,
+    storageBundle.storageCleanupService,
+    storageBundle.storageAnalyzer
   );
 
   efficiencyStatsStorage.setStatsUpdatedListener(() => {
@@ -169,7 +183,8 @@ export function activate(context: vscode.ExtensionContext): void {
     context,
     profileManager,
     profileLauncher,
-    profileDetector
+    profileDetector,
+    instanceDetector
   );
 
   const profilesConfig = vscode.workspace.getConfiguration(
@@ -278,9 +293,12 @@ export function activate(context: vscode.ExtensionContext): void {
 
 export function deactivate(): void {
   extensionLog.info('[Extension] Cursor Accounts deactivated');
+  refreshService?.stop();
   refreshService = undefined;
   multiProfileQuotaService?.stop();
   multiProfileQuotaService = undefined;
+  instanceDetectorRef?.stopAutoDetection();
+  instanceDetectorRef = undefined;
   efficiencyService?.dispose();
   efficiencyService = undefined;
 }
