@@ -32,7 +32,9 @@ interface MockWebview {
 interface MockWebviewView {
   webview: MockWebview;
   visible: boolean;
-  onDidChangeVisibility: (callback: () => void) => { dispose: () => void };
+  onDidChangeVisibility: (
+    callback: () => void
+  ) => { dispose: () => void };
 }
 
 interface MockExtensionContext {
@@ -151,6 +153,7 @@ describe('AccountsPanelProvider', () => {
   let provider: AccountsPanelProvider;
   let mockView: MockWebviewView;
   let mockWebview: MockWebview;
+  let visibilityChangeHandler: (() => void) | undefined;
 
   beforeEach(async () => {
     tempDir = await fs.mkdtemp(
@@ -190,10 +193,14 @@ describe('AccountsPanelProvider', () => {
     );
 
     mockWebview = createMockWebview();
+    visibilityChangeHandler = undefined;
     mockView = {
       webview: mockWebview,
       visible: true,
-      onDidChangeVisibility: () => ({ dispose: () => undefined }),
+      onDidChangeVisibility: (callback) => {
+        visibilityChangeHandler = callback;
+        return { dispose: () => undefined };
+      },
     };
   });
 
@@ -210,7 +217,8 @@ describe('AccountsPanelProvider', () => {
       _emit?: (m: FromWebviewMessage) => void;
     };
     emitter._emit?.(message);
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    const waitMs = message.type === 'ready' ? 200 : 10;
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
   }
 
   it('configures webview with scripts and localResourceRoots', () => {
@@ -237,6 +245,7 @@ describe('AccountsPanelProvider', () => {
     assert.ok(mockWebview.html.includes('Loading Cursor Accounts'));
     assert.ok(mockWebview.html.includes('img-src'));
     assert.ok(mockWebview.html.includes('https:'));
+    assert.ok(mockWebview.html.includes('waitForServiceWorker'));
   });
 
   it('sends init message on ready with empty profiles', async () => {
@@ -255,15 +264,41 @@ describe('AccountsPanelProvider', () => {
     }
   });
 
-  it('sends init message when resolved while already visible', async () => {
+  it('does not send init on resolve without ready', async () => {
     resolvePanel();
     await new Promise((resolve) => setTimeout(resolve, 10));
+
+    const initMessage = mockWebview.postedMessages.find((m) => m.type === 'init');
+    assert.equal(initMessage, undefined);
+  });
+
+  it('sends init message on requestInit', async () => {
+    resolvePanel();
+    mockWebview.postedMessages = [];
+
+    await emitMessage({ type: 'requestInit' });
 
     const initMessage = mockWebview.postedMessages.find((m) => m.type === 'init');
     assert.ok(initMessage);
     if (initMessage?.type === 'init') {
       assert.deepEqual(initMessage.data.profiles, []);
     }
+  });
+
+  it('defers refresh on visibility until ready', async () => {
+    resolvePanel();
+    mockWebview.postedMessages = [];
+
+    visibilityChangeHandler?.();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    let initMessage = mockWebview.postedMessages.find((m) => m.type === 'init');
+    assert.equal(initMessage, undefined);
+
+    await emitMessage({ type: 'ready' });
+
+    initMessage = mockWebview.postedMessages.find((m) => m.type === 'init');
+    assert.ok(initMessage);
   });
 
   it('sends init message with profiles after refresh', async () => {

@@ -23,13 +23,14 @@ type MessageHandler = (message: ToWebviewMessage) => void;
 
 class VSCodeAPI {
   private handlers: MessageHandler[] = [];
+  private pendingMessages: ToWebviewMessage[] = [];
   private vscodeApi?: ReturnType<typeof getVsCodeApi>;
 
   constructor() {
     window.addEventListener('message', (event) => {
       const message = event.data as ToWebviewMessage;
       if (message && typeof message === 'object' && 'type' in message) {
-        this.handlers.forEach((handler) => handler(message));
+        this.dispatchMessage(message);
       }
     });
   }
@@ -41,27 +42,49 @@ class VSCodeAPI {
     return this.vscodeApi;
   }
 
+  private dispatchMessage(message: ToWebviewMessage): void {
+    if (this.handlers.length === 0) {
+      this.pendingMessages.push(message);
+      return;
+    }
+
+    this.handlers.forEach((handler) => handler(message));
+  }
+
+  private flushPendingMessages(): void {
+    if (this.handlers.length === 0 || this.pendingMessages.length === 0) {
+      return;
+    }
+
+    const pending = [...this.pendingMessages];
+    this.pendingMessages = [];
+    for (const message of pending) {
+      this.handlers.forEach((handler) => handler(message));
+    }
+  }
+
   onMessage(handler: MessageHandler): () => void {
     this.handlers.push(handler);
+    this.flushPendingMessages();
     return () => {
       this.handlers = this.handlers.filter((h) => h !== handler);
     };
   }
 
-  postMessage(message: FromWebviewMessage): void {
+  sendMessage(message: FromWebviewMessage): void {
     this.vscode.postMessage(message);
   }
 
-  ready(): void {
-    this.postMessage({ type: 'ready' });
+  requestInit(): void {
+    this.sendMessage({ type: 'requestInit' });
   }
 
   refresh(): void {
-    this.postMessage({ type: 'refresh' });
+    this.sendMessage({ type: 'refresh' });
   }
 
   launch(profileId: string): void {
-    this.postMessage({ type: 'launch', profileId });
+    this.sendMessage({ type: 'launch', profileId });
   }
 
   addProfile(
@@ -71,43 +94,43 @@ class VSCodeAPI {
     color?: string,
     emoji?: string
   ): void {
-    this.postMessage({ type: 'add', email, displayName, theme, color, emoji });
+    this.sendMessage({ type: 'add', email, displayName, theme, color, emoji });
   }
 
   editProfile(profileId: string, updates: Partial<Profile>): void {
-    this.postMessage({ type: 'edit', profileId, updates });
+    this.sendMessage({ type: 'edit', profileId, updates });
   }
 
   deleteProfile(profileId: string): void {
-    this.postMessage({ type: 'delete', profileId });
+    this.sendMessage({ type: 'delete', profileId });
   }
 
   showInExplorer(profileId: string): void {
-    this.postMessage({ type: 'showInExplorer', profileId });
+    this.sendMessage({ type: 'showInExplorer', profileId });
   }
 
   exportProfiles(profileIds: string[], includeSettings: boolean): void {
-    this.postMessage({ type: 'export', profileIds, includeSettings });
+    this.sendMessage({ type: 'export', profileIds, includeSettings });
   }
 
   importProfiles(data: string, options: ImportOptions): void {
-    this.postMessage({ type: 'import', data, options });
+    this.sendMessage({ type: 'import', data, options });
   }
 
   requestSuggestedProfile(): void {
-    this.postMessage({ type: 'requestSuggestedProfile' });
+    this.sendMessage({ type: 'requestSuggestedProfile' });
   }
 
   toggleEfficiency(profileId: string, enabled: boolean): void {
-    this.postMessage({ type: 'toggleEfficiency', profileId, enabled });
+    this.sendMessage({ type: 'toggleEfficiency', profileId, enabled });
   }
 
   requestStorageInfo(profileId: string): void {
-    this.postMessage({ type: 'requestStorageInfo', profileId });
+    this.sendMessage({ type: 'requestStorageInfo', profileId });
   }
 
   cleanStorage(profileId: string, options: StorageCleanupOptions): void {
-    this.postMessage({ type: 'cleanStorage', profileId, options });
+    this.sendMessage({ type: 'cleanStorage', profileId, options });
   }
 
   saveState(state: Omit<WebviewPersistedState, 'version'>): void {

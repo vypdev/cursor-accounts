@@ -153,6 +153,7 @@ export function activate(context: vscode.ExtensionContext): void {
       `[Extension] ProfileManager initialized with ${profiles.length} profile(s)`
     );
     await efficiencyService?.initialize();
+    await focusAccountsSidebar(accountsPanel);
   }).catch((err) => {
     extensionLog.error(
       `[Extension] ProfileManager initialization failed: ${extensionLog.formatError(err)}`
@@ -266,8 +267,6 @@ export function activate(context: vscode.ExtensionContext): void {
   });
 
   refreshService.start();
-
-  void focusAccountsSidebar(accountsPanel);
 }
 
 export function deactivate(): void {

@@ -39,6 +39,7 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
   private view?: vscode.WebviewView;
   private panel?: vscode.WebviewPanel;
   private accountsFetchInFlight = false;
+  private webviewRuntimeReady = false;
   private readonly handlers: AccountsPanelHandlers;
 
   public hasResolvedView(): boolean {
@@ -119,6 +120,7 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
     _token: vscode.CancellationToken
   ): void {
     this.view = webviewView;
+    this.webviewRuntimeReady = false;
     extensionLog.debug('[AccountsPanel] Webview resolved (sidebar)');
 
     webviewView.webview.options = {
@@ -145,20 +147,16 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
 
     webviewView.onDidChangeVisibility(() => {
       if (webviewView.visible) {
-        void this.refresh();
+        this.requestRefresh();
       }
     });
-
-    if (webviewView.visible) {
-      void this.refresh();
-    }
   }
 
   /** Fallback when the sidebar webview never resolves (Cursor/VS Code race). */
   public openAsEditorPanel(): void {
     if (this.panel) {
       this.panel.reveal(undefined, true);
-      void this.refresh();
+      this.requestRefresh();
       return;
     }
 
@@ -179,6 +177,7 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
       }
     );
 
+    this.webviewRuntimeReady = false;
     this.attachWebviewMessageListener(this.panel.webview);
     this.panel.webview.html = this.getHtmlContent(this.panel.webview);
 
@@ -347,6 +346,15 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
     try {
       switch (message.type) {
         case 'ready':
+          this.webviewRuntimeReady = true;
+          await delay(150);
+          await this.refresh();
+          break;
+
+        case 'requestInit':
+          await this.refresh();
+          break;
+
         case 'refresh':
           await this.refresh();
           break;
@@ -369,13 +377,23 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
     }
   }
 
+  private requestRefresh(): void {
+    if (this.webviewRuntimeReady) {
+      void this.refresh();
+    }
+  }
+
   private isActionMessage(
     message: FromWebviewMessage
   ): message is Exclude<
     FromWebviewMessage,
-    { type: 'ready' } | { type: 'refresh' }
+    { type: 'ready' } | { type: 'requestInit' } | { type: 'refresh' }
   > {
-    return message.type !== 'ready' && message.type !== 'refresh';
+    return (
+      message.type !== 'ready' &&
+      message.type !== 'requestInit' &&
+      message.type !== 'refresh'
+    );
   }
 
   private async postMessage(message: ToWebviewMessage): Promise<void> {
@@ -432,6 +450,42 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
       }
     };
   </script>
+  <script nonce="${nonce}">
+    (function() {
+      var vscode = acquireVsCodeApi();
+      function sendMessage(message) {
+        vscode.postMessage(message);
+      }
+      function waitForServiceWorker() {
+        return new Promise(function(resolve) {
+          if (!navigator.serviceWorker) {
+            resolve();
+            return;
+          }
+          var settled = false;
+          function finish() {
+            if (settled) {
+              return;
+            }
+            settled = true;
+            resolve();
+          }
+          function onControllerChange() {
+            navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
+            finish();
+          }
+          navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
+          setTimeout(function() {
+            navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
+            finish();
+          }, 2000);
+        });
+      }
+      waitForServiceWorker().then(function() {
+        sendMessage({ type: 'ready' });
+      });
+    })();
+  </script>
   <script nonce="${nonce}" src="${scriptUri.toString()}" onerror="window.__cursorAccountsReportScriptError && window.__cursorAccountsReportScriptError()"></script>
 </body>
 </html>`;
@@ -446,4 +500,8 @@ function getNonce(): string {
     text += possible.charAt(Math.floor(Math.random() * possible.length));
   }
   return text;
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }

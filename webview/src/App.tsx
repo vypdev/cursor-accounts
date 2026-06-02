@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { vscodeApi } from './api/vscodeApi';
 import { AddProfileForm } from './components/AddProfileForm';
 import { EditProfileForm } from './components/EditProfileForm';
@@ -56,6 +56,7 @@ const AppContent: React.FC = () => {
   const [lastCleanupResult, setLastCleanupResult] = useState<
     StorageCleanupResult | undefined
   >();
+  const initReceivedRef = useRef(false);
 
   const persistUiState = useCallback(
     (showAdd: boolean, editingId: string | null) => {
@@ -71,6 +72,7 @@ const AppContent: React.FC = () => {
     const unsubscribe = vscodeApi.onMessage((message: ToWebviewMessage) => {
       switch (message.type) {
         case 'init':
+          initReceivedRef.current = true;
           setProfiles(message.data.profiles);
           setCurrentProfile(message.data.currentProfile);
           setQuotas(message.data.quotas ?? {});
@@ -164,9 +166,16 @@ const AppContent: React.FC = () => {
       }
     });
 
-    vscodeApi.ready();
+    const fallbackTimer = window.setTimeout(() => {
+      if (!initReceivedRef.current) {
+        vscodeApi.requestInit();
+      }
+    }, 1000);
 
-    return unsubscribe;
+    return () => {
+      window.clearTimeout(fallbackTimer);
+      unsubscribe();
+    };
   }, [storageProfileId]);
 
   const handleLaunch = useCallback((profileId: string) => {

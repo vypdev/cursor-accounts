@@ -70,6 +70,7 @@ export type ToWebviewMessage =
 /** Messages sent from webview to extension. */
 export type FromWebviewMessage =
   | { type: 'ready' }
+  | { type: 'requestInit' }
   | { type: 'refresh' }
   | { type: 'launch'; profileId: string }
   | {
