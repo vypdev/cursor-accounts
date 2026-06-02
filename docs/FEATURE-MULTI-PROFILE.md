@@ -129,6 +129,16 @@ Full TypeScript definitions: `src/profiles/types.ts`.
 2. A **new** Cursor window opens (existing windows stay on their profile)
 3. User focuses the desired window; status bar reflects that window’s quota and profile
 
+### Open a recent project from the Accounts panel
+
+When the user clicks **Open** on a recent project under a profile card:
+
+1. If that project is already open in the **current** window, nothing happens.
+2. If the project belongs to the **same profile** as the active window, it opens in the **current** window (`vscode.openFolder`, same as native recent projects—including when another folder is already open, which replaces the workspace).
+3. If the project belongs to a **different profile**, or the active window is not a managed profile (default Cursor user data dir), the extension spawns a **new** Cursor instance with that profile’s `--user-data-dir` and the project path. It never opens another profile’s project in the current window.
+
+Routing logic: `src/profiles/recentProjectLaunchRouter.ts`, wired from `src/ui/accountsPanelHandlers.ts`.
+
 ### View all quotas
 
 1. Accounts panel loads profile list

@@ -141,7 +141,7 @@ describe('AccountsPanelHandlers launch', () => {
     assert.equal(wasRefreshed(), true);
   });
 
-  it('uses ProfileLauncher for other profiles', async () => {
+  it('uses ProfileLauncher for other profiles when current profile is undetected', async () => {
     let launchCalled = false;
 
     const { handlers } = createHandlers({
@@ -162,6 +162,112 @@ describe('AccountsPanelHandlers launch', () => {
       projectPath: '/Users/dev/other-project',
     });
 
+    assert.equal(launchCalled, true);
+  });
+
+  it('opens folder in current window for same profile with no open workspace', async () => {
+    (vscode.workspace as { workspaceFolders?: unknown[] }).workspaceFolders = [];
+    let executeCalled = false;
+    let launchCalled = false;
+
+    const { handlers } = createHandlers({
+      onExecuteCommand: async () => {
+        executeCalled = true;
+      },
+      profileLauncher: {
+        launch: async () => {
+          launchCalled = true;
+          return { success: true };
+        },
+      },
+    });
+
+    await handlers.handle({
+      type: 'launch',
+      profileId: 'p1',
+      projectPath: '/Users/dev/other-project',
+    });
+
+    assert.equal(executeCalled, true);
+    assert.equal(launchCalled, false);
+  });
+
+  it('opens folder in current window when same profile has another project open', async () => {
+    let executeArgs: unknown[] | undefined;
+    let launchCalled = false;
+
+    const { handlers } = createHandlers({
+      onExecuteCommand: async (...args: unknown[]) => {
+        executeArgs = args;
+      },
+      profileLauncher: {
+        launch: async () => {
+          launchCalled = true;
+          return { success: true };
+        },
+      },
+    });
+
+    await handlers.handle({
+      type: 'launch',
+      profileId: 'p1',
+      projectPath: '/Users/dev/other-project',
+    });
+
+    assert.equal(executeArgs?.[0], 'vscode.openFolder');
+    assert.equal(launchCalled, false);
+  });
+
+  it('uses ProfileLauncher for different profile with empty current workspace', async () => {
+    (vscode.workspace as { workspaceFolders?: unknown[] }).workspaceFolders = [];
+    let executeCalled = false;
+    let launchCalled = false;
+
+    const { handlers } = createHandlers({
+      onExecuteCommand: async () => {
+        executeCalled = true;
+      },
+      profileLauncher: {
+        launch: async () => {
+          launchCalled = true;
+          return { success: true, pid: 99 };
+        },
+      },
+    });
+
+    await handlers.handle({
+      type: 'launch',
+      profileId: 'p2',
+      projectPath: '/Users/dev/work-project',
+    });
+
+    assert.equal(executeCalled, false);
+    assert.equal(launchCalled, true);
+  });
+
+  it('uses ProfileLauncher for different profile when current has a workspace open', async () => {
+    let executeCalled = false;
+    let launchCalled = false;
+
+    const { handlers } = createHandlers({
+      onExecuteCommand: async () => {
+        executeCalled = true;
+      },
+      profileLauncher: {
+        launch: async () => {
+          launchCalled = true;
+          return { success: true, pid: 99 };
+        },
+      },
+    });
+
+    await handlers.handle({
+      type: 'launch',
+      profileId: 'p2',
+      projectPath: '/Users/dev/work-project',
+    });
+
+    assert.equal(executeCalled, false);
     assert.equal(launchCalled, true);
   });
 });

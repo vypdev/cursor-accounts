@@ -17,6 +17,11 @@ export function getOpenWorkspacePaths(): string[] {
   return paths;
 }
 
+/** Whether the active window has at least one folder or workspace file open. */
+export function hasActiveWorkspace(): boolean {
+  return getOpenWorkspacePaths().length > 0;
+}
+
 /** Whether a project path is already open in the active window. */
 export function isWorkspacePathOpen(
   projectPath: string,

@@ -21,8 +21,9 @@ import type {
 import type { StorageCleanupOptions } from '@cursor-accounts/types';
 import { createEmptyStorageBreakdown } from '@cursor-accounts/types';
 import type { ProfileDetector } from '../profiles/profileDetector';
+import { resolveRecentProjectLaunch } from '../profiles/recentProjectLaunchRouter';
 import type { ProfileWorkspaceService } from '../services/profileWorkspaceService';
-import { isWorkspacePathOpen } from '../services/activeWorkspaceService';
+import { getOpenWorkspacePaths } from '../services/activeWorkspaceService';
 import { buildSuggestedProfileResponse } from './suggestedProfile';
 import { calculateProfileStorageSize } from '../utils/storageSize';
 
@@ -139,58 +140,82 @@ export class AccountsPanelHandlers {
       );
 
       const current = await this.deps.profileDetector.detectCurrentProfile();
+      const openWorkspacePaths = getOpenWorkspacePaths();
 
-      if (projectPath && current?.id === profileId) {
-        if (isWorkspacePathOpen(projectPath)) {
+      if (projectPath) {
+        const action = resolveRecentProjectLaunch({
+          targetProfileId: profileId,
+          projectPath,
+          currentProfileId: current?.id ?? null,
+          openWorkspacePaths,
+        });
+
+        if (action.kind === 'noop') {
           extensionLog.debug(
             `[AccountsPanel] Project already open in session: ${projectPath}`
           );
           return;
         }
 
-        await vscode.commands.executeCommand(
-          'vscode.openFolder',
-          vscode.Uri.file(projectPath),
-          { forceNewWindow: false }
+        if (action.kind === 'openInCurrentWindow') {
+          await vscode.commands.executeCommand(
+            'vscode.openFolder',
+            vscode.Uri.file(action.projectPath),
+            { forceNewWindow: false }
+          );
+          await this.callbacks.refresh();
+          return;
+        }
+
+        const result = await this.deps.profileLauncher.launch(
+          action.profileId,
+          { projectPath: action.projectPath }
         );
-        await this.callbacks.refresh();
+        await this.postLaunchResult(profileId, action.projectPath, result);
         return;
       }
 
       const resolvedProjectPath =
-        projectPath ??
-        (await this.deps.profileWorkspaceService.getMostRecentWorkspace(
+        await this.deps.profileWorkspaceService.getMostRecentWorkspace(
           profileId
-        ));
+        );
 
       const result = await this.deps.profileLauncher.launch(profileId, {
         projectPath: resolvedProjectPath,
       });
+      await this.postLaunchResult(profileId, resolvedProjectPath, result);
 
-      if (result.success) {
-        const profile = await this.deps.profileManager.getProfile(profileId);
-        const successMessage = resolvedProjectPath
-          ? t('panel.launchedWithProject', {
-              name: profile?.displayName ?? t('panel.profileFallback'),
-              project: path.basename(resolvedProjectPath),
-            })
-          : t('panel.launched', {
-              name: profile?.displayName ?? t('panel.profileFallback'),
-            });
-        await this.callbacks.postMessage({
-          type: 'success',
-          message: successMessage,
-        });
-        await this.callbacks.refresh();
-        void this.callbacks.refreshInstances();
-      } else {
-        await this.callbacks.postMessage({
-          type: 'error',
-          message: result.error ?? t('errors.failedLaunchProfile'),
-        });
-      }
     } finally {
       this.launchInFlight.delete(profileId);
+    }
+  }
+
+  private async postLaunchResult(
+    profileId: string,
+    resolvedProjectPath: string | undefined,
+    result: { success: boolean; error?: string }
+  ): Promise<void> {
+    if (result.success) {
+      const profile = await this.deps.profileManager.getProfile(profileId);
+      const successMessage = resolvedProjectPath
+        ? t('panel.launchedWithProject', {
+            name: profile?.displayName ?? t('panel.profileFallback'),
+            project: path.basename(resolvedProjectPath),
+          })
+        : t('panel.launched', {
+            name: profile?.displayName ?? t('panel.profileFallback'),
+          });
+      await this.callbacks.postMessage({
+        type: 'success',
+        message: successMessage,
+      });
+      await this.callbacks.refresh();
+      void this.callbacks.refreshInstances();
+    } else {
+      await this.callbacks.postMessage({
+        type: 'error',
+        message: result.error ?? t('errors.failedLaunchProfile'),
+      });
     }
   }
 
