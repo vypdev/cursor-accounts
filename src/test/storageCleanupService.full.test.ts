@@ -254,6 +254,60 @@ describe('StorageCleanupService full coverage', () => {
     assert.equal(result.success, true);
     assert.equal(deepClean.mock.callCount(), 1);
     assert.match(result.message, /Deep clean completed/);
+    assert.equal(result.bytesReclaimed, 4096);
+  });
+
+  it('skips filesystem measurement for cleanExtensionCache', async () => {
+    const getProfileTotalBytes = mock.fn(async () => 1000);
+    const service = createService({
+      storageAnalyzer: {
+        getProfileTotalBytes,
+        calculateProfileStorageSize: async () => ({
+          profileId: 'p1',
+          databaseBytes: 1000,
+          walBytes: 0,
+          workspaceStorageBytes: 0,
+          editorCacheBytes: 0,
+          extensionCacheBytes: 0,
+          totalBytes: 1000,
+        }),
+      },
+    });
+
+    await service.cleanProfileStorage('p1', { action: 'cleanExtensionCache' });
+
+    assert.equal(getProfileTotalBytes.mock.callCount(), 0);
+  });
+
+  it('skips filesystem measurement for deepCleanDatabase', async () => {
+    const getProfileTotalBytes = mock.fn(async () => 1000);
+    const service = createService({
+      storageAnalyzer: {
+        getProfileTotalBytes,
+        calculateProfileStorageSize: async () => ({
+          profileId: 'p1',
+          databaseBytes: 1000,
+          walBytes: 0,
+          workspaceStorageBytes: 0,
+          editorCacheBytes: 0,
+          extensionCacheBytes: 0,
+          totalBytes: 1000,
+        }),
+      },
+      databaseCleanup: {
+        deepClean: async () => ({
+          backupPath: '/tmp/state.vscdb.backup-1',
+          bytesReclaimed: 2048,
+        }),
+      },
+    });
+
+    const result = await service.cleanProfileStorage('p1', {
+      action: 'deepCleanDatabase',
+    });
+
+    assert.equal(getProfileTotalBytes.mock.callCount(), 0);
+    assert.equal(result.bytesReclaimed, 2048);
   });
 
   it('computes reclaimed bytes after cleanup when analyzer reports less usage', async () => {

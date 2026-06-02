@@ -17,6 +17,9 @@ console.log('Building extension bundle...\n');
 console.log('1. Building @cursor-accounts/types...');
 run('pnpm --dir packages/types run build');
 
+console.log('\n1b. Building @cursor-accounts/shared...');
+run('pnpm --dir packages/shared run build');
+
 // Step 2: Build webview
 console.log('\n2. Building webview...');
 run('pnpm --dir webview run build');

@@ -1,17 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-
-function formatMembershipType(membershipType?: string): string | null {
-  if (!membershipType?.trim()) {
-    return null;
-  }
-
-  return membershipType
-    .split(/[_\s-]+/)
-    .filter(Boolean)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(' ');
-}
+import { formatMembershipType } from '@cursor-accounts/shared';
 
 describe('formatMembershipType', () => {
   it('returns null for empty values', () => {

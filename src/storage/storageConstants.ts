@@ -62,3 +62,17 @@ PRAGMA wal_checkpoint(TRUNCATE);
 /** Extension globalState keys cleared by cleanExtensionCache. */
 export const QUOTA_CACHE_KEY = 'multiProfileQuotaCache';
 export const LEADERBOARD_CACHE_KEY = 'multiProfileLeaderboardCache';
+
+/** Matches deep-clean backup siblings: state.vscdb.backup-<timestamp> */
+export const DEEP_CLEAN_BACKUP_NAME_PATTERN = /\.backup-\d+$/;
+
+export function isDeepCleanBackupFile(name: string): boolean {
+  return DEEP_CLEAN_BACKUP_NAME_PATTERN.test(name);
+}
+
+export function buildDeepCleanBackupPath(
+  dbPath: string,
+  timestamp = Date.now()
+): string {
+  return `${dbPath}.backup-${timestamp}`;
+}

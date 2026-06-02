@@ -33,7 +33,10 @@ export class NodeFileSystemService implements IFileSystemService {
     return stat?.isFile ? stat.size : 0;
   }
 
-  async getPathSize(targetPath: string): Promise<number> {
+  async getPathSize(
+    targetPath: string,
+    options?: { exclude?: (name: string) => boolean }
+  ): Promise<number> {
     try {
       const stat = await this.stat(targetPath);
       if (!stat) {
@@ -49,7 +52,10 @@ export class NodeFileSystemService implements IFileSystemService {
       const entries = await fs.readdir(targetPath, { withFileTypes: true });
       let total = 0;
       for (const entry of entries) {
-        total += await this.getPathSize(path.join(targetPath, entry.name));
+        if (options?.exclude?.(entry.name)) {
+          continue;
+        }
+        total += await this.getPathSize(path.join(targetPath, entry.name), options);
       }
       return total;
     } catch (error) {

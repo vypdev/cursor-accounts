@@ -24,7 +24,10 @@ export interface IFileSystemService {
   getFileSize(filePath: string): Promise<number>;
 
   /** Recursive size of a file or directory tree. */
-  getPathSize(targetPath: string): Promise<number>;
+  getPathSize(
+    targetPath: string,
+    options?: { exclude?: (name: string) => boolean }
+  ): Promise<number>;
 
   /**
    * Remove a directory tree and return bytes reclaimed.

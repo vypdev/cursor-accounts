@@ -10,6 +10,22 @@ export interface StorageBreakdown {
   error?: string;
 }
 
+export function createEmptyStorageBreakdown(
+  profileId: string,
+  error?: string
+): StorageBreakdown {
+  return {
+    profileId,
+    databaseBytes: 0,
+    walBytes: 0,
+    workspaceStorageBytes: 0,
+    editorCacheBytes: 0,
+    extensionCacheBytes: 0,
+    totalBytes: 0,
+    error,
+  };
+}
+
 export type StorageCleanupAction =
   | 'deleteOldChats'
   | 'gcAgentKvBlobs'

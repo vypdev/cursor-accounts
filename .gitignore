@@ -12,6 +12,8 @@ dist/
 .tmp/
 .bin-all-backup/
 *.tsbuildinfo
+webview/src/**/*.js
+webview/src/**/*.js.map
 
 # Extension package
 *.vsix

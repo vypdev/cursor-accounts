@@ -1,10 +1,10 @@
-import { execFileSync } from 'child_process';
+import { spawn } from 'child_process';
+import { validateStateDbPath } from '../utils/pathUtils';
 import type { IDatabaseCleanupService } from '../domain/ports/IDatabaseCleanupService';
 import { getSqlite3Binary } from '../auth/sqliteBinary';
-import { validateStateDbPath } from '../auth/tokenReader';
 import * as extensionLog from '../logging/extensionLog';
 import type { IFileSystemService } from '../domain/ports/IFileSystemService';
-import { DEEP_CLEAN_SQL } from './storageConstants';
+import { buildDeepCleanBackupPath, DEEP_CLEAN_SQL } from './storageConstants';
 
 export interface SqliteCleanupServiceDeps {
   extensionPath: string;
@@ -41,7 +41,7 @@ export class SqliteCleanupService implements IDatabaseCleanupService {
     validateStateDbPath(dbPath);
 
     const beforeDbBytes = await this.deps.fileSystem.getFileSize(dbPath);
-    const backupPath = `${dbPath}.backup-${Date.now()}`;
+    const backupPath = buildDeepCleanBackupPath(dbPath);
     await this.deps.fileSystem.copyFile(dbPath, backupPath);
     extensionLog.info(`[StorageCleanup] Backup created at ${backupPath}`);
 
@@ -53,13 +53,40 @@ export class SqliteCleanupService implements IDatabaseCleanupService {
     return { backupPath, bytesReclaimed };
   }
 
-  private runSqliteScript(dbPath: string, script: string): void {
+  private runSqliteScript(dbPath: string, script: string): Promise<void> {
     const sqliteBinary = getSqlite3Binary(this.deps.extensionPath);
-    execFileSync(sqliteBinary, [dbPath], {
-      input: script,
-      encoding: 'utf-8',
-      timeout: 120_000,
-      maxBuffer: 10 * 1024 * 1024,
+
+    return new Promise((resolve, reject) => {
+      const child = spawn(sqliteBinary, [dbPath], {
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+
+      let stderr = '';
+      const timeout = setTimeout(() => {
+        child.kill();
+        reject(new Error(`SQLite script timed out for ${dbPath}`));
+      }, 120_000);
+
+      child.stderr.on('data', (chunk: Buffer | string) => {
+        stderr += chunk.toString();
+      });
+      child.on('error', (error) => {
+        clearTimeout(timeout);
+        reject(error);
+      });
+      child.on('close', (code) => {
+        clearTimeout(timeout);
+        if (code === 0) {
+          resolve();
+          return;
+        }
+        reject(
+          new Error(stderr.trim() || `SQLite exited with code ${code ?? 'unknown'}`)
+        );
+      });
+
+      child.stdin.write(script);
+      child.stdin.end();
     });
   }
 }

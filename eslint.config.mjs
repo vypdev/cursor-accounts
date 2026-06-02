@@ -10,6 +10,7 @@ export default tseslint.config(
       'webview-dist/**',
       'node_modules/**',
       'packages/types/dist/**',
+      'packages/shared/dist/**',
       '**/*.vsix',
       'bin/**',
       'eslint.config.mjs',
@@ -104,6 +105,16 @@ export default tseslint.config(
           ],
         },
       ],
+    },
+  },
+  {
+    files: ['packages/shared/src/**/*.ts'],
+    extends: [...tseslint.configs.recommendedTypeChecked],
+    languageOptions: {
+      parserOptions: {
+        project: './packages/shared/tsconfig.json',
+        tsconfigRootDir: import.meta.dirname,
+      },
     },
   },
   {

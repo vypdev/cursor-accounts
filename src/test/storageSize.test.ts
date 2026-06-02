@@ -68,6 +68,32 @@ describe('storageSize', () => {
       assert.equal(breakdown.error, undefined);
     });
 
+    it('excludes deep clean backup files from extension cache size', async () => {
+      const userDataDir = path.join(tempRoot, 'profile-backup');
+      const stateDbPath = path.join(
+        userDataDir,
+        'User',
+        'globalStorage',
+        'state.vscdb'
+      );
+
+      await fs.mkdir(path.dirname(stateDbPath), { recursive: true });
+      await fs.writeFile(stateDbPath, Buffer.alloc(1024));
+      await fs.writeFile(`${stateDbPath}-wal`, Buffer.alloc(256));
+      await fs.writeFile(
+        `${stateDbPath}.backup-1234567890`,
+        Buffer.alloc(5000)
+      );
+
+      const breakdown = await calculateProfileStorageSize(
+        'profile-backup',
+        userDataDir
+      );
+
+      assert.equal(breakdown.extensionCacheBytes, 0);
+      assert.equal(breakdown.totalBytes, 1024 + 256);
+    });
+
     it('rejects unsafe paths', async () => {
       const breakdown = await calculateProfileStorageSize(
         'profile-b',

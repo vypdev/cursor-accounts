@@ -1,8 +1,8 @@
 import { NodeFileSystemService } from '../storage/nodeFileSystemService';
 import {
   ProfileStorageAnalyzer,
-  formatBytes,
 } from '../storage/profileStorageAnalyzer';
+import { formatBytes } from '@cursor-accounts/shared';
 
 export { formatBytes };
 

@@ -152,6 +152,13 @@ const AppContent: React.FC = () => {
           if (storageProfileId) {
             setLastCleanupResult(message.data);
             setCleanupInProgress(false);
+            if (message.data.success) {
+              setSuccess(message.data.message);
+              setTimeout(() => setSuccess(null), 4000);
+            } else {
+              setError(message.data.message);
+              setTimeout(() => setError(null), 5000);
+            }
           }
           break;
       }

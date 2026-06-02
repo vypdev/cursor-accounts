@@ -20,9 +20,10 @@ There is no backend service. Everything runs in the **Extension Host**, with net
 |---------|------|------|
 | Extension host | `src/` | VS Code extension (TypeScript → `out/`) |
 | Shared types | `packages/types` (`@cursor-accounts/types`) | Entities, quota rules, webview contracts |
+| Shared utilities | `packages/shared` (`@cursor-accounts/shared`) | Pure presentation helpers (e.g. `formatBytes`, `formatMembershipType`) with no VS Code/Node deps |
 | Webview UI | `webview/` | React Accounts panel (bundled to `webview-dist/`) |
 
-The shared types package has **no dependencies** on VS Code or Node APIs. Extension and webview both consume it; the webview talks to the host only via `postMessage`.
+The shared types package has **no dependencies** on VS Code or Node APIs. `@cursor-accounts/shared` is likewise dependency-free and safe for both extension and webview. Extension and webview both consume `types`; formatters live in `shared`. The webview talks to the host only via `postMessage`.
 
 ## High-level structure
 
@@ -32,6 +33,9 @@ graph TB
     Entities[entities/]
     Rules[rules/quotaRules]
     Contracts[contracts/webviewMessages]
+  end
+  subgraph sharedUtils [packages/shared]
+    Formatters[formatters]
   end
   subgraph domain [src/domain]
     Ports[ports/]
@@ -71,6 +75,7 @@ graph TB
   presentation --> runtime
   presentation --> infra
   Webview --> shared
+  Webview --> sharedUtils
   Panel --> Webview
 ```
 
@@ -106,9 +111,10 @@ graph TB
 | Layer | May import from |
 |-------|-----------------|
 | `packages/types` | TypeScript only |
+| `packages/shared` | TypeScript only |
 | `src/domain` | `@cursor-accounts/types`, local ports |
-| `src/api`, `src/auth`, `src/profiles` | `domain`, `@cursor-accounts/types`, utilities |
-| `src/services`, `src/ui` | `domain`, infrastructure modules, `@cursor-accounts/types` |
+| `src/api`, `src/auth`, `src/profiles` | `domain`, `@cursor-accounts/types`, `@cursor-accounts/shared`, utilities |
+| `src/services`, `src/ui` | `domain`, infrastructure modules, `@cursor-accounts/types`, `@cursor-accounts/shared` |
 | `extension.ts` | All layers (composition root) |
 
 **Not allowed:** `api` → `ui`; `profiles` → `ui`; `domain` → outer layers.
@@ -267,7 +273,7 @@ sequenceDiagram
 | `vacuumDatabase` | Must be closed | None (compacts DB) |
 | `deepCleanDatabase` | Must be closed | Deletes composer/agent KV rows; backup created first |
 
-**Security:** All profile paths are validated with `validateUserDataPath()` before filesystem or SQLite access. Database paths are additionally checked with `validateStateDbPath()`.
+**Security:** All profile paths are validated with `validateUserDataPath()` in `src/utils/pathUtils.ts` before filesystem or SQLite access. Database paths are additionally checked with `validateStateDbPath()` in the same module (not in `auth/`).
 
 ## External dependencies
 

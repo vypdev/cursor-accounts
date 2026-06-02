@@ -2,3 +2,4 @@ packages:
   - '.'
   - 'webview'
   - 'packages/types'
+  - 'packages/shared'

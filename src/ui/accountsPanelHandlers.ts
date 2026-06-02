@@ -18,6 +18,7 @@ import type {
   ToWebviewMessage,
 } from '../profiles/types';
 import type { StorageCleanupOptions } from '@cursor-accounts/types';
+import { createEmptyStorageBreakdown } from '@cursor-accounts/types';
 import type { ProfileDetector } from '../profiles/profileDetector';
 import { buildSuggestedProfileResponse } from './suggestedProfile';
 import { calculateProfileStorageSize } from '../utils/storageSize';
@@ -274,7 +275,14 @@ export class AccountsPanelHandlers {
   private async handleRequestStorageInfo(profileId: string): Promise<void> {
     const profile = await this.deps.profileManager.getProfile(profileId);
     if (!profile) {
-      throw new Error(t('errors.profileNotFound'));
+      await this.callbacks.postMessage({
+        type: 'storageInfo',
+        data: createEmptyStorageBreakdown(
+          profileId,
+          t('errors.profileNotFound')
+        ),
+      });
+      return;
     }
 
     const breakdown = await this.getStorageBreakdown(
@@ -307,11 +315,6 @@ export class AccountsPanelHandlers {
     });
 
     if (result.success) {
-      await this.callbacks.postMessage({
-        type: 'success',
-        message: result.message,
-      });
-
       const profile = await this.deps.profileManager.getProfile(profileId);
       if (profile) {
         const breakdown = await this.getStorageBreakdown(
@@ -323,11 +326,6 @@ export class AccountsPanelHandlers {
           data: breakdown,
         });
       }
-    } else {
-      await this.callbacks.postMessage({
-        type: 'error',
-        message: result.message,
-      });
     }
   }
 

@@ -13,7 +13,14 @@ import type { InstanceDetector } from '../profiles/instanceDetector';
 import type { ProfileDetector } from '../profiles/profileDetector';
 import type { ProfileManager } from '../profiles/profileManager';
 import { validateUserDataPath } from '../utils/pathUtils';
-import { formatBytes } from '../storage/profileStorageAnalyzer';
+import { formatBytes } from '@cursor-accounts/shared';
+
+const ACTIONS_WITHOUT_FS_DELTA = new Set<StorageCleanupOptions['action']>([
+  'deleteOldChats',
+  'gcAgentKvBlobs',
+  'cleanExtensionCache',
+  'deepCleanDatabase',
+]);
 
 export interface StorageCleanupServiceDeps {
   profileManager: ProfileManager;
@@ -65,9 +72,10 @@ export class StorageCleanupService implements IStorageCleanupService {
       };
     }
 
-    const beforeBytes = await this.deps.storageAnalyzer.getProfileTotalBytes(
-      profile.userDataDir
-    );
+    const skipsFilesystemDelta = ACTIONS_WITHOUT_FS_DELTA.has(options.action);
+    const beforeBytes = skipsFilesystemDelta
+      ? 0
+      : await this.deps.storageAnalyzer.getProfileTotalBytes(profile.userDataDir);
 
     try {
       let result: StorageCleanupResult;
@@ -112,11 +120,7 @@ export class StorageCleanupService implements IStorageCleanupService {
           };
       }
 
-      if (
-        result.success &&
-        options.action !== 'deleteOldChats' &&
-        options.action !== 'gcAgentKvBlobs'
-      ) {
+      if (result.success && !skipsFilesystemDelta) {
         const afterBytes = await this.deps.storageAnalyzer.getProfileTotalBytes(
           profile.userDataDir
         );

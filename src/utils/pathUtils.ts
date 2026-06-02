@@ -102,6 +102,37 @@ export function validateUserDataPath(userDataDir: string): {
 }
 
 /**
+ * Validate that a state.vscdb path is safe to read.
+ * Path must be within the user's home directory and not a system directory.
+ */
+export function validateStateDbPath(dbPath: string): void {
+  const normalized = path.normalize(path.resolve(dbPath));
+  const home = path.normalize(os.homedir());
+
+  if (!normalized.startsWith(home)) {
+    throw new Error('Database path must be within user home directory');
+  }
+
+  const systemDirs =
+    process.platform === 'win32'
+      ? ['C:\\Windows', 'C:\\Program Files', 'C:\\Program Files (x86)']
+      : ['/', '/System', '/usr', '/bin', '/sbin', '/etc'];
+
+  for (const sysDir of systemDirs) {
+    const normalizedSysDir = path.normalize(sysDir);
+    if (normalizedSysDir === path.sep) {
+      if (normalized === path.sep) {
+        throw new Error('Cannot read from system directory');
+      }
+      continue;
+    }
+    if (normalized.startsWith(normalizedSysDir)) {
+      throw new Error('Cannot read from system directory');
+    }
+  }
+}
+
+/**
  * Ensure a path exists and is a directory.
  * Creates the directory if it doesn't exist.
  */

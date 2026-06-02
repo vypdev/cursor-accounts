@@ -1,46 +1,11 @@
 import * as path from 'path';
 import type { StorageBreakdown } from '@cursor-accounts/types';
+import { createEmptyStorageBreakdown } from '@cursor-accounts/types';
 import type { IFileSystemService } from '../domain/ports/IFileSystemService';
 import type { IProfileStorageAnalyzer } from '../domain/ports/IProfileStorageAnalyzer';
 import { getProfileStateDbPath } from '../auth/cursorPaths';
 import { validateUserDataPath } from '../utils/pathUtils';
-import { EDITOR_CACHE_DIRS } from './storageConstants';
-
-/** Format byte counts for display (e.g. 1536 -> "1.5 KB"). */
-export function formatBytes(bytes: number): string {
-  if (!Number.isFinite(bytes) || bytes < 0) {
-    return '0 B';
-  }
-  if (bytes === 0) {
-    return '0 B';
-  }
-
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'] as const;
-  const exponent = Math.min(
-    Math.floor(Math.log(bytes) / Math.log(1024)),
-    units.length - 1
-  );
-  const value = bytes / 1024 ** exponent;
-  const formatted =
-    value >= 100 || exponent === 0
-      ? Math.round(value).toString()
-      : value.toFixed(1);
-
-  return `${formatted} ${units[exponent]}`;
-}
-
-function emptyBreakdown(profileId: string, error?: string): StorageBreakdown {
-  return {
-    profileId,
-    databaseBytes: 0,
-    walBytes: 0,
-    workspaceStorageBytes: 0,
-    editorCacheBytes: 0,
-    extensionCacheBytes: 0,
-    totalBytes: 0,
-    error,
-  };
-}
+import { EDITOR_CACHE_DIRS, isDeepCleanBackupFile } from './storageConstants';
 
 /**
  * Calculates per-profile storage breakdown using an injected filesystem port.
@@ -54,7 +19,7 @@ export class ProfileStorageAnalyzer implements IProfileStorageAnalyzer {
   ): Promise<StorageBreakdown> {
     const validation = validateUserDataPath(userDataDir);
     if (!validation.valid) {
-      return emptyBreakdown(profileId, validation.error);
+      return createEmptyStorageBreakdown(profileId, validation.error);
     }
 
     try {
@@ -81,8 +46,10 @@ export class ProfileStorageAnalyzer implements IProfileStorageAnalyzer {
         );
       }
 
-      const globalStorageBytes =
-        await this.fileSystem.getPathSize(globalStorageDir);
+      const globalStorageBytes = await this.fileSystem.getPathSize(
+        globalStorageDir,
+        { exclude: isDeepCleanBackupFile }
+      );
       const extensionCacheBytes = Math.max(
         0,
         globalStorageBytes - databaseBytes - walBytes
@@ -106,7 +73,7 @@ export class ProfileStorageAnalyzer implements IProfileStorageAnalyzer {
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      return emptyBreakdown(profileId, message);
+      return createEmptyStorageBreakdown(profileId, message);
     }
   }
 

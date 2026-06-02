@@ -113,20 +113,25 @@ describe('AccountsPanelHandlers storage', () => {
     }
   });
 
-  it('throws when requesting storage for missing profile', async () => {
-    const { handlers } = createHandlers({
+  it('posts storage error when requesting storage for missing profile', async () => {
+    const { handlers, postedMessages } = createHandlers({
       profileManager: {
         getProfile: async () => undefined,
       },
     });
 
-    await assert.rejects(
-      handlers.handle({
-        type: 'requestStorageInfo',
-        profileId: 'missing',
-      } satisfies FromWebviewMessage),
-      /Profile not found/
-    );
+    await handlers.handle({
+      type: 'requestStorageInfo',
+      profileId: 'missing',
+    } satisfies FromWebviewMessage);
+
+    const storageMessage = postedMessages.find((m) => m.type === 'storageInfo');
+    assert.ok(storageMessage);
+    if (storageMessage?.type === 'storageInfo') {
+      assert.equal(storageMessage.data.profileId, 'missing');
+      assert.equal(storageMessage.data.error, 'Profile not found');
+      assert.equal(storageMessage.data.totalBytes, 0);
+    }
   });
 
   it('posts cleanup result and refreshed storage on success', async () => {
@@ -149,7 +154,7 @@ describe('AccountsPanelHandlers storage', () => {
     assert.equal(cleanProfileStorage.mock.callCount(), 1);
     assert.ok(postedMessages.some((m) => m.type === 'storageCleanupResult'));
     assert.ok(postedMessages.some((m) => m.type === 'storageInfo'));
-    assert.ok(postedMessages.some((m) => m.type === 'success'));
+    assert.equal(postedMessages.some((m) => m.type === 'success'), false);
   });
 
   it('posts error message when cleanup fails', async () => {
@@ -170,12 +175,12 @@ describe('AccountsPanelHandlers storage', () => {
       options: { action: 'vacuumDatabase' },
     } satisfies FromWebviewMessage);
 
-    assert.ok(postedMessages.some((m) => m.type === 'error'));
     assert.ok(
       postedMessages.some(
         (m) => m.type === 'storageCleanupResult' && !m.data.success
       )
     );
+    assert.equal(postedMessages.some((m) => m.type === 'error'), false);
   });
 });
 
