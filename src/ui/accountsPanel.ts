@@ -148,6 +148,10 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
         void this.refresh();
       }
     });
+
+    if (webviewView.visible) {
+      void this.refresh();
+    }
   }
 
   /** Fallback when the sidebar webview never resolves (Cursor/VS Code race). */

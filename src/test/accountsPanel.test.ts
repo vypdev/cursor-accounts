@@ -255,6 +255,17 @@ describe('AccountsPanelProvider', () => {
     }
   });
 
+  it('sends init message when resolved while already visible', async () => {
+    resolvePanel();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    const initMessage = mockWebview.postedMessages.find((m) => m.type === 'init');
+    assert.ok(initMessage);
+    if (initMessage?.type === 'init') {
+      assert.deepEqual(initMessage.data.profiles, []);
+    }
+  });
+
   it('sends init message with profiles after refresh', async () => {
     await manager.createProfile({
       email: 'user@example.com',
