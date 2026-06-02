@@ -77,6 +77,11 @@ function createHandlers(overrides: {
         getProfileTotalBytes: async () => 1024,
         ...overrides.storageAnalyzer,
       },
+      profileWorkspaceService: {
+        getMostRecentWorkspace: async () => undefined,
+        getWorkspacesForProfile: async () => [],
+        getProfilesWithWorkspaces: async () => [],
+      } as unknown as import('../services/profileWorkspaceService').ProfileWorkspaceService,
     },
     {
       postMessage: async (message) => {

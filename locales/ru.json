@@ -220,7 +220,6 @@
   "webview.profileCard.manageStorage": "Управление файлами",
   "webview.profileCard.accountType": "Тип аккаунта",
   "webview.profileCard.delete": "Удалить",
-
   "webview.storage.title": "Управление файлами",
   "webview.storage.loading": "Вычисление объёма хранилища…",
   "webview.storage.total": "Общий объём",
@@ -250,7 +249,6 @@
   "webview.storage.confirmEditorCache": "Удалить папки кэша редактора для этого профиля?",
   "webview.storage.confirmVacuum": "Сжать базу данных, чтобы освободить неиспользуемое место?",
   "webview.storage.confirmDeepClean": "Глубокая очистка удалит историю чата и composer из локальной базы. Будет создана резервная копия. Продолжить?",
-
   "storageCleanup.profileNotFound": "Профиль не найден",
   "storageCleanup.invalidPath": "Недопустимый путь хранилища профиля",
   "storageCleanup.unknownAction": "Неизвестное действие очистки",
@@ -266,5 +264,8 @@
   "storageCleanup.profileRunning": "Закройте этот профиль перед выполнением этого действия очистки.",
   "storageCleanup.editorCacheCleared": "Кэш редактора очищен ({amount})",
   "storageCleanup.vacuumCompleted": "Сжатие базы данных завершено",
-  "storageCleanup.deepCleanCompleted": "Глубокая очистка завершена (из базы восстановлено {amount})"
+  "storageCleanup.deepCleanCompleted": "Глубокая очистка завершена (из базы восстановлено {amount})",
+  "panel.launchedWithProject": "Launched {name} with project {project}",
+  "webview.profileCard.recentProjects": "Opened Projects",
+  "webview.profileCard.openProject": "Open"
 }

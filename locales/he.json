@@ -220,7 +220,6 @@
   "webview.profileCard.manageStorage": "ניהול קבצים",
   "webview.profileCard.accountType": "סוג חשבון",
   "webview.profileCard.delete": "מחק",
-
   "webview.storage.title": "ניהול קבצים",
   "webview.storage.loading": "מחשב אחסון…",
   "webview.storage.total": "אחסון כולל",
@@ -250,7 +249,6 @@
   "webview.storage.confirmEditorCache": "להסיר תיקיות מטמון עורך לפרופיל זה?",
   "webview.storage.confirmVacuum": "לדחוס את המסד כדי לשחרר מקום לא מנוצל?",
   "webview.storage.confirmDeepClean": "ניקוי עמוק יסיר היסטוריית צ'אט ו-composer מהמסד המקומי. ייווצר גיבוי. להמשיך?",
-
   "storageCleanup.profileNotFound": "הפרופיל לא נמצא",
   "storageCleanup.invalidPath": "נתיב אחסון פרופיל לא תקין",
   "storageCleanup.unknownAction": "פעולת ניקוי לא ידועה",
@@ -266,5 +264,8 @@
   "storageCleanup.profileRunning": "סגור פרופיל זה לפני הרצת פעולת ניקוי זו.",
   "storageCleanup.editorCacheCleared": "מטמון העורך נוקה ({amount})",
   "storageCleanup.vacuumCompleted": "דחיסת מסד הנתונים הושלמה",
-  "storageCleanup.deepCleanCompleted": "ניקוי עמוק הושלם ({amount} שוחזרו מהמסד)"
+  "storageCleanup.deepCleanCompleted": "ניקוי עמוק הושלם ({amount} שוחזרו מהמסד)",
+  "panel.launchedWithProject": "Launched {name} with project {project}",
+  "webview.profileCard.recentProjects": "Opened Projects",
+  "webview.profileCard.openProject": "Open"
 }

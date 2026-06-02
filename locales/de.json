@@ -220,7 +220,6 @@
   "webview.profileCard.manageStorage": "Dateiverwaltung",
   "webview.profileCard.accountType": "Kontotyp",
   "webview.profileCard.delete": "Löschen",
-
   "webview.storage.title": "Dateiverwaltung",
   "webview.storage.loading": "Speicher wird berechnet…",
   "webview.storage.total": "Gesamtspeicher",
@@ -250,7 +249,6 @@
   "webview.storage.confirmEditorCache": "Editor-Cache-Ordner für dieses Profil entfernen?",
   "webview.storage.confirmVacuum": "Datenbank komprimieren, um ungenutzten Speicher freizugeben?",
   "webview.storage.confirmDeepClean": "Die gründliche Bereinigung entfernt Chat- und Composer-Verlauf aus der lokalen Datenbank. Ein Backup wird erstellt. Fortfahren?",
-
   "storageCleanup.profileNotFound": "Profil nicht gefunden",
   "storageCleanup.invalidPath": "Ungültiger Profilspeicherpfad",
   "storageCleanup.unknownAction": "Unbekannte Bereinigungsaktion",
@@ -266,5 +264,8 @@
   "storageCleanup.profileRunning": "Schließen Sie dieses Profil, bevor Sie diese Bereinigungsaktion ausführen.",
   "storageCleanup.editorCacheCleared": "Editor-Cache geleert ({amount})",
   "storageCleanup.vacuumCompleted": "Datenbankkomprimierung abgeschlossen",
-  "storageCleanup.deepCleanCompleted": "Gründliche Bereinigung abgeschlossen ({amount} aus der Datenbank zurückgewonnen)"
+  "storageCleanup.deepCleanCompleted": "Gründliche Bereinigung abgeschlossen ({amount} aus der Datenbank zurückgewonnen)",
+  "panel.launchedWithProject": "Launched {name} with project {project}",
+  "webview.profileCard.recentProjects": "Opened Projects",
+  "webview.profileCard.openProject": "Open"
 }

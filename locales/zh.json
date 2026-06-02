@@ -220,7 +220,6 @@
   "webview.profileCard.manageStorage": "文件管理",
   "webview.profileCard.accountType": "账户类型",
   "webview.profileCard.delete": "删除",
-
   "webview.storage.title": "文件管理",
   "webview.storage.loading": "正在计算存储空间…",
   "webview.storage.total": "总存储",
@@ -250,7 +249,6 @@
   "webview.storage.confirmEditorCache": "移除此配置文件的编辑器缓存文件夹？",
   "webview.storage.confirmVacuum": "压缩数据库以回收未使用空间？",
   "webview.storage.confirmDeepClean": "深度清理将从本地数据库中移除聊天和 composer 历史。将创建备份。是否继续？",
-
   "storageCleanup.profileNotFound": "未找到配置文件",
   "storageCleanup.invalidPath": "配置文件存储路径无效",
   "storageCleanup.unknownAction": "未知的清理操作",
@@ -266,5 +264,8 @@
   "storageCleanup.profileRunning": "运行此清理操作前请关闭配置文件。",
   "storageCleanup.editorCacheCleared": "已清除编辑器缓存 ({amount})",
   "storageCleanup.vacuumCompleted": "数据库压缩已完成",
-  "storageCleanup.deepCleanCompleted": "深度清理已完成（从数据库回收 {amount}）"
+  "storageCleanup.deepCleanCompleted": "深度清理已完成（从数据库回收 {amount}）",
+  "panel.launchedWithProject": "Launched {name} with project {project}",
+  "webview.profileCard.recentProjects": "Opened Projects",
+  "webview.profileCard.openProject": "Open"
 }

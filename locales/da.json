@@ -220,7 +220,6 @@
   "webview.profileCard.manageStorage": "Filhåndtering",
   "webview.profileCard.accountType": "Kontotype",
   "webview.profileCard.delete": "Slet",
-
   "webview.storage.title": "Filhåndtering",
   "webview.storage.loading": "Beregner lagerplads…",
   "webview.storage.total": "Samlet lagerplads",
@@ -250,7 +249,6 @@
   "webview.storage.confirmEditorCache": "Fjern editor-cache-mapper for denne profil?",
   "webview.storage.confirmVacuum": "Komprimer databasen for at frigøre ubrugt plads?",
   "webview.storage.confirmDeepClean": "Dyb rengøring fjerner chat- og composer-historik fra den lokale database. En sikkerhedskopi oprettes. Fortsæt?",
-
   "storageCleanup.profileNotFound": "Profil ikke fundet",
   "storageCleanup.invalidPath": "Ugyldig profillagersti",
   "storageCleanup.unknownAction": "Ukendt oprydningshandling",
@@ -266,5 +264,8 @@
   "storageCleanup.profileRunning": "Luk denne profil før du kører denne oprydningshandling.",
   "storageCleanup.editorCacheCleared": "Editor-cache ryddet ({amount})",
   "storageCleanup.vacuumCompleted": "Databasekomprimering fuldført",
-  "storageCleanup.deepCleanCompleted": "Dyb rengøring fuldført ({amount} genvundet fra databasen)"
+  "storageCleanup.deepCleanCompleted": "Dyb rengøring fuldført ({amount} genvundet fra databasen)",
+  "panel.launchedWithProject": "Launched {name} with project {project}",
+  "webview.profileCard.recentProjects": "Opened Projects",
+  "webview.profileCard.openProject": "Open"
 }

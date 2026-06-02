@@ -220,7 +220,6 @@
   "webview.profileCard.manageStorage": "Quản lý tệp",
   "webview.profileCard.accountType": "Loại tài khoản",
   "webview.profileCard.delete": "Xóa",
-
   "webview.storage.title": "Quản lý tệp",
   "webview.storage.loading": "Đang tính dung lượng lưu trữ…",
   "webview.storage.total": "Tổng dung lượng",
@@ -250,7 +249,6 @@
   "webview.storage.confirmEditorCache": "Xóa thư mục bộ nhớ đệm trình soạn thảo cho hồ sơ này?",
   "webview.storage.confirmVacuum": "Nén cơ sở dữ liệu để thu hồi dung lượng chưa dùng?",
   "webview.storage.confirmDeepClean": "Dọn sâu sẽ xóa lịch sử trò chuyện và composer khỏi cơ sở dữ liệu cục bộ. Sao lưu sẽ được tạo. Tiếp tục?",
-
   "storageCleanup.profileNotFound": "Không tìm thấy hồ sơ",
   "storageCleanup.invalidPath": "Đường dẫn lưu trữ hồ sơ không hợp lệ",
   "storageCleanup.unknownAction": "Thao tác dọn dẹp không xác định",
@@ -266,5 +264,8 @@
   "storageCleanup.profileRunning": "Đóng hồ sơ này trước khi chạy thao tác dọn dẹp này.",
   "storageCleanup.editorCacheCleared": "Đã xóa bộ nhớ đệm trình soạn thảo ({amount})",
   "storageCleanup.vacuumCompleted": "Hoàn tất nén cơ sở dữ liệu",
-  "storageCleanup.deepCleanCompleted": "Hoàn tất dọn sâu (thu hồi {amount} từ cơ sở dữ liệu)"
+  "storageCleanup.deepCleanCompleted": "Hoàn tất dọn sâu (thu hồi {amount} từ cơ sở dữ liệu)",
+  "panel.launchedWithProject": "Launched {name} with project {project}",
+  "webview.profileCard.recentProjects": "Opened Projects",
+  "webview.profileCard.openProject": "Open"
 }

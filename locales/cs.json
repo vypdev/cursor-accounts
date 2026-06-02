@@ -220,7 +220,6 @@
   "webview.profileCard.manageStorage": "Správa souborů",
   "webview.profileCard.accountType": "Typ účtu",
   "webview.profileCard.delete": "Smazat",
-
   "webview.storage.title": "Správa souborů",
   "webview.storage.loading": "Počítání úložiště…",
   "webview.storage.total": "Celkové úložiště",
@@ -250,7 +249,6 @@
   "webview.storage.confirmEditorCache": "Odstranit složky mezipaměti editoru pro tento profil?",
   "webview.storage.confirmVacuum": "Komprimovat databázi a uvolnit nevyužité místo?",
   "webview.storage.confirmDeepClean": "Hluboké čištění odstraní historii chatu a composer z místní databáze. Bude vytvořena záloha. Pokračovat?",
-
   "storageCleanup.profileNotFound": "Profil nenalezen",
   "storageCleanup.invalidPath": "Neplatná cesta úložiště profilu",
   "storageCleanup.unknownAction": "Neznámá akce čištění",
@@ -266,5 +264,8 @@
   "storageCleanup.profileRunning": "Před spuštěním této akce čištění zavřete tento profil.",
   "storageCleanup.editorCacheCleared": "Mezipaměť editoru vymazána ({amount})",
   "storageCleanup.vacuumCompleted": "Komprimace databáze dokončena",
-  "storageCleanup.deepCleanCompleted": "Hluboké čištění dokončeno (z databáze získáno {amount})"
+  "storageCleanup.deepCleanCompleted": "Hluboké čištění dokončeno (z databáze získáno {amount})",
+  "panel.launchedWithProject": "Launched {name} with project {project}",
+  "webview.profileCard.recentProjects": "Opened Projects",
+  "webview.profileCard.openProject": "Open"
 }

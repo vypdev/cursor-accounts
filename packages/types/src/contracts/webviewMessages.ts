@@ -1,6 +1,7 @@
 import type { ActivityLeaderboardSnapshot } from '../entities/ActivityLeaderboard';
 import type { ProfileAccountView } from '../entities/AccountView';
 import type { Profile, ImportOptions } from '../entities/Profile';
+import type { WorkspaceInfo } from '../entities/Workspace';
 import type { QuotaUsage } from '../entities/QuotaUsage';
 import type {
   StorageBreakdown,
@@ -34,6 +35,7 @@ export type InstanceInfoMap = Record<string, InstanceInfo>;
 /** Initial data sent when webview loads. */
 export interface InitData {
   profiles: Profile[];
+  profileWorkspaces: Record<string, WorkspaceInfo[]>;
   currentProfile: Profile | null;
   quotas: ProfileQuotaMap;
   profileAccounts: ProfileAccountMap;
@@ -72,7 +74,13 @@ export type FromWebviewMessage =
   | { type: 'ready' }
   | { type: 'requestInit' }
   | { type: 'refresh' }
-  | { type: 'launch'; profileId: string }
+  | {
+      type: 'webviewLog';
+      level: 'info' | 'debug';
+      message: string;
+      phase?: string;
+    }
+  | { type: 'launch'; profileId: string; projectPath?: string }
   | {
       type: 'add';
       email: string;

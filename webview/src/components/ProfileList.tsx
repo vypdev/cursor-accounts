@@ -5,6 +5,7 @@ import type {
   Profile,
   ProfileAccountMap,
   ProfileQuotaMap,
+  WorkspaceInfo,
 } from '../types';
 import { ProfileCard } from './ProfileCard';
 
@@ -12,9 +13,11 @@ interface ProfileListProps {
   profiles: Profile[];
   currentProfileId?: string;
   profileAccounts: ProfileAccountMap;
+  profileWorkspaces: Record<string, WorkspaceInfo[]>;
   quotas: ProfileQuotaMap;
   runningInstances: InstanceInfoMap;
   onLaunch: (id: string) => void;
+  onOpenProject: (profileId: string, projectPath: string) => void;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
   onShowInExplorer: (id: string) => void;
@@ -27,9 +30,11 @@ export const ProfileList: React.FC<ProfileListProps> = ({
   profiles,
   currentProfileId,
   profileAccounts,
+  profileWorkspaces,
   quotas,
   runningInstances,
   onLaunch,
+  onOpenProject,
   onEdit,
   onDelete,
   onShowInExplorer,
@@ -58,9 +63,11 @@ export const ProfileList: React.FC<ProfileListProps> = ({
           profile={profile}
           isCurrent={profile.id === currentProfileId}
           account={profileAccounts[profile.id]}
+          workspaces={profileWorkspaces[profile.id] ?? []}
           quota={quotas[profile.id]}
           isRunning={profile.id in runningInstances}
           onLaunch={onLaunch}
+          onOpenProject={onOpenProject}
           onEdit={onEdit}
           onDelete={onDelete}
           onShowInExplorer={onShowInExplorer}

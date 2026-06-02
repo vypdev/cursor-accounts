@@ -16,6 +16,8 @@ export interface LaunchResult {
 export interface LaunchOptions {
   /** Bypass running-instance check. Can cause data corruption if profile is open. */
   force?: boolean;
+  /** Optional folder or workspace file path to open in the new window. */
+  projectPath?: string;
 }
 
 /** Environment variables that break GUI launch when inherited from the extension host. */
@@ -118,7 +120,7 @@ export class ProfileLauncher {
         }
       }
 
-      return await this.launchWithProfile(profile);
+      return await this.launchWithProfile(profile, options?.projectPath);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       extensionLog.error(
@@ -142,12 +144,15 @@ export class ProfileLauncher {
   /**
    * Launch Cursor with a custom user-data-dir path.
    */
-  async launchWithPath(userDataDir: string): Promise<LaunchResult> {
+  async launchWithPath(
+    userDataDir: string,
+    projectPath?: string
+  ): Promise<LaunchResult> {
     try {
       await ensureDirectory(userDataDir);
 
       const execPath = this.getExecutablePath();
-      const args = this.buildLaunchArgs(userDataDir);
+      const args = this.buildLaunchArgs(userDataDir, projectPath);
 
       extensionLog.info(
         `[ProfileLauncher] Spawn: ${this.formatSpawnCommand(execPath, args)}`
@@ -270,8 +275,12 @@ export class ProfileLauncher {
   /**
    * Build command line arguments for launching with profile.
    */
-  buildLaunchArgs(userDataDir: string): string[] {
-    return ['--user-data-dir', userDataDir];
+  buildLaunchArgs(userDataDir: string, projectPath?: string): string[] {
+    const args = ['--user-data-dir', userDataDir];
+    if (projectPath) {
+      args.push(projectPath);
+    }
+    return args;
   }
 
   /**
@@ -303,8 +312,11 @@ export class ProfileLauncher {
     }
   }
 
-  private async launchWithProfile(profile: Profile): Promise<LaunchResult> {
-    return await this.launchWithPath(profile.userDataDir);
+  private async launchWithProfile(
+    profile: Profile,
+    projectPath?: string
+  ): Promise<LaunchResult> {
+    return await this.launchWithPath(profile.userDataDir, projectPath);
   }
 
   private formatSpawnCommand(execPath: string, args: string[]): string {

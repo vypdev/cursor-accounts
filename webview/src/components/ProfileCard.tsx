@@ -4,7 +4,9 @@ import type {
   Profile,
   ProfileAccountView,
   ProfileQuota,
-  QuotaStatus} from '../types';
+  QuotaStatus,
+  WorkspaceInfo,
+} from '../types';
 import {
   getEffectiveUsagePercent,
   getPersonalModeAveragePercent,
@@ -22,9 +24,11 @@ interface ProfileCardProps {
   profile: Profile;
   isCurrent: boolean;
   account?: ProfileAccountView;
+  workspaces?: WorkspaceInfo[];
   quota?: ProfileQuota;
   isRunning: boolean;
   onLaunch: (id: string) => void;
+  onOpenProject: (profileId: string, projectPath: string) => void;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
   onShowInExplorer: (id: string) => void;
@@ -129,13 +133,17 @@ function renderQuotaStatusIcons(
   );
 }
 
+const MAX_DISPLAY_WORKSPACES = 10;
+
 export const ProfileCard: React.FC<ProfileCardProps> = ({
   profile,
   isCurrent,
   account,
+  workspaces = [],
   quota,
   isRunning,
   onLaunch,
+  onOpenProject,
   onEdit,
   onDelete,
   onShowInExplorer,
@@ -201,6 +209,12 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
   const handleLaunch = () => {
     onLaunch(profile.id);
   };
+
+  const handleOpenProject = (projectPath: string) => {
+    onOpenProject(profile.id, projectPath);
+  };
+
+  const displayedWorkspaces = workspaces.slice(0, MAX_DISPLAY_WORKSPACES);
 
   const handleDelete = () => {
     if (confirm(t('profileCard.deleteConfirm', { name: profile.displayName }))) {
@@ -472,6 +486,31 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
         <p className="efficiency-hint">
           {t('profileCard.efficiencyHint')}
         </p>
+      ) : null}
+
+      {displayedWorkspaces.length > 0 ? (
+        <div className="profile-workspaces">
+          <h4 className="profile-workspaces-title">
+            {t('profileCard.recentProjects')}
+          </h4>
+          <ul className="workspace-list">
+            {displayedWorkspaces.map((workspace) => (
+              <li key={workspace.storageHash} className="workspace-item">
+                <span className="workspace-name" title={workspace.path}>
+                  {workspace.name}
+                </span>
+                <button
+                  type="button"
+                  className="btn-open-project"
+                  onClick={() => handleOpenProject(workspace.path)}
+                  disabled={isCurrent || isRunning}
+                >
+                  {t('profileCard.openProject')}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
       ) : null}
 
       <div className="profile-actions">

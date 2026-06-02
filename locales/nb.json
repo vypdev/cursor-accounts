@@ -220,7 +220,6 @@
   "webview.profileCard.manageStorage": "Filhåndtering",
   "webview.profileCard.accountType": "Kontotype",
   "webview.profileCard.delete": "Slett",
-
   "webview.storage.title": "Filhåndtering",
   "webview.storage.loading": "Beregner lagring…",
   "webview.storage.total": "Total lagring",
@@ -250,7 +249,6 @@
   "webview.storage.confirmEditorCache": "Fjerne editorbuffermapper for denne profilen?",
   "webview.storage.confirmVacuum": "Komprimere databasen for å gjenvinne ubrukt plass?",
   "webview.storage.confirmDeepClean": "Dyp opprydding fjerner chat- og composer-historikk fra den lokale databasen. Sikkerhetskopi opprettes. Fortsette?",
-
   "storageCleanup.profileNotFound": "Profil ikke funnet",
   "storageCleanup.invalidPath": "Ugyldig profillagringssti",
   "storageCleanup.unknownAction": "Ukjent oppryddingshandling",
@@ -266,5 +264,8 @@
   "storageCleanup.profileRunning": "Lukk denne profilen før du kjører denne oppryddingshandlingen.",
   "storageCleanup.editorCacheCleared": "Editorbuffer tømt ({amount})",
   "storageCleanup.vacuumCompleted": "Databasekomprimering fullført",
-  "storageCleanup.deepCleanCompleted": "Dyp opprydding fullført ({amount} gjen vunnet fra databasen)"
+  "storageCleanup.deepCleanCompleted": "Dyp opprydding fullført ({amount} gjen vunnet fra databasen)",
+  "panel.launchedWithProject": "Launched {name} with project {project}",
+  "webview.profileCard.recentProjects": "Opened Projects",
+  "webview.profileCard.openProject": "Open"
 }

@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 import type { IProfileAuthReader } from '../domain/ports/IProfileAuthReader';
 import type { IProfileStorageAnalyzer } from '../domain/ports/IProfileStorageAnalyzer';
 import type { IStorageCleanupService } from '../domain/ports/IStorageCleanupService';
@@ -20,6 +21,7 @@ import type {
 import type { StorageCleanupOptions } from '@cursor-accounts/types';
 import { createEmptyStorageBreakdown } from '@cursor-accounts/types';
 import type { ProfileDetector } from '../profiles/profileDetector';
+import type { ProfileWorkspaceService } from '../services/profileWorkspaceService';
 import { buildSuggestedProfileResponse } from './suggestedProfile';
 import { calculateProfileStorageSize } from '../utils/storageSize';
 
@@ -41,6 +43,7 @@ export interface AccountsPanelHandlerDeps {
   instanceDetector: InstanceDetector;
   storageCleanupService: IStorageCleanupService;
   storageAnalyzer?: IProfileStorageAnalyzer;
+  profileWorkspaceService: ProfileWorkspaceService;
 }
 
 /**
@@ -58,7 +61,7 @@ export class AccountsPanelHandlers {
   async handle(message: FromWebviewMessage): Promise<void> {
     switch (message.type) {
       case 'launch':
-        await this.handleLaunch(message.profileId);
+        await this.handleLaunch(message.profileId, message.projectPath);
         break;
 
       case 'add':
@@ -106,7 +109,10 @@ export class AccountsPanelHandlers {
     }
   }
 
-  private async handleLaunch(profileId: string): Promise<void> {
+  private async handleLaunch(
+    profileId: string,
+    projectPath?: string
+  ): Promise<void> {
     if (this.launchInFlight.has(profileId)) {
       extensionLog.debug(
         `[AccountsPanel] Launch ignored for ${profileId} (already in flight)`
@@ -117,17 +123,34 @@ export class AccountsPanelHandlers {
     this.launchInFlight.add(profileId);
     try {
       extensionLog.info(
-        `[AccountsPanel] Launch requested for profile ${profileId}`
+        `[AccountsPanel] Launch requested for profile ${profileId}${
+          projectPath ? ` with project ${projectPath}` : ''
+        }`
       );
-      const result = await this.deps.profileLauncher.launch(profileId);
+
+      const resolvedProjectPath =
+        projectPath ??
+        (await this.deps.profileWorkspaceService.getMostRecentWorkspace(
+          profileId
+        ));
+
+      const result = await this.deps.profileLauncher.launch(profileId, {
+        projectPath: resolvedProjectPath,
+      });
 
       if (result.success) {
         const profile = await this.deps.profileManager.getProfile(profileId);
+        const successMessage = resolvedProjectPath
+          ? t('panel.launchedWithProject', {
+              name: profile?.displayName ?? t('panel.profileFallback'),
+              project: path.basename(resolvedProjectPath),
+            })
+          : t('panel.launched', {
+              name: profile?.displayName ?? t('panel.profileFallback'),
+            });
         await this.callbacks.postMessage({
           type: 'success',
-          message: t('panel.launched', {
-            name: profile?.displayName ?? t('panel.profileFallback'),
-          }),
+          message: successMessage,
         });
         await this.callbacks.refresh();
         void this.callbacks.refreshInstances();

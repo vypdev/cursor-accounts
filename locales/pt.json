@@ -220,7 +220,6 @@
   "webview.profileCard.manageStorage": "Gestão de ficheiros",
   "webview.profileCard.accountType": "Tipo de conta",
   "webview.profileCard.delete": "Eliminar",
-
   "webview.storage.title": "Gestão de ficheiros",
   "webview.storage.loading": "A calcular armazenamento…",
   "webview.storage.total": "Armazenamento total",
@@ -250,7 +249,6 @@
   "webview.storage.confirmEditorCache": "Remover pastas de cache do editor para este perfil?",
   "webview.storage.confirmVacuum": "Compactar a base de dados para recuperar espaço não utilizado?",
   "webview.storage.confirmDeepClean": "A limpeza profunda removerá o histórico de chat e composer da base de dados local. Será criada uma cópia de segurança. Continuar?",
-
   "storageCleanup.profileNotFound": "Perfil não encontrado",
   "storageCleanup.invalidPath": "Caminho de armazenamento do perfil inválido",
   "storageCleanup.unknownAction": "Ação de limpeza desconhecida",
@@ -266,5 +264,8 @@
   "storageCleanup.profileRunning": "Feche este perfil antes de executar esta ação de limpeza.",
   "storageCleanup.editorCacheCleared": "Cache do editor limpa ({amount})",
   "storageCleanup.vacuumCompleted": "Compactação da base de dados concluída",
-  "storageCleanup.deepCleanCompleted": "Limpeza profunda concluída ({amount} recuperados da base de dados)"
+  "storageCleanup.deepCleanCompleted": "Limpeza profunda concluída ({amount} recuperados da base de dados)",
+  "panel.launchedWithProject": "Launched {name} with project {project}",
+  "webview.profileCard.recentProjects": "Opened Projects",
+  "webview.profileCard.openProject": "Open"
 }

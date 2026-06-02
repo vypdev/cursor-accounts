@@ -18,6 +18,7 @@ import type {
   StorageCleanupAction,
   StorageCleanupResult,
   ToWebviewMessage,
+  WorkspaceInfo,
 } from './types';
 import './App.css';
 
@@ -34,6 +35,9 @@ const AppContent: React.FC = () => {
   );
   const [accountsLoading, setAccountsLoading] = useState(false);
   const [runningInstances, setRunningInstances] = useState<InstanceInfoMap>({});
+  const [profileWorkspaces, setProfileWorkspaces] = useState<
+    Record<string, WorkspaceInfo[]>
+  >({});
   const [showAddForm, setShowAddForm] = useState(
     persisted?.showAddForm ?? false
   );
@@ -73,12 +77,18 @@ const AppContent: React.FC = () => {
       switch (message.type) {
         case 'init':
           initReceivedRef.current = true;
+          vscodeApi.logToExtension(
+            'info',
+            'react.init-received',
+            `profiles=${message.data.profiles.length}`
+          );
           setProfiles(message.data.profiles);
           setCurrentProfile(message.data.currentProfile);
           setQuotas(message.data.quotas ?? {});
           setProfileAccounts(message.data.profileAccounts ?? {});
           setActiveAccount(message.data.activeAccount ?? null);
           setRunningInstances(message.data.runningInstances ?? {});
+          setProfileWorkspaces(message.data.profileWorkspaces ?? {});
           setLoading(false);
           break;
 
@@ -167,10 +177,13 @@ const AppContent: React.FC = () => {
       }
     });
 
-    void vscodeApi.ready();
-
     const fallbackTimer = window.setTimeout(() => {
       if (!initReceivedRef.current) {
+        vscodeApi.logToExtension(
+          'info',
+          'react.requestInit-fallback',
+          'init not received after 1s'
+        );
         vscodeApi.requestInit();
       }
     }, 1000);
@@ -184,6 +197,13 @@ const AppContent: React.FC = () => {
   const handleLaunch = useCallback((profileId: string) => {
     vscodeApi.launch(profileId);
   }, []);
+
+  const handleOpenProject = useCallback(
+    (profileId: string, projectPath: string) => {
+      vscodeApi.launch(profileId, projectPath);
+    },
+    []
+  );
 
   const handleEditOpen = useCallback(
     (profileId: string) => {
@@ -388,9 +408,11 @@ const AppContent: React.FC = () => {
             profiles={profiles}
             currentProfileId={currentProfile?.id}
             profileAccounts={profileAccounts}
+            profileWorkspaces={profileWorkspaces}
             quotas={quotas}
             runningInstances={runningInstances}
             onLaunch={handleLaunch}
+            onOpenProject={handleOpenProject}
             onEdit={handleEditOpen}
             onDelete={handleDelete}
             onShowInExplorer={handleShowInExplorer}

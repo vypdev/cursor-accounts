@@ -220,7 +220,6 @@
   "webview.profileCard.manageStorage": "Bestandsbeheer",
   "webview.profileCard.accountType": "Accounttype",
   "webview.profileCard.delete": "Verwijderen",
-
   "webview.storage.title": "Bestandsbeheer",
   "webview.storage.loading": "Opslag wordt berekend…",
   "webview.storage.total": "Totale opslag",
@@ -250,7 +249,6 @@
   "webview.storage.confirmEditorCache": "Editorcachemappen voor dit profiel verwijderen?",
   "webview.storage.confirmVacuum": "Database comprimeren om ongebruikte ruimte terug te winnen?",
   "webview.storage.confirmDeepClean": "Grondige opruiming verwijdert chat- en composergeschiedenis uit de lokale database. Er wordt een back-up gemaakt. Doorgaan?",
-
   "storageCleanup.profileNotFound": "Profiel niet gevonden",
   "storageCleanup.invalidPath": "Ongeldig profielopslagpad",
   "storageCleanup.unknownAction": "Onbekende opruimactie",
@@ -266,5 +264,8 @@
   "storageCleanup.profileRunning": "Sluit dit profiel voordat u deze opruimactie uitvoert.",
   "storageCleanup.editorCacheCleared": "Editorcache gewist ({amount})",
   "storageCleanup.vacuumCompleted": "Databasecompressie voltooid",
-  "storageCleanup.deepCleanCompleted": "Grondige opruiming voltooid ({amount} teruggewonnen uit database)"
+  "storageCleanup.deepCleanCompleted": "Grondige opruiming voltooid ({amount} teruggewonnen uit database)",
+  "panel.launchedWithProject": "Launched {name} with project {project}",
+  "webview.profileCard.recentProjects": "Opened Projects",
+  "webview.profileCard.openProject": "Open"
 }

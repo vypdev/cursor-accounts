@@ -357,6 +357,70 @@ body {
   margin-top: 12px;
 }
 
+.profile-workspaces {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+.profile-workspaces-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg-secondary);
+  margin-bottom: 4px;
+}
+
+.workspace-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.workspace-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 4px;
+}
+
+.workspace-item:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.workspace-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.btn-open-project {
+  flex-shrink: 0;
+  padding: 4px 8px;
+  background: transparent;
+  color: var(--button-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.btn-open-project:hover:not(:disabled) {
+  background: var(--bg-primary);
+}
+
+.btn-open-project:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .btn-launch {
   flex: 1;
   padding: 6px 12px;

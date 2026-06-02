@@ -2,7 +2,7 @@
   "name": "cursor-accounts",
   "displayName": "%extension.displayName%",
   "description": "%extension.description%",
-  "version": "0.1.27",
+  "version": "0.1.32",
   "publisher": "vypdev",
   "icon": "images/icon.png",
   "license": "MIT",
@@ -22,24 +22,6 @@
   ],
   "main": "./out/extension-bundle.js",
   "contributes": {
-    "viewsContainers": {
-      "activitybar": [
-        {
-          "id": "cursorAccounts",
-          "title": "%viewsContainers.activitybar.title%",
-          "icon": "$(account)"
-        }
-      ]
-    },
-    "views": {
-      "cursorAccounts": [
-        {
-          "type": "webview",
-          "id": "cursorAccounts.accountsPanel",
-          "name": "%views.accounts.name%"
-        }
-      ]
-    },
     "commands": [
       {
         "command": "cursorAccounts.openAccounts",
@@ -167,6 +149,11 @@
           "minimum": 5,
           "maximum": 60,
           "description": "%configuration.modelEfficiency.pollIntervalSeconds.description%"
+        },
+        "cursorAccounts.debug.webviewLifecycle": {
+          "type": "boolean",
+          "default": true,
+          "description": "%configuration.debug.webviewLifecycle.description%"
         }
       }
     }

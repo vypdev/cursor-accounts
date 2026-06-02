@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import type { IProfileAuthReader } from '../domain/ports/IProfileAuthReader';
 import * as extensionLog from '../logging/extensionLog';
+import * as lifecycleLog from '../logging/webviewLifecycleLog';
 import type { InstanceDetector } from '../profiles/instanceDetector';
 import { instanceMapToRecord } from '../profiles/instanceDetector';
 import type { ProfileDetector } from '../profiles/profileDetector';
@@ -14,11 +15,13 @@ import type {
   InstanceInfo,
   ProfileQuota,
   ToWebviewMessage,
+  WorkspaceInfo,
 } from '../profiles/types';
 import type { MultiProfileQuotaService } from '../services/multiProfileQuotaService';
 import { quotaMapToRecord } from '../services/multiProfileQuotaService';
 import type { ProfileAccountFetcher } from '../services/profileAccountFetcher';
 import { accountMapToRecord } from '../services/profileAccountFetcher';
+import type { ProfileWorkspaceService } from '../services/profileWorkspaceService';
 import type { EfficiencyService } from '../modelEfficiency/efficiencyService';
 import { getLocale, getWebviewMessages, isRtlLocale, t } from '../l10n';
 import { AccountsPanelHandlers } from './accountsPanelHandlers';
@@ -28,26 +31,23 @@ import { SqliteCleanupService } from '../storage/sqliteCleanupService';
 import { StorageCleanupService } from '../services/storageCleanupService';
 import { VSCodeCacheService } from '../storage/vscodeCacheService';
 
-/** Activity bar container id (must match package.json viewsContainers). */
-export const ACCOUNTS_VIEW_CONTAINER = 'cursorAccounts';
-/** Webview view id (must match package.json views). */
-export const ACCOUNTS_SIDEBAR_VIEW_ID = 'cursorAccounts.accountsPanel';
+/** Webview panel view type id. */
+export const ACCOUNTS_PANEL_VIEW_ID = 'cursorAccounts.accountsPanel';
 
-export class AccountsPanelProvider implements vscode.WebviewViewProvider {
-  public static readonly viewType = ACCOUNTS_SIDEBAR_VIEW_ID;
+export class AccountsPanelProvider {
+  public static readonly viewType = ACCOUNTS_PANEL_VIEW_ID;
 
-  private view?: vscode.WebviewView;
   private panel?: vscode.WebviewPanel;
   private accountsFetchInFlight = false;
   private webviewRuntimeReady = false;
   private readonly handlers: AccountsPanelHandlers;
 
   public hasResolvedView(): boolean {
-    return this.view !== undefined || this.panel !== undefined;
+    return this.panel !== undefined;
   }
 
   private getActiveWebview(): vscode.Webview | undefined {
-    return this.view?.webview ?? this.panel?.webview;
+    return this.panel?.webview;
   }
 
   constructor(
@@ -58,6 +58,7 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
     private readonly quotaService: MultiProfileQuotaService,
     private readonly accountFetcher: ProfileAccountFetcher,
     private readonly instanceDetector: InstanceDetector,
+    private readonly profileWorkspaceService: ProfileWorkspaceService,
     efficiencyService: EfficiencyService,
     authReader: IProfileAuthReader
   ) {
@@ -93,6 +94,7 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
         instanceDetector,
         storageCleanupService,
         storageAnalyzer,
+        profileWorkspaceService,
       },
       {
         postMessage: (message) => this.postMessage(message),
@@ -111,63 +113,24 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
     });
   }
 
-  /**
-   * Called when webview becomes visible.
-   */
-  public resolveWebviewView(
-    webviewView: vscode.WebviewView,
-    _context: vscode.WebviewViewResolveContext,
-    _token: vscode.CancellationToken
-  ): void {
-    this.view = webviewView;
-    this.webviewRuntimeReady = false;
-    extensionLog.debug('[AccountsPanel] Webview resolved (sidebar)');
-
-    webviewView.webview.options = {
-      enableScripts: true,
-      localResourceRoots: [
-        vscode.Uri.file(
-          path.join(this.context.extensionPath, 'webview-dist')
-        ),
-      ],
-    };
-
-    this.attachWebviewMessageListener(webviewView.webview);
-
-    try {
-      webviewView.webview.html = this.getHtmlContent(webviewView.webview);
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : t('errors.unknown');
-      vscode.window.showErrorMessage(
-        t('panel.loadFailed', { error: message })
-      );
-      throw error;
-    }
-
-    webviewView.onDidChangeVisibility(() => {
-      if (webviewView.visible) {
-        this.requestRefresh();
-      }
-    });
-  }
-
-  /** Fallback when the sidebar webview never resolves (Cursor/VS Code race). */
-  public openAsEditorPanel(): void {
+  /** Open the accounts panel in the editor area. */
+  public openPanel(): void {
     if (this.panel) {
+      lifecycleLog.lifecycle('panel.reveal');
       this.panel.reveal(undefined, true);
       this.requestRefresh();
       return;
     }
 
-    extensionLog.debug('[AccountsPanel] Webview resolved (editor panel fallback)');
+    lifecycleLog.lifecycle('panel.open');
+    extensionLog.debug('[AccountsPanel] Opening accounts panel in editor');
 
     const distRoot = vscode.Uri.file(
       path.join(this.context.extensionPath, 'webview-dist')
     );
 
     this.panel = vscode.window.createWebviewPanel(
-      ACCOUNTS_SIDEBAR_VIEW_ID,
+      ACCOUNTS_PANEL_VIEW_ID,
       t('panel.title'),
       vscode.ViewColumn.Active,
       {
@@ -184,6 +147,14 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
     this.panel.onDidDispose(() => {
       this.panel = undefined;
     });
+  }
+
+  /** Bring the existing panel to the foreground. */
+  public reveal(): void {
+    if (this.panel) {
+      this.panel.reveal(undefined, true);
+      this.requestRefresh();
+    }
   }
 
   private attachWebviewMessageListener(webview: vscode.Webview): void {
@@ -209,8 +180,16 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
         await this.instanceDetector.detectRunningInstances()
       );
 
+      const profilesWithWorkspaces =
+        await this.profileWorkspaceService.getProfilesWithWorkspaces();
+      const profileWorkspaces: Record<string, WorkspaceInfo[]> = {};
+      for (const profile of profilesWithWorkspaces) {
+        profileWorkspaces[profile.id] = profile.workspaces;
+      }
+
       const initData: InitData = {
         profiles,
+        profileWorkspaces,
         currentProfile,
         quotas,
         profileAccounts: {},
@@ -221,6 +200,7 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
       };
 
       await this.postMessage({ type: 'init', data: initData });
+      lifecycleLog.lifecycle('init.sent', { profileCount: profiles.length });
 
       void Promise.all([this.refreshQuotas(), this.refreshProfileAccounts()]);
     } catch (error) {
@@ -346,17 +326,25 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
     try {
       switch (message.type) {
         case 'ready':
+          lifecycleLog.lifecycle('message.in', { type: 'ready' });
           this.webviewRuntimeReady = true;
           await delay(150);
           await this.refresh();
+          lifecycleLog.lifecycle('ready.handled');
           break;
 
         case 'requestInit':
+          lifecycleLog.lifecycle('message.in', { type: 'requestInit' });
           await this.refresh();
           break;
 
         case 'refresh':
+          lifecycleLog.lifecycle('message.in', { type: 'refresh' });
           await this.refresh();
+          break;
+
+        case 'webviewLog':
+          lifecycleLog.fromWebview(message.level, message.message, message.phase);
           break;
 
         default:
@@ -387,12 +375,16 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
     message: FromWebviewMessage
   ): message is Exclude<
     FromWebviewMessage,
-    { type: 'ready' } | { type: 'requestInit' } | { type: 'refresh' }
+    | { type: 'ready' }
+    | { type: 'requestInit' }
+    | { type: 'refresh' }
+    | { type: 'webviewLog' }
   > {
     return (
       message.type !== 'ready' &&
       message.type !== 'requestInit' &&
-      message.type !== 'refresh'
+      message.type !== 'refresh' &&
+      message.type !== 'webviewLog'
     );
   }
 
@@ -411,6 +403,7 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
       extensionLog.error(
         `[AccountsPanel] bundle.js not found at: ${bundleJsPath}`
       );
+      lifecycleLog.lifecycle('html.bundle-missing', { path: bundleJsPath });
     }
 
     const scriptUri = webview.asWebviewUri(
@@ -446,12 +439,78 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
     window.__cursorAccountsReportScriptError = function() {
       var root = document.getElementById('root');
       if (root) {
-        root.innerHTML = '<p style="padding:12px;color:var(--vscode-errorForeground,#f88);">${t('panel.scriptLoadFailed')}</p>';
+        root.innerHTML = '<p style="padding:12px;color:var(--vscode-errorForeground,#88);">${t('panel.scriptLoadFailed')}</p>';
       }
     };
-    if (!window.__cursorAccountsVscodeApi) {
-      window.__cursorAccountsVscodeApi = acquireVsCodeApi();
-    }
+    (function() {
+      function reportLog(phase, message, level) {
+        try {
+          window.__cursorAccountsVscodeApi.postMessage({
+            type: 'webviewLog',
+            level: level || 'info',
+            phase: phase,
+            message: message
+          });
+        } catch (error) {
+          console.error('[Webview] reportLog failed', phase, error);
+        }
+      }
+
+      if (!window.__cursorAccountsVscodeApi) {
+        window.__cursorAccountsVscodeApi = acquireVsCodeApi();
+      }
+      reportLog('bootstrap.api-acquired', 'acquireVsCodeApi completed');
+
+      function waitForServiceWorker() {
+        return new Promise(function(resolve) {
+          if (!navigator.serviceWorker) {
+            reportLog('bootstrap.sw-wait-end', 'no service worker support', 'debug');
+            resolve('no-service-worker');
+            return;
+          }
+
+          reportLog('bootstrap.sw-wait-start', 'waiting for controllerchange or timeout');
+
+          var settled = false;
+          function finish(reason) {
+            if (settled) {
+              return;
+            }
+            settled = true;
+            reportLog('bootstrap.sw-wait-end', reason, 'debug');
+            resolve(reason);
+          }
+
+          function onControllerChange() {
+            navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
+            finish('controllerchange');
+          }
+
+          navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
+          window.setTimeout(function() {
+            navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
+            finish(
+              navigator.serviceWorker.controller
+                ? 'timeout-with-controller'
+                : 'timeout-no-controller'
+            );
+          }, 2000);
+        });
+      }
+
+      function sendReady() {
+        reportLog('bootstrap.ready-send', 'postMessage ready');
+        window.__cursorAccountsVscodeApi.postMessage({ type: 'ready' });
+        reportLog('bootstrap.ready-sent', 'ready message sent');
+      }
+
+      waitForServiceWorker()
+        .then(sendReady)
+        .catch(function(error) {
+          reportLog('bootstrap.error', String(error), 'info');
+          sendReady();
+        });
+    })();
   </script>
   <script nonce="${nonce}" src="${scriptUri.toString()}" onerror="window.__cursorAccountsReportScriptError && window.__cursorAccountsReportScriptError()"></script>
 </body>

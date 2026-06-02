@@ -220,7 +220,6 @@
   "webview.profileCard.manageStorage": "Dosya yönetimi",
   "webview.profileCard.accountType": "Hesap türü",
   "webview.profileCard.delete": "Sil",
-
   "webview.storage.title": "Dosya yönetimi",
   "webview.storage.loading": "Depolama hesaplanıyor…",
   "webview.storage.total": "Toplam depolama",
@@ -250,7 +249,6 @@
   "webview.storage.confirmEditorCache": "Bu profil için düzenleyici önbellek klasörleri kaldırılsın mı?",
   "webview.storage.confirmVacuum": "Kullanılmayan alanı geri kazanmak için veritabanı sıkıştırılsın mı?",
   "webview.storage.confirmDeepClean": "Derin temizlik yerel veritabanından sohbet ve composer geçmişini kaldıracak. Yedek oluşturulacak. Devam edilsin mi?",
-
   "storageCleanup.profileNotFound": "Profil bulunamadı",
   "storageCleanup.invalidPath": "Geçersiz profil depolama yolu",
   "storageCleanup.unknownAction": "Bilinmeyen temizlik işlemi",
@@ -266,5 +264,8 @@
   "storageCleanup.profileRunning": "Bu temizlik işlemini çalıştırmadan önce profili kapatın.",
   "storageCleanup.editorCacheCleared": "Düzenleyici önbelleği temizlendi ({amount})",
   "storageCleanup.vacuumCompleted": "Veritabanı sıkıştırması tamamlandı",
-  "storageCleanup.deepCleanCompleted": "Derin temizlik tamamlandı (veritabanından {amount} geri kazanıldı)"
+  "storageCleanup.deepCleanCompleted": "Derin temizlik tamamlandı (veritabanından {amount} geri kazanıldı)",
+  "panel.launchedWithProject": "Launched {name} with project {project}",
+  "webview.profileCard.recentProjects": "Opened Projects",
+  "webview.profileCard.openProject": "Open"
 }

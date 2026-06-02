@@ -220,7 +220,6 @@
   "webview.profileCard.manageStorage": "파일 관리",
   "webview.profileCard.accountType": "계정 유형",
   "webview.profileCard.delete": "삭제",
-
   "webview.storage.title": "파일 관리",
   "webview.storage.loading": "저장 공간 계산 중…",
   "webview.storage.total": "총 저장 공간",
@@ -250,7 +249,6 @@
   "webview.storage.confirmEditorCache": "이 프로필의 편집기 캐시 폴더를 제거할까요?",
   "webview.storage.confirmVacuum": "사용하지 않는 공간을 회수하기 위해 데이터베이스를 압축할까요?",
   "webview.storage.confirmDeepClean": "심층 정리는 로컬 데이터베이스에서 채팅 및 composer 기록을 제거합니다. 백업이 생성됩니다. 계속할까요?",
-
   "storageCleanup.profileNotFound": "프로필을 찾을 수 없음",
   "storageCleanup.invalidPath": "잘못된 프로필 저장 경로",
   "storageCleanup.unknownAction": "알 수 없는 정리 작업",
@@ -266,5 +264,8 @@
   "storageCleanup.profileRunning": "이 정리 작업을 실행하기 전에 프로필을 닫으세요.",
   "storageCleanup.editorCacheCleared": "편집기 캐시 지움 ({amount})",
   "storageCleanup.vacuumCompleted": "데이터베이스 압축 완료",
-  "storageCleanup.deepCleanCompleted": "심층 정리 완료 (데이터베이스에서 {amount} 회수)"
+  "storageCleanup.deepCleanCompleted": "심층 정리 완료 (데이터베이스에서 {amount} 회수)",
+  "panel.launchedWithProject": "Launched {name} with project {project}",
+  "webview.profileCard.recentProjects": "Opened Projects",
+  "webview.profileCard.openProject": "Open"
 }

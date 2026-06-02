@@ -220,7 +220,6 @@
   "webview.profileCard.manageStorage": "إدارة الملفات",
   "webview.profileCard.accountType": "نوع الحساب",
   "webview.profileCard.delete": "حذف",
-
   "webview.storage.title": "إدارة الملفات",
   "webview.storage.loading": "جارٍ حساب التخزين…",
   "webview.storage.total": "إجمالي التخزين",
@@ -250,7 +249,6 @@
   "webview.storage.confirmEditorCache": "إزالة مجلدات ذاكرة المحرر لهذا الملف الشخصي؟",
   "webview.storage.confirmVacuum": "ضغط قاعدة البيانات لاسترداد المساحة غير المستخدمة؟",
   "webview.storage.confirmDeepClean": "التنظيف العميق سيزيل سجل المحادثة وcomposer من قاعدة البيانات المحلية. سيتم إنشاء نسخة احتياطية. المتابعة؟",
-
   "storageCleanup.profileNotFound": "لم يتم العثور على الملف الشخصي",
   "storageCleanup.invalidPath": "مسار تخزين الملف الشخصي غير صالح",
   "storageCleanup.unknownAction": "إجراء تنظيف غير معروف",
@@ -266,5 +264,8 @@
   "storageCleanup.profileRunning": "أغلق هذا الملف الشخصي قبل تشغيل إجراء التنظيف هذا.",
   "storageCleanup.editorCacheCleared": "تم مسح ذاكرة المحرر ({amount})",
   "storageCleanup.vacuumCompleted": "اكتمل ضغط قاعدة البيانات",
-  "storageCleanup.deepCleanCompleted": "اكتمل التنظيف العميق (استُرد {amount} من قاعدة البيانات)"
+  "storageCleanup.deepCleanCompleted": "اكتمل التنظيف العميق (استُرد {amount} من قاعدة البيانات)",
+  "panel.launchedWithProject": "Launched {name} with project {project}",
+  "webview.profileCard.recentProjects": "Opened Projects",
+  "webview.profileCard.openProject": "Open"
 }

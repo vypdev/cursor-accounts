@@ -220,7 +220,6 @@
   "webview.profileCard.manageStorage": "Керування файлами",
   "webview.profileCard.accountType": "Тип облікового запису",
   "webview.profileCard.delete": "Видалити",
-
   "webview.storage.title": "Керування файлами",
   "webview.storage.loading": "Обчислення сховища…",
   "webview.storage.total": "Загальний обсяг",
@@ -250,7 +249,6 @@
   "webview.storage.confirmEditorCache": "Видалити папки кешу редактора для цього профілю?",
   "webview.storage.confirmVacuum": "Стиснути базу даних, щоб звільнити невикористане місце?",
   "webview.storage.confirmDeepClean": "Глибоке очищення видалить історію чату та composer з локальної бази. Буде створено резервну копію. Продовжити?",
-
   "storageCleanup.profileNotFound": "Профіль не знайдено",
   "storageCleanup.invalidPath": "Недійсний шлях сховища профілю",
   "storageCleanup.unknownAction": "Невідома дія очищення",
@@ -266,5 +264,8 @@
   "storageCleanup.profileRunning": "Закрийте цей профіль перед виконанням цієї дії очищення.",
   "storageCleanup.editorCacheCleared": "Кеш редактора очищено ({amount})",
   "storageCleanup.vacuumCompleted": "Стиснення бази даних завершено",
-  "storageCleanup.deepCleanCompleted": "Глибоке очищення завершено (з бази відновлено {amount})"
+  "storageCleanup.deepCleanCompleted": "Глибоке очищення завершено (з бази відновлено {amount})",
+  "panel.launchedWithProject": "Launched {name} with project {project}",
+  "webview.profileCard.recentProjects": "Opened Projects",
+  "webview.profileCard.openProject": "Open"
 }

@@ -1,3 +1,5 @@
+import type { WorkspaceInfo } from './Workspace';
+
 /** Represents a single Cursor account profile. */
 export interface Profile {
   id: string;
@@ -88,4 +90,9 @@ export interface ImportValidationResult {
   valid: boolean;
   errors: string[];
   warnings: string[];
+}
+
+/** Profile enriched with scanned workspace folders. */
+export interface ProfileWithWorkspaces extends Profile {
+  workspaces: WorkspaceInfo[];
 }

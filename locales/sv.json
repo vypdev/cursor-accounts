@@ -220,7 +220,6 @@
   "webview.profileCard.manageStorage": "Filhantering",
   "webview.profileCard.accountType": "Kontotyp",
   "webview.profileCard.delete": "Ta bort",
-
   "webview.storage.title": "Filhantering",
   "webview.storage.loading": "Beräknar lagring…",
   "webview.storage.total": "Total lagring",
@@ -250,7 +249,6 @@
   "webview.storage.confirmEditorCache": "Ta bort editorcachemappar för denna profil?",
   "webview.storage.confirmVacuum": "Komprimera databasen för att återfå oanvänt utrymme?",
   "webview.storage.confirmDeepClean": "Djup rensning tar bort chat- och composerhistorik från den lokala databasen. En säkerhetskopia skapas. Fortsätta?",
-
   "storageCleanup.profileNotFound": "Profil hittades inte",
   "storageCleanup.invalidPath": "Ogiltig profillagringssökväg",
   "storageCleanup.unknownAction": "Okänd rensningsåtgärd",
@@ -266,5 +264,8 @@
   "storageCleanup.profileRunning": "Stäng denna profil innan du kör denna rensningsåtgärd.",
   "storageCleanup.editorCacheCleared": "Editorcache rensad ({amount})",
   "storageCleanup.vacuumCompleted": "Databaskomprimering slutförd",
-  "storageCleanup.deepCleanCompleted": "Djup rensning slutförd ({amount} återfått från databasen)"
+  "storageCleanup.deepCleanCompleted": "Djup rensning slutförd ({amount} återfått från databasen)",
+  "panel.launchedWithProject": "Launched {name} with project {project}",
+  "webview.profileCard.recentProjects": "Opened Projects",
+  "webview.profileCard.openProject": "Open"
 }

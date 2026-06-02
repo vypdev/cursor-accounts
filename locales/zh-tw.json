@@ -220,7 +220,6 @@
   "webview.profileCard.manageStorage": "檔案管理",
   "webview.profileCard.accountType": "帳戶類型",
   "webview.profileCard.delete": "刪除",
-
   "webview.storage.title": "檔案管理",
   "webview.storage.loading": "正在計算儲存空間…",
   "webview.storage.total": "總儲存空間",
@@ -250,7 +249,6 @@
   "webview.storage.confirmEditorCache": "移除此設定檔的編輯器快取資料夾？",
   "webview.storage.confirmVacuum": "壓縮資料庫以回收未使用空間？",
   "webview.storage.confirmDeepClean": "深度清理將從本機資料庫移除聊天與 composer 記錄。將建立備份。是否繼續？",
-
   "storageCleanup.profileNotFound": "找不到設定檔",
   "storageCleanup.invalidPath": "設定檔儲存路徑無效",
   "storageCleanup.unknownAction": "未知的清理動作",
@@ -266,5 +264,8 @@
   "storageCleanup.profileRunning": "執行此清理動作前請關閉設定檔。",
   "storageCleanup.editorCacheCleared": "已清除編輯器快取 ({amount})",
   "storageCleanup.vacuumCompleted": "資料庫壓縮已完成",
-  "storageCleanup.deepCleanCompleted": "深度清理已完成（從資料庫回收 {amount}）"
+  "storageCleanup.deepCleanCompleted": "深度清理已完成（從資料庫回收 {amount}）",
+  "panel.launchedWithProject": "Launched {name} with project {project}",
+  "webview.profileCard.recentProjects": "Opened Projects",
+  "webview.profileCard.openProject": "Open"
 }

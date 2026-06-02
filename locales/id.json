@@ -220,7 +220,6 @@
   "webview.profileCard.manageStorage": "Manajemen file",
   "webview.profileCard.accountType": "Jenis akun",
   "webview.profileCard.delete": "Hapus",
-
   "webview.storage.title": "Manajemen file",
   "webview.storage.loading": "Menghitung penyimpanan…",
   "webview.storage.total": "Total penyimpanan",
@@ -250,7 +249,6 @@
   "webview.storage.confirmEditorCache": "Hapus folder cache editor untuk profil ini?",
   "webview.storage.confirmVacuum": "Kompres basis data untuk mendapatkan ruang yang tidak terpakai?",
   "webview.storage.confirmDeepClean": "Pembersihan mendalam akan menghapus riwayat obrolan dan composer dari basis data lokal. Cadangan akan dibuat. Lanjutkan?",
-
   "storageCleanup.profileNotFound": "Profil tidak ditemukan",
   "storageCleanup.invalidPath": "Path penyimpanan profil tidak valid",
   "storageCleanup.unknownAction": "Tindakan pembersihan tidak dikenal",
@@ -266,5 +264,8 @@
   "storageCleanup.profileRunning": "Tutup profil ini sebelum menjalankan tindakan pembersihan ini.",
   "storageCleanup.editorCacheCleared": "Cache editor dibersihkan ({amount})",
   "storageCleanup.vacuumCompleted": "Kompresi basis data selesai",
-  "storageCleanup.deepCleanCompleted": "Pembersihan mendalam selesai ({amount} dipulihkan dari basis data)"
+  "storageCleanup.deepCleanCompleted": "Pembersihan mendalam selesai ({amount} dipulihkan dari basis data)",
+  "panel.launchedWithProject": "Launched {name} with project {project}",
+  "webview.profileCard.recentProjects": "Opened Projects",
+  "webview.profileCard.openProject": "Open"
 }

@@ -220,7 +220,6 @@
   "webview.profileCard.manageStorage": "การจัดการไฟล์",
   "webview.profileCard.accountType": "ประเภทบัญชี",
   "webview.profileCard.delete": "ลบ",
-
   "webview.storage.title": "การจัดการไฟล์",
   "webview.storage.loading": "กำลังคำนวณพื้นที่จัดเก็บ…",
   "webview.storage.total": "พื้นที่จัดเก็บทั้งหมด",
@@ -250,7 +249,6 @@
   "webview.storage.confirmEditorCache": "ลบโฟลเดอร์แคชตัวแก้ไขสำหรับโปรไฟล์นี้?",
   "webview.storage.confirmVacuum": "บีบอัดฐานข้อมูลเพื่อคืนพื้นที่ที่ไม่ได้ใช้?",
   "webview.storage.confirmDeepClean": "การล้างแบบลึกจะลบประวัติแชทและ composer จากฐานข้อมูลในเครื่อง จะสร้างสำรอง ดำเนินการต่อ?",
-
   "storageCleanup.profileNotFound": "ไม่พบโปรไฟล์",
   "storageCleanup.invalidPath": "เส้นทางจัดเก็บโปรไฟล์ไม่ถูกต้อง",
   "storageCleanup.unknownAction": "การดำเนินการล้างข้อมูลที่ไม่รู้จัก",
@@ -266,5 +264,8 @@
   "storageCleanup.profileRunning": "ปิดโปรไฟล์นี้ก่อนรันการล้างข้อมูลนี้",
   "storageCleanup.editorCacheCleared": "ล้างแคชตัวแก้ไขแล้ว ({amount})",
   "storageCleanup.vacuumCompleted": "บีบอัดฐานข้อมูลเสร็จสิ้น",
-  "storageCleanup.deepCleanCompleted": "ล้างแบบลึกเสร็จสิ้น (กู้คืน {amount} จากฐานข้อมูล)"
+  "storageCleanup.deepCleanCompleted": "ล้างแบบลึกเสร็จสิ้น (กู้คืน {amount} จากฐานข้อมูล)",
+  "panel.launchedWithProject": "Launched {name} with project {project}",
+  "webview.profileCard.recentProjects": "Opened Projects",
+  "webview.profileCard.openProject": "Open"
 }

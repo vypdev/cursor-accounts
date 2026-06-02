@@ -27,5 +27,6 @@
   "configuration.profiles.instanceDetectionInterval.description": "Interval in seconds for detecting running Cursor instances.",
   "configuration.modelEfficiency.showNotificationOnHigh.description": "Show an information notification when model efficiency severity is high.",
   "configuration.modelEfficiency.autoShowOutputChannel.description": "Automatically open the Model Efficiency output channel on each analysis.",
-  "configuration.modelEfficiency.pollIntervalSeconds.description": "Interval in seconds for polling the profile state.vscdb for new Composer user messages (5–60)."
+  "configuration.modelEfficiency.pollIntervalSeconds.description": "Interval in seconds for polling the profile state.vscdb for new Composer user messages (5–60).",
+  "configuration.debug.webviewLifecycle.description": "Log webview lifecycle diagnostics to the Cursor Accounts output channel (disable after troubleshooting)."
 }

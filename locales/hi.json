@@ -220,7 +220,6 @@
   "webview.profileCard.manageStorage": "फ़ाइल प्रबंधन",
   "webview.profileCard.accountType": "खाता प्रकार",
   "webview.profileCard.delete": "हटाएँ",
-
   "webview.storage.title": "फ़ाइल प्रबंधन",
   "webview.storage.loading": "स्टोरेज की गणना हो रही है…",
   "webview.storage.total": "कुल स्टोरेज",
@@ -250,7 +249,6 @@
   "webview.storage.confirmEditorCache": "इस प्रोफ़ाइल के एडिटर कैश फ़ोल्डर हटाएँ?",
   "webview.storage.confirmVacuum": "अप्रयुक्त स्थान पाने के लिए डेटाबेस कॉम्पैक्ट करें?",
   "webview.storage.confirmDeepClean": "गहन सफ़ाई स्थानीय डेटाबेस से चैट और composer इतिहास हटाएगी। बैकअप बनेगा। जारी रखें?",
-
   "storageCleanup.profileNotFound": "प्रोफ़ाइल नहीं मिली",
   "storageCleanup.invalidPath": "अमान्य प्रोफ़ाइल स्टोरेज पथ",
   "storageCleanup.unknownAction": "अज्ञात सफ़ाई क्रिया",
@@ -266,5 +264,8 @@
   "storageCleanup.profileRunning": "यह सफ़ाई क्रिया चलाने से पहले प्रोफ़ाइल बंद करें।",
   "storageCleanup.editorCacheCleared": "एडिटर कैश साफ़ ({amount})",
   "storageCleanup.vacuumCompleted": "डेटाबेस कॉम्पैक्शन पूर्ण",
-  "storageCleanup.deepCleanCompleted": "गहन सफ़ाई पूर्ण (डेटाबेस से {amount} पुनर्प्राप्त)"
+  "storageCleanup.deepCleanCompleted": "गहन सफ़ाई पूर्ण (डेटाबेस से {amount} पुनर्प्राप्त)",
+  "panel.launchedWithProject": "Launched {name} with project {project}",
+  "webview.profileCard.recentProjects": "Opened Projects",
+  "webview.profileCard.openProject": "Open"
 }

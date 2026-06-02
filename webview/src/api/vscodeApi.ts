@@ -32,44 +32,6 @@ function getVsCodeApi(): VsCodeApiInstance {
   return api;
 }
 
-function waitForServiceWorker(): Promise<void> {
-  return new Promise((resolve) => {
-    if (!navigator.serviceWorker) {
-      resolve();
-      return;
-    }
-
-    let settled = false;
-    const finish = (): void => {
-      if (settled) {
-        return;
-      }
-      settled = true;
-      resolve();
-    };
-
-    const onControllerChange = (): void => {
-      navigator.serviceWorker?.removeEventListener(
-        'controllerchange',
-        onControllerChange
-      );
-      finish();
-    };
-
-    navigator.serviceWorker.addEventListener(
-      'controllerchange',
-      onControllerChange
-    );
-    window.setTimeout(() => {
-      navigator.serviceWorker?.removeEventListener(
-        'controllerchange',
-        onControllerChange
-      );
-      finish();
-    }, 2000);
-  });
-}
-
 type MessageHandler = (message: ToWebviewMessage) => void;
 
 class VSCodeAPI {
@@ -122,9 +84,12 @@ class VSCodeAPI {
     this.vscode.postMessage(message);
   }
 
-  async ready(): Promise<void> {
-    await waitForServiceWorker();
-    this.sendMessage({ type: 'ready' });
+  logToExtension(
+    level: 'info' | 'debug',
+    phase: string,
+    message: string
+  ): void {
+    this.sendMessage({ type: 'webviewLog', level, phase, message });
   }
 
   requestInit(): void {
@@ -135,8 +100,8 @@ class VSCodeAPI {
     this.sendMessage({ type: 'refresh' });
   }
 
-  launch(profileId: string): void {
-    this.sendMessage({ type: 'launch', profileId });
+  launch(profileId: string, projectPath?: string): void {
+    this.sendMessage({ type: 'launch', profileId, projectPath });
   }
 
   addProfile(
@@ -209,3 +174,11 @@ function getBridge(): VSCodeAPI {
 }
 
 export const vscodeApi = getBridge();
+
+export function logBridgeLifecycle(phase: string, message: string): void {
+  try {
+    vscodeApi.logToExtension('info', phase, message);
+  } catch {
+    // API may not be initialized yet during early boot diagnostics.
+  }
+}

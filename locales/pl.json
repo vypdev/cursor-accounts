@@ -220,7 +220,6 @@
   "webview.profileCard.manageStorage": "Zarządzanie plikami",
   "webview.profileCard.accountType": "Typ konta",
   "webview.profileCard.delete": "Usuń",
-
   "webview.storage.title": "Zarządzanie plikami",
   "webview.storage.loading": "Obliczanie magazynu…",
   "webview.storage.total": "Całkowity magazyn",
@@ -250,7 +249,6 @@
   "webview.storage.confirmEditorCache": "Usunąć foldery pamięci podręcznej edytora dla tego profilu?",
   "webview.storage.confirmVacuum": "Skompaktować bazę, aby odzyskać nieużywane miejsce?",
   "webview.storage.confirmDeepClean": "Głębokie czyszczenie usunie historię czatu i composer z lokalnej bazy. Zostanie utworzona kopia zapasowa. Kontynuować?",
-
   "storageCleanup.profileNotFound": "Nie znaleziono profilu",
   "storageCleanup.invalidPath": "Nieprawidłowa ścieżka magazynu profilu",
   "storageCleanup.unknownAction": "Nieznana akcja czyszczenia",
@@ -266,5 +264,8 @@
   "storageCleanup.profileRunning": "Zamknij ten profil przed uruchomieniem tej akcji czyszczenia.",
   "storageCleanup.editorCacheCleared": "Pamięć podręczna edytora wyczyszczona ({amount})",
   "storageCleanup.vacuumCompleted": "Kompaktowanie bazy danych zakończone",
-  "storageCleanup.deepCleanCompleted": "Głębokie czyszczenie zakończone (odzyskano {amount} z bazy danych)"
+  "storageCleanup.deepCleanCompleted": "Głębokie czyszczenie zakończone (odzyskano {amount} z bazy danych)",
+  "panel.launchedWithProject": "Launched {name} with project {project}",
+  "webview.profileCard.recentProjects": "Opened Projects",
+  "webview.profileCard.openProject": "Open"
 }
