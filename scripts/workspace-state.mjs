@@ -1,13 +1,24 @@
 #!/usr/bin/env node
 import fs from 'fs';
 import path from 'path';
-import { execSync } from 'child_process';
 
 const root = process.cwd();
 const backupDir = path.join(root, '.build-backup');
 const packageBackupPath = path.join(backupDir, 'package.json');
-const typesPackagePath = path.join(root, 'packages', 'types');
-const typesNodeModulesPath = path.join(root, 'node_modules', '@cursor-accounts', 'types');
+const cursorAccountsScopePath = path.join(root, 'node_modules', '@cursor-accounts');
+
+const WORKSPACE_PACKAGES = [
+  {
+    dependencyName: '@cursor-accounts/types',
+    packagePath: path.join(root, 'packages', 'types'),
+    nodeModulesPath: path.join(cursorAccountsScopePath, 'types'),
+  },
+  {
+    dependencyName: '@cursor-accounts/shared',
+    packagePath: path.join(root, 'packages', 'shared'),
+    nodeModulesPath: path.join(cursorAccountsScopePath, 'shared'),
+  },
+];
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
@@ -30,6 +41,40 @@ function copyDirectory(source, destination) {
   }
 }
 
+function materializeWorkspacePackage({ dependencyName, packagePath, nodeModulesPath }) {
+  const packageJsonPath = path.join(packagePath, 'package.json');
+  const distEntryPath = path.join(packagePath, 'dist', 'index.js');
+
+  if (!fs.existsSync(distEntryPath)) {
+    throw new Error(
+      `Missing compiled ${dependencyName} package. Run pnpm run bundle before packaging.`
+    );
+  }
+
+  if (fs.existsSync(nodeModulesPath)) {
+    fs.rmSync(nodeModulesPath, { recursive: true, force: true });
+  }
+
+  fs.mkdirSync(path.dirname(nodeModulesPath), { recursive: true });
+  copyDirectory(packagePath, nodeModulesPath);
+
+  const productionPackage = readJson(path.join(nodeModulesPath, 'package.json'));
+  delete productionPackage.devDependencies;
+  writeJson(path.join(nodeModulesPath, 'package.json'), productionPackage);
+
+  return readJson(packageJsonPath).version;
+}
+
+function restoreWorkspaceSymlink({ packagePath, nodeModulesPath }) {
+  if (fs.existsSync(nodeModulesPath)) {
+    fs.rmSync(nodeModulesPath, { recursive: true, force: true });
+  }
+
+  fs.mkdirSync(path.dirname(nodeModulesPath), { recursive: true });
+  const relativeTarget = path.relative(path.dirname(nodeModulesPath), packagePath);
+  fs.symlinkSync(relativeTarget, nodeModulesPath, 'dir');
+}
+
 export function saveState() {
   fs.mkdirSync(backupDir, { recursive: true });
   fs.copyFileSync(path.join(root, 'package.json'), packageBackupPath);
@@ -37,26 +82,20 @@ export function saveState() {
 
 export function convertToProduction() {
   const rootPackage = readJson(path.join(root, 'package.json'));
-  const typesPackage = readJson(path.join(typesPackagePath, 'package.json'));
+  let rootPackageUpdated = false;
 
-  if (!fs.existsSync(path.join(typesPackagePath, 'dist', 'index.js'))) {
-    throw new Error('Missing compiled types package. Run compile before packaging.');
+  for (const workspacePackage of WORKSPACE_PACKAGES) {
+    const version = materializeWorkspacePackage(workspacePackage);
+    const workspaceDependency =
+      rootPackage.dependencies?.[workspacePackage.dependencyName];
+
+    if (workspaceDependency?.startsWith('workspace:')) {
+      rootPackage.dependencies[workspacePackage.dependencyName] = version;
+      rootPackageUpdated = true;
+    }
   }
 
-  if (fs.existsSync(typesNodeModulesPath)) {
-    fs.rmSync(typesNodeModulesPath, { recursive: true, force: true });
-  }
-
-  fs.mkdirSync(path.dirname(typesNodeModulesPath), { recursive: true });
-  copyDirectory(typesPackagePath, typesNodeModulesPath);
-
-  const productionTypesPackage = readJson(path.join(typesNodeModulesPath, 'package.json'));
-  delete productionTypesPackage.devDependencies;
-  writeJson(path.join(typesNodeModulesPath, 'package.json'), productionTypesPackage);
-
-  const workspaceTypes = rootPackage.dependencies?.['@cursor-accounts/types'];
-  if (workspaceTypes?.startsWith('workspace:')) {
-    rootPackage.dependencies['@cursor-accounts/types'] = typesPackage.version;
+  if (rootPackageUpdated) {
     writeJson(path.join(root, 'package.json'), rootPackage);
   }
 }
@@ -68,13 +107,9 @@ export function restoreState() {
 
   fs.copyFileSync(packageBackupPath, path.join(root, 'package.json'));
 
-  if (fs.existsSync(typesNodeModulesPath)) {
-    fs.rmSync(typesNodeModulesPath, { recursive: true, force: true });
+  for (const workspacePackage of WORKSPACE_PACKAGES) {
+    restoreWorkspaceSymlink(workspacePackage);
   }
-
-  fs.mkdirSync(path.dirname(typesNodeModulesPath), { recursive: true });
-  const relativeTarget = path.relative(path.dirname(typesNodeModulesPath), typesPackagePath);
-  fs.symlinkSync(relativeTarget, typesNodeModulesPath, 'dir');
 
   fs.rmSync(backupDir, { recursive: true, force: true });
 }

@@ -95,9 +95,9 @@ function ensureNodeVersion() {
   run('bash scripts/ensure-node.sh', { shell: true });
 }
 
-function compile() {
-  console.log('\n==> Compiling extension, webview, and shared types');
-  run('pnpm run compile');
+function bundleExtension() {
+  console.log('\n==> Bundling extension, webview, and workspace packages');
+  run('pnpm run bundle');
 }
 
 function preparePackage() {
@@ -207,7 +207,7 @@ function main() {
 
   try {
     ensureNodeVersion();
-    compile();
+    bundleExtension();
     preparePackage();
 
     saveState();

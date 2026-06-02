@@ -173,7 +173,7 @@
   },
   "dependencies": {
     "@cursor-accounts/shared": "workspace:*",
-    "@cursor-accounts/types": "0.1.0",
+    "@cursor-accounts/types": "workspace:*",
     "@cursor/sdk": "^1.0.15",
     "zod": "^3.24.2"
   },

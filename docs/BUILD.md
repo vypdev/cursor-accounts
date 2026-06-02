@@ -35,7 +35,7 @@ pnpm run build -- --target darwin-arm64
 `pnpm run build` is the single entry point for packaging. It:
 
 1. **Bundles** the extension code with esbuild for optimal performance
-2. Compiles shared types and the Accounts webview
+2. Compiles workspace packages (`@cursor-accounts/types`, `@cursor-accounts/shared`) and the Accounts webview
 3. Installs dependencies and rebuilds the `sqlite3` native binding
 4. Converts workspace dependencies to a production layout compatible with `vsce`
 5. Removes hoisted devDependencies that break npm dependency validation
@@ -83,6 +83,7 @@ The extension uses **esbuild** to bundle all TypeScript code into a single file,
 | Extension code (bundled) | `src/` | `out/extension-bundle.js` (~1.2MB) | Yes |
 | Accounts webview (bundled) | `webview/src/` | `webview-dist/bundle.js` | Yes |
 | Shared types | `packages/types/` | Bundled in extension | No (bundled) |
+| Shared utilities | `packages/shared/` | Bundled in extension/webview | No (bundled) |
 | Cursor SDK | `@cursor/sdk` (external) | `node_modules/@cursor/sdk` | Yes |
 | Platform SDK | `@cursor/sdk-<platform>` | `node_modules/@cursor/sdk-*` | Yes (one per target) |
 | SQLite CLI | `bin/<target>/sqlite3` | Same path | Yes (one per target) |
@@ -98,7 +99,7 @@ The extension uses **esbuild** to bundle all TypeScript code into a single file,
 To verify a reproducible build from scratch:
 
 ```bash
-rm -rf node_modules webview/node_modules packages/types/node_modules out webview-dist .build-backup
+rm -rf node_modules webview/node_modules packages/types/node_modules packages/shared/node_modules out webview-dist .build-backup
 pnpm install --frozen-lockfile
 pnpm run build:current
 ```
@@ -117,11 +118,12 @@ Each matrix job builds and verifies a VSIX, then publishes it to Open VSX.
 
 | Command | Purpose |
 |---------|---------|
-| `pnpm run compile` | Compile TypeScript and webview for local development (F5) |
+| `pnpm run compile` | Compile TypeScript and webview for local development (F5); does not produce `extension-bundle.js` |
+| `pnpm run bundle` | Full esbuild bundle (`out/extension-bundle.js`); used by packaging and `vscode:prepublish` |
 | `pnpm run watch` | Watch extension TypeScript |
 | `pnpm run watch:webview` | Watch webview bundle |
-| `pnpm run build:current` | Produce an installable VSIX for your machine |
-| `pnpm run build:all` | Produce VSIXes for all platforms |
+| `pnpm run build:current` | Bundle + package an installable VSIX for your machine (runs `pnpm run bundle` internally) |
+| `pnpm run build:all` | Bundle + package VSIXes for all platforms |
 
 ## Troubleshooting
 
