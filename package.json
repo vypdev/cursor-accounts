@@ -4,6 +4,7 @@
   "description": "%extension.description%",
   "version": "0.1.26",
   "publisher": "vypdev",
+  "icon": "images/logo.svg",
   "license": "MIT",
   "engines": {
     "node": ">=22",
@@ -27,7 +28,7 @@
         {
           "id": "cursorAccounts",
           "title": "%viewsContainers.activitybar.title%",
-          "icon": "$(account)"
+          "icon": "images/logo.svg"
         }
       ]
     },
