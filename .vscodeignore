@@ -43,4 +43,3 @@ node_modules/jsdom/**
 # Extension icons only (README screenshots stay out of the VSIX)
 images/**
 !images/icon.png
-!images/logo.svg

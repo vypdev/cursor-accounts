@@ -27,7 +27,7 @@
         {
           "id": "cursorAccounts",
           "title": "%viewsContainers.activitybar.title%",
-          "icon": "images/logo.svg"
+          "icon": "$(account)"
         }
       ]
     },
