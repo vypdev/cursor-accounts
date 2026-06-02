@@ -5,6 +5,7 @@ export * from './entities/ActivityLeaderboard';
 export * from './entities/AccountView';
 export * from './entities/StorageInfo';
 export * from './entities/Workspace';
+export * from './entities/GitHub';
 export * from './constants/profileConstants';
 export * from './rules/quotaRules';
 export * from './contracts/webviewMessages';

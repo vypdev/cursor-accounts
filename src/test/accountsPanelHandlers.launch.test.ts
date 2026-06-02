@@ -62,6 +62,7 @@ function createHandlers(deps: {
         refreshCalled = true;
       },
       refreshInstances: async () => undefined,
+      refreshGithubSummaries: async () => undefined,
       hasActiveWebview: () => true,
     }
   );

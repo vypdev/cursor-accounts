@@ -19,6 +19,7 @@ import type {
   WorkspaceInfo,
 } from '../profiles/types';
 import type { ProfileWithWorkspaces } from '@cursor-accounts/types';
+import { ProfileGitHubEnrichmentService } from '../github/profileGitHubEnrichmentService';
 import type { MultiProfileQuotaService } from '../services/multiProfileQuotaService';
 import { quotaMapToRecord } from '../services/multiProfileQuotaService';
 import type { ProfileAccountFetcher } from '../services/profileAccountFetcher';
@@ -45,8 +46,10 @@ export class AccountsPanelProvider {
 
   private panel?: vscode.WebviewPanel;
   private accountsFetchInFlight = false;
+  private githubFetchInFlight = false;
   private webviewRuntimeReady = false;
   private readonly handlers: AccountsPanelHandlers;
+  private readonly githubEnrichment = new ProfileGitHubEnrichmentService();
 
   public hasResolvedView(): boolean {
     return this.panel !== undefined;
@@ -106,6 +109,7 @@ export class AccountsPanelProvider {
         postMessage: (message) => this.postMessage(message),
         refresh: () => this.refresh(),
         refreshInstances: () => this.refreshInstances(),
+        refreshGithubSummaries: () => this.refreshGithubSummaries(),
         hasActiveWebview: () => this.getActiveWebview() !== undefined,
       }
     );
@@ -257,6 +261,8 @@ export class AccountsPanelProvider {
         activeAccount: null,
         runningInstances,
         openWorkspacePaths: openPaths,
+        profileGithubSummaries: {},
+        profileGithubTokenStatus: {},
         locale: getLocale(),
         messages: getWebviewMessages(),
       };
@@ -264,7 +270,11 @@ export class AccountsPanelProvider {
       await this.postMessage({ type: 'init', data: initData });
       lifecycleLog.lifecycle('init.sent', { profileCount: profiles.length });
 
-      void Promise.all([this.refreshQuotas(), this.refreshProfileAccounts()]);
+      void Promise.all([
+        this.refreshQuotas(),
+        this.refreshProfileAccounts(),
+        this.refreshGithubSummaries(),
+      ]);
     } catch (error) {
       extensionLog.error(
         `[AccountsPanel] Failed to refresh accounts panel: ${extensionLog.formatError(error)}`
@@ -336,6 +346,39 @@ export class AccountsPanelProvider {
     } finally {
       this.accountsFetchInFlight = false;
       await this.postMessage({ type: 'accountsLoading', data: false });
+    }
+  }
+
+  /** Fetch GitHub repo metadata for recent projects and push to webview. */
+  public async refreshGithubSummaries(): Promise<void> {
+    if (!this.getActiveWebview()) {
+      return;
+    }
+
+    if (this.githubFetchInFlight) {
+      extensionLog.debug(
+        '[AccountsPanel] GitHub enrichment skipped (already in flight)'
+      );
+      return;
+    }
+
+    try {
+      this.githubFetchInFlight = true;
+      const profilesWithWorkspaces =
+        await this.profileWorkspaceService.getProfilesWithWorkspaces();
+      const { summaries, tokenStatus } =
+        await this.githubEnrichment.enrichProfiles(profilesWithWorkspaces);
+
+      await this.postMessage({
+        type: 'githubSummaries',
+        data: { summaries, tokenStatus },
+      });
+    } catch (error) {
+      extensionLog.error(
+        `[AccountsPanel] Failed to refresh GitHub summaries: ${extensionLog.formatError(error)}`
+      );
+    } finally {
+      this.githubFetchInFlight = false;
     }
   }
 

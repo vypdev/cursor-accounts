@@ -31,6 +31,7 @@ export interface AccountsPanelHandlerCallbacks {
   postMessage(message: ToWebviewMessage): Promise<void>;
   refresh(): Promise<void>;
   refreshInstances(): Promise<void>;
+  refreshGithubSummaries(): Promise<void>;
   hasActiveWebview(): boolean;
 }
 
@@ -103,6 +104,14 @@ export class AccountsPanelHandlers {
 
       case 'cleanStorage':
         await this.handleCleanStorage(message.profileId, message.options);
+        break;
+
+      case 'configureGithubToken':
+        await this.handleConfigureGithubToken(message.profileId);
+        break;
+
+      case 'clearGithubToken':
+        await this.handleClearGithubToken(message.profileId);
         break;
 
       default:
@@ -434,5 +443,56 @@ export class AccountsPanelHandlers {
           messages.join(', ') || t('panel.importCompletedWithErrors'),
       });
     }
+  }
+
+  private async handleConfigureGithubToken(profileId: string): Promise<void> {
+    const profile = await this.deps.profileManager.getProfile(profileId);
+    if (!profile) {
+      await this.callbacks.postMessage({
+        type: 'error',
+        message: t('errors.profileNotFound'),
+      });
+      return;
+    }
+
+    const selection = await vscode.window.showOpenDialog({
+      canSelectFiles: true,
+      canSelectFolders: false,
+      canSelectMany: false,
+      openLabel: t('panel.githubTokenSelectFile'),
+      title: t('panel.githubTokenDialogTitle'),
+    });
+
+    if (!selection?.[0]) {
+      return;
+    }
+
+    const tokenPath = selection[0].fsPath;
+    await this.deps.profileManager.updateProfile(profileId, {
+      githubTokenPath: tokenPath,
+    });
+
+    await this.callbacks.postMessage({
+      type: 'success',
+      message: t('panel.githubTokenConfigured', { name: profile.displayName }),
+    });
+    await this.callbacks.refreshGithubSummaries();
+  }
+
+  private async handleClearGithubToken(profileId: string): Promise<void> {
+    const profile = await this.deps.profileManager.getProfile(profileId);
+    if (!profile) {
+      return;
+    }
+
+    await this.deps.profileManager.updateProfile(profileId, {
+      githubTokenPath: undefined,
+    });
+
+    await this.callbacks.postMessage({
+      type: 'success',
+      message: t('panel.githubTokenCleared', { name: profile.displayName }),
+    });
+    await this.callbacks.refreshGithubSummaries();
   }
 }

@@ -150,6 +150,14 @@ class VSCodeAPI {
     this.sendMessage({ type: 'cleanStorage', profileId, options });
   }
 
+  configureGithubToken(profileId: string): void {
+    this.sendMessage({ type: 'configureGithubToken', profileId });
+  }
+
+  clearGithubToken(profileId: string): void {
+    this.sendMessage({ type: 'clearGithubToken', profileId });
+  }
+
   saveState(state: Omit<WebviewPersistedState, 'version'>): void {
     this.vscode.setState({
       version: WEBVIEW_STATE_VERSION,

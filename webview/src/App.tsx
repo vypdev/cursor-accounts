@@ -19,6 +19,8 @@ import type {
   StorageCleanupResult,
   ToWebviewMessage,
   WorkspaceInfo,
+  ProfileGithubSummariesMap,
+  ProfileGithubTokenStatusMap,
 } from './types';
 import './App.css';
 
@@ -38,6 +40,10 @@ const AppContent: React.FC = () => {
   const [profileWorkspaces, setProfileWorkspaces] = useState<
     Record<string, WorkspaceInfo[]>
   >({});
+  const [profileGithubSummaries, setProfileGithubSummaries] =
+    useState<ProfileGithubSummariesMap>({});
+  const [profileGithubTokenStatus, setProfileGithubTokenStatus] =
+    useState<ProfileGithubTokenStatusMap>({});
   const [showAddForm, setShowAddForm] = useState(
     persisted?.showAddForm ?? false
   );
@@ -89,7 +95,18 @@ const AppContent: React.FC = () => {
           setActiveAccount(message.data.activeAccount ?? null);
           setRunningInstances(message.data.runningInstances ?? {});
           setProfileWorkspaces(message.data.profileWorkspaces ?? {});
+          setProfileGithubSummaries(
+            message.data.profileGithubSummaries ?? {}
+          );
+          setProfileGithubTokenStatus(
+            message.data.profileGithubTokenStatus ?? {}
+          );
           setLoading(false);
+          break;
+
+        case 'githubSummaries':
+          setProfileGithubSummaries(message.data.summaries);
+          setProfileGithubTokenStatus(message.data.tokenStatus);
           break;
 
         case 'openWorkspaces':
@@ -327,6 +344,14 @@ const AppContent: React.FC = () => {
     []
   );
 
+  const handleConfigureGithubToken = useCallback((profileId: string) => {
+    vscodeApi.configureGithubToken(profileId);
+  }, []);
+
+  const handleClearGithubToken = useCallback((profileId: string) => {
+    vscodeApi.clearGithubToken(profileId);
+  }, []);
+
   const editingProfile = editingProfileId
     ? profiles.find((p) => p.id === editingProfileId)
     : undefined;
@@ -413,6 +438,8 @@ const AppContent: React.FC = () => {
             currentProfileId={currentProfile?.id}
             profileAccounts={profileAccounts}
             profileWorkspaces={profileWorkspaces}
+            profileGithubSummaries={profileGithubSummaries}
+            profileGithubTokenStatus={profileGithubTokenStatus}
             quotas={quotas}
             runningInstances={runningInstances}
             onLaunch={handleLaunch}
@@ -423,6 +450,8 @@ const AppContent: React.FC = () => {
             onExport={handleExport}
             onToggleEfficiency={handleToggleEfficiency}
             onManageStorage={handleManageStorage}
+            onConfigureGithubToken={handleConfigureGithubToken}
+            onClearGithubToken={handleClearGithubToken}
           />
         )}
       </div>

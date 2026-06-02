@@ -4,6 +4,8 @@ import type {
   InstanceInfoMap,
   Profile,
   ProfileAccountMap,
+  ProfileGithubSummariesMap,
+  ProfileGithubTokenStatusMap,
   ProfileQuotaMap,
   WorkspaceInfo,
 } from '../types';
@@ -14,6 +16,8 @@ interface ProfileListProps {
   currentProfileId?: string;
   profileAccounts: ProfileAccountMap;
   profileWorkspaces: Record<string, WorkspaceInfo[]>;
+  profileGithubSummaries: ProfileGithubSummariesMap;
+  profileGithubTokenStatus: ProfileGithubTokenStatusMap;
   quotas: ProfileQuotaMap;
   runningInstances: InstanceInfoMap;
   onLaunch: (id: string) => void;
@@ -24,6 +28,8 @@ interface ProfileListProps {
   onExport: (profileIds: string[], includeSettings: boolean) => void;
   onToggleEfficiency: (id: string, enabled: boolean) => void;
   onManageStorage: (id: string) => void;
+  onConfigureGithubToken: (id: string) => void;
+  onClearGithubToken: (id: string) => void;
 }
 
 export const ProfileList: React.FC<ProfileListProps> = ({
@@ -31,6 +37,8 @@ export const ProfileList: React.FC<ProfileListProps> = ({
   currentProfileId,
   profileAccounts,
   profileWorkspaces,
+  profileGithubSummaries,
+  profileGithubTokenStatus,
   quotas,
   runningInstances,
   onLaunch,
@@ -41,6 +49,8 @@ export const ProfileList: React.FC<ProfileListProps> = ({
   onExport,
   onToggleEfficiency,
   onManageStorage,
+  onConfigureGithubToken,
+  onClearGithubToken,
 }) => {
   const { t } = useL10n();
 
@@ -64,6 +74,10 @@ export const ProfileList: React.FC<ProfileListProps> = ({
           isCurrent={profile.id === currentProfileId}
           account={profileAccounts[profile.id]}
           workspaces={profileWorkspaces[profile.id] ?? []}
+          repoSummaries={profileGithubSummaries[profile.id] ?? {}}
+          githubTokenStatus={
+            profileGithubTokenStatus[profile.id] ?? 'not_configured'
+          }
           quota={quotas[profile.id]}
           isRunning={profile.id in runningInstances}
           onLaunch={onLaunch}
@@ -73,6 +87,8 @@ export const ProfileList: React.FC<ProfileListProps> = ({
           onShowInExplorer={onShowInExplorer}
           onToggleEfficiency={onToggleEfficiency}
           onManageStorage={onManageStorage}
+          onConfigureGithubToken={onConfigureGithubToken}
+          onClearGithubToken={onClearGithubToken}
         />
       ))}
       </div>

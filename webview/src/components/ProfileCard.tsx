@@ -1,8 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useL10n } from '../l10n/context';
 import type {
+  GitHubRepoSummary,
   Profile,
   ProfileAccountView,
+  ProfileGithubTokenStatus,
   ProfileQuota,
   QuotaStatus,
   WorkspaceInfo,
@@ -25,6 +27,8 @@ interface ProfileCardProps {
   isCurrent: boolean;
   account?: ProfileAccountView;
   workspaces?: WorkspaceInfo[];
+  repoSummaries?: Record<string, GitHubRepoSummary>;
+  githubTokenStatus?: ProfileGithubTokenStatus;
   quota?: ProfileQuota;
   isRunning: boolean;
   onLaunch: (id: string) => void;
@@ -34,6 +38,65 @@ interface ProfileCardProps {
   onShowInExplorer: (id: string) => void;
   onToggleEfficiency: (id: string, enabled: boolean) => void;
   onManageStorage: (id: string) => void;
+  onConfigureGithubToken: (id: string) => void;
+  onClearGithubToken: (id: string) => void;
+}
+
+function WorkspaceRepoMeta({
+  summary,
+  t,
+}: {
+  summary: GitHubRepoSummary;
+  t: (key: string, args?: Record<string, string | number | undefined>) => string;
+}) {
+  if (summary.visibility === 'private') {
+    return (
+      <div className="workspace-repo-meta">
+        {summary.fullName ? (
+          <span className="repo-slug">{summary.fullName}</span>
+        ) : null}
+        <span className="repo-badge repo-badge-private">
+          {t('profileCard.repoPrivate')}
+        </span>
+      </div>
+    );
+  }
+
+  if (summary.visibility === 'rate_limited') {
+    return (
+      <p className="workspace-repo-hint">{t('profileCard.rateLimited')}</p>
+    );
+  }
+
+  if (summary.visibility === 'public') {
+    const latest = summary.commits?.[0];
+    return (
+      <div className="workspace-repo-meta">
+        {summary.fullName ? (
+          <span className="repo-slug">{summary.fullName}</span>
+        ) : null}
+        <span className="repo-badge repo-badge-public">
+          {t('profileCard.repoPublic')}
+        </span>
+        {summary.branchCount != null ? (
+          <p className="workspace-repo-stats">
+            {t('profileCard.repoMeta', {
+              branches: summary.branchCount,
+              issues: summary.openIssueCount ?? 0,
+              pulls: summary.openPullRequestCount ?? 0,
+            })}
+          </p>
+        ) : null}
+        {latest ? (
+          <p className="workspace-repo-commit" title={latest.message}>
+            {t('profileCard.latestCommit', { message: latest.message })}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+
+  return null;
 }
 
 function formatResetDate(
@@ -140,6 +203,8 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
   isCurrent,
   account,
   workspaces = [],
+  repoSummaries = {},
+  githubTokenStatus = 'not_configured',
   quota,
   isRunning,
   onLaunch,
@@ -149,6 +214,8 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
   onShowInExplorer,
   onToggleEfficiency,
   onManageStorage,
+  onConfigureGithubToken,
+  onClearGithubToken,
 }) => {
   const { t } = useL10n();
   const [showMenu, setShowMenu] = useState(false);
@@ -496,15 +563,27 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
           <ul className="workspace-list">
             {displayedWorkspaces.map((workspace) => {
               const isProjectOpen = Boolean(workspace.isOpenInSession);
+              const summary = repoSummaries[workspace.storageHash];
 
               return (
               <li
                 key={workspace.storageHash}
                 className={`workspace-item${isProjectOpen ? ' is-open' : ''}`}
               >
-                <span className="workspace-name" title={workspace.path}>
-                  {workspace.name}
-                </span>
+                <div className="workspace-item-main">
+                  <span className="workspace-name" title={workspace.path}>
+                    {workspace.name}
+                  </span>
+                  {summary ? (
+                    <WorkspaceRepoMeta summary={summary} t={t} />
+                  ) : null}
+                  {summary?.visibility === 'private' &&
+                  githubTokenStatus === 'not_configured' ? (
+                    <p className="workspace-repo-hint">
+                      {t('profileCard.privateRepoHint')}
+                    </p>
+                  ) : null}
+                </div>
                 <button
                   type="button"
                   className={`btn-open-project${isProjectOpen ? ' is-open' : ''}`}
@@ -519,6 +598,34 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
               );
             })}
           </ul>
+          <div className="profile-github-token">
+            {githubTokenStatus === 'configured' ? (
+              <span className="github-token-status configured">
+                {t('profileCard.githubTokenConfigured')}
+              </span>
+            ) : null}
+            {githubTokenStatus === 'invalid' ? (
+              <span className="github-token-status invalid">
+                {t('profileCard.githubTokenInvalid')}
+              </span>
+            ) : null}
+            <button
+              type="button"
+              className="btn-github-token"
+              onClick={() => onConfigureGithubToken(profile.id)}
+            >
+              {t('profileCard.configureGithubToken')}
+            </button>
+            {profile.githubTokenPath ? (
+              <button
+                type="button"
+                className="btn-github-token-clear"
+                onClick={() => onClearGithubToken(profile.id)}
+              >
+                {t('profileCard.clearGithubToken')}
+              </button>
+            ) : null}
+          </div>
         </div>
       ) : null}
 

@@ -1,6 +1,10 @@
 import type { ActivityLeaderboardSnapshot } from '../entities/ActivityLeaderboard';
 import type { ProfileAccountView } from '../entities/AccountView';
 import type { Profile, ImportOptions } from '../entities/Profile';
+import type {
+  ProfileGithubSummariesMap,
+  ProfileGithubTokenStatusMap,
+} from '../entities/GitHub';
 import type { WorkspaceInfo } from '../entities/Workspace';
 import type { QuotaUsage } from '../entities/QuotaUsage';
 import type {
@@ -48,6 +52,8 @@ export interface InitData {
   activeAccount?: ProfileAccountView | null;
   runningInstances: InstanceInfoMap;
   openWorkspacePaths: string[];
+  profileGithubSummaries: ProfileGithubSummariesMap;
+  profileGithubTokenStatus: ProfileGithubTokenStatusMap;
   locale: string;
   messages: Record<string, string>;
 }
@@ -75,7 +81,14 @@ export type ToWebviewMessage =
   | { type: 'exportData'; data: string; filename: string }
   | { type: 'suggestedProfile'; email?: string; displayName?: string; notice?: string }
   | { type: 'storageInfo'; data: StorageBreakdown }
-  | { type: 'storageCleanupResult'; data: StorageCleanupResult };
+  | { type: 'storageCleanupResult'; data: StorageCleanupResult }
+  | {
+      type: 'githubSummaries';
+      data: {
+        summaries: ProfileGithubSummariesMap;
+        tokenStatus: ProfileGithubTokenStatusMap;
+      };
+    };
 
 /** Messages sent from webview to extension. */
 export type FromWebviewMessage =
@@ -105,4 +118,6 @@ export type FromWebviewMessage =
   | { type: 'requestSuggestedProfile' }
   | { type: 'toggleEfficiency'; profileId: string; enabled: boolean }
   | { type: 'requestStorageInfo'; profileId: string }
-  | { type: 'cleanStorage'; profileId: string; options: StorageCleanupOptions };
+  | { type: 'cleanStorage'; profileId: string; options: StorageCleanupOptions }
+  | { type: 'configureGithubToken'; profileId: string }
+  | { type: 'clearGithubToken'; profileId: string };

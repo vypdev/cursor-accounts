@@ -89,6 +89,7 @@ function createHandlers(overrides: {
       },
       refresh: async () => undefined,
       refreshInstances: async () => undefined,
+      refreshGithubSummaries: async () => undefined,
       hasActiveWebview: () => true,
     }
   );

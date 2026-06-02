@@ -13,6 +13,8 @@ export interface Profile {
   color?: string;
   emoji?: string;
   efficiencyAnalysisEnabled?: boolean;
+  /** Absolute path to a file containing a GitHub PAT (optional, per profile). */
+  githubTokenPath?: string;
   metadata?: ProfileMetadata;
 }
 
