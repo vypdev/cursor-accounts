@@ -4,7 +4,7 @@
   "description": "%extension.description%",
   "version": "0.1.26",
   "publisher": "vypdev",
-  "icon": "images/logo.svg",
+  "icon": "images/icon.png",
   "license": "MIT",
   "engines": {
     "node": ">=22",
@@ -15,8 +15,7 @@
     "Other"
   ],
   "activationEvents": [
-    "onStartupFinished",
-    "onView:cursorAccounts.accountsPanel"
+    "onStartupFinished"
   ],
   "extensionKind": [
     "ui"
