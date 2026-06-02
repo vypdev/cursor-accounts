@@ -36,7 +36,7 @@ pnpm install
 pnpm run compile
 ```
 
-Press **F5** in Cursor/VS Code to launch an Extension Development Host, or package with `pnpm run package` and install the `.vsix` via **Extensions → ⋯ → Install from VSIX…**.
+Press **F5** in Cursor/VS Code to launch an Extension Development Host, or build a VSIX with `pnpm run build:current` and install it via **Extensions → ⋯ → Install from VSIX…**.
 
 Reload the window if prompted. Status bar items appear automatically on startup—no manual setup.
 
@@ -71,6 +71,7 @@ No additional installation required. See [docs/PLATFORM-SUPPORT.md](docs/PLATFOR
 
 - [How It Works](docs/HOW-IT-WORKS.md)
 - [Architecture](docs/ARCHITECTURE.md)
+- [Building & Packaging](docs/BUILD.md)
 - [API Research](docs/RESEARCH.md)
 - [Platform Support](docs/PLATFORM-SUPPORT.md)
 

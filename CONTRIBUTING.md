@@ -34,7 +34,8 @@ Useful scripts:
 | `pnpm run test:types-sync` | Validate webview ↔ shared types alignment |
 | `pnpm run lint` | Typecheck + ESLint (includes layer boundary rules) |
 | `pnpm run validate:l10n` | Ensure all `locales/*.json` keys match `en.json` |
-| `pnpm run package` | Build a `.vsix` for local install |
+| `pnpm run build:current` | Build a `.vsix` for your current platform (canonical packaging command) |
+| `pnpm run build:all` | Build `.vsix` files for all supported platforms |
 
 ## Project structure
 
@@ -111,6 +112,7 @@ Release notes for published versions are maintained in [CHANGELOG.md](CHANGELOG.
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | End users: common issues |
 | [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md) | Users/contributors: technical overview |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Contributors: structure, flows, decisions |
+| [docs/BUILD.md](docs/BUILD.md) | Contributors: build and packaging |
 | [docs/FEATURE-MULTI-PROFILE.md](docs/FEATURE-MULTI-PROFILE.md) | Product/design: multi-profile feature |
 | [docs/MODEL-EFFICIENCY.md](docs/MODEL-EFFICIENCY.md) | Users: model efficiency analysis |
 | [docs/RESEARCH.md](docs/RESEARCH.md) | APIs, quotas, account-switching constraints |
