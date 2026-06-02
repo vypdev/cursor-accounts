@@ -38,12 +38,12 @@ pnpm run build -- --target darwin-arm64
 2. Compiles workspace packages (`@cursor-accounts/types`, `@cursor-accounts/shared`) and the Accounts webview
 3. Installs dependencies and rebuilds the `sqlite3` native binding
 4. Converts workspace dependencies to a production layout compatible with `vsce`
-5. Removes hoisted devDependencies that break npm dependency validation
-6. Packages a platform-specific `.vsix` with bundled code and native modules
-7. Verifies the VSIX contains the webview bundle, `sqlite3`, and `@cursor/sdk`
+5. Removes hoisted devDependencies that break npm dependency validation, then prunes non-production top-level packages from `node_modules`
+6. Packages a platform-specific `.vsix` with bundled code and full production dependencies
+7. Verifies the VSIX contains the webview bundle, `sqlite3`, `@cursor/sdk`, and critical runtime deps (`undici`, `bindings`)
 8. Restores the workspace to its original development state
 
-The extension code is bundled into a single `out/extension-bundle.js` file (~1.2MB), with only `@cursor/sdk` and its native dependencies left external.
+The extension code is bundled into a single `out/extension-bundle.js` file (~1.2MB). All production `node_modules` (including `@cursor/sdk` and its full transitive dependency tree) are included in the VSIX.
 
 ## Platform Targets
 
@@ -84,15 +84,14 @@ The extension uses **esbuild** to bundle all TypeScript code into a single file,
 | Accounts webview (bundled) | `webview/src/` | `webview-dist/bundle.js` | Yes |
 | Shared types | `packages/types/` | Bundled in extension | No (bundled) |
 | Shared utilities | `packages/shared/` | Bundled in extension/webview | No (bundled) |
-| Cursor SDK | `@cursor/sdk` (external) | `node_modules/@cursor/sdk` | Yes |
+| Production dependencies | `node_modules/` | Same path | Yes (full tree) |
+| Cursor SDK | `@cursor/sdk` (external in bundle) | `node_modules/@cursor/sdk` | Yes |
 | Platform SDK | `@cursor/sdk-<platform>` | `node_modules/@cursor/sdk-*` | Yes (one per target) |
 | SQLite CLI | `bin/<target>/sqlite3` | Same path | Yes (one per target) |
-| SQLite native binding | `node_modules/sqlite3` | Same path | Yes |
-| Zod | `node_modules/zod` | Same path | Yes |
 
-**Note**: `@cursor/sdk` is marked as `external` in the bundle because it dynamically imports native modules. All other extension code is bundled for optimal performance.
+**Note**: `@cursor/sdk` is marked as `external` in the esbuild bundle because it has native dependencies and is dynamically imported. Its full production dependency tree (`undici`, `bindings`, `sqlite3`, etc.) is shipped in `node_modules/` — not selectively whitelisted.
 
-**VSIX Size**: ~14MB per platform (down from ~26MB before bundling)
+**VSIX Size**: ~20 MB per platform (3465 files; down from ~26 MB before bundling; includes full production `node_modules` for `@cursor/sdk`)
 
 ## Clean Build
 

@@ -18,20 +18,14 @@
 
 ### Phase 2: Improved Packaging ✅
 
-**Updated `.vscodeignore`** to aggressively exclude unnecessary files while keeping runtime dependencies:
+**Packaging strategy**: bundle extension code + include **all production `node_modules`**.
 
-```
-node_modules/**          # Exclude all by default
-!node_modules/@cursor/** # Include only what's needed
-!node_modules/sqlite3/**
-!node_modules/zod/**
-# + other essential deps
-```
+Previously, `.vscodeignore` used a partial whitelist (`@cursor/**`, `sqlite3/**`, etc.) that missed transitive dependencies like `undici` and `bindings`, breaking model efficiency analysis at runtime. The whitelist was replaced with full production `node_modules` inclusion; `clean-production-deps.mjs` still strips devDependencies before packaging.
 
 **Results**:
-- **4,402 files → 1,669 files** (62% reduction)
-- **26.27 MB → 14.12 MB** (46% size reduction)
-- Only runtime dependencies included
+- **~26 MB → ~15–18 MB** per VSIX (vs. ~26 MB before bundling)
+- Full `@cursor/sdk` transitive tree included — no manual whitelist maintenance
+- `webview/node_modules` still excluded (webview is pre-bundled)
 
 ### Phase 3: Cleaned Up Unused Scripts ✅
 
@@ -65,10 +59,10 @@ The original plan suggested using `--no-dependencies` flag, but pragmatic analys
 3. Manually copying these dependencies (Continue's approach) adds ~200 lines of complex code
 4. Platform-specific `@cursor/sdk-*` packages need careful handling
 
-**Current hybrid approach** (bundle + managed dependencies):
+**Current hybrid approach** (bundle + full production node_modules):
 - Extension code is fully bundled ✅
-- Native dependencies handled by existing infrastructure ✅
-- Significantly reduced VSIX size ✅
+- Native dependencies and full SDK transitive tree included ✅
+- No manual dependency whitelist to maintain ✅
 - Production-ready and maintainable ✅
 
 ## What Was Simplified
@@ -80,10 +74,9 @@ The original plan suggested using `--no-dependencies` flag, but pragmatic analys
 - All dev dependencies included via pnpm hoisting
 
 ### After Bundling
-- **1,669 files** (-62%)
-- **14.12 MB** per VSIX (-46%)
+- **~20 MB** per VSIX (~3465 files; vs. ~26 MB pre-bundling; full production `node_modules` for SDK runtime)
 - **1 bundled JS file** for extension code
-- Only runtime dependencies included
+- Full production `node_modules` tree (SDK + all transitives)
 
 ## Complexity Comparison
 
@@ -118,7 +111,7 @@ Time: ~24 seconds
 ## Verification
 
 ✅ Clean build works: `rm -rf node_modules && pnpm install && pnpm run build:current`
-✅ VSIX verification passes (webview, sqlite3, @cursor/sdk)
+✅ VSIX verification passes (webview, sqlite3, @cursor/sdk, undici, bindings)
 ✅ All 6 platform targets supported
 ✅ Existing CI/CD workflows compatible
 

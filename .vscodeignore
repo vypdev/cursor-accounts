@@ -19,18 +19,23 @@ scripts/**
 .bin-all-backup/**
 webview/node_modules/**
 packages/**
-# Exclude most node_modules since we bundle
-node_modules/**
-# But include @cursor/sdk and its dependencies (external in bundle)
-!node_modules/@cursor/**
-!node_modules/sqlite3/**
-!node_modules/@mapbox/**
-!node_modules/node-addon-api/**
-!node_modules/node-gyp-build/**
-!node_modules/zod/**
-!node_modules/@bufbuild/**
-!node_modules/@connectrpc/**
-!node_modules/@statsig/**
+# Production node_modules included in full (@cursor/sdk and all transitive deps)
+# Root devDependencies stay on disk for build but are excluded from the VSIX
+node_modules/@eslint/**
+node_modules/@types/**
+node_modules/@vscode/**
+node_modules/esbuild/**
+node_modules/eslint/**
+node_modules/eslint-plugin-react-hooks/**
+node_modules/globals/**
+node_modules/typescript/**
+node_modules/typescript-eslint/**
+# Hoisted webview devDependencies (not part of @cursor/sdk runtime tree)
+node_modules/vitest/**
+node_modules/vite/**
+node_modules/@vitest/**
+node_modules/@testing-library/**
+node_modules/jsdom/**
 # Ensure bundled SQLite binaries are included in the VSIX
 !bin/**
 # Webview bundle (Phase 3)
