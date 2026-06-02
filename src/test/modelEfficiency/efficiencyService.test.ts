@@ -4,6 +4,7 @@ import {
   getEfficiencyWrongWindowMessage,
   EfficiencyService,
 } from '../../modelEfficiency/efficiencyService';
+import { createMockEfficiencyStatsStorage } from './mockEfficiencyStatsStorage';
 import type { Profile } from '../../profiles/types';
 
 function makeProfile(overrides: Partial<Profile> = {}): Profile {
@@ -62,7 +63,8 @@ describe('EfficiencyService.setEfficiencyEnabled', () => {
       context,
       profileManager as never,
       profileDetector as never,
-      authReader
+      authReader,
+      createMockEfficiencyStatsStorage()
     );
 
     await assert.rejects(
@@ -110,7 +112,8 @@ describe('EfficiencyService.setEfficiencyEnabled', () => {
       context,
       profileManager as never,
       profileDetector as never,
-      authReader
+      authReader,
+      createMockEfficiencyStatsStorage()
     );
 
     await assert.rejects(

@@ -24,9 +24,12 @@ import { MultiProfileQuotaService } from './services/multiProfileQuotaService';
 import { ProfileAccountFetcher } from './services/profileAccountFetcher';
 import { ProfileWorkspaceService } from './services/profileWorkspaceService';
 import { RefreshService } from './services/refreshService';
+import { hasActiveWorkspace } from './services/activeWorkspaceService';
 import { AccountsPanelProvider } from './ui/accountsPanel';
+import { shouldAutoOpenAccountsPanel } from './ui/accountsPanelStartup';
 import { StatusBarManager } from './ui/statusBarManager';
 import { EfficiencyService } from './modelEfficiency/efficiencyService';
+import { EfficiencyStatsStorage } from './modelEfficiency/efficiencyStatsStorage';
 
 let refreshService: RefreshService | undefined;
 let multiProfileQuotaService: MultiProfileQuotaService | undefined;
@@ -87,11 +90,14 @@ export function activate(context: vscode.ExtensionContext): void {
     new UserClient()
   );
 
+  const efficiencyStatsStorage = new EfficiencyStatsStorage();
+
   efficiencyService = new EfficiencyService(
     context,
     profileManager,
     profileDetector,
-    profileAuthReader
+    profileAuthReader,
+    efficiencyStatsStorage
   );
 
   const accountsPanel = new AccountsPanelProvider(
@@ -106,6 +112,10 @@ export function activate(context: vscode.ExtensionContext): void {
     efficiencyService,
     profileAuthReader
   );
+
+  efficiencyStatsStorage.setStatsUpdatedListener(() => {
+    void accountsPanel.postEfficiencyStats();
+  });
 
   lifecycleLog.lifecycle('activate.begin', {
     uiKind: vscode.env.uiKind,
@@ -122,16 +132,28 @@ export function activate(context: vscode.ExtensionContext): void {
     await efficiencyService?.initialize();
 
     const currentProfile = await profileDetector.detectCurrentProfile();
-    if (currentProfile === null) {
+    const workspaceOpen = hasActiveWorkspace();
+    if (shouldAutoOpenAccountsPanel(currentProfile, workspaceOpen)) {
       accountsPanel.openPanel();
-      extensionLog.info('[Extension] Unassigned window - accounts panel opened');
-      lifecycleLog.lifecycle('panel.startup-open.unassigned', {
-        panelOpen: accountsPanel.hasResolvedView(),
-        sinceActivateMs: lifecycleLog.sinceActivateMs(),
-      });
-    } else {
+      if (currentProfile === null) {
+        extensionLog.info('[Extension] Unassigned window - accounts panel opened');
+        lifecycleLog.lifecycle('panel.startup-open.unassigned', {
+          panelOpen: accountsPanel.hasResolvedView(),
+          sinceActivateMs: lifecycleLog.sinceActivateMs(),
+        });
+      } else {
+        extensionLog.info(
+          `[Extension] Profile ${currentProfile.displayName} active with no project - accounts panel opened`
+        );
+        lifecycleLog.lifecycle('panel.startup-open.no-workspace', {
+          profileId: currentProfile.id,
+          panelOpen: accountsPanel.hasResolvedView(),
+          sinceActivateMs: lifecycleLog.sinceActivateMs(),
+        });
+      }
+    } else if (currentProfile) {
       extensionLog.info(
-        `[Extension] Profile already assigned (${currentProfile.displayName}) - panel not opened`
+        `[Extension] Profile ${currentProfile.displayName} has an open project - panel not auto-opened`
       );
     }
   }).catch((err) => {

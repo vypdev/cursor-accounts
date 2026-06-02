@@ -7,6 +7,7 @@ import type { ProfileManager } from '../profiles/profileManager';
 import { ApiKeyManager, ApiKeyManagerError } from './apiKeyManager';
 import { ComposerDbPoller } from './composerDbPoller';
 import { EfficiencyAnalyzer } from './efficiencyAnalyzer';
+import type { EfficiencyStatsStorage } from './efficiencyStatsStorage';
 import { OutputPresenter } from './outputPresenter';
 import { CursorSdkClassifier } from './sdkClassifier';
 import type { ProfileDetector } from '../profiles/profileDetector';
@@ -26,7 +27,8 @@ export class EfficiencyService {
     private readonly context: vscode.ExtensionContext,
     private readonly profileManager: ProfileManager,
     private readonly profileDetector: ProfileDetector,
-    private readonly authReader: IProfileAuthReader
+    private readonly authReader: IProfileAuthReader,
+    private readonly statsStorage: EfficiencyStatsStorage
   ) {
     this.apiKeyManager = new ApiKeyManager(context);
     this.outputPresenter = new OutputPresenter();
@@ -35,8 +37,13 @@ export class EfficiencyService {
       profileDetector,
       this.apiKeyManager,
       this.sdkClassifier,
-      this.outputPresenter
+      this.outputPresenter,
+      this.statsStorage
     );
+  }
+
+  getStatsStorage(): EfficiencyStatsStorage {
+    return this.statsStorage;
   }
 
   getOutputPresenter(): OutputPresenter {
@@ -45,6 +52,7 @@ export class EfficiencyService {
 
   async initialize(): Promise<void> {
     const profiles = await this.profileManager.getProfiles();
+    await this.statsStorage.loadAllStats(profiles);
     if (profiles.some((p) => p.efficiencyAnalysisEnabled)) {
       this.startPoller();
     }
@@ -128,6 +136,8 @@ export class EfficiencyService {
         efficiencyAnalysisEnabled: true,
       });
 
+      await this.statsStorage.loadStats(updated);
+
       await this.poller?.resetState();
       await this.syncPollerWithProfiles();
 
@@ -142,6 +152,7 @@ export class EfficiencyService {
     }
 
     await this.apiKeyManager.deleteApiKey(profileId);
+    await this.statsStorage.deleteStats(profile);
     const updated = await this.profileManager.updateProfile(profileId, {
       efficiencyAnalysisEnabled: false,
     });

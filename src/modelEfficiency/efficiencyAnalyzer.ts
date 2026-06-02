@@ -4,6 +4,7 @@ import type { Profile } from '../profiles/types';
 import * as extensionLog from '../logging/extensionLog';
 import { t } from '../l10n';
 import type { ApiKeyManager } from './apiKeyManager';
+import type { EfficiencyStatsStorage } from './efficiencyStatsStorage';
 import type { OutputPresenter } from './outputPresenter';
 import type { SdkClassifier } from './sdkClassifier';
 import type { PromptMetadata } from './types';
@@ -19,7 +20,8 @@ export class EfficiencyAnalyzer {
     private readonly profileDetector: ProfileDetector,
     private readonly apiKeyManager: ApiKeyManager,
     private readonly sdkClassifier: SdkClassifier,
-    private readonly outputPresenter: OutputPresenter
+    private readonly outputPresenter: OutputPresenter,
+    private readonly statsStorage: EfficiencyStatsStorage
   ) {}
 
   enqueue(metadata: PromptMetadata): void {
@@ -92,6 +94,13 @@ export class EfficiencyAnalyzer {
 
     const result = await this.sdkClassifier.classify(metadata, apiKey);
     this.outputPresenter.present(result, metadata);
+
+    void this.statsStorage.recordAnalysis(
+      profile,
+      result.efficiencyScore,
+      metadata.workspaceRoots[0],
+      metadata.gitBranch
+    );
 
     await this.profileManager.updateProfile(profile.id, {
       metadata: {

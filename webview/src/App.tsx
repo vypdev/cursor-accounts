@@ -21,6 +21,7 @@ import type {
   WorkspaceInfo,
   ProfileGithubSummariesMap,
   ProfileGithubTokenStatusMap,
+  EfficiencyStatsMap,
 } from './types';
 import './App.css';
 
@@ -40,10 +41,12 @@ const AppContent: React.FC = () => {
   const [profileWorkspaces, setProfileWorkspaces] = useState<
     Record<string, WorkspaceInfo[]>
   >({});
+  const [openWorkspacePaths, setOpenWorkspacePaths] = useState<string[]>([]);
   const [profileGithubSummaries, setProfileGithubSummaries] =
     useState<ProfileGithubSummariesMap>({});
   const [profileGithubTokenStatus, setProfileGithubTokenStatus] =
     useState<ProfileGithubTokenStatusMap>({});
+  const [efficiencyStats, setEfficiencyStats] = useState<EfficiencyStatsMap>({});
   const [showAddForm, setShowAddForm] = useState(
     persisted?.showAddForm ?? false
   );
@@ -95,13 +98,19 @@ const AppContent: React.FC = () => {
           setActiveAccount(message.data.activeAccount ?? null);
           setRunningInstances(message.data.runningInstances ?? {});
           setProfileWorkspaces(message.data.profileWorkspaces ?? {});
+          setOpenWorkspacePaths(message.data.openWorkspacePaths ?? []);
           setProfileGithubSummaries(
             message.data.profileGithubSummaries ?? {}
           );
           setProfileGithubTokenStatus(
             message.data.profileGithubTokenStatus ?? {}
           );
+          setEfficiencyStats(message.data.efficiencyStats ?? {});
           setLoading(false);
+          break;
+
+        case 'efficiencyStats':
+          setEfficiencyStats(message.data);
           break;
 
         case 'githubSummaries':
@@ -111,6 +120,7 @@ const AppContent: React.FC = () => {
 
         case 'openWorkspaces':
           setProfileWorkspaces(message.data.profileWorkspaces);
+          setOpenWorkspacePaths(message.data.paths);
           break;
 
         case 'profiles':
@@ -236,11 +246,25 @@ const AppContent: React.FC = () => {
 
   const handleEditSubmit = useCallback(
     (profileId: string, updates: Partial<Profile>) => {
-      vscodeApi.editProfile(profileId, updates);
+      const profile = profiles.find((p) => p.id === profileId);
+
+      if (
+        updates.efficiencyAnalysisEnabled !== undefined &&
+        profile?.efficiencyAnalysisEnabled !== updates.efficiencyAnalysisEnabled
+      ) {
+        vscodeApi.toggleEfficiency(profileId, updates.efficiencyAnalysisEnabled);
+      }
+
+      const { efficiencyAnalysisEnabled: _efficiency, ...otherUpdates } = updates;
+
+      if (Object.keys(otherUpdates).length > 0) {
+        vscodeApi.editProfile(profileId, otherUpdates);
+      }
+
       setEditingProfileId(null);
       persistUiState(showAddForm, null);
     },
-    [showAddForm, persistUiState]
+    [profiles, showAddForm, persistUiState]
   );
 
   const handleDelete = useCallback((profileId: string) => {
@@ -306,13 +330,6 @@ const AppContent: React.FC = () => {
     vscodeApi.importProfiles(json, options);
     setShowImportDialog(false);
   }, []);
-
-  const handleToggleEfficiency = useCallback(
-    (profileId: string, enabled: boolean) => {
-      vscodeApi.toggleEfficiency(profileId, enabled);
-    },
-    []
-  );
 
   const handleManageStorage = useCallback((profileId: string) => {
     setStorageProfileId(profileId);
@@ -436,11 +453,13 @@ const AppContent: React.FC = () => {
           <ProfileList
             profiles={profiles}
             currentProfileId={currentProfile?.id}
+            hasOpenWorkspaceInSession={openWorkspacePaths.length > 0}
             profileAccounts={profileAccounts}
             profileWorkspaces={profileWorkspaces}
             profileGithubSummaries={profileGithubSummaries}
             profileGithubTokenStatus={profileGithubTokenStatus}
             quotas={quotas}
+            efficiencyStats={efficiencyStats}
             runningInstances={runningInstances}
             onLaunch={handleLaunch}
             onOpenProject={handleOpenProject}
@@ -448,7 +467,6 @@ const AppContent: React.FC = () => {
             onDelete={handleDelete}
             onShowInExplorer={handleShowInExplorer}
             onExport={handleExport}
-            onToggleEfficiency={handleToggleEfficiency}
             onManageStorage={handleManageStorage}
             onConfigureGithubToken={handleConfigureGithubToken}
             onClearGithubToken={handleClearGithubToken}
@@ -492,6 +510,7 @@ const AppContent: React.FC = () => {
       {editingProfile && (
         <EditProfileForm
           profile={editingProfile}
+          isCurrent={editingProfile.id === currentProfile?.id}
           onSubmit={(updates) => handleEditSubmit(editingProfile.id, updates)}
           onCancel={closeEditForm}
         />

@@ -33,6 +33,8 @@ export interface PromptMetadata {
   attachments: PromptAttachment[];
   conversationId: string;
   workspaceRoots: string[];
+  /** Current Git branch for the primary workspace, when detectable. */
+  gitBranch?: string;
   userEmail?: string;
 }
 

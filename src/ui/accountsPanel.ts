@@ -27,8 +27,10 @@ import { accountMapToRecord } from '../services/profileAccountFetcher';
 import type { ProfileWorkspaceService } from '../services/profileWorkspaceService';
 import {
   getOpenWorkspacePaths,
+  hasActiveWorkspace,
   isWorkspacePathOpen,
 } from '../services/activeWorkspaceService';
+import { shouldAutoOpenAccountsPanel } from './accountsPanelStartup';
 import type { EfficiencyService } from '../modelEfficiency/efficiencyService';
 import { getLocale, getWebviewMessages, isRtlLocale, t } from '../l10n';
 import { AccountsPanelHandlers } from './accountsPanelHandlers';
@@ -50,6 +52,7 @@ export class AccountsPanelProvider {
   private webviewRuntimeReady = false;
   private readonly handlers: AccountsPanelHandlers;
   private readonly githubEnrichment = new ProfileGitHubEnrichmentService();
+  private readonly efficiencyService: EfficiencyService;
 
   public hasResolvedView(): boolean {
     return this.panel !== undefined;
@@ -71,6 +74,7 @@ export class AccountsPanelProvider {
     efficiencyService: EfficiencyService,
     authReader: IProfileAuthReader
   ) {
+    this.efficiencyService = efficiencyService;
     const fileSystem = new NodeFileSystemService();
     const storageAnalyzer = new ProfileStorageAnalyzer(fileSystem);
     const storageCleanupService = new StorageCleanupService({
@@ -124,9 +128,35 @@ export class AccountsPanelProvider {
 
     context.subscriptions.push(
       vscode.workspace.onDidChangeWorkspaceFolders(() => {
-        void this.refreshOpenWorkspaces();
+        void this.onWorkspaceFoldersChanged();
       })
     );
+  }
+
+  private async onWorkspaceFoldersChanged(): Promise<void> {
+    await this.maybeAutoOpenPanelOnEmptyWorkspace();
+    await this.refreshOpenWorkspaces();
+  }
+
+  /** Open the panel when the active profile has no project open (e.g. last folder closed). */
+  private async maybeAutoOpenPanelOnEmptyWorkspace(): Promise<void> {
+    if (this.hasResolvedView()) {
+      return;
+    }
+
+    try {
+      const currentProfile = await this.profileDetector.detectCurrentProfile();
+      if (shouldAutoOpenAccountsPanel(currentProfile, hasActiveWorkspace())) {
+        this.openPanel();
+        extensionLog.info(
+          '[AccountsPanel] Opened panel after workspace became empty'
+        );
+      }
+    } catch (error) {
+      extensionLog.debug(
+        `[AccountsPanel] Auto-open on empty workspace skipped: ${extensionLog.formatError(error)}`
+      );
+    }
   }
 
   private buildProfileWorkspaces(
@@ -263,6 +293,7 @@ export class AccountsPanelProvider {
         openWorkspacePaths: openPaths,
         profileGithubSummaries: {},
         profileGithubTokenStatus: {},
+        efficiencyStats: this.efficiencyService.getStatsStorage().getAllStats(),
         locale: getLocale(),
         messages: getWebviewMessages(),
       };
@@ -284,6 +315,18 @@ export class AccountsPanelProvider {
         message: t('errors.failedLoadProfiles'),
       });
     }
+  }
+
+  /** Push latest efficiency stats to the webview. */
+  public async postEfficiencyStats(): Promise<void> {
+    if (!this.getActiveWebview()) {
+      return;
+    }
+
+    await this.postMessage({
+      type: 'efficiencyStats',
+      data: this.efficiencyService.getStatsStorage().getAllStats(),
+    });
   }
 
   /** Refresh only running instance data. */

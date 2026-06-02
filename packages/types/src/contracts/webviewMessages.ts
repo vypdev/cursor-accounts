@@ -1,5 +1,6 @@
 import type { ActivityLeaderboardSnapshot } from '../entities/ActivityLeaderboard';
 import type { ProfileAccountView } from '../entities/AccountView';
+import type { EfficiencyStatsMap } from '../entities/EfficiencyStats';
 import type { Profile, ImportOptions } from '../entities/Profile';
 import type {
   ProfileGithubSummariesMap,
@@ -54,6 +55,7 @@ export interface InitData {
   openWorkspacePaths: string[];
   profileGithubSummaries: ProfileGithubSummariesMap;
   profileGithubTokenStatus: ProfileGithubTokenStatusMap;
+  efficiencyStats: EfficiencyStatsMap;
   locale: string;
   messages: Record<string, string>;
 }
@@ -69,6 +71,7 @@ export interface WebviewPersistedState {
 export type ToWebviewMessage =
   | { type: 'init'; data: InitData }
   | { type: 'profiles'; data: Profile[] }
+  | { type: 'efficiencyStats'; data: EfficiencyStatsMap }
   | { type: 'currentProfile'; data: Profile | null }
   | { type: 'quotas'; data: ProfileQuotaMap }
   | { type: 'profileAccounts'; data: ProfileAccountMap }

@@ -93,6 +93,9 @@ function createMockEfficiencyService(): EfficiencyService {
       profile: { id: 'p1', email: 'a@b.com' } as never,
       message: 'ok',
     }),
+    getStatsStorage: () => ({
+      getAllStats: () => ({}),
+    }),
   } as unknown as EfficiencyService;
 }
 

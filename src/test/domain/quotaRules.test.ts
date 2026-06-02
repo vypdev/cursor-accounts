@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   formatCompactNumber,
   getEffectiveUsagePercent,
+  getPersonalIncludedOverageCents,
   getPersonalModeAveragePercent,
   getQuotaStatus,
   isEnterpriseUsage,
@@ -170,6 +171,79 @@ describe('domain quota rules', () => {
     it('formats compact numbers', () => {
       assert.equal(formatCompactNumber(456728), '457k');
       assert.equal(formatCompactNumber(0), '0');
+    });
+  });
+
+  describe('getPersonalIncludedOverageCents', () => {
+    it('returns overage when base limit is exhausted and spend exceeds limit', () => {
+      assert.equal(
+        getPersonalIncludedOverageCents(
+          makePersonalQuota({
+            limit: 7000,
+            totalSpend: 7790,
+            remaining: 0,
+          })
+        ),
+        790
+      );
+    });
+
+    it('returns 0 when remaining is still positive', () => {
+      assert.equal(
+        getPersonalIncludedOverageCents(
+          makePersonalQuota({
+            limit: 7000,
+            totalSpend: 5000,
+            remaining: 2000,
+          })
+        ),
+        0
+      );
+    });
+
+    it('returns 0 when spend is within limit', () => {
+      assert.equal(
+        getPersonalIncludedOverageCents(
+          makePersonalQuota({
+            limit: 7000,
+            totalSpend: 7000,
+            remaining: 0,
+          })
+        ),
+        0
+      );
+    });
+
+    it('returns 0 for enterprise accounts', () => {
+      assert.equal(
+        getPersonalIncludedOverageCents(
+          makePersonalQuota({
+            membershipType: 'enterprise',
+            limit: 7000,
+            totalSpend: 7790,
+            remaining: 0,
+          })
+        ),
+        0
+      );
+    });
+
+    it('returns 0 for monthly spend display mode', () => {
+      assert.equal(
+        getPersonalIncludedOverageCents(
+          makePersonalQuota({
+            displayMode: 'monthlySpend',
+            limit: 7000,
+            totalSpend: 7790,
+            remaining: 0,
+          })
+        ),
+        0
+      );
+    });
+
+    it('returns 0 for null quota', () => {
+      assert.equal(getPersonalIncludedOverageCents(null), 0);
     });
   });
 });
