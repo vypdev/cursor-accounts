@@ -68,6 +68,16 @@ describe('ProfileLauncher', () => {
       assert.ok(args.includes('--user-data-dir'));
       assert.ok(args.includes('/test/path'));
     });
+
+    it('appends project path when provided', () => {
+      const args = launcher.buildLaunchArgs('/test/path', '/projects/app');
+
+      assert.deepEqual(args, [
+        '--user-data-dir',
+        '/test/path',
+        '/projects/app',
+      ]);
+    });
   });
 
   describe('buildSpawnEnv', () => {

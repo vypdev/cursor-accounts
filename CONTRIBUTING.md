@@ -31,10 +31,14 @@ Useful scripts:
 | `pnpm run watch` | Recompile extension TypeScript on save |
 | `pnpm run watch:webview` | Rebuild Accounts panel webview on save |
 | `pnpm test` | Run unit tests (`pretest` compiles first) |
+| `pnpm run test:coverage` | Run tests with c8 coverage thresholds |
+| `pnpm --dir webview test` | Run Accounts panel Vitest suite |
+| `pnpm run docs:api` | Generate Typedoc HTML under `docs/api/` |
 | `pnpm run test:types-sync` | Validate webview ↔ shared types alignment |
 | `pnpm run lint` | Typecheck + ESLint (includes layer boundary rules) |
 | `pnpm run validate:l10n` | Ensure all `locales/*.json` keys match `en.json` |
-| `pnpm run package` | Build a `.vsix` for local install |
+| `pnpm run build:current` | Build a `.vsix` for your current platform (canonical packaging command) |
+| `pnpm run build:all` | Build `.vsix` files for all supported platforms |
 
 ## Project structure
 
@@ -43,6 +47,7 @@ cursor-accounts/
 ├── packages/types/      # @cursor-accounts/types — shared entities, rules, contracts
 ├── src/                 # Extension host (TypeScript)
 │   ├── extension.ts     # Composition root: activate, wiring, commands
+│   ├── composition/     # DI factories (e.g. storage cleanup bundle)
 │   ├── domain/          # Ports + re-exports from shared types
 │   ├── api/             # HTTP clients and DTO mappers for Cursor APIs
 │   ├── auth/            # Tokens, SQLite state.vscdb, refresh, ProfileAuthReader
@@ -111,6 +116,7 @@ Release notes for published versions are maintained in [CHANGELOG.md](CHANGELOG.
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | End users: common issues |
 | [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md) | Users/contributors: technical overview |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Contributors: structure, flows, decisions |
+| [docs/BUILD.md](docs/BUILD.md) | Contributors: build and packaging |
 | [docs/FEATURE-MULTI-PROFILE.md](docs/FEATURE-MULTI-PROFILE.md) | Product/design: multi-profile feature |
 | [docs/MODEL-EFFICIENCY.md](docs/MODEL-EFFICIENCY.md) | Users: model efficiency analysis |
 | [docs/RESEARCH.md](docs/RESEARCH.md) | APIs, quotas, account-switching constraints |

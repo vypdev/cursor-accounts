@@ -2,65 +2,106 @@ import type {
   FromWebviewMessage,
   ImportOptions,
   Profile,
+  StorageCleanupOptions,
   ToWebviewMessage,
   WebviewPersistedState} from '../types';
 import {
   WEBVIEW_STATE_VERSION,
 } from '../types';
 
-declare function acquireVsCodeApi(): {
+type VsCodeApiInstance = {
   postMessage(message: FromWebviewMessage): void;
   getState(): WebviewPersistedState | undefined;
   setState(state: WebviewPersistedState): void;
 };
 
-function getVsCodeApi() {
-  return acquireVsCodeApi();
+declare global {
+  interface Window {
+    __cursorAccountsVscodeApi?: VsCodeApiInstance;
+    __cursorAccountsBridge?: VSCodeAPI;
+  }
+}
+
+function getVsCodeApi(): VsCodeApiInstance {
+  const api = window.__cursorAccountsVscodeApi;
+  if (!api) {
+    throw new Error(
+      'VS Code API not initialized. Inline bootstrap script must run before bundle.js.'
+    );
+  }
+  return api;
 }
 
 type MessageHandler = (message: ToWebviewMessage) => void;
 
 class VSCodeAPI {
   private handlers: MessageHandler[] = [];
-  private vscodeApi?: ReturnType<typeof getVsCodeApi>;
+  private pendingMessages: ToWebviewMessage[] = [];
 
   constructor() {
     window.addEventListener('message', (event) => {
       const message = event.data as ToWebviewMessage;
       if (message && typeof message === 'object' && 'type' in message) {
-        this.handlers.forEach((handler) => handler(message));
+        this.dispatchMessage(message);
       }
     });
   }
 
-  private get vscode() {
-    if (!this.vscodeApi) {
-      this.vscodeApi = getVsCodeApi();
+  private get vscode(): VsCodeApiInstance {
+    return getVsCodeApi();
+  }
+
+  private dispatchMessage(message: ToWebviewMessage): void {
+    if (this.handlers.length === 0) {
+      this.pendingMessages.push(message);
+      return;
     }
-    return this.vscodeApi;
+
+    this.handlers.forEach((handler) => handler(message));
+  }
+
+  private flushPendingMessages(): void {
+    if (this.handlers.length === 0 || this.pendingMessages.length === 0) {
+      return;
+    }
+
+    const pending = [...this.pendingMessages];
+    this.pendingMessages = [];
+    for (const message of pending) {
+      this.handlers.forEach((handler) => handler(message));
+    }
   }
 
   onMessage(handler: MessageHandler): () => void {
     this.handlers.push(handler);
+    this.flushPendingMessages();
     return () => {
       this.handlers = this.handlers.filter((h) => h !== handler);
     };
   }
 
-  postMessage(message: FromWebviewMessage): void {
+  sendMessage(message: FromWebviewMessage): void {
     this.vscode.postMessage(message);
   }
 
-  ready(): void {
-    this.postMessage({ type: 'ready' });
+  logToExtension(
+    level: 'info' | 'debug',
+    phase: string,
+    message: string
+  ): void {
+    this.sendMessage({ type: 'webviewLog', level, phase, message });
+  }
+
+  requestInit(): void {
+    this.sendMessage({ type: 'requestInit' });
   }
 
   refresh(): void {
-    this.postMessage({ type: 'refresh' });
+    this.sendMessage({ type: 'refresh' });
   }
 
-  launch(profileId: string): void {
-    this.postMessage({ type: 'launch', profileId });
+  launch(profileId: string, projectPath?: string): void {
+    this.sendMessage({ type: 'launch', profileId, projectPath });
   }
 
   addProfile(
@@ -70,35 +111,51 @@ class VSCodeAPI {
     color?: string,
     emoji?: string
   ): void {
-    this.postMessage({ type: 'add', email, displayName, theme, color, emoji });
+    this.sendMessage({ type: 'add', email, displayName, theme, color, emoji });
   }
 
   editProfile(profileId: string, updates: Partial<Profile>): void {
-    this.postMessage({ type: 'edit', profileId, updates });
+    this.sendMessage({ type: 'edit', profileId, updates });
   }
 
   deleteProfile(profileId: string): void {
-    this.postMessage({ type: 'delete', profileId });
+    this.sendMessage({ type: 'delete', profileId });
   }
 
   showInExplorer(profileId: string): void {
-    this.postMessage({ type: 'showInExplorer', profileId });
+    this.sendMessage({ type: 'showInExplorer', profileId });
   }
 
   exportProfiles(profileIds: string[], includeSettings: boolean): void {
-    this.postMessage({ type: 'export', profileIds, includeSettings });
+    this.sendMessage({ type: 'export', profileIds, includeSettings });
   }
 
   importProfiles(data: string, options: ImportOptions): void {
-    this.postMessage({ type: 'import', data, options });
+    this.sendMessage({ type: 'import', data, options });
   }
 
   requestSuggestedProfile(): void {
-    this.postMessage({ type: 'requestSuggestedProfile' });
+    this.sendMessage({ type: 'requestSuggestedProfile' });
   }
 
   toggleEfficiency(profileId: string, enabled: boolean): void {
-    this.postMessage({ type: 'toggleEfficiency', profileId, enabled });
+    this.sendMessage({ type: 'toggleEfficiency', profileId, enabled });
+  }
+
+  requestStorageInfo(profileId: string): void {
+    this.sendMessage({ type: 'requestStorageInfo', profileId });
+  }
+
+  cleanStorage(profileId: string, options: StorageCleanupOptions): void {
+    this.sendMessage({ type: 'cleanStorage', profileId, options });
+  }
+
+  configureGithubToken(profileId: string): void {
+    this.sendMessage({ type: 'configureGithubToken', profileId });
+  }
+
+  clearGithubToken(profileId: string): void {
+    this.sendMessage({ type: 'clearGithubToken', profileId });
   }
 
   saveState(state: Omit<WebviewPersistedState, 'version'>): void {
@@ -117,4 +174,19 @@ class VSCodeAPI {
   }
 }
 
-export const vscodeApi = new VSCodeAPI();
+function getBridge(): VSCodeAPI {
+  if (!window.__cursorAccountsBridge) {
+    window.__cursorAccountsBridge = new VSCodeAPI();
+  }
+  return window.__cursorAccountsBridge;
+}
+
+export const vscodeApi = getBridge();
+
+export function logBridgeLifecycle(phase: string, message: string): void {
+  try {
+    vscodeApi.logToExtension('info', phase, message);
+  } catch {
+    // API may not be initialized yet during early boot diagnostics.
+  }
+}

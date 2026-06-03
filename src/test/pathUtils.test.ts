@@ -6,6 +6,7 @@ import {
   ensureDirectory,
   normalizePath,
   pathsEqual,
+  validateStateDbPath,
   validateUserDataPath,
 } from '../utils/pathUtils';
 
@@ -100,6 +101,26 @@ describe('pathUtils', () => {
       const result = validateUserDataPath(systemPath);
       assert.equal(result.valid, false);
       assert.ok(result.error);
+    });
+  });
+
+  describe('validateStateDbPath', () => {
+    it('accepts paths within home directory', () => {
+      const dbPath = path.join(
+        os.homedir(),
+        '.cursor-test',
+        'User',
+        'globalStorage',
+        'state.vscdb'
+      );
+      assert.doesNotThrow(() => validateStateDbPath(dbPath));
+    });
+
+    it('rejects paths outside home directory', () => {
+      assert.throws(
+        () => validateStateDbPath('/etc/passwd'),
+        /within user home directory/
+      );
     });
   });
 

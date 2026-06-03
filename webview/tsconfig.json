@@ -16,6 +16,8 @@
     "noImplicitReturns": true,
     "noUncheckedIndexedAccess": true,
     "paths": {
+      "@cursor-accounts/shared": ["../packages/shared/src/index.ts"],
+      "@cursor-accounts/shared/*": ["../packages/shared/src/*"],
       "@cursor-accounts/types": ["../packages/types/src/index.ts"],
       "@cursor-accounts/types/*": ["../packages/types/src/*"]
     }

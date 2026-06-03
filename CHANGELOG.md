@@ -9,7 +9,64 @@ For older release notes entered only in GitHub Actions workflows, see [GitHub Re
 ## [Unreleased]
 
 ### Changed
-- Documentation audit: removed obsolete implementation-phase specs; added `CONTRIBUTING.md`, `CHANGELOG.md`, and `docs/ARCHITECTURE.md`.
+- Architecture audit: dependency injection fixes, profile domain ports, command module split, coverage reporting, and expanded tests.
+
+## [0.1.33] - 2026-06-02
+
+### Changed
+- Version bump and compilation script updates for multi-platform VSIX builds.
+
+## [0.1.32] - 2026-06-01
+
+### Added
+- Recent project opening and workspace-open checks in the Accounts panel.
+
+### Changed
+- Workspace handling and webview API refinements.
+
+## [0.1.31] - 2026-05-31
+
+### Added
+- GitHub integration and profile enrichment in the Accounts panel.
+
+### Changed
+- Profile card project-open state handling.
+
+## [0.1.30] - 2026-05-30
+
+### Added
+- Project status in profile cards and workspace management localization.
+
+## [0.1.29] - 2026-05-30
+
+### Changed
+- VSIX packaging and extension icon references.
+
+## [0.1.28] - 2026-05-29
+
+### Added
+- Accounts panel init/refresh tests when the panel is visible.
+
+## [0.1.27] - 2026-05-29
+
+### Changed
+- VSIX packaging pipeline and dependency updates.
+
+## [0.1.26] - 2026-05-28
+
+### Changed
+- Build process and shared utilities package (`@cursor-accounts/shared`).
+
+## [0.1.25] - 2026-05-28
+
+### Changed
+- Quota client refactor and usage-merge test coverage.
+
+## [0.1.24] - 2026-05-27
+
+### Added
+- Storage management in the Accounts panel (breakdown, cleanup actions).
+- Documentation and localization for file management features.
 
 ## [0.1.23] - 2026-05-29
 
@@ -55,7 +112,17 @@ For older release notes entered only in GitHub Actions workflows, see [GitHub Re
 - Token read from local `state.vscdb`, refresh via OAuth, polling with cache and backoff.
 - Research-backed API usage documented in `docs/RESEARCH.md`.
 
-[Unreleased]: https://github.com/vypdev/cursor-accounts/compare/v0.1.23...HEAD
+[Unreleased]: https://github.com/vypdev/cursor-accounts/compare/v0.1.33...HEAD
+[0.1.33]: https://github.com/vypdev/cursor-accounts/releases
+[0.1.32]: https://github.com/vypdev/cursor-accounts/releases
+[0.1.31]: https://github.com/vypdev/cursor-accounts/releases
+[0.1.30]: https://github.com/vypdev/cursor-accounts/releases
+[0.1.29]: https://github.com/vypdev/cursor-accounts/releases
+[0.1.28]: https://github.com/vypdev/cursor-accounts/releases
+[0.1.27]: https://github.com/vypdev/cursor-accounts/releases
+[0.1.26]: https://github.com/vypdev/cursor-accounts/releases
+[0.1.25]: https://github.com/vypdev/cursor-accounts/releases
+[0.1.24]: https://github.com/vypdev/cursor-accounts/releases
 [0.1.23]: https://github.com/vypdev/cursor-accounts/releases
 [0.1.22]: https://github.com/vypdev/cursor-accounts/releases
 [0.1.21]: https://github.com/vypdev/cursor-accounts/releases

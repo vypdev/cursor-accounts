@@ -10,6 +10,7 @@ import { registerProfileCommands } from './commands/profileCommands';
 import { affectsCursorAccountsConfig } from './config';
 import { initL10n, t } from './l10n';
 import * as extensionLog from './logging/extensionLog';
+import * as lifecycleLog from './logging/webviewLifecycleLog';
 import {
   migrateSecretsFromCursorQuota,
   migrateSettingsFromCursorQuota,
@@ -17,58 +18,29 @@ import {
 import { InstanceDetector } from './profiles/instanceDetector';
 import { ProfileDetector } from './profiles/profileDetector';
 import { ProfileLauncher } from './profiles/profileLauncher';
+import { createAccountsPanelStorageBundle } from './composition/createStorageServices';
 import { ProfileManager } from './profiles/profileManager';
+import { ProfileStorage } from './profiles/profileStorage';
+import { WorkspaceScanner } from './profiles/workspaceScanner';
 import { MultiProfileQuotaService } from './services/multiProfileQuotaService';
 import { ProfileAccountFetcher } from './services/profileAccountFetcher';
+import { ProfileWorkspaceService } from './services/profileWorkspaceService';
 import { RefreshService } from './services/refreshService';
-import {
-  ACCOUNTS_SIDEBAR_VIEW_ID,
-  ACCOUNTS_VIEW_CONTAINER,
-  AccountsPanelProvider,
-} from './ui/accountsPanel';
+import { hasActiveWorkspace } from './services/activeWorkspaceService';
+import { AccountsPanelProvider } from './ui/accountsPanel';
+import { shouldAutoOpenAccountsPanel } from './ui/accountsPanelStartup';
 import { StatusBarManager } from './ui/statusBarManager';
 import { EfficiencyService } from './modelEfficiency/efficiencyService';
+import { EfficiencyStatsStorage } from './modelEfficiency/efficiencyStatsStorage';
 
 let refreshService: RefreshService | undefined;
 let multiProfileQuotaService: MultiProfileQuotaService | undefined;
 let efficiencyService: EfficiencyService | undefined;
-
-async function delay(ms: number): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function focusAccountsSidebar(
-  accountsPanel: AccountsPanelProvider,
-  options: { allowEditorFallback?: boolean } = {}
-): Promise<void> {
-  if (accountsPanel.hasResolvedView()) {
-    return;
-  }
-
-  const focusCommands = [
-    `${ACCOUNTS_SIDEBAR_VIEW_ID}.focus`,
-    `workbench.view.extension.${ACCOUNTS_VIEW_CONTAINER}`,
-  ];
-
-  for (const command of focusCommands) {
-    try {
-      await vscode.commands.executeCommand(command);
-      await delay(200);
-    } catch {
-      // Command may not exist in all hosts.
-    }
-
-    if (accountsPanel.hasResolvedView()) {
-      return;
-    }
-  }
-
-  if (options.allowEditorFallback) {
-    accountsPanel.openAsEditorPanel();
-  }
-}
+let instanceDetectorRef: InstanceDetector | undefined;
 
 export function activate(context: vscode.ExtensionContext): void {
+  const activateTimestamp = lifecycleLog.markActivate();
+
   initL10n({
     extensionPath: context.extensionPath,
     language: vscode.env.language,
@@ -96,10 +68,16 @@ export function activate(context: vscode.ExtensionContext): void {
     }
   });
 
-  const profileManager = new ProfileManager();
+  const profileManager = new ProfileManager(new ProfileStorage());
   const profileDetector = new ProfileDetector(profileManager, context);
   const instanceDetector = new InstanceDetector(profileManager);
+  instanceDetectorRef = instanceDetector;
   const profileLauncher = new ProfileLauncher(profileManager, instanceDetector);
+  const workspaceScanner = new WorkspaceScanner();
+  const profileWorkspaceService = new ProfileWorkspaceService(
+    profileManager,
+    workspaceScanner
+  );
 
   const profileAuthReader = new ProfileAuthReader(context);
 
@@ -116,12 +94,26 @@ export function activate(context: vscode.ExtensionContext): void {
     new UserClient()
   );
 
+  const efficiencyStatsStorage = new EfficiencyStatsStorage(
+    context.extensionPath
+  );
+
   efficiencyService = new EfficiencyService(
     context,
     profileManager,
     profileDetector,
-    profileAuthReader
+    profileAuthReader,
+    efficiencyStatsStorage,
+    multiProfileQuotaService
   );
+
+  const storageBundle = createAccountsPanelStorageBundle({
+    context,
+    profileManager,
+    profileDetector,
+    instanceDetector,
+    efficiencyService,
+  });
 
   const accountsPanel = new AccountsPanelProvider(
     context,
@@ -131,28 +123,56 @@ export function activate(context: vscode.ExtensionContext): void {
     multiProfileQuotaService,
     profileAccountFetcher,
     instanceDetector,
+    profileWorkspaceService,
     efficiencyService,
-    profileAuthReader
+    profileAuthReader,
+    storageBundle.storageCleanupService,
+    storageBundle.storageAnalyzer
   );
 
-  context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider(
-      ACCOUNTS_SIDEBAR_VIEW_ID,
-      accountsPanel,
-      {
-        webviewOptions: {
-          retainContextWhenHidden: true,
-        },
-      }
-    )
-  );
+  efficiencyStatsStorage.setStatsUpdatedListener(() => {
+    void accountsPanel.postEfficiencyStats();
+  });
+
+  lifecycleLog.lifecycle('activate.begin', {
+    uiKind: vscode.env.uiKind,
+    panelOpen: accountsPanel.hasResolvedView(),
+    timestamp: activateTimestamp,
+  });
 
   void profileManager.initialize().then(async () => {
     const profiles = await profileManager.getProfiles();
     extensionLog.info(
       `[Extension] ProfileManager initialized with ${profiles.length} profile(s)`
     );
+
     await efficiencyService?.initialize();
+
+    const currentProfile = await profileDetector.detectCurrentProfile();
+    const workspaceOpen = hasActiveWorkspace();
+    if (shouldAutoOpenAccountsPanel(currentProfile, workspaceOpen)) {
+      accountsPanel.openPanel();
+      if (currentProfile === null) {
+        extensionLog.info('[Extension] Unassigned window - accounts panel opened');
+        lifecycleLog.lifecycle('panel.startup-open.unassigned', {
+          panelOpen: accountsPanel.hasResolvedView(),
+          sinceActivateMs: lifecycleLog.sinceActivateMs(),
+        });
+      } else {
+        extensionLog.info(
+          `[Extension] Profile ${currentProfile.displayName} active with no project - accounts panel opened`
+        );
+        lifecycleLog.lifecycle('panel.startup-open.no-workspace', {
+          profileId: currentProfile.id,
+          panelOpen: accountsPanel.hasResolvedView(),
+          sinceActivateMs: lifecycleLog.sinceActivateMs(),
+        });
+      }
+    } else if (currentProfile) {
+      extensionLog.info(
+        `[Extension] Profile ${currentProfile.displayName} has an open project - panel not auto-opened`
+      );
+    }
   }).catch((err) => {
     extensionLog.error(
       `[Extension] ProfileManager initialization failed: ${extensionLog.formatError(err)}`
@@ -163,7 +183,8 @@ export function activate(context: vscode.ExtensionContext): void {
     context,
     profileManager,
     profileLauncher,
-    profileDetector
+    profileDetector,
+    instanceDetector
   );
 
   const profilesConfig = vscode.workspace.getConfiguration(
@@ -220,10 +241,12 @@ export function activate(context: vscode.ExtensionContext): void {
         statusBar.applyVisibilityFromConfig();
       }
     }),
-    vscode.commands.registerCommand('cursorAccounts.openAccounts', async () => {
-      await focusAccountsSidebar(accountsPanel, {
-        allowEditorFallback: true,
-      });
+    vscode.commands.registerCommand('cursorAccounts.openAccounts', () => {
+      if (accountsPanel.hasResolvedView()) {
+        accountsPanel.reveal();
+      } else {
+        accountsPanel.openPanel();
+      }
     }),
     vscode.commands.registerCommand('cursorAccounts.refresh', async () => {
       await refreshService?.tickNow();
@@ -266,15 +289,16 @@ export function activate(context: vscode.ExtensionContext): void {
   });
 
   refreshService.start();
-
-  void focusAccountsSidebar(accountsPanel);
 }
 
 export function deactivate(): void {
   extensionLog.info('[Extension] Cursor Accounts deactivated');
+  refreshService?.stop();
   refreshService = undefined;
   multiProfileQuotaService?.stop();
   multiProfileQuotaService = undefined;
+  instanceDetectorRef?.stopAutoDetection();
+  instanceDetectorRef = undefined;
   efficiencyService?.dispose();
   efficiencyService = undefined;
 }

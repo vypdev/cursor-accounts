@@ -3,7 +3,8 @@ import * as path from 'path';
 import type * as vscode from 'vscode';
 import * as extensionLog from '../logging/extensionLog';
 import { pathsEqual } from '../utils/pathUtils';
-import type { ProfileManager } from './profileManager';
+import type { IProfileDetector } from '../domain/ports/IProfileDetector';
+import type { IProfileManager } from '../domain/ports/IProfileManager';
 import type { Profile } from './types';
 
 export class ProfileDetectorError extends Error {
@@ -18,13 +19,13 @@ export class ProfileDetectorError extends Error {
 
 type UserDataDirSource = 'globalStorageUri' | 'env' | 'argv' | 'default';
 
-export class ProfileDetector {
+export class ProfileDetector implements IProfileDetector {
   private currentProfile: Profile | null | undefined = undefined;
   private lastUserDataDirSource: UserDataDirSource | undefined;
   private loggedNonPrimarySource = false;
 
   constructor(
-    private readonly profileManager: ProfileManager,
+    private readonly profileManager: IProfileManager,
     private readonly context: vscode.ExtensionContext
   ) {}
 

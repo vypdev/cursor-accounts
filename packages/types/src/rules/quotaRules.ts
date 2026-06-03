@@ -62,11 +62,24 @@ export function getQuotaStatus(quota: QuotaUsage | null): QuotaStatus {
   return 'ok';
 }
 
-function formatCents(cents: number): string {
+export function formatCents(cents: number): string {
   if (!Number.isFinite(cents)) {
     return '$0.00';
   }
   return `$${(cents / 100).toFixed(2)}`;
+}
+
+/** Cents of spend drawn from included allowance beyond the plan limit. */
+export function getPersonalIncludedOverageCents(
+  quota: QuotaUsage | null | undefined
+): number {
+  if (!quota || isEnterpriseUsage(quota) || quota.displayMode === 'monthlySpend') {
+    return 0;
+  }
+  if (quota.limit <= 0 || quota.remaining > 0) {
+    return 0;
+  }
+  return Math.max(0, quota.totalSpend - quota.limit);
 }
 
 /** Compact number for leaderboard metrics (e.g. 456728 → 457k). */

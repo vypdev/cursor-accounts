@@ -12,6 +12,8 @@ dist/
 .tmp/
 .bin-all-backup/
 *.tsbuildinfo
+webview/src/**/*.js
+webview/src/**/*.js.map
 
 # Extension package
 *.vsix
@@ -23,6 +25,9 @@ dist/
 .env
 .env.*
 !.env.example
+
+# Generated API reference (pnpm run docs:api)
+docs/api/
 
 # Test coverage and reports
 coverage/

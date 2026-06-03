@@ -23,6 +23,7 @@ export type {
   ProfileQuotaMap,
   ToWebviewMessage,
   WebviewPersistedState,
+  WorkspaceInfo,
 } from '@cursor-accounts/types';
 
 export {

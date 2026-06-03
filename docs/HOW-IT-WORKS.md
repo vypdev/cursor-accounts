@@ -58,7 +58,7 @@ See [FEATURE-MULTI-PROFILE.md](FEATURE-MULTI-PROFILE.md) for profile management 
 All network requests go to Cursor endpoints only:
 
 - `api2.cursor.sh` — IDE quota and OAuth
-- `cursor.com` — web dashboard usage summary and analytics
+- `cursor.com` — web dashboard usage summary, usage events, and analytics (see [USAGE-EVENTS-API.md](USAGE-EVENTS-API.md) for the per-request usage table)
 
 No third-party servers. See [PRIVACY.md](PRIVACY.md) for privacy details.
 
@@ -66,5 +66,6 @@ No third-party servers. See [PRIVACY.md](PRIVACY.md) for privacy details.
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — extension structure, data flows, design decisions
 - [RESEARCH.md](RESEARCH.md) — API research, limitations, account-switching investigation
+- [USAGE-EVENTS-API.md](USAGE-EVENTS-API.md) — dashboard usage events (`/dashboard/usage` table)
 - [FEATURE-MULTI-PROFILE.md](FEATURE-MULTI-PROFILE.md) — multi-profile product design
 - [PLATFORM-SUPPORT.md](PLATFORM-SUPPORT.md) — SQLite binaries for reading `state.vscdb`

@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import type { IProfileAuthReader } from '../domain/ports/IProfileAuthReader';
 import * as extensionLog from '../logging/extensionLog';
+import * as lifecycleLog from '../logging/webviewLifecycleLog';
 import type { InstanceDetector } from '../profiles/instanceDetector';
 import { instanceMapToRecord } from '../profiles/instanceDetector';
 import type { ProfileDetector } from '../profiles/profileDetector';
@@ -12,36 +13,50 @@ import type {
   FromWebviewMessage,
   InitData,
   InstanceInfo,
+  Profile,
   ProfileQuota,
   ToWebviewMessage,
+  WorkspaceInfo,
 } from '../profiles/types';
+import type { ProfileWithWorkspaces } from '@cursor-accounts/types';
+import { ProfileGitHubEnrichmentService } from '../github/profileGitHubEnrichmentService';
 import type { MultiProfileQuotaService } from '../services/multiProfileQuotaService';
 import { quotaMapToRecord } from '../services/multiProfileQuotaService';
 import type { ProfileAccountFetcher } from '../services/profileAccountFetcher';
 import { accountMapToRecord } from '../services/profileAccountFetcher';
+import type { ProfileWorkspaceService } from '../services/profileWorkspaceService';
+import {
+  getOpenWorkspacePaths,
+  hasActiveWorkspace,
+  isWorkspacePathOpen,
+} from '../services/activeWorkspaceService';
+import { shouldAutoOpenAccountsPanel } from './accountsPanelStartup';
 import type { EfficiencyService } from '../modelEfficiency/efficiencyService';
 import { getLocale, getWebviewMessages, isRtlLocale, t } from '../l10n';
+import type { IProfileStorageAnalyzer } from '../domain/ports/IProfileStorageAnalyzer';
+import type { IStorageCleanupService } from '../domain/ports/IStorageCleanupService';
 import { AccountsPanelHandlers } from './accountsPanelHandlers';
 
-/** Activity bar container id (must match package.json viewsContainers). */
-export const ACCOUNTS_VIEW_CONTAINER = 'cursorAccounts';
-/** Webview view id (must match package.json views). */
-export const ACCOUNTS_SIDEBAR_VIEW_ID = 'cursorAccounts.accountsPanel';
+/** Webview panel view type id. */
+export const ACCOUNTS_PANEL_VIEW_ID = 'cursorAccounts.accountsPanel';
 
-export class AccountsPanelProvider implements vscode.WebviewViewProvider {
-  public static readonly viewType = ACCOUNTS_SIDEBAR_VIEW_ID;
+export class AccountsPanelProvider {
+  public static readonly viewType = ACCOUNTS_PANEL_VIEW_ID;
 
-  private view?: vscode.WebviewView;
   private panel?: vscode.WebviewPanel;
   private accountsFetchInFlight = false;
+  private githubFetchInFlight = false;
+  private webviewRuntimeReady = false;
   private readonly handlers: AccountsPanelHandlers;
+  private readonly githubEnrichment = new ProfileGitHubEnrichmentService();
+  private readonly efficiencyService: EfficiencyService;
 
   public hasResolvedView(): boolean {
-    return this.view !== undefined || this.panel !== undefined;
+    return this.panel !== undefined;
   }
 
   private getActiveWebview(): vscode.Webview | undefined {
-    return this.view?.webview ?? this.panel?.webview;
+    return this.panel?.webview;
   }
 
   constructor(
@@ -52,9 +67,14 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
     private readonly quotaService: MultiProfileQuotaService,
     private readonly accountFetcher: ProfileAccountFetcher,
     private readonly instanceDetector: InstanceDetector,
+    private readonly profileWorkspaceService: ProfileWorkspaceService,
     efficiencyService: EfficiencyService,
-    authReader: IProfileAuthReader
+    authReader: IProfileAuthReader,
+    storageCleanupService: IStorageCleanupService,
+    storageAnalyzer: IProfileStorageAnalyzer
   ) {
+    this.efficiencyService = efficiencyService;
+
     this.handlers = new AccountsPanelHandlers(
       {
         profileManager,
@@ -63,11 +83,15 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
         efficiencyService,
         authReader,
         instanceDetector,
+        storageCleanupService,
+        storageAnalyzer,
+        profileWorkspaceService,
       },
       {
         postMessage: (message) => this.postMessage(message),
         refresh: () => this.refresh(),
         refreshInstances: () => this.refreshInstances(),
+        refreshGithubSummaries: () => this.refreshGithubSummaries(),
         hasActiveWebview: () => this.getActiveWebview() !== undefined,
       }
     );
@@ -79,64 +103,105 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
     this.instanceDetector.onDetectionChange((instances) => {
       void this.postRunningInstances(instances);
     });
+
+    context.subscriptions.push(
+      vscode.workspace.onDidChangeWorkspaceFolders(() => {
+        void this.onWorkspaceFoldersChanged();
+      })
+    );
   }
 
-  /**
-   * Called when webview becomes visible.
-   */
-  public resolveWebviewView(
-    webviewView: vscode.WebviewView,
-    _context: vscode.WebviewViewResolveContext,
-    _token: vscode.CancellationToken
-  ): void {
-    this.view = webviewView;
-    extensionLog.debug('[AccountsPanel] Webview resolved (sidebar)');
-
-    webviewView.webview.options = {
-      enableScripts: true,
-      localResourceRoots: [
-        vscode.Uri.file(
-          path.join(this.context.extensionPath, 'webview-dist')
-        ),
-      ],
-    };
-
-    this.attachWebviewMessageListener(webviewView.webview);
-
-    try {
-      webviewView.webview.html = this.getHtmlContent(webviewView.webview);
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : t('errors.unknown');
-      vscode.window.showErrorMessage(
-        t('panel.loadFailed', { error: message })
-      );
-      throw error;
-    }
-
-    webviewView.onDidChangeVisibility(() => {
-      if (webviewView.visible) {
-        void this.refresh();
-      }
-    });
+  private async onWorkspaceFoldersChanged(): Promise<void> {
+    await this.maybeAutoOpenPanelOnEmptyWorkspace();
+    await this.refreshOpenWorkspaces();
   }
 
-  /** Fallback when the sidebar webview never resolves (Cursor/VS Code race). */
-  public openAsEditorPanel(): void {
-    if (this.panel) {
-      this.panel.reveal(undefined, true);
-      void this.refresh();
+  /** Open the panel when the active profile has no project open (e.g. last folder closed). */
+  private async maybeAutoOpenPanelOnEmptyWorkspace(): Promise<void> {
+    if (this.hasResolvedView()) {
       return;
     }
 
-    extensionLog.debug('[AccountsPanel] Webview resolved (editor panel fallback)');
+    try {
+      const currentProfile = await this.profileDetector.detectCurrentProfile();
+      if (shouldAutoOpenAccountsPanel(currentProfile, hasActiveWorkspace())) {
+        this.openPanel();
+        extensionLog.info(
+          '[AccountsPanel] Opened panel after workspace became empty'
+        );
+      }
+    } catch (error) {
+      extensionLog.debug(
+        `[AccountsPanel] Auto-open on empty workspace skipped: ${extensionLog.formatError(error)}`
+      );
+    }
+  }
+
+  private buildProfileWorkspaces(
+    profilesWithWorkspaces: ProfileWithWorkspaces[],
+    currentProfile: Profile | null,
+    openPaths: string[]
+  ): Record<string, WorkspaceInfo[]> {
+    const profileWorkspaces: Record<string, WorkspaceInfo[]> = {};
+
+    for (const profile of profilesWithWorkspaces) {
+      profileWorkspaces[profile.id] = profile.workspaces.map((workspace) => ({
+        ...workspace,
+        isOpenInSession:
+          currentProfile?.id === profile.id &&
+          isWorkspacePathOpen(workspace.path, openPaths),
+      }));
+    }
+
+    return profileWorkspaces;
+  }
+
+  /** Push updated open-workspace state when folders change in the active window. */
+  public async refreshOpenWorkspaces(): Promise<void> {
+    if (!this.getActiveWebview()) {
+      return;
+    }
+
+    try {
+      const openPaths = getOpenWorkspacePaths();
+      const currentProfile = await this.profileDetector.detectCurrentProfile();
+      const profilesWithWorkspaces =
+        await this.profileWorkspaceService.getProfilesWithWorkspaces();
+      const profileWorkspaces = this.buildProfileWorkspaces(
+        profilesWithWorkspaces,
+        currentProfile,
+        openPaths
+      );
+
+      await this.postMessage({
+        type: 'openWorkspaces',
+        data: { paths: openPaths, profileWorkspaces },
+      });
+    } catch (error) {
+      extensionLog.error(
+        `[AccountsPanel] Failed to refresh open workspaces: ${extensionLog.formatError(error)}`
+      );
+    }
+  }
+
+  /** Open the accounts panel in the editor area. */
+  public openPanel(): void {
+    if (this.panel) {
+      lifecycleLog.lifecycle('panel.reveal');
+      this.panel.reveal(undefined, true);
+      this.requestRefresh();
+      return;
+    }
+
+    lifecycleLog.lifecycle('panel.open');
+    extensionLog.debug('[AccountsPanel] Opening accounts panel in editor');
 
     const distRoot = vscode.Uri.file(
       path.join(this.context.extensionPath, 'webview-dist')
     );
 
     this.panel = vscode.window.createWebviewPanel(
-      ACCOUNTS_SIDEBAR_VIEW_ID,
+      ACCOUNTS_PANEL_VIEW_ID,
       t('panel.title'),
       vscode.ViewColumn.Active,
       {
@@ -146,12 +211,21 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
       }
     );
 
+    this.webviewRuntimeReady = false;
     this.attachWebviewMessageListener(this.panel.webview);
     this.panel.webview.html = this.getHtmlContent(this.panel.webview);
 
     this.panel.onDidDispose(() => {
       this.panel = undefined;
     });
+  }
+
+  /** Bring the existing panel to the foreground. */
+  public reveal(): void {
+    if (this.panel) {
+      this.panel.reveal(undefined, true);
+      this.requestRefresh();
+    }
   }
 
   private attachWebviewMessageListener(webview: vscode.Webview): void {
@@ -177,20 +251,39 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
         await this.instanceDetector.detectRunningInstances()
       );
 
+      const profilesWithWorkspaces =
+        await this.profileWorkspaceService.getProfilesWithWorkspaces();
+      const openPaths = getOpenWorkspacePaths();
+      const profileWorkspaces = this.buildProfileWorkspaces(
+        profilesWithWorkspaces,
+        currentProfile,
+        openPaths
+      );
+
       const initData: InitData = {
         profiles,
+        profileWorkspaces,
         currentProfile,
         quotas,
         profileAccounts: {},
         activeAccount: null,
         runningInstances,
+        openWorkspacePaths: openPaths,
+        profileGithubSummaries: {},
+        profileGithubTokenStatus: {},
+        efficiencyStats: this.efficiencyService.getStatsStorage().getAllStats(),
         locale: getLocale(),
         messages: getWebviewMessages(),
       };
 
       await this.postMessage({ type: 'init', data: initData });
+      lifecycleLog.lifecycle('init.sent', { profileCount: profiles.length });
 
-      void Promise.all([this.refreshQuotas(), this.refreshProfileAccounts()]);
+      void Promise.all([
+        this.refreshQuotas(),
+        this.refreshProfileAccounts(),
+        this.refreshGithubSummaries(),
+      ]);
     } catch (error) {
       extensionLog.error(
         `[AccountsPanel] Failed to refresh accounts panel: ${extensionLog.formatError(error)}`
@@ -200,6 +293,18 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
         message: t('errors.failedLoadProfiles'),
       });
     }
+  }
+
+  /** Push latest efficiency stats to the webview. */
+  public async postEfficiencyStats(): Promise<void> {
+    if (!this.getActiveWebview()) {
+      return;
+    }
+
+    await this.postMessage({
+      type: 'efficiencyStats',
+      data: this.efficiencyService.getStatsStorage().getAllStats(),
+    });
   }
 
   /** Refresh only running instance data. */
@@ -265,6 +370,39 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
     }
   }
 
+  /** Fetch GitHub repo metadata for recent projects and push to webview. */
+  public async refreshGithubSummaries(): Promise<void> {
+    if (!this.getActiveWebview()) {
+      return;
+    }
+
+    if (this.githubFetchInFlight) {
+      extensionLog.debug(
+        '[AccountsPanel] GitHub enrichment skipped (already in flight)'
+      );
+      return;
+    }
+
+    try {
+      this.githubFetchInFlight = true;
+      const profilesWithWorkspaces =
+        await this.profileWorkspaceService.getProfilesWithWorkspaces();
+      const { summaries, tokenStatus } =
+        await this.githubEnrichment.enrichProfiles(profilesWithWorkspaces);
+
+      await this.postMessage({
+        type: 'githubSummaries',
+        data: { summaries, tokenStatus },
+      });
+    } catch (error) {
+      extensionLog.error(
+        `[AccountsPanel] Failed to refresh GitHub summaries: ${extensionLog.formatError(error)}`
+      );
+    } finally {
+      this.githubFetchInFlight = false;
+    }
+  }
+
   /** Fetch fresh quota data and push to webview. */
   public async refreshQuotas(): Promise<void> {
     if (!this.getActiveWebview()) {
@@ -314,8 +452,25 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
     try {
       switch (message.type) {
         case 'ready':
-        case 'refresh':
+          lifecycleLog.lifecycle('message.in', { type: 'ready' });
+          this.webviewRuntimeReady = true;
+          await delay(150);
           await this.refresh();
+          lifecycleLog.lifecycle('ready.handled');
+          break;
+
+        case 'requestInit':
+          lifecycleLog.lifecycle('message.in', { type: 'requestInit' });
+          await this.refresh();
+          break;
+
+        case 'refresh':
+          lifecycleLog.lifecycle('message.in', { type: 'refresh' });
+          await this.refresh();
+          break;
+
+        case 'webviewLog':
+          lifecycleLog.fromWebview(message.level, message.message, message.phase);
           break;
 
         default:
@@ -336,13 +491,27 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
     }
   }
 
+  private requestRefresh(): void {
+    if (this.webviewRuntimeReady) {
+      void this.refresh();
+    }
+  }
+
   private isActionMessage(
     message: FromWebviewMessage
   ): message is Exclude<
     FromWebviewMessage,
-    { type: 'ready' } | { type: 'refresh' }
+    | { type: 'ready' }
+    | { type: 'requestInit' }
+    | { type: 'refresh' }
+    | { type: 'webviewLog' }
   > {
-    return message.type !== 'ready' && message.type !== 'refresh';
+    return (
+      message.type !== 'ready' &&
+      message.type !== 'requestInit' &&
+      message.type !== 'refresh' &&
+      message.type !== 'webviewLog'
+    );
   }
 
   private async postMessage(message: ToWebviewMessage): Promise<void> {
@@ -360,6 +529,7 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
       extensionLog.error(
         `[AccountsPanel] bundle.js not found at: ${bundleJsPath}`
       );
+      lifecycleLog.lifecycle('html.bundle-missing', { path: bundleJsPath });
     }
 
     const scriptUri = webview.asWebviewUri(
@@ -395,9 +565,78 @@ export class AccountsPanelProvider implements vscode.WebviewViewProvider {
     window.__cursorAccountsReportScriptError = function() {
       var root = document.getElementById('root');
       if (root) {
-        root.innerHTML = '<p style="padding:12px;color:var(--vscode-errorForeground,#f88);">${t('panel.scriptLoadFailed')}</p>';
+        root.innerHTML = '<p style="padding:12px;color:var(--vscode-errorForeground,#88);">${t('panel.scriptLoadFailed')}</p>';
       }
     };
+    (function() {
+      function reportLog(phase, message, level) {
+        try {
+          window.__cursorAccountsVscodeApi.postMessage({
+            type: 'webviewLog',
+            level: level || 'info',
+            phase: phase,
+            message: message
+          });
+        } catch (error) {
+          console.error('[Webview] reportLog failed', phase, error);
+        }
+      }
+
+      if (!window.__cursorAccountsVscodeApi) {
+        window.__cursorAccountsVscodeApi = acquireVsCodeApi();
+      }
+      reportLog('bootstrap.api-acquired', 'acquireVsCodeApi completed');
+
+      function waitForServiceWorker() {
+        return new Promise(function(resolve) {
+          if (!navigator.serviceWorker) {
+            reportLog('bootstrap.sw-wait-end', 'no service worker support', 'debug');
+            resolve('no-service-worker');
+            return;
+          }
+
+          reportLog('bootstrap.sw-wait-start', 'waiting for controllerchange or timeout');
+
+          var settled = false;
+          function finish(reason) {
+            if (settled) {
+              return;
+            }
+            settled = true;
+            reportLog('bootstrap.sw-wait-end', reason, 'debug');
+            resolve(reason);
+          }
+
+          function onControllerChange() {
+            navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
+            finish('controllerchange');
+          }
+
+          navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
+          window.setTimeout(function() {
+            navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
+            finish(
+              navigator.serviceWorker.controller
+                ? 'timeout-with-controller'
+                : 'timeout-no-controller'
+            );
+          }, 2000);
+        });
+      }
+
+      function sendReady() {
+        reportLog('bootstrap.ready-send', 'postMessage ready');
+        window.__cursorAccountsVscodeApi.postMessage({ type: 'ready' });
+        reportLog('bootstrap.ready-sent', 'ready message sent');
+      }
+
+      waitForServiceWorker()
+        .then(sendReady)
+        .catch(function(error) {
+          reportLog('bootstrap.error', String(error), 'info');
+          sendReady();
+        });
+    })();
   </script>
   <script nonce="${nonce}" src="${scriptUri.toString()}" onerror="window.__cursorAccountsReportScriptError && window.__cursorAccountsReportScriptError()"></script>
 </body>
@@ -413,4 +652,8 @@ function getNonce(): string {
     text += possible.charAt(Math.floor(Math.random() * possible.length));
   }
   return text;
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }

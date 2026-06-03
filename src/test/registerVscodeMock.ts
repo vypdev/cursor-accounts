@@ -38,7 +38,20 @@ const vscodeMock = {
   env: {
     language: 'en',
   },
+  StatusBarAlignment: {
+    Left: 1,
+    Right: 2,
+  },
   window: {
+    createStatusBarItem: () => ({
+      text: '',
+      tooltip: '',
+      command: '',
+      name: '',
+      show: () => undefined,
+      hide: () => undefined,
+      dispose: () => undefined,
+    }),
     registerWebviewViewProvider: () => ({ dispose: () => undefined }),
     createWebviewPanel: () => ({
       webview: {
@@ -67,19 +80,57 @@ const vscodeMock = {
   },
   commands: {
     executeCommand: async () => undefined,
+    registerCommand: () => ({ dispose: () => undefined }),
   },
   workspace: {
-    getConfiguration: (_section?: string) => ({
+    workspaceFolders: [] as Array<{ uri: { fsPath: string } }>,
+    workspaceFile: undefined as { fsPath: string } | undefined,
+    getConfiguration: (section?: string) => ({
       inspect: () => undefined,
-      get: () => undefined,
+      get: <T>(key: string, defaultValue?: T): T | undefined => {
+        if (section === 'cursorAccounts.profiles') {
+          const profileDefaults: Record<string, unknown> = {
+            refreshAllInterval: 300,
+            autoDetectRunning: false,
+            instanceDetectionInterval: 30,
+          };
+          if (key in profileDefaults) {
+            return profileDefaults[key] as T;
+          }
+        }
+        if (section === 'cursorAccounts.refresh') {
+          const refreshDefaults: Record<string, unknown> = {
+            enabled: false,
+            intervalSeconds: 60,
+          };
+          if (key in refreshDefaults) {
+            return refreshDefaults[key] as T;
+          }
+        }
+        return defaultValue;
+      },
       update: async () => undefined,
     }),
     onDidChangeConfiguration: () => ({ dispose: () => undefined }),
+    onDidChangeWorkspaceFolders: () => ({ dispose: () => undefined }),
   },
   ConfigurationTarget: {
     Global: 1,
     Workspace: 2,
     WorkspaceFolder: 3,
+  },
+  ViewColumn: {
+    Active: -1,
+    Beside: -2,
+    One: 1,
+    Two: 2,
+    Three: 3,
+    Four: 4,
+    Five: 5,
+    Six: 6,
+    Seven: 7,
+    Eight: 8,
+    Nine: 9,
   },
 };
 

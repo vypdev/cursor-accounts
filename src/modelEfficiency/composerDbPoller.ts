@@ -13,6 +13,7 @@ import {
   parseComposerHeaders,
 } from './composerDbParse';
 import type { EfficiencyAnalyzer } from './efficiencyAnalyzer';
+import { GitBranchDetector } from './gitBranchDetector';
 import type {
   ModelCatalogEntry} from './modelConfigResolver';
 import {
@@ -63,6 +64,7 @@ function emptyPollerState(): DbPollerState {
 export class ComposerDbPoller {
   private interval?: ReturnType<typeof setInterval>;
   private ticking = false;
+  private readonly branchDetector = new GitBranchDetector();
 
   constructor(
     private readonly context: vscode.ExtensionContext,
@@ -268,6 +270,10 @@ export class ComposerDbPoller {
       `[ComposerDbPoller] Model ${resolved.baseModelId} → ${resolved.slug} (resolved=${resolved.resolved}, maxMode=${resolved.maxMode}, params=${JSON.stringify(resolved.parameters)})`
     );
     const workspaceRoots = extractWorkspaceRoots(header);
+    const workspaceRoot = workspaceRoots[0];
+    const gitBranch = workspaceRoot
+      ? await this.branchDetector.getCurrentBranch(workspaceRoot)
+      : undefined;
 
     for (const bubbleHeader of getUserBubbleHeaders(data)) {
       const bubbleId = bubbleHeader.bubbleId;
@@ -312,6 +318,7 @@ export class ComposerDbPoller {
         attachments: [],
         conversationId: composerId,
         workspaceRoots,
+        gitBranch,
         userEmail: profile.email,
       };
 

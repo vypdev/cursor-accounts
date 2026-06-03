@@ -1,10 +1,11 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { vscodeApi } from './api/vscodeApi';
 import { AddProfileForm } from './components/AddProfileForm';
 import { EditProfileForm } from './components/EditProfileForm';
 import { EmptyState } from './components/EmptyState';
 import { ImportDialog } from './components/ImportDialog';
 import { ProfileList } from './components/ProfileList';
+import { StorageManagementModal } from './components/StorageManagementModal';
 import { L10nProvider, useL10n } from './l10n/context';
 import type {
   ImportOptions,
@@ -13,7 +14,14 @@ import type {
   ProfileAccountView,
   ProfileQuotaMap,
   InstanceInfoMap,
+  StorageBreakdown,
+  StorageCleanupAction,
+  StorageCleanupResult,
   ToWebviewMessage,
+  WorkspaceInfo,
+  ProfileGithubSummariesMap,
+  ProfileGithubTokenStatusMap,
+  EfficiencyStatsMap,
 } from './types';
 import './App.css';
 
@@ -30,6 +38,15 @@ const AppContent: React.FC = () => {
   );
   const [accountsLoading, setAccountsLoading] = useState(false);
   const [runningInstances, setRunningInstances] = useState<InstanceInfoMap>({});
+  const [profileWorkspaces, setProfileWorkspaces] = useState<
+    Record<string, WorkspaceInfo[]>
+  >({});
+  const [openWorkspacePaths, setOpenWorkspacePaths] = useState<string[]>([]);
+  const [profileGithubSummaries, setProfileGithubSummaries] =
+    useState<ProfileGithubSummariesMap>({});
+  const [profileGithubTokenStatus, setProfileGithubTokenStatus] =
+    useState<ProfileGithubTokenStatusMap>({});
+  const [efficiencyStats, setEfficiencyStats] = useState<EfficiencyStatsMap>({});
   const [showAddForm, setShowAddForm] = useState(
     persisted?.showAddForm ?? false
   );
@@ -45,6 +62,14 @@ const AppContent: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [storageProfileId, setStorageProfileId] = useState<string | null>(null);
+  const [storageInfo, setStorageInfo] = useState<StorageBreakdown | undefined>();
+  const [storageLoading, setStorageLoading] = useState(false);
+  const [cleanupInProgress, setCleanupInProgress] = useState(false);
+  const [lastCleanupResult, setLastCleanupResult] = useState<
+    StorageCleanupResult | undefined
+  >();
+  const initReceivedRef = useRef(false);
 
   const persistUiState = useCallback(
     (showAdd: boolean, editingId: string | null) => {
@@ -60,13 +85,42 @@ const AppContent: React.FC = () => {
     const unsubscribe = vscodeApi.onMessage((message: ToWebviewMessage) => {
       switch (message.type) {
         case 'init':
+          initReceivedRef.current = true;
+          vscodeApi.logToExtension(
+            'info',
+            'react.init-received',
+            `profiles=${message.data.profiles.length}`
+          );
           setProfiles(message.data.profiles);
           setCurrentProfile(message.data.currentProfile);
           setQuotas(message.data.quotas ?? {});
           setProfileAccounts(message.data.profileAccounts ?? {});
           setActiveAccount(message.data.activeAccount ?? null);
           setRunningInstances(message.data.runningInstances ?? {});
+          setProfileWorkspaces(message.data.profileWorkspaces ?? {});
+          setOpenWorkspacePaths(message.data.openWorkspacePaths ?? []);
+          setProfileGithubSummaries(
+            message.data.profileGithubSummaries ?? {}
+          );
+          setProfileGithubTokenStatus(
+            message.data.profileGithubTokenStatus ?? {}
+          );
+          setEfficiencyStats(message.data.efficiencyStats ?? {});
           setLoading(false);
+          break;
+
+        case 'efficiencyStats':
+          setEfficiencyStats(message.data);
+          break;
+
+        case 'githubSummaries':
+          setProfileGithubSummaries(message.data.summaries);
+          setProfileGithubTokenStatus(message.data.tokenStatus);
+          break;
+
+        case 'openWorkspaces':
+          setProfileWorkspaces(message.data.profileWorkspaces);
+          setOpenWorkspacePaths(message.data.paths);
           break;
 
         case 'profiles':
@@ -98,6 +152,7 @@ const AppContent: React.FC = () => {
           break;
 
         case 'error':
+          setLoading(false);
           setError(message.message);
           setTimeout(() => setError(null), 5000);
           break;
@@ -129,17 +184,57 @@ const AppContent: React.FC = () => {
             setSuggestedNotice(undefined);
           }
           break;
+
+        case 'storageInfo':
+          if (message.data.profileId === storageProfileId) {
+            setStorageInfo(message.data);
+            setStorageLoading(false);
+          }
+          break;
+
+        case 'storageCleanupResult':
+          if (storageProfileId) {
+            setLastCleanupResult(message.data);
+            setCleanupInProgress(false);
+            if (message.data.success) {
+              setSuccess(message.data.message);
+              setTimeout(() => setSuccess(null), 4000);
+            } else {
+              setError(message.data.message);
+              setTimeout(() => setError(null), 5000);
+            }
+          }
+          break;
       }
     });
 
-    vscodeApi.ready();
+    const fallbackTimer = window.setTimeout(() => {
+      if (!initReceivedRef.current) {
+        vscodeApi.logToExtension(
+          'info',
+          'react.requestInit-fallback',
+          'init not received after 1s'
+        );
+        vscodeApi.requestInit();
+      }
+    }, 1000);
 
-    return unsubscribe;
-  }, []);
+    return () => {
+      window.clearTimeout(fallbackTimer);
+      unsubscribe();
+    };
+  }, [storageProfileId]);
 
   const handleLaunch = useCallback((profileId: string) => {
     vscodeApi.launch(profileId);
   }, []);
+
+  const handleOpenProject = useCallback(
+    (profileId: string, projectPath: string) => {
+      vscodeApi.launch(profileId, projectPath);
+    },
+    []
+  );
 
   const handleEditOpen = useCallback(
     (profileId: string) => {
@@ -151,11 +246,25 @@ const AppContent: React.FC = () => {
 
   const handleEditSubmit = useCallback(
     (profileId: string, updates: Partial<Profile>) => {
-      vscodeApi.editProfile(profileId, updates);
+      const profile = profiles.find((p) => p.id === profileId);
+
+      if (
+        updates.efficiencyAnalysisEnabled !== undefined &&
+        profile?.efficiencyAnalysisEnabled !== updates.efficiencyAnalysisEnabled
+      ) {
+        vscodeApi.toggleEfficiency(profileId, updates.efficiencyAnalysisEnabled);
+      }
+
+      const { efficiencyAnalysisEnabled: _efficiency, ...otherUpdates } = updates;
+
+      if (Object.keys(otherUpdates).length > 0) {
+        vscodeApi.editProfile(profileId, otherUpdates);
+      }
+
       setEditingProfileId(null);
       persistUiState(showAddForm, null);
     },
-    [showAddForm, persistUiState]
+    [profiles, showAddForm, persistUiState]
   );
 
   const handleDelete = useCallback((profileId: string) => {
@@ -222,15 +331,50 @@ const AppContent: React.FC = () => {
     setShowImportDialog(false);
   }, []);
 
-  const handleToggleEfficiency = useCallback(
-    (profileId: string, enabled: boolean) => {
-      vscodeApi.toggleEfficiency(profileId, enabled);
+  const handleManageStorage = useCallback((profileId: string) => {
+    setStorageProfileId(profileId);
+    setStorageInfo(undefined);
+    setStorageLoading(true);
+    setCleanupInProgress(false);
+    setLastCleanupResult(undefined);
+  }, []);
+
+  const handleCloseStorageModal = useCallback(() => {
+    setStorageProfileId(null);
+    setStorageInfo(undefined);
+    setStorageLoading(false);
+    setCleanupInProgress(false);
+    setLastCleanupResult(undefined);
+  }, []);
+
+  const handleRequestStorageInfo = useCallback((profileId: string) => {
+    setStorageLoading(true);
+    vscodeApi.requestStorageInfo(profileId);
+  }, []);
+
+  const handleCleanStorage = useCallback(
+    (profileId: string, action: StorageCleanupAction, chatAgeDays?: number) => {
+      setCleanupInProgress(true);
+      setLastCleanupResult(undefined);
+      vscodeApi.cleanStorage(profileId, { action, chatAgeDays });
     },
     []
   );
 
+  const handleConfigureGithubToken = useCallback((profileId: string) => {
+    vscodeApi.configureGithubToken(profileId);
+  }, []);
+
+  const handleClearGithubToken = useCallback((profileId: string) => {
+    vscodeApi.clearGithubToken(profileId);
+  }, []);
+
   const editingProfile = editingProfileId
     ? profiles.find((p) => p.id === editingProfileId)
+    : undefined;
+
+  const storageProfile = storageProfileId
+    ? profiles.find((p) => p.id === storageProfileId)
     : undefined;
 
   const activeAccountLabel = (() => {
@@ -309,15 +453,23 @@ const AppContent: React.FC = () => {
           <ProfileList
             profiles={profiles}
             currentProfileId={currentProfile?.id}
+            hasOpenWorkspaceInSession={openWorkspacePaths.length > 0}
             profileAccounts={profileAccounts}
+            profileWorkspaces={profileWorkspaces}
+            profileGithubSummaries={profileGithubSummaries}
+            profileGithubTokenStatus={profileGithubTokenStatus}
             quotas={quotas}
+            efficiencyStats={efficiencyStats}
             runningInstances={runningInstances}
             onLaunch={handleLaunch}
+            onOpenProject={handleOpenProject}
             onEdit={handleEditOpen}
             onDelete={handleDelete}
             onShowInExplorer={handleShowInExplorer}
             onExport={handleExport}
-            onToggleEfficiency={handleToggleEfficiency}
+            onManageStorage={handleManageStorage}
+            onConfigureGithubToken={handleConfigureGithubToken}
+            onClearGithubToken={handleClearGithubToken}
           />
         )}
       </div>
@@ -358,8 +510,24 @@ const AppContent: React.FC = () => {
       {editingProfile && (
         <EditProfileForm
           profile={editingProfile}
+          isCurrent={editingProfile.id === currentProfile?.id}
           onSubmit={(updates) => handleEditSubmit(editingProfile.id, updates)}
           onCancel={closeEditForm}
+        />
+      )}
+
+      {storageProfile && (
+        <StorageManagementModal
+          profile={storageProfile}
+          isCurrent={storageProfile.id === currentProfile?.id}
+          isRunning={storageProfile.id in runningInstances}
+          storageInfo={storageInfo}
+          storageLoading={storageLoading}
+          cleanupInProgress={cleanupInProgress}
+          lastCleanupResult={lastCleanupResult}
+          onRequestStorageInfo={handleRequestStorageInfo}
+          onCleanStorage={handleCleanStorage}
+          onClose={handleCloseStorageModal}
         />
       )}
     </div>

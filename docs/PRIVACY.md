@@ -6,16 +6,19 @@ How **Cursor Accounts** handles your data.
 
 - **Auth tokens** — read from your local Cursor install's `state.vscdb` (`cursorAuth/accessToken`, `cursorAuth/refreshToken`, `cursorAuth/cachedEmail`). This is the same data the IDE already uses for authentication.
 - **Composer data** — when model efficiency analysis is enabled, the extension reads Composer message metadata from the active profile's `state.vscdb` to detect new prompts and selected models.
-- **Profile configuration** — metadata stored in `~/.cursor-accounts/config.json` (email, display name, user data directory paths). **Tokens are never stored in this file.**
+- **Profile configuration** — metadata stored in `~/.cursor-accounts/config.json` (email, display name, user data directory paths). **GitHub PATs are never stored in this file** — only an optional path to a token file you choose.
+- **Git remotes** — when the Accounts panel loads, the extension reads `origin` URLs from local `.git/config` under recent project folders to resolve GitHub repository names.
+- **Optional GitHub token file** — if you configure a token file path per profile, the extension reads that file locally to fetch metadata for **private** repositories. This is opt-in and not required.
 
 ## Where data is sent
 
-Network requests go to Cursor endpoints only:
+Network requests go to:
 
 - `api2.cursor.sh` — quota fetching and OAuth token refresh
 - `cursor.com` — web dashboard usage summary and enterprise analytics
+- `api.github.com` — **optional** repository metadata for recent projects (public repos without a token; private repos only when you configure a token file path)
 
-**No third-party servers.**
+Public GitHub data uses unauthenticated API requests (rate-limited per GitHub policy). Authenticated requests are sent only when you explicitly set a token file path for a profile.
 
 ## What is stored locally
 
@@ -23,7 +26,7 @@ Network requests go to Cursor endpoints only:
 |------|----------|-------|
 | Refreshed OAuth tokens | VS Code Secret Storage (per profile) | Not written back to `state.vscdb` |
 | Last-known quota | Extension `globalState` | Cached for instant display on startup |
-| Profile metadata | `~/.cursor-accounts/config.json` | No tokens |
+| Profile metadata | `~/.cursor-accounts/config.json` | No tokens; optional `githubTokenPath` (file path only) |
 | Model efficiency API key | VS Code Secret Storage (active window) | Created when efficiency analysis is enabled |
 
 ## Token handling and security

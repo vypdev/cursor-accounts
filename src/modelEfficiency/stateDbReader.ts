@@ -1,7 +1,8 @@
 import { execFileSync } from 'child_process';
 import * as fs from 'fs/promises';
-import { validateStateDbPath, parseStoredValue } from '../auth/tokenReader';
+import { parseStoredValue } from '../auth/tokenReader';
 import { getSqlite3Binary } from '../auth/sqliteBinary';
+import { validateStateDbPath } from '../utils/pathUtils';
 import * as extensionLog from '../logging/extensionLog';
 
 export const COMPOSER_HEADERS_KEY = 'composer.composerHeaders';

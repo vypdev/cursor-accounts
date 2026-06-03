@@ -20,6 +20,7 @@ Cursor staff (forum, 2026) state there is **no public personal usage API** for i
 |--------|----------|------|------|
 | IDE backend (Connect RPC) | `POST https://api2.cursor.sh/aiserver.v1.DashboardService/GetCurrentPeriodUsage` | Bearer JWT from `cursorAuth/accessToken` | Pro/Ultra; also attempted for enterprise |
 | Web dashboard | `GET https://cursor.com/api/usage-summary` | `WorkosCursorSessionToken` cookie (derived from JWT) | Enterprise / team accounts; fallback when IDE data is empty |
+| Web dashboard (usage table) | `POST https://cursor.com/api/dashboard/get-filtered-usage-events` | Same session cookie + `Origin: https://cursor.com` | **Not used** by this extension; see [USAGE-EVENTS-API.md](USAGE-EVENTS-API.md) |
 
 **IDE response fields used:**
 
@@ -120,18 +121,53 @@ Auth: `WorkosCursorSessionToken` cookie (same as usage-summary). Response includ
 
 The Accounts panel fetches this for enterprise profiles (30-day window) and shows the top 10 under each profile card.
 
-## 5. Known limitations
+## 5. GitHub repository metadata (Accounts panel)
+
+### Flow
+
+1. Resolve `owner/repo` from each recent project's local `git` remote (`origin`).
+2. Probe visibility: `GET https://api.github.com/repos/{owner}/{repo}` **without** authentication.
+3. **Public** (`200`, `private: false`) — fetch commits, branches, open issues, and open pull requests without a token.
+4. **Private** (`404` to unauthenticated callers) — show a **Private** label only; no further API calls unless the user configures a token file path on that profile.
+5. **Optional token file** — user-selected absolute path; PAT read at request time (not stored in `config.json`). Used only for private repos on that profile.
+
+### Endpoints (public, no token)
+
+| Data | Endpoint |
+|------|----------|
+| Visibility | `GET /repos/{owner}/{repo}` |
+| Commits | `GET /repos/{owner}/{repo}/commits?per_page=5` |
+| Branches | `GET /repos/{owner}/{repo}/branches?per_page=30` |
+| Issues | `GET /repos/{owner}/{repo}/issues?state=open&per_page=20` |
+| Pull requests | `GET /repos/{owner}/{repo}/pulls?state=open&per_page=20` |
+
+### Rate limits
+
+- Unauthenticated: **60 requests/hour** per IP (GitHub REST).
+- Authenticated (optional PAT): **5,000 requests/hour** per token.
+
+The extension caps enrichment to **5 recent git projects per profile** per refresh to stay within limits.
+
+### Not used
+
+- Cursor `cursorAuth` JWT (not valid for `api.github.com`)
+- `vscode.authentication.getSession('github')` — not required; token file path is explicit opt-in
+- Reading encrypted `github.auth` from `state.vscdb`
+
+## 6. Known limitations
 
 - **Unofficial API** — may change without notice when Cursor updates.
 - **Enterprise teams** — Monthly Usage uses the web dashboard API; team Admin/Analytics APIs at `api.cursor.com` are not used (admin API keys required).
 - **Credits vs included pool** — UI follows combined IDE + web sources; "100% included" in Settings can still allow usage via credits.
 - **Cursor-only** — built for Cursor; standard VS Code may lack `state.vscdb` auth keys.
 - **No push/subscribe** — quota changes are detected via polling only; there is no official event API for usage updates.
+- **GitHub** — unauthenticated callers cannot distinguish private repos from missing repos (both return 404); private repos need an optional PAT file with `repo` scope.
 
 For privacy and data handling, see [PRIVACY.md](PRIVACY.md).
 
 ## Related documentation
 
+- [USAGE-EVENTS-API.md](USAGE-EVENTS-API.md) — per-request usage table (`cursor.com/dashboard/usage`)
 - [HOW-IT-WORKS.md](HOW-IT-WORKS.md) — user-facing technical overview
 - [ARCHITECTURE.md](ARCHITECTURE.md) — extension structure and data flows
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md) — common issues and account-switching guidance

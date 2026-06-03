@@ -1,5 +1,8 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 import type { IProfileAuthReader } from '../domain/ports/IProfileAuthReader';
+import type { IProfileStorageAnalyzer } from '../domain/ports/IProfileStorageAnalyzer';
+import type { IStorageCleanupService } from '../domain/ports/IStorageCleanupService';
 import * as extensionLog from '../logging/extensionLog';
 import { t } from '../l10n';
 import type { EfficiencyService } from '../modelEfficiency/efficiencyService';
@@ -15,7 +18,12 @@ import type {
   Profile,
   ToWebviewMessage,
 } from '../profiles/types';
+import type { StorageCleanupOptions } from '@cursor-accounts/types';
+import { createEmptyStorageBreakdown } from '@cursor-accounts/types';
 import type { ProfileDetector } from '../profiles/profileDetector';
+import { resolveRecentProjectLaunch } from '../profiles/recentProjectLaunchRouter';
+import type { ProfileWorkspaceService } from '../services/profileWorkspaceService';
+import { getOpenWorkspacePaths } from '../services/activeWorkspaceService';
 import { buildSuggestedProfileResponse } from './suggestedProfile';
 
 /** Callbacks the panel provides for webview messaging and refresh orchestration. */
@@ -23,6 +31,7 @@ export interface AccountsPanelHandlerCallbacks {
   postMessage(message: ToWebviewMessage): Promise<void>;
   refresh(): Promise<void>;
   refreshInstances(): Promise<void>;
+  refreshGithubSummaries(): Promise<void>;
   hasActiveWebview(): boolean;
 }
 
@@ -34,6 +43,9 @@ export interface AccountsPanelHandlerDeps {
   efficiencyService: EfficiencyService;
   authReader: IProfileAuthReader;
   instanceDetector: InstanceDetector;
+  storageCleanupService: IStorageCleanupService;
+  storageAnalyzer: IProfileStorageAnalyzer;
+  profileWorkspaceService: ProfileWorkspaceService;
 }
 
 /**
@@ -51,7 +63,7 @@ export class AccountsPanelHandlers {
   async handle(message: FromWebviewMessage): Promise<void> {
     switch (message.type) {
       case 'launch':
-        await this.handleLaunch(message.profileId);
+        await this.handleLaunch(message.profileId, message.projectPath);
         break;
 
       case 'add':
@@ -86,12 +98,31 @@ export class AccountsPanelHandlers {
         await this.handleToggleEfficiency(message.profileId, message.enabled);
         break;
 
+      case 'requestStorageInfo':
+        await this.handleRequestStorageInfo(message.profileId);
+        break;
+
+      case 'cleanStorage':
+        await this.handleCleanStorage(message.profileId, message.options);
+        break;
+
+      case 'configureGithubToken':
+        await this.handleConfigureGithubToken(message.profileId);
+        break;
+
+      case 'clearGithubToken':
+        await this.handleClearGithubToken(message.profileId);
+        break;
+
       default:
         break;
     }
   }
 
-  private async handleLaunch(profileId: string): Promise<void> {
+  private async handleLaunch(
+    profileId: string,
+    projectPath?: string
+  ): Promise<void> {
     if (this.launchInFlight.has(profileId)) {
       extensionLog.debug(
         `[AccountsPanel] Launch ignored for ${profileId} (already in flight)`
@@ -102,28 +133,88 @@ export class AccountsPanelHandlers {
     this.launchInFlight.add(profileId);
     try {
       extensionLog.info(
-        `[AccountsPanel] Launch requested for profile ${profileId}`
+        `[AccountsPanel] Launch requested for profile ${profileId}${
+          projectPath ? ` with project ${projectPath}` : ''
+        }`
       );
-      const result = await this.deps.profileLauncher.launch(profileId);
 
-      if (result.success) {
-        const profile = await this.deps.profileManager.getProfile(profileId);
-        await this.callbacks.postMessage({
-          type: 'success',
-          message: t('panel.launched', {
-            name: profile?.displayName ?? t('panel.profileFallback'),
-          }),
+      const current = await this.deps.profileDetector.detectCurrentProfile();
+      const openWorkspacePaths = getOpenWorkspacePaths();
+
+      if (projectPath) {
+        const action = resolveRecentProjectLaunch({
+          targetProfileId: profileId,
+          projectPath,
+          currentProfileId: current?.id ?? null,
+          openWorkspacePaths,
         });
-        await this.callbacks.refresh();
-        void this.callbacks.refreshInstances();
-      } else {
-        await this.callbacks.postMessage({
-          type: 'error',
-          message: result.error ?? t('errors.failedLaunchProfile'),
-        });
+
+        if (action.kind === 'noop') {
+          extensionLog.debug(
+            `[AccountsPanel] Project already open in session: ${projectPath}`
+          );
+          return;
+        }
+
+        if (action.kind === 'openInCurrentWindow') {
+          await vscode.commands.executeCommand(
+            'vscode.openFolder',
+            vscode.Uri.file(action.projectPath),
+            { forceNewWindow: false }
+          );
+          await this.callbacks.refresh();
+          return;
+        }
+
+        const result = await this.deps.profileLauncher.launch(
+          action.profileId,
+          { projectPath: action.projectPath }
+        );
+        await this.postLaunchResult(profileId, action.projectPath, result);
+        return;
       }
+
+      const resolvedProjectPath =
+        await this.deps.profileWorkspaceService.getMostRecentWorkspace(
+          profileId
+        );
+
+      const result = await this.deps.profileLauncher.launch(profileId, {
+        projectPath: resolvedProjectPath,
+      });
+      await this.postLaunchResult(profileId, resolvedProjectPath, result);
+
     } finally {
       this.launchInFlight.delete(profileId);
+    }
+  }
+
+  private async postLaunchResult(
+    profileId: string,
+    resolvedProjectPath: string | undefined,
+    result: { success: boolean; error?: string }
+  ): Promise<void> {
+    if (result.success) {
+      const profile = await this.deps.profileManager.getProfile(profileId);
+      const successMessage = resolvedProjectPath
+        ? t('panel.launchedWithProject', {
+            name: profile?.displayName ?? t('panel.profileFallback'),
+            project: path.basename(resolvedProjectPath),
+          })
+        : t('panel.launched', {
+            name: profile?.displayName ?? t('panel.profileFallback'),
+          });
+      await this.callbacks.postMessage({
+        type: 'success',
+        message: successMessage,
+      });
+      await this.callbacks.refresh();
+      void this.callbacks.refreshInstances();
+    } else {
+      await this.callbacks.postMessage({
+        type: 'error',
+        message: result.error ?? t('errors.failedLaunchProfile'),
+      });
     }
   }
 
@@ -247,6 +338,70 @@ export class AccountsPanelHandlers {
     }
   }
 
+  private async getStorageBreakdown(profileId: string, userDataDir: string) {
+    return this.deps.storageAnalyzer.calculateProfileStorageSize(
+      profileId,
+      userDataDir
+    );
+  }
+
+  private async handleRequestStorageInfo(profileId: string): Promise<void> {
+    const profile = await this.deps.profileManager.getProfile(profileId);
+    if (!profile) {
+      await this.callbacks.postMessage({
+        type: 'storageInfo',
+        data: createEmptyStorageBreakdown(
+          profileId,
+          t('errors.profileNotFound')
+        ),
+      });
+      return;
+    }
+
+    const breakdown = await this.getStorageBreakdown(
+      profileId,
+      profile.userDataDir
+    );
+
+    await this.callbacks.postMessage({
+      type: 'storageInfo',
+      data: breakdown,
+    });
+  }
+
+  private async handleCleanStorage(
+    profileId: string,
+    options: StorageCleanupOptions
+  ): Promise<void> {
+    extensionLog.info(
+      `[AccountsPanel] Storage cleanup requested for ${profileId}: ${options.action}`
+    );
+
+    const result = await this.deps.storageCleanupService.cleanProfileStorage(
+      profileId,
+      options
+    );
+
+    await this.callbacks.postMessage({
+      type: 'storageCleanupResult',
+      data: result,
+    });
+
+    if (result.success) {
+      const profile = await this.deps.profileManager.getProfile(profileId);
+      if (profile) {
+        const breakdown = await this.getStorageBreakdown(
+          profileId,
+          profile.userDataDir
+        );
+        await this.callbacks.postMessage({
+          type: 'storageInfo',
+          data: breakdown,
+        });
+      }
+    }
+  }
+
   private async handleExport(
     profileIds: string[],
     includeSettings: boolean
@@ -309,5 +464,56 @@ export class AccountsPanelHandlers {
           messages.join(', ') || t('panel.importCompletedWithErrors'),
       });
     }
+  }
+
+  private async handleConfigureGithubToken(profileId: string): Promise<void> {
+    const profile = await this.deps.profileManager.getProfile(profileId);
+    if (!profile) {
+      await this.callbacks.postMessage({
+        type: 'error',
+        message: t('errors.profileNotFound'),
+      });
+      return;
+    }
+
+    const selection = await vscode.window.showOpenDialog({
+      canSelectFiles: true,
+      canSelectFolders: false,
+      canSelectMany: false,
+      openLabel: t('panel.githubTokenSelectFile'),
+      title: t('panel.githubTokenDialogTitle'),
+    });
+
+    if (!selection?.[0]) {
+      return;
+    }
+
+    const tokenPath = selection[0].fsPath;
+    await this.deps.profileManager.updateProfile(profileId, {
+      githubTokenPath: tokenPath,
+    });
+
+    await this.callbacks.postMessage({
+      type: 'success',
+      message: t('panel.githubTokenConfigured', { name: profile.displayName }),
+    });
+    await this.callbacks.refreshGithubSummaries();
+  }
+
+  private async handleClearGithubToken(profileId: string): Promise<void> {
+    const profile = await this.deps.profileManager.getProfile(profileId);
+    if (!profile) {
+      return;
+    }
+
+    await this.deps.profileManager.updateProfile(profileId, {
+      githubTokenPath: undefined,
+    });
+
+    await this.callbacks.postMessage({
+      type: 'success',
+      message: t('panel.githubTokenCleared', { name: profile.displayName }),
+    });
+    await this.callbacks.refreshGithubSummaries();
   }
 }

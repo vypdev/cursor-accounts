@@ -2,8 +2,9 @@
   "name": "cursor-accounts",
   "displayName": "%extension.displayName%",
   "description": "%extension.description%",
-  "version": "0.1.25",
+  "version": "0.1.33",
   "publisher": "vypdev",
+  "icon": "images/icon.png",
   "license": "MIT",
   "engines": {
     "node": ">=22",
@@ -14,32 +15,13 @@
     "Other"
   ],
   "activationEvents": [
-    "onStartupFinished",
-    "onView:cursorAccounts.accountsPanel"
+    "onStartupFinished"
   ],
   "extensionKind": [
     "ui"
   ],
-  "main": "./out/extension.js",
+  "main": "./out/extension-bundle.js",
   "contributes": {
-    "viewsContainers": {
-      "activitybar": [
-        {
-          "id": "cursorAccounts",
-          "title": "%viewsContainers.activitybar.title%",
-          "icon": "$(account)"
-        }
-      ]
-    },
-    "views": {
-      "cursorAccounts": [
-        {
-          "type": "webview",
-          "id": "cursorAccounts.accountsPanel",
-          "name": "%views.accounts.name%"
-        }
-      ]
-    },
     "commands": [
       {
         "command": "cursorAccounts.openAccounts",
@@ -167,31 +149,44 @@
           "minimum": 5,
           "maximum": 60,
           "description": "%configuration.modelEfficiency.pollIntervalSeconds.description%"
+        },
+        "cursorAccounts.debug.webviewLifecycle": {
+          "type": "boolean",
+          "default": true,
+          "description": "%configuration.debug.webviewLifecycle.description%"
         }
       }
     }
   },
   "dependencies": {
+    "@cursor-accounts/shared": "workspace:*",
     "@cursor-accounts/types": "workspace:*",
     "@cursor/sdk": "^1.0.15",
     "zod": "^3.24.2"
   },
   "scripts": {
-    "vscode:prepublish": "node scripts/prepublish.mjs",
+    "vscode:prepublish": "node scripts/vscode-prepublish.mjs",
     "debug:usage": "node scripts/debug-usage.mjs",
-    "compile": "pnpm --dir packages/types run build && tsc -p ./ && pnpm --dir webview run build",
+    "compile": "pnpm --dir packages/types run build && pnpm --dir packages/shared run build && tsc -p ./ && node scripts/copy-migrations.mjs && pnpm --dir webview run build",
+    "copy-migrations": "node scripts/copy-migrations.mjs",
     "compile:webview": "pnpm --dir webview run build",
+    "bundle": "node scripts/bundle.mjs",
     "watch": "tsc -watch -p ./",
     "watch:webview": "pnpm --dir webview run watch",
-    "lint": "pnpm --dir packages/types run build && tsc -p ./ --noEmit && tsc -p webview --noEmit && eslint .",
+    "lint": "pnpm --dir packages/types run build && pnpm --dir packages/shared run build && tsc -p ./ --noEmit && tsc -p webview --noEmit && eslint .",
     "lint:eslint": "eslint .",
     "validate:l10n": "node scripts/validate-l10n.mjs",
     "test": "node --import ./out/test/registerVscodeMock.js --test 'out/test/**/*.test.js'",
+    "test:coverage": "pnpm pretest && c8 --check-coverage --lines 55 --branches 45 --functions 55 --statements 55 node --import ./out/test/registerVscodeMock.js --test 'out/test/**/*.test.js'",
     "test:types-sync": "node scripts/validate-type-sync.mjs",
-    "pretest": "pnpm --dir packages/types run build && tsc -p ./",
-    "build:all": "pnpm run compile && pnpm run package:all:fast",
+    "pretest": "pnpm --dir packages/types run build && pnpm --dir packages/shared run build && tsc -p ./ && node scripts/copy-migrations.mjs",
+    "build": "node scripts/build.mjs",
+    "build:current": "node scripts/build.mjs --current",
+    "build:all": "node scripts/build.mjs --all",
+    "build:all:legacy": "pnpm run compile && pnpm run package:all:fast",
     "verify:vsix": "node scripts/verify-vsix.mjs",
     "verify:installed": "node scripts/verify-installed-extension.mjs",
+    "docs:api": "typedoc --options typedoc.json",
     "prepare-package": "bash scripts/prepare-package.sh",
     "package": "bash scripts/prepare-package.sh && node scripts/prepare-bin-for-target.mjs $(node -p \"process.platform + '-' + process.arch\") && vsce package --allow-missing-repository --no-rewrite-relative-links; node scripts/restore-bin.mjs",
     "package:all": "pnpm run compile && bash scripts/prepare-package.sh && pnpm run package:all:fast",
@@ -214,11 +209,25 @@
     "@eslint/js": "^9.22.0",
     "@types/node": "^22.0.0",
     "@types/vscode": "^1.85.0",
-    "@vscode/vsce": "^3.2.1",
+    "@vscode/vsce": "^3.9.1",
+    "esbuild": "^0.24.0",
     "eslint": "^9.22.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "globals": "^16.0.0",
-    "typescript": "^5.5.0",
-    "typescript-eslint": "^8.26.1"
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.26.1",
+    "c8": "^10.1.3",
+    "typedoc": "^0.28.0"
+  },
+  "c8": {
+    "all": true,
+    "include": ["out/**/*.js"],
+    "exclude": [
+      "out/test/**",
+      "out/**/registerVscodeMock.js"
+    ],
+    "src": ["src"],
+    "reporter": ["text", "lcov"],
+    "reports-dir": "coverage"
   }
 }

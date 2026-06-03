@@ -5,12 +5,14 @@ import { DEFAULT_PROFILE_EMOJI, EmojiPicker } from './EmojiPicker';
 
 interface EditProfileFormProps {
   profile: Profile;
+  isCurrent: boolean;
   onSubmit: (updates: Partial<Profile>) => void;
   onCancel: () => void;
 }
 
 export const EditProfileForm: React.FC<EditProfileFormProps> = ({
   profile,
+  isCurrent,
   onSubmit,
   onCancel,
 }) => {
@@ -20,6 +22,9 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
   const [color, setColor] = useState(profile.color ?? '#3b82f6');
   const [emoji, setEmoji] = useState(profile.emoji ?? DEFAULT_PROFILE_EMOJI);
   const [notes, setNotes] = useState(profile.metadata?.notes ?? '');
+  const [efficiencyEnabled, setEfficiencyEnabled] = useState(
+    profile.efficiencyAnalysisEnabled ?? false
+  );
   const [error, setError] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -30,7 +35,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
       return;
     }
 
-    onSubmit({
+    const updates: Partial<Profile> = {
       displayName: displayName.trim(),
       theme: theme.trim() || undefined,
       color,
@@ -39,7 +44,13 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
         ...profile.metadata,
         notes: notes.trim() || undefined,
       },
-    });
+    };
+
+    if (isCurrent) {
+      updates.efficiencyAnalysisEnabled = efficiencyEnabled;
+    }
+
+    onSubmit(updates);
   };
 
   return (
@@ -122,6 +133,23 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
               placeholder={t('editProfile.notesPlaceholder')}
             />
           </div>
+
+          {isCurrent ? (
+            <div className="form-group checkbox">
+              <label htmlFor="edit-efficiency">
+                <input
+                  id="edit-efficiency"
+                  type="checkbox"
+                  checked={efficiencyEnabled}
+                  onChange={(e) => setEfficiencyEnabled(e.target.checked)}
+                />
+                {t('editProfile.efficiencyLabel')}
+              </label>
+              <p className="form-help-text">{t('editProfile.efficiencyHelp')}</p>
+            </div>
+          ) : profile.efficiencyAnalysisEnabled ? (
+            <p className="form-help-text">{t('editProfile.efficiencyHint')}</p>
+          ) : null}
 
           {error && <div className="form-error">{error}</div>}
 

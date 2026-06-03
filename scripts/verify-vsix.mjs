@@ -38,6 +38,12 @@ for (const vsix of vsixFiles) {
       label: 'sqlite3 native binding',
       pattern: 'extension/node_modules/sqlite3/build/Release/node_sqlite3.node',
     },
+    {
+      label: '@cursor/sdk',
+      pattern: 'extension/node_modules/@cursor/sdk/package.json',
+    },
+    { label: 'undici', pattern: 'extension/node_modules/undici/package.json' },
+    { label: 'bindings', pattern: 'extension/node_modules/bindings/package.json' },
   ];
 
   if (target && PLATFORM_SDK_PACKAGE[target]) {

@@ -21,10 +21,10 @@ pnpm run compile
 
 `pnpm run compile:webview` builds only the Accounts panel bundle; `pnpm run watch:webview` watches the webview.
 
-Press **F5** in Cursor/VS Code to launch an Extension Development Host, or package:
+Press **F5** in Cursor/VS Code to launch an Extension Development Host, or build a VSIX:
 
 ```bash
-pnpm run package
+pnpm run build:current
 ```
 
 Then in Cursor: **Extensions** → **⋯** → **Install from VSIX…** → select the generated `.vsix`.

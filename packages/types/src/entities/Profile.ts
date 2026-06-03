@@ -1,3 +1,5 @@
+import type { WorkspaceInfo } from './Workspace';
+
 /** Represents a single Cursor account profile. */
 export interface Profile {
   id: string;
@@ -11,6 +13,8 @@ export interface Profile {
   color?: string;
   emoji?: string;
   efficiencyAnalysisEnabled?: boolean;
+  /** Absolute path to a file containing a GitHub PAT (optional, per profile). */
+  githubTokenPath?: string;
   metadata?: ProfileMetadata;
 }
 
@@ -88,4 +92,9 @@ export interface ImportValidationResult {
   valid: boolean;
   errors: string[];
   warnings: string[];
+}
+
+/** Profile enriched with scanned workspace folders. */
+export interface ProfileWithWorkspaces extends Profile {
+  workspaces: WorkspaceInfo[];
 }

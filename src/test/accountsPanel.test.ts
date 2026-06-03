@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
+import * as vscode from 'vscode';
 import type { InstanceDetector } from '../profiles/instanceDetector';
 import { ProfileDetector } from '../profiles/profileDetector';
 import { ProfileLauncher } from '../profiles/profileLauncher';
@@ -12,8 +13,11 @@ import { ProfileStorage } from '../profiles/profileStorage';
 import type { FromWebviewMessage, ToWebviewMessage } from '../profiles/types';
 import type { MultiProfileQuotaService } from '../services/multiProfileQuotaService';
 import type { ProfileAccountFetcher } from '../services/profileAccountFetcher';
+import type { ProfileWorkspaceService } from '../services/profileWorkspaceService';
 import type { EfficiencyService } from '../modelEfficiency/efficiencyService';
 import type { IProfileAuthReader } from '../domain/ports/IProfileAuthReader';
+import type { IProfileStorageAnalyzer } from '../domain/ports/IProfileStorageAnalyzer';
+import type { IStorageCleanupService } from '../domain/ports/IStorageCleanupService';
 import { AccountsPanelProvider } from '../ui/accountsPanel';
 import { first } from './testUtils';
 
@@ -29,10 +33,10 @@ interface MockWebview {
   ) => { dispose: () => void };
 }
 
-interface MockWebviewView {
+interface MockWebviewPanel {
   webview: MockWebview;
-  visible: boolean;
-  onDidChangeVisibility: (callback: () => void) => { dispose: () => void };
+  reveal: () => void;
+  onDidDispose: (callback: () => void) => { dispose: () => void };
 }
 
 interface MockExtensionContext {
@@ -77,13 +81,50 @@ function createMockAuthReader(): IProfileAuthReader {
   };
 }
 
+function createMockProfileWorkspaceService(): ProfileWorkspaceService {
+  return {
+    getProfilesWithWorkspaces: async () => [],
+    getWorkspacesForProfile: async () => [],
+    getMostRecentWorkspace: async () => undefined,
+  } as unknown as ProfileWorkspaceService;
+}
+
 function createMockEfficiencyService(): EfficiencyService {
   return {
     setEfficiencyEnabled: async () => ({
       profile: { id: 'p1', email: 'a@b.com' } as never,
       message: 'ok',
     }),
+    getStatsStorage: () => ({
+      getAllStats: () => ({}),
+    }),
   } as unknown as EfficiencyService;
+}
+
+function createMockStorageAnalyzer(): IProfileStorageAnalyzer {
+  return {
+    calculateProfileStorageSize: async (profileId) => ({
+      profileId,
+      databaseBytes: 0,
+      walBytes: 0,
+      workspaceStorageBytes: 0,
+      editorCacheBytes: 0,
+      extensionCacheBytes: 0,
+      efficiencyDbBytes: 0,
+      totalBytes: 0,
+    }),
+    getProfileTotalBytes: async () => 0,
+  };
+}
+
+function createMockStorageCleanupService(): IStorageCleanupService {
+  return {
+    cleanProfileStorage: async () => ({
+      success: true,
+      bytesReclaimed: 0,
+      message: 'ok',
+    }),
+  };
 }
 
 function createMockWebview(): MockWebview {
@@ -149,8 +190,9 @@ describe('AccountsPanelProvider', () => {
   let accountFetcher: ProfileAccountFetcher;
   let instanceDetector: InstanceDetector;
   let provider: AccountsPanelProvider;
-  let mockView: MockWebviewView;
   let mockWebview: MockWebview;
+  let mockPanel: MockWebviewPanel;
+  let revealCalled: boolean;
 
   beforeEach(async () => {
     tempDir = await fs.mkdtemp(
@@ -185,24 +227,33 @@ describe('AccountsPanelProvider', () => {
       quotaService,
       accountFetcher,
       instanceDetector,
+      createMockProfileWorkspaceService(),
       createMockEfficiencyService(),
-      createMockAuthReader()
+      createMockAuthReader(),
+      createMockStorageCleanupService(),
+      createMockStorageAnalyzer()
     );
 
     mockWebview = createMockWebview();
-    mockView = {
+    revealCalled = false;
+    mockPanel = {
       webview: mockWebview,
-      visible: true,
-      onDidChangeVisibility: () => ({ dispose: () => undefined }),
+      reveal: () => {
+        revealCalled = true;
+      },
+      onDidDispose: () => ({ dispose: () => undefined }),
     };
+
+    (vscode.window as never as { createWebviewPanel: () => MockWebviewPanel }).createWebviewPanel =
+      () => mockPanel;
   });
 
   afterEach(async () => {
     await fs.rm(tempDir, { recursive: true, force: true });
   });
 
-  function resolvePanel(): void {
-    provider.resolveWebviewView(mockView as never, {} as never, {} as never);
+  function openPanel(): void {
+    provider.openPanel();
   }
 
   async function emitMessage(message: FromWebviewMessage): Promise<void> {
@@ -210,23 +261,14 @@ describe('AccountsPanelProvider', () => {
       _emit?: (m: FromWebviewMessage) => void;
     };
     emitter._emit?.(message);
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    const waitMs = message.type === 'ready' ? 200 : 10;
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
   }
 
-  it('configures webview with scripts and localResourceRoots', () => {
-    resolvePanel();
+  it('opens editor panel and sets html with CSP and bundle references', () => {
+    openPanel();
 
-    assert.equal(mockWebview.options.enableScripts, true);
-    assert.ok(mockWebview.options.localResourceRoots);
-    assert.equal(
-      (mockWebview.options.localResourceRoots as { fsPath?: string }[]).length,
-      1
-    );
-  });
-
-  it('generates HTML with CSP and bundle references', () => {
-    resolvePanel();
-
+    assert.equal(provider.hasResolvedView(), true);
     assert.ok(mockWebview.html.includes('Content-Security-Policy'));
     assert.ok(
       mockWebview.html.includes(`script-src ${mockWebview.cspSource}`)
@@ -237,10 +279,64 @@ describe('AccountsPanelProvider', () => {
     assert.ok(mockWebview.html.includes('Loading Cursor Accounts'));
     assert.ok(mockWebview.html.includes('img-src'));
     assert.ok(mockWebview.html.includes('https:'));
+    assert.ok(mockWebview.html.includes('acquireVsCodeApi'));
+    assert.ok(mockWebview.html.includes('waitForServiceWorker'));
+    assert.ok(mockWebview.html.includes("postMessage({ type: 'ready' })"));
+    assert.ok(mockWebview.html.includes('reportLog'));
+    assert.ok(mockWebview.html.includes("'webviewLog'"));
+    assert.ok(
+      mockWebview.html.indexOf('acquireVsCodeApi') <
+        mockWebview.html.indexOf('bundle.js')
+    );
+    assert.ok(
+      mockWebview.html.indexOf('waitForServiceWorker') <
+        mockWebview.html.indexOf('bundle.js')
+    );
+  });
+
+  it('reveals existing panel instead of creating a new one', () => {
+    openPanel();
+    revealCalled = false;
+
+    provider.openPanel();
+
+    assert.equal(revealCalled, true);
+  });
+
+  it('reveal brings panel to foreground', () => {
+    openPanel();
+    revealCalled = false;
+
+    provider.reveal();
+
+    assert.equal(revealCalled, true);
+  });
+
+  it('handles webviewLog messages from the webview', async () => {
+    openPanel();
+
+    await emitMessage({
+      type: 'webviewLog',
+      level: 'info',
+      phase: 'bootstrap.ready-sent',
+      message: 'test log message',
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  });
+
+  it('sends init when ready is received', async () => {
+    openPanel();
+    mockWebview.postedMessages = [];
+
+    await emitMessage({ type: 'ready' });
+
+    const initMessage = mockWebview.postedMessages.find((m) => m.type === 'init');
+    assert.ok(initMessage);
   });
 
   it('sends init message on ready with empty profiles', async () => {
-    resolvePanel();
+    openPanel();
     await emitMessage({ type: 'ready' });
 
     const initMessage = mockWebview.postedMessages.find((m) => m.type === 'init');
@@ -255,13 +351,34 @@ describe('AccountsPanelProvider', () => {
     }
   });
 
+  it('does not send init on open without ready', async () => {
+    openPanel();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    const initMessage = mockWebview.postedMessages.find((m) => m.type === 'init');
+    assert.equal(initMessage, undefined);
+  });
+
+  it('sends init message on requestInit', async () => {
+    openPanel();
+    mockWebview.postedMessages = [];
+
+    await emitMessage({ type: 'requestInit' });
+
+    const initMessage = mockWebview.postedMessages.find((m) => m.type === 'init');
+    assert.ok(initMessage);
+    if (initMessage?.type === 'init') {
+      assert.deepEqual(initMessage.data.profiles, []);
+    }
+  });
+
   it('sends init message with profiles after refresh', async () => {
     await manager.createProfile({
       email: 'user@example.com',
       displayName: 'Work',
     });
 
-    resolvePanel();
+    openPanel();
     await emitMessage({ type: 'refresh' });
 
     const initMessage = mockWebview.postedMessages.find((m) => m.type === 'init');
@@ -273,7 +390,7 @@ describe('AccountsPanelProvider', () => {
   });
 
   it('handles add message and refreshes list', async () => {
-    resolvePanel();
+    openPanel();
 
     await emitMessage({
       type: 'add',
@@ -298,7 +415,7 @@ describe('AccountsPanelProvider', () => {
   });
 
   it('responds to requestSuggestedProfile when no auth is available', async () => {
-    resolvePanel();
+    openPanel();
     mockWebview.postedMessages = [];
 
     await emitMessage({ type: 'requestSuggestedProfile' });
@@ -319,7 +436,7 @@ describe('AccountsPanelProvider', () => {
       displayName: 'Before',
     });
 
-    resolvePanel();
+    openPanel();
     mockWebview.postedMessages = [];
 
     await emitMessage({
@@ -340,7 +457,7 @@ describe('AccountsPanelProvider', () => {
       email: 'delete@example.com',
     });
 
-    resolvePanel();
+    openPanel();
     mockWebview.postedMessages = [];
 
     await emitMessage({ type: 'delete', profileId: profile.id });
@@ -353,7 +470,7 @@ describe('AccountsPanelProvider', () => {
   });
 
   it('posts error when showInExplorer profile not found', async () => {
-    resolvePanel();
+    openPanel();
     mockWebview.postedMessages = [];
 
     await emitMessage({
@@ -388,15 +505,14 @@ describe('AccountsPanelProvider', () => {
       quotaService,
       accountFetcher,
       instanceDetector,
+      createMockProfileWorkspaceService(),
       createMockEfficiencyService(),
-      createMockAuthReader()
+      createMockAuthReader(),
+      createMockStorageCleanupService(),
+      createMockStorageAnalyzer()
     );
 
-    failingProvider.resolveWebviewView(
-      mockView as never,
-      {} as never,
-      {} as never
-    );
+    failingProvider.openPanel();
     mockWebview.postedMessages = [];
 
     await emitMessage({ type: 'launch', profileId: profile.id });
@@ -408,14 +524,14 @@ describe('AccountsPanelProvider', () => {
     }
   });
 
-  it('refresh does nothing when view is not resolved', async () => {
+  it('refresh does nothing when panel is not open', async () => {
     await provider.refresh();
     assert.equal(mockWebview.postedMessages.length, 0);
   });
 
-  it('public refresh sends init data when view is resolved', async () => {
+  it('public refresh sends init data when panel is open', async () => {
     await manager.createProfile({ email: 'refresh@example.com' });
-    resolvePanel();
+    openPanel();
     mockWebview.postedMessages = [];
 
     await provider.refresh();
@@ -424,6 +540,8 @@ describe('AccountsPanelProvider', () => {
     assert.ok(initMessage);
     if (initMessage?.type === 'init') {
       assert.equal(initMessage.data.profiles.length, 1);
+      assert.ok(initMessage.data.profileWorkspaces);
+      assert.ok(Array.isArray(initMessage.data.openWorkspacePaths));
     }
   });
 });

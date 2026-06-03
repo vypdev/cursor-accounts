@@ -1,0 +1,242 @@
+#!/usr/bin/env node
+import { execSync } from 'child_process';
+import fs from 'fs';
+import path from 'path';
+import { cleanProductionDeps } from './clean-production-deps.mjs';
+import { prepareSdkForTarget } from './prepare-sdk-for-target.mjs';
+import { convertToProduction, restoreState, saveState } from './workspace-state.mjs';
+
+const ALL_TARGETS = [
+  'darwin-arm64',
+  'darwin-x64',
+  'linux-x64',
+  'linux-arm64',
+  'win32-x64',
+  'win32-arm64',
+];
+
+const PLATFORM_SDK_PACKAGE = {
+  'darwin-arm64': '@cursor/sdk-darwin-arm64',
+  'darwin-x64': '@cursor/sdk-darwin-x64',
+  'linux-x64': '@cursor/sdk-linux-x64',
+  'linux-arm64': '@cursor/sdk-linux-arm64',
+  'win32-x64': '@cursor/sdk-win32-x64',
+  'win32-arm64': '@cursor/sdk-win32-x64',
+};
+
+const root = process.cwd();
+
+function run(command, options = {}) {
+  execSync(command, {
+    cwd: root,
+    stdio: 'inherit',
+    ...options,
+  });
+}
+
+function parseArgs(argv) {
+  const args = {
+    all: false,
+    current: false,
+    targets: [],
+  };
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+
+    if (arg === '--all') {
+      args.all = true;
+      continue;
+    }
+
+    if (arg === '--current') {
+      args.current = true;
+      continue;
+    }
+
+    if (arg === '--target') {
+      const target = argv[index + 1];
+      if (!target || !ALL_TARGETS.includes(target)) {
+        throw new Error(`Invalid target "${target ?? ''}". Expected one of: ${ALL_TARGETS.join(', ')}`);
+      }
+      args.targets.push(target);
+      index += 1;
+      continue;
+    }
+
+    if (ALL_TARGETS.includes(arg)) {
+      args.targets.push(arg);
+      continue;
+    }
+
+    throw new Error(`Unknown argument: ${arg}`);
+  }
+
+  if (args.all) {
+    args.targets = [...ALL_TARGETS];
+  } else if (args.current) {
+    args.targets = [`${process.platform}-${process.arch}`];
+  } else if (args.targets.length === 0) {
+    args.targets = [`${process.platform}-${process.arch}`];
+  }
+
+  return args;
+}
+
+function ensureNodeVersion() {
+  if (process.platform === 'win32') {
+    const major = Number.parseInt(process.versions.node.split('.')[0], 10);
+    if (major < 22) {
+      throw new Error(`Node.js 22+ required. Current version: v${process.versions.node}`);
+    }
+    return;
+  }
+
+  run('bash scripts/ensure-node.sh', { shell: true });
+}
+
+function bundleExtension() {
+  console.log('\n==> Bundling extension, webview, and workspace packages');
+  run('pnpm run bundle');
+}
+
+function preparePackage() {
+  console.log('\n==> Preparing production dependencies');
+  run('pnpm install --frozen-lockfile', {
+    env: { ...process.env, CI: 'true' },
+  });
+
+  console.log('Building sqlite3 native binding…');
+  run('npm rebuild sqlite3');
+
+  const cursorDir = path.join(root, 'node_modules', '@cursor');
+  if (!fs.existsSync(path.join(cursorDir, 'sdk', 'package.json'))) {
+    throw new Error('Missing @cursor/sdk package in node_modules');
+  }
+
+  const sdkPackages = fs
+    .readdirSync(cursorDir)
+    .filter((entry) => entry.startsWith('sdk-'))
+    .map((entry) => `@cursor/${entry}`);
+
+  const sqliteBinding = path.join(
+    root,
+    'node_modules',
+    'sqlite3',
+    'build',
+    'Release',
+    'node_sqlite3.node'
+  );
+
+  if (!fs.existsSync(sqliteBinding)) {
+    throw new Error(`Missing sqlite3 native binding: ${sqliteBinding}`);
+  }
+
+  console.log(
+    sdkPackages.length > 0
+      ? `Found SDK packages: ${sdkPackages.join(', ')}`
+      : 'Platform SDK packages will be installed per target during packaging'
+  );
+  console.log(`Found sqlite3 binding: ${sqliteBinding}`);
+}
+
+function packageTarget(target) {
+  console.log(`\n==> Packaging ${target}`);
+
+  prepareSdkForTarget(target);
+  run(`node scripts/prepare-bin-for-target.mjs ${target}`);
+
+  const vsceArgs = [
+    'pnpm exec vsce package',
+    `--target ${target}`,
+    '--allow-missing-repository',
+    '--allow-star-activation',
+    '--no-rewrite-relative-links',
+  ].join(' ');
+
+  run(`${vsceArgs}`, {
+    env: { ...process.env, SKIP_PREPUBLISH: '1' },
+  });
+
+  run('node scripts/restore-bin.mjs');
+}
+
+function verifyVsix(target) {
+  const version = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).version;
+  const vsixName = `cursor-accounts-${target}-${version}.vsix`;
+  const vsixPath = path.join(root, vsixName);
+
+  if (!fs.existsSync(vsixPath)) {
+    throw new Error(`Expected VSIX not found: ${vsixName}`);
+  }
+
+  const checks = [
+    { label: 'webview bundle', pattern: 'extension/webview-dist/bundle.js' },
+    {
+      label: 'sqlite3 native binding',
+      pattern: 'extension/node_modules/sqlite3/build/Release/node_sqlite3.node',
+    },
+    {
+      label: '@cursor/sdk',
+      pattern: 'extension/node_modules/@cursor/sdk/package.json',
+    },
+    { label: 'undici', pattern: 'extension/node_modules/undici/package.json' },
+    { label: 'bindings', pattern: 'extension/node_modules/bindings/package.json' },
+    {
+      label: 'efficiency SQL migrations',
+      pattern: 'extension/out/persistence/migrations/001_initial_schema.sql',
+    },
+  ];
+
+  const sdkPackage = PLATFORM_SDK_PACKAGE[target];
+  if (sdkPackage) {
+    checks.push({
+      label: `@cursor/sdk platform package (${target})`,
+      pattern: `extension/node_modules/${sdkPackage}/package.json`,
+    });
+  }
+
+  console.log(`\n==> Verifying ${vsixName}`);
+  for (const { label, pattern } of checks) {
+    try {
+      execSync(`unzip -l "${vsixPath}" | grep "${pattern}"`, {
+        cwd: root,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      console.log(`  ✓ ${label}`);
+    } catch {
+      throw new Error(`VSIX verification failed: missing ${label}`);
+    }
+  }
+}
+
+function main() {
+  const args = parseArgs(process.argv.slice(2));
+  let packagingPrepared = false;
+
+  try {
+    ensureNodeVersion();
+    bundleExtension();
+    preparePackage();
+
+    saveState();
+    convertToProduction();
+    cleanProductionDeps();
+    packagingPrepared = true;
+
+    for (const target of args.targets) {
+      packageTarget(target);
+      verifyVsix(target);
+    }
+
+    console.log(`\nBuild complete (${args.targets.length} VSIX${args.targets.length === 1 ? '' : 'es'})`);
+  } finally {
+    run('node scripts/restore-bin.mjs', { stdio: 'ignore' });
+    if (packagingPrepared) {
+      restoreState();
+    }
+  }
+}
+
+main();

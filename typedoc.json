@@ -1,0 +1,13 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "name": "Cursor Accounts API",
+  "entryPoints": [
+    "packages/types/src/index.ts",
+    "src/domain/index.ts"
+  ],
+  "out": "docs/api",
+  "excludePrivate": true,
+  "excludeInternal": true,
+  "readme": "none",
+  "plugin": []
+}

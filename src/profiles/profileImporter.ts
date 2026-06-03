@@ -2,7 +2,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { validateUserDataPath } from '../utils/pathUtils';
 import { ProfileExporter } from './profileExporter';
-import type { ProfileManager } from './profileManager';
+import type { IProfileManager } from '../domain/ports/IProfileManager';
 import type {
   ExportedProfile,
   ImportOptions,
@@ -32,7 +32,7 @@ export class ProfileImporterError extends Error {
 }
 
 export class ProfileImporter {
-  constructor(private readonly profileManager: ProfileManager) {}
+  constructor(private readonly profileManager: IProfileManager) {}
 
   /**
    * Import profiles from JSON data.

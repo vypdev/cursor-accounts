@@ -152,20 +152,22 @@ jobs:
           node-version: 22
           cache: pnpm
 
-      - name: Prepare package dependencies
-        shell: bash
-        run: bash scripts/prepare-package.sh
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Verify bundled binaries
         if: ${{ !contains(matrix.os, 'Windows') }}
         shell: bash
         run: bash scripts/verify-binaries.sh
 
-      - name: Prepare target binary
-        run: node scripts/prepare-bin-for-target.mjs ${{ matrix.target }}
+      - name: Build VSIX
+        run: pnpm run build -- --target ${{ matrix.target }}
 
       - name: Publish to Open VSX Registry
-        run: pnpm dlx ovsx publish --target ${{ matrix.target }} --allow-missing-repository --no-rewrite-relative-links -p "${{ secrets.OVSX_PAT }}"
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          pnpm dlx ovsx publish "cursor-accounts-${{ matrix.target }}-${VERSION}.vsix" --no-rewrite-relative-links -p "${{ secrets.OVSX_PAT }}"
 
   notify:
     name: Deploy notification
