@@ -45,18 +45,42 @@ describe('CertificateManager', () => {
     assert.equal(mtimeBefore, mtimeAfter);
   });
 
-  it('prepares http-mitm-proxy sslCaDir layout', async () => {
+  it('prepares http-mitm-proxy sslCaDir layout under certs/ca.pem', async () => {
     const manager = new CertificateManager(tempDir);
     const sslDir = await manager.ensureCaDirectoryForMitm();
 
     assert.equal(sslDir, tempDir);
-    const caPem = await fs.readFile(path.join(tempDir, 'ca.pem'), 'utf8');
+    const caPem = await fs.readFile(path.join(tempDir, 'certs', 'ca.pem'), 'utf8');
     const keyPem = await fs.readFile(
       path.join(tempDir, 'keys', 'ca.private.key'),
       'utf8'
     );
-    assert.ok(caPem.includes('BEGIN CERTIFICATE'));
+    const canonical = await fs.readFile(path.join(tempDir, CA_CERT_FILE), 'utf8');
+    assert.equal(caPem.trim(), canonical.trim());
     assert.ok(keyPem.length > 0);
+    await assert.rejects(() => fs.access(path.join(tempDir, 'ca.pem')));
+  });
+
+  it('replaces NodeMITM CA and clears cached host certificates', async () => {
+    const manager = new CertificateManager(tempDir);
+    await manager.ensureCaCertificate();
+
+    const mitmCertsDir = path.join(tempDir, 'certs');
+    await fs.mkdir(mitmCertsDir, { recursive: true });
+    await fs.writeFile(
+      path.join(mitmCertsDir, 'ca.pem'),
+      'subject=NodeMITMProxyCA\n',
+      'utf8'
+    );
+    await fs.writeFile(path.join(mitmCertsDir, 'api2.cursor.sh.pem'), 'stale', 'utf8');
+
+    await manager.ensureCaDirectoryForMitm();
+
+    const caPem = await fs.readFile(path.join(mitmCertsDir, 'ca.pem'), 'utf8');
+    assert.ok(caPem.includes('Cursor Accounts MITM Proxy CA'));
+    await assert.rejects(() =>
+      fs.access(path.join(mitmCertsDir, 'api2.cursor.sh.pem'))
+    );
   });
 
 });

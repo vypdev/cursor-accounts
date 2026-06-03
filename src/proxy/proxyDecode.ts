@@ -10,7 +10,7 @@ import { getProtoRegistry } from './protoRegistry';
 import type { ProxyLogEntry } from './types';
 
 const RPC_PATH_RE =
-  /\/(aiserver\.v1\.[A-Za-z0-9_]+Service)\/([A-Za-z0-9_]+)/;
+  /\/((?:aiserver|agent)\.v1\.[A-Za-z0-9_]+)\/([A-Za-z0-9_]+)/;
 
 export interface DecodeProtoResult {
   decoded?: Record<string, unknown>;
@@ -22,7 +22,10 @@ export interface DecodeProtoResult {
 export function parseRpcPath(url: string): string | null {
   try {
     const pathname = new URL(url).pathname;
-    if (pathname.includes('aiserver.v1.') && pathname.includes('Service/')) {
+    if (
+      /(?:aiserver|agent)\.v1\./.test(pathname) &&
+      pathname.includes('Service/')
+    ) {
       return pathname;
     }
   } catch {
@@ -53,7 +56,7 @@ export async function decodeProtoEntry(
 
   const rpcPath = parseRpcPath(entry.url);
   if (!rpcPath) {
-    return { error: 'Not an aiserver RPC URL' };
+    return { error: 'Not a Connect RPC URL (aiserver/agent)' };
   }
 
   const contentType = entry.headers['content-type']?.toLowerCase() ?? '';

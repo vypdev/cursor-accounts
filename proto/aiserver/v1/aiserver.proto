@@ -27550,6 +27550,7 @@ service BackgroundComposerService { // aiserver.v1.BackgroundComposerService
 }
 
 service BidiService { // aiserver.v1.BidiService
+  rpc BidiAppend(BidiAppendRequest) returns (BidiAppendResponse) {}
 }
 
 service BugbotAdminService { // aiserver.v1.BugbotAdminService

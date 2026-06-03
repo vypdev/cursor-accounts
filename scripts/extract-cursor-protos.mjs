@@ -41,6 +41,20 @@ const EXTENSION_HOST_REL = path.join(
 );
 
 /** @type {Array<{ packageId: string, fileName: string, goPackage: string, imports?: string[] }>} */
+/**
+ * Services whose methods are missing from extensionHost descriptors (empty `methods:{}`).
+ * Patched at emit time so Connect paths like /aiserver.v1.BidiService/BidiAppend decode.
+ */
+const EMPTY_SERVICE_RPC_PATCHES = {
+  'aiserver.v1.BidiService': [
+    {
+      name: 'BidiAppend',
+      in: 'aiserver.v1.BidiAppendRequest',
+      out: 'aiserver.v1.BidiAppendResponse',
+    },
+  ],
+};
+
 const OUTPUT_PACKAGES = [
   {
     packageId: 'agent.v1',
@@ -352,6 +366,15 @@ function generateProto(descriptors, pkg) {
     .sort((a, b) => a[0].localeCompare(b[0]))) {
     const name = localTypeName(fullName, prefix);
     lines.push(`service ${name} { // ${fullName}`);
+    const patchMethods =
+      svc.methods.length === 0 ? EMPTY_SERVICE_RPC_PATCHES[fullName] : undefined;
+    if (patchMethods?.length) {
+      for (const patch of patchMethods) {
+        const inName = fieldTypeRef(patch.in, prefix);
+        const outName = fieldTypeRef(patch.out, prefix);
+        lines.push(`  rpc ${patch.name}(${inName}) returns (${outName}) {}`);
+      }
+    }
     for (const method of svc.methods) {
       const inType = symToType.get(method.I);
       const outType = symToType.get(method.O);

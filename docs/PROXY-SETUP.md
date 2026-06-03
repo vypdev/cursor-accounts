@@ -21,6 +21,8 @@ HTTPS interception requires trusting the extension-generated CA:
 
 Without trusting the CA, Cursor may reject TLS connections when using the proxy.
 
+**Important:** The proxy must sign TLS with the same CA you install from the panel (`Cursor Accounts MITM Proxy CA`). If Network Diagnostics shows interception by `Node MITM Proxy CA` / `NodeMITMProxyCA`, stop the proxy, delete `~/.cursor-accounts/proxy/certs/certs/` (except after updating the extension, restart proxy to regenerate), reinstall the panel CA, and relaunch Cursor. Older builds placed `ca.pem` in the wrong folder so `http-mitm-proxy` generated its own CA.
+
 The MITM Proxy card in the Accounts panel shows two status badges: **Running / Stopped** (proxy process) and **CA trusted / CA not trusted** (system trust store). The CA badge is checked only when needed (opening or focusing the panel, after install, when starting the proxy)—not continuously in the background.
 
 ## Remove the CA certificate
@@ -39,7 +41,10 @@ When the proxy is **running**, launching a profile from the Accounts panel:
 
 - Writes `http.proxy` to that profile's `User/settings.json` (with `http.proxySupport: "override"`)
 - Backs up any existing `http.proxy` to `http.proxy.backup` (restored later)
+- Passes **`--proxy-server=http://127.0.0.1:<port>`** to Cursor (Chromium/Electron), using that profile's assigned MITM port (not always 8080 — see per-profile ports below)
 - Sets `NODE_EXTRA_CA_CERTS` in the environment when spawning Cursor (for Node/Electron)
+
+Each profile's proxy port is chosen from `8080`, `8081`, `8082`, or `8888` (first free port not used by another running profile proxy). The same port is used in `settings.json`, `--proxy-server`, and the proxy process listen address.
 
 When you **stop the proxy** or open the **default Cursor window** (no managed profile), the extension restores the original proxy settings in **all** stored profiles.
 
@@ -82,7 +87,32 @@ Analyze captured traffic:
 ```bash
 pnpm run verify:proto-jsonl
 pnpm run analyze:proxy-traffic
+pnpm run scan:proxy-interactive
 ```
+
+### Interactive chat vs background traffic
+
+Cursor uses **several API hosts**. A log can look “healthy” (billing, agent snapshots) while **chat streams are missing**:
+
+| Traffic | Typical host | Connect path |
+|---------|--------------|--------------|
+| Usage / billing | `api2.cursor.sh` | `aiserver.v1.DashboardService/GetCurrentPeriodUsage` |
+| Agent file snapshots (metrics) | `api2.cursor.sh` | `aiserver.v1.OnlineMetricsService/ReportAgentSnapshot` |
+| **Composer / legacy chat** | `api2.cursor.sh` | `aiserver.v1.AiService/StreamComposer`, `StreamChat`, … |
+| **Agent chat (HTTP/2)** | `agent.api5.cursor.sh` | `agent.v1.AgentService/Run` / `RunSSE` |
+| **Agent chat (HTTP/1)** | `api2.cursor.sh` | `agent.v1.AgentService/RunPoll`, `aiserver.v1.BidiService/BidiAppend`, … |
+
+If you only see `api2` + `ReportAgentSnapshot` but **no** interactive RPCs, the proxy did not capture a chat turn.
+
+**Checklist for chat capture:**
+
+1. Proxy **running**, CA **trusted** (panel CA must match proxy signing CA — see note above on `NodeMITMProxyCA`), profile **relaunched** from Accounts.
+2. With MITM, prefer **HTTP/1** (`cursor.general.disableHttp2: true`) so Agent uses `RunPoll` on `api2`.
+3. Send a **new Agent message** while logging.
+4. Run `pnpm run scan:proxy-interactive` — expect `RunPoll` / `BidiAppend` on api2, or `api5` / `StreamComposer` depending on HTTP mode.
+5. Run `pnpm run analyze:proxy-traffic` — decoded `BidiAppend` rows include `insights.agent` (`requestId`, `appendSeqno`, optional `dataPreview` / `dataBytes`).
+
+Composer message **metadata** is also stored locally in `state.vscdb`; the MITM proxy only sees **network** RPCs.
 
 ## Security
 
@@ -99,6 +129,8 @@ pnpm run analyze:proxy-traffic
 | Panel shows **CA not trusted** after install | Focus the Accounts panel again to refresh; on Linux, confirm `/usr/local/share/ca-certificates/cursor-accounts-mitm.crt` exists and run `sudo update-ca-certificates`. |
 | Panel shows proxy running but this window does not use it | Launch the profile again after starting the proxy, or reload the window. |
 | Empty proxy logs | Ensure the profile window was launched after the proxy started; confirm `http.proxy` in that profile's settings. |
+| Logs have billing/snapshots but no chat | Agent chat uses `agent.api5.cursor.sh`, not `StreamComposer` on `api2`; relaunch profile, send a test prompt, run `scan:proxy-interactive`. Many `HTTPS_CLIENT_ERROR` / certificate lines mean the CA is not trusted for some clients — reinstall CA and relaunch. |
+| Network Diagnostics: API/Chat/Agent fail, SSL warns `Node MITM Proxy CA` | Proxy leaf certs signed by wrong CA; stop proxy, restart extension/proxy (regenerates `certs/ca.pem`), confirm diagnostics mention `Cursor Accounts MITM Proxy CA` or no warning after trusting panel CA. Try `cursor.general.disableHttp2` only after CA matches. |
 | Profile shows **Temporary proxy** badge | Normal while the proxy is active; settings revert when the proxy stops or the default window opens. |
 | Stale “running” status | The proxy process may have crashed; click **Stop Proxy** then **Start Proxy**. |
 

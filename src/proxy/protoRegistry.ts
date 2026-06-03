@@ -66,7 +66,8 @@ export class ProtoRegistry {
         if (item instanceof ServiceCtor) {
           const svc = item as Service;
           for (const method of svc.methodsArray) {
-            const rpcPath = `/${svc.fullName}/${method.name}`;
+            const serviceName = svc.fullName.replace(/^\./, '');
+            const rpcPath = `/${serviceName}/${method.name}`;
             try {
               const requestType = this.root!.lookupType(method.requestType);
               const responseType = this.root!.lookupType(method.responseType);

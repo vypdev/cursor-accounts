@@ -44,15 +44,29 @@ export class ProfileLauncherError extends Error {
   }
 }
 
+/** Optional launch flags when a profile MITM proxy is active. */
+export interface LaunchArgsOptions {
+  /** Full proxy URL, e.g. http://127.0.0.1:8081 from ProxyManager.getProxyServerUrl. */
+  proxyUrl?: string;
+}
+
+export function proxyServerLaunchArg(proxyUrl: string): string {
+  return `--proxy-server=${proxyUrl}`;
+}
+
 /**
  * Build a clean environment for spawning Cursor outside the extension host.
  */
-/** Build argv for Cursor with optional project path. */
+/** Build argv for Cursor with optional project path and Chromium proxy flag. */
 export function buildLaunchArgs(
   userDataDir: string,
-  projectPath?: string
+  projectPath?: string,
+  options?: LaunchArgsOptions
 ): string[] {
   const args = ['--user-data-dir', userDataDir];
+  if (options?.proxyUrl) {
+    args.push(proxyServerLaunchArg(options.proxyUrl));
+  }
   if (projectPath) {
     args.push(projectPath);
   }
@@ -72,19 +86,23 @@ export function buildSpawnEnv(caCertPath?: string): NodeJS.ProcessEnv {
 }
 
 /** Manual launch command shown when automated launch verification fails. */
-export function buildManualLaunchCommand(userDataDir: string): string {
+export function buildManualLaunchCommand(
+  userDataDir: string,
+  proxyUrl?: string
+): string {
+  const proxyArg = proxyUrl ? ` ${proxyServerLaunchArg(proxyUrl)}` : '';
   switch (process.platform) {
     case 'darwin':
-      return `open -na "/Applications/Cursor.app" --args --user-data-dir="${userDataDir}"`;
+      return `open -na "/Applications/Cursor.app" --args --user-data-dir="${userDataDir}"${proxyArg}`;
     case 'win32': {
       const localAppData = process.env.LOCALAPPDATA;
       const execPath = localAppData
         ? path.join(localAppData, 'Programs', 'Cursor', 'Cursor.exe')
         : 'Cursor.exe';
-      return `"${execPath}" --user-data-dir="${userDataDir}"`;
+      return `"${execPath}" --user-data-dir="${userDataDir}"${proxyArg}`;
     }
     default:
-      return `cursor --user-data-dir="${userDataDir}"`;
+      return `cursor --user-data-dir="${userDataDir}"${proxyArg}`;
   }
 }
 
@@ -179,7 +197,9 @@ export class ProfileLauncher implements IProfileLauncher {
         : null;
 
       const execPath = this.getExecutablePath();
-      const args = this.buildLaunchArgs(userDataDir, projectPath);
+      const args = this.buildLaunchArgs(userDataDir, projectPath, {
+        proxyUrl: launchContext?.proxyUrl,
+      });
 
       extensionLog.info(
         `[ProfileLauncher] Spawn: ${this.formatSpawnCommand(execPath, args)}`
@@ -197,7 +217,10 @@ export class ProfileLauncher implements IProfileLauncher {
       }
 
       if (this.instanceDetector && pid == null) {
-        const manualCmd = buildManualLaunchCommand(userDataDir);
+        const manualCmd = buildManualLaunchCommand(
+          userDataDir,
+          launchContext?.proxyUrl
+        );
         extensionLog.warn(
           `[ProfileLauncher] Cursor did not start for ${userDataDir}`
         );
@@ -306,8 +329,12 @@ export class ProfileLauncher implements IProfileLauncher {
   /**
    * Build command line arguments for launching with profile.
    */
-  buildLaunchArgs(userDataDir: string, projectPath?: string): string[] {
-    return buildLaunchArgs(userDataDir, projectPath);
+  buildLaunchArgs(
+    userDataDir: string,
+    projectPath?: string,
+    options?: LaunchArgsOptions
+  ): string[] {
+    return buildLaunchArgs(userDataDir, projectPath, options);
   }
 
   /**

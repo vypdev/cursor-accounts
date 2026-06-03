@@ -59,3 +59,96 @@ export function extractContextInsight(obj) {
   }
   return null;
 }
+
+/**
+ * @param {unknown} value
+ */
+function pickRequestId(value) {
+  if (value == null) {
+    return null;
+  }
+  if (typeof value === 'string' && value.length > 0) {
+    return value;
+  }
+  if (typeof value === 'object') {
+    const record = /** @type {Record<string, unknown>} */ (value);
+    const nested = record.requestId ?? record.request_id;
+    if (typeof nested === 'string' && nested.length > 0) {
+      return nested;
+    }
+  }
+  return null;
+}
+
+/**
+ * Agent bidi session fields (RunPoll / BidiAppend / BidiPoll on api2).
+ * @param {Record<string, unknown> | null | undefined} obj
+ */
+const DATA_PREVIEW_MAX = 240;
+
+function previewDataField(value) {
+  if (typeof value !== 'string' || value.length === 0) {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  if (trimmed.length <= DATA_PREVIEW_MAX) {
+    return trimmed;
+  }
+  return `${trimmed.slice(0, DATA_PREVIEW_MAX)}…`;
+}
+
+function dataBinaryByteLength(value) {
+  if (value == null) {
+    return null;
+  }
+  if (typeof value === 'string') {
+    return value.length;
+  }
+  if (value instanceof Uint8Array || Buffer.isBuffer(value)) {
+    return value.length;
+  }
+  if (Array.isArray(value)) {
+    return value.length;
+  }
+  if (typeof value === 'object' && value !== null && 'length' in value) {
+    const n = Number(value.length);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
+export function extractAgentInsight(obj) {
+  if (!obj || typeof obj !== 'object') {
+    return null;
+  }
+  const requestId =
+    pickRequestId(obj.requestId) ?? pickRequestId(obj.request_id);
+  const appendSeqno = obj.appendSeqno ?? obj.append_seqno;
+  const pollSeqno = obj.seqno;
+  const eof = obj.eof === true;
+  const dataPreview = previewDataField(obj.data);
+  const dataBytes = dataBinaryByteLength(obj.dataBinary ?? obj.data_binary);
+
+  if (
+    requestId == null &&
+    appendSeqno == null &&
+    pollSeqno == null &&
+    !eof &&
+    !dataPreview &&
+    dataBytes == null
+  ) {
+    return null;
+  }
+
+  return {
+    requestId: requestId ?? undefined,
+    appendSeqno: appendSeqno ?? undefined,
+    pollSeqno: pollSeqno ?? undefined,
+    eof: eof || undefined,
+    dataPreview: dataPreview ?? undefined,
+    dataBytes: dataBytes ?? undefined,
+  };
+}

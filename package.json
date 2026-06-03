@@ -250,6 +250,7 @@
     "test:proto": "node scripts/test-proto-decode.mjs",
     "verify:proto-jsonl": "node scripts/verify-proto-jsonl.mjs",
     "analyze:proxy-traffic": "node scripts/analyze-proxy-traffic.mjs",
+    "scan:proxy-interactive": "node scripts/scan-proxy-interactive.mjs",
     "protos:check": "pnpm extract:protos && pnpm verify:proto-jsonl",
     "compile": "pnpm --dir packages/types run build && pnpm --dir packages/shared run build && tsc -p ./ && node scripts/copy-migrations.mjs && node scripts/copy-protos.mjs && pnpm --dir webview run build",
     "copy-migrations": "node scripts/copy-migrations.mjs",

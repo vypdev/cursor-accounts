@@ -27,10 +27,23 @@ export interface ConversationContext {
   includedFiles?: string[];
 }
 
+/** Bidi/Agent poll session metadata (HTTP/1 api2 path). */
+export interface AgentSessionInfo {
+  requestId?: string;
+  appendSeqno?: number;
+  pollSeqno?: number;
+  eof?: boolean;
+  /** Truncated `data` string from BidiAppend / BidiPoll when present. */
+  dataPreview?: string;
+  /** Length of `data_binary` on BidiAppend when present. */
+  dataBytes?: number;
+}
+
 export interface ProxyInsights {
   billing?: BillingInfo;
   tokens?: TokenUsageInfo;
   context?: ConversationContext;
+  agent?: AgentSessionInfo;
 }
 
 function asNumber(value: unknown): number | undefined {
@@ -252,6 +265,108 @@ export function redactSensitive(obj: unknown, depth = 0): unknown {
   return out;
 }
 
+const DATA_PREVIEW_MAX = 240;
+
+function previewDataField(value: unknown): string | undefined {
+  if (typeof value !== 'string' || value.length === 0) {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return undefined;
+  }
+  if (trimmed.length <= DATA_PREVIEW_MAX) {
+    return trimmed;
+  }
+  return `${trimmed.slice(0, DATA_PREVIEW_MAX)}…`;
+}
+
+function dataBinaryByteLength(value: unknown): number | undefined {
+  if (value == null) {
+    return undefined;
+  }
+  if (typeof value === 'string') {
+    return value.length;
+  }
+  if (value instanceof Uint8Array || Buffer.isBuffer(value)) {
+    return value.length;
+  }
+  if (Array.isArray(value)) {
+    return value.length;
+  }
+  if (typeof value === 'object' && value !== null && 'length' in value) {
+    const n = Number((value as { length: unknown }).length);
+    return Number.isFinite(n) ? n : undefined;
+  }
+  return undefined;
+}
+
+function pickRequestId(value: unknown): string | undefined {
+  if (value == null) {
+    return undefined;
+  }
+  if (typeof value === 'string' && value.length > 0) {
+    return value;
+  }
+  if (typeof value === 'object' && value !== null) {
+    const record = value as Record<string, unknown>;
+    const nested = record.requestId ?? record.request_id;
+    if (typeof nested === 'string' && nested.length > 0) {
+      return nested;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Extract Agent bidi session fields from BidiAppend / BidiPoll / RunPoll payloads.
+ */
+export function extractAgentSessionInfo(
+  decoded: Record<string, unknown>
+): AgentSessionInfo | null {
+  const requestId =
+    pickRequestId(decoded.requestId) ??
+    pickRequestId(decoded.request_id);
+  const appendSeqno = asNumber(decoded.appendSeqno ?? decoded.append_seqno);
+  const pollSeqno = asNumber(decoded.seqno);
+  const eof = decoded.eof === true;
+  const dataPreview = previewDataField(decoded.data);
+  const dataBytes = dataBinaryByteLength(
+    decoded.dataBinary ?? decoded.data_binary
+  );
+
+  if (
+    !requestId &&
+    appendSeqno == null &&
+    pollSeqno == null &&
+    !eof &&
+    !dataPreview &&
+    dataBytes == null
+  ) {
+    return null;
+  }
+
+  return {
+    requestId,
+    appendSeqno,
+    pollSeqno,
+    eof: eof || undefined,
+    dataPreview,
+    dataBytes,
+  };
+}
+
+function isAgentInteractiveRpc(rpcPath: string): boolean {
+  return (
+    rpcPath.includes('RunPoll') ||
+    rpcPath.includes('RunSSE') ||
+    rpcPath.includes('AgentService/Run') ||
+    rpcPath.includes('BidiAppend') ||
+    rpcPath.includes('BidiPoll') ||
+    rpcPath.includes('StreamBidi')
+  );
+}
+
 /**
  * Pick insights based on RPC path.
  */
@@ -281,7 +396,11 @@ export function extractInsightsForRpc(
     insights.context = extractConversationContext(decoded) ?? undefined;
   }
 
-  if (!insights.billing && !insights.tokens && !insights.context) {
+  if (isAgentInteractiveRpc(rpcPath)) {
+    insights.agent = extractAgentSessionInfo(decoded) ?? undefined;
+  }
+
+  if (!insights.billing && !insights.tokens && !insights.context && !insights.agent) {
     return undefined;
   }
 

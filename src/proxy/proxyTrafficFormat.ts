@@ -164,6 +164,9 @@ function formatInsightHint(summary: ProxyTrafficSummary): string {
   if (summary.insights?.context?.messageCount != null) {
     parts.push(`${summary.insights.context.messageCount} msgs`);
   }
+  if (summary.insights?.agent?.requestId) {
+    parts.push(`agent=${summary.insights.agent.requestId.slice(0, 8)}`);
+  }
   return parts.length > 0 ? `, ${parts.join(', ')}` : '';
 }
 

@@ -92,4 +92,13 @@ describe('proxyInsightExtractor', () => {
     );
     assert.ok(insights?.billing);
   });
+
+  it('picks agent insights for RunPoll', () => {
+    const insights = extractInsightsForRpc('/agent.v1.AgentService/RunPoll', {
+      request_id: { request_id: 'agent-req-99' },
+      seqno: '3',
+    });
+    assert.equal(insights?.agent?.requestId, 'agent-req-99');
+    assert.equal(insights?.agent?.pollSeqno, 3);
+  });
 });

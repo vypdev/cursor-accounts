@@ -14,10 +14,16 @@ import { fileURLToPath } from 'node:url';
 import protobuf from 'protobufjs';
 import { bodyBufferFromEntry } from './lib/proxy-log-body.mjs';
 import {
+  extractAgentInsight,
   extractBillingInsight,
   extractContextInsight,
   extractTokenInsight,
 } from './lib/proxy-insights.mjs';
+import {
+  buildRpcTypeMap,
+  parseConnectRpcPath,
+  resolveRpcMessageType,
+} from './lib/proxy-rpc.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -33,8 +39,6 @@ const DEFAULT_LOG_DIR = path.join(
   'logs'
 );
 
-const RPC_PATH_RE =
-  /aiserver\.v1\.([A-Za-z0-9_]+Service)\/([A-Za-z0-9_]+)/;
 
 /**
  * @param {Buffer} body
@@ -101,24 +105,6 @@ function tryDecodeProto(Type, raw, contentEncoding = '') {
 }
 
 /**
- * @param {string} method
- * @param {'request' | 'response'} direction
- */
-function messageTypeName(method, direction) {
-  const suffix = direction === 'request' ? 'Request' : 'Response';
-  return `aiserver.v1.${method}${suffix}`;
-}
-
-/**
- * @param {string} url
- */
-function parseRpc(url) {
-  const m = String(url).match(RPC_PATH_RE);
-  if (!m) return null;
-  return { service: m[1], method: m[2] };
-}
-
-/**
  * @param {Record<string, unknown>} obj
  * @param {protobuf.Type} Type
  */
@@ -140,17 +126,18 @@ function jsonKeysMatchProto(obj, Type) {
  * @param {string} logDir
  * @param {protobuf.Root} root
  */
-function verifyLogs(logDir, root) {
+function verifyLogs(logDir, root, rpcMap) {
   /** @type {Map<string, { ok: number, fail: number, json: number, gzip: number, samples: string[] }>} */
   const byMethod = new Map();
   /** @type {Map<string, { ok: number, fail: number }>} */
   const dashboard = new Map();
   let totalEntries = 0;
   let skippedNoBody = 0;
-  let skippedNonAiserver = 0;
+  let skippedNonConnect = 0;
   let insightBilling = 0;
   let insightTokens = 0;
   let insightContext = 0;
+  let insightAgent = 0;
   let base64Bodies = 0;
 
   const files = fs
@@ -173,35 +160,32 @@ function verifyLogs(logDir, root) {
       if (entry.direction !== 'request' && entry.direction !== 'response') {
         continue;
       }
-      const rpc = parseRpc(entry.url ?? '');
-      if (!rpc) {
-        skippedNonAiserver++;
+      const rpcPath = parseConnectRpcPath(entry.url ?? '');
+      if (!rpcPath) {
+        skippedNonConnect++;
         continue;
       }
 
       totalEntries++;
-      const key = `${rpc.method}:${entry.direction}`;
+      const rpcMethod = rpcPath.split('/').pop() ?? rpcPath;
+      const key = `${rpcMethod}:${entry.direction}`;
       if (!byMethod.has(key)) {
         byMethod.set(key, { ok: 0, fail: 0, json: 0, gzip: 0, samples: [] });
       }
       const stats = byMethod.get(key);
-      const dashKey = rpc.method;
+      const dashKey = rpcMethod;
       if (!dashboard.has(dashKey)) {
         dashboard.set(dashKey, { ok: 0, fail: 0 });
       }
 
       const ct = (entry.headers?.['content-type'] ?? '').toLowerCase();
       const enc = (entry.headers?.['content-encoding'] ?? '').toLowerCase();
-      const typeName = messageTypeName(rpc.method, entry.direction);
-
-      let Type;
-      try {
-        Type = root.lookupType(typeName);
-      } catch {
+      const Type = resolveRpcMessageType(rpcPath, entry.direction, rpcMap);
+      if (!Type) {
         stats.fail++;
         dashboard.get(dashKey).fail++;
         if (stats.samples.length < 2) {
-          stats.samples.push(`no type ${typeName} (${file})`);
+          stats.samples.push(`no proto types for ${rpcPath} (${file})`);
         }
         continue;
       }
@@ -233,6 +217,7 @@ function verifyLogs(logDir, root) {
           if (extractBillingInsight(obj)) insightBilling++;
           if (extractTokenInsight(obj)) insightTokens++;
           if (extractContextInsight(obj)) insightContext++;
+          if (extractAgentInsight(obj)) insightAgent++;
           if (unknown.length === 0) {
             stats.ok++;
             markDash(true);
@@ -285,6 +270,7 @@ function verifyLogs(logDir, root) {
         if (extractBillingInsight(result.object)) insightBilling++;
         if (extractTokenInsight(result.object)) insightTokens++;
         if (extractContextInsight(result.object)) insightContext++;
+        if (extractAgentInsight(result.object)) insightAgent++;
         if (stats.samples.length < 1) {
           const keys = Object.keys(result.object).slice(0, 6).join(', ');
           const encNote = entry.bodyDecompressed
@@ -315,7 +301,8 @@ function verifyLogs(logDir, root) {
     dashboard,
     totalEntries,
     skippedNoBody,
-    skippedNonAiserver,
+    skippedNonConnect,
+    insightAgent,
     insightBilling,
     insightTokens,
     insightContext,
@@ -334,7 +321,8 @@ async function main() {
   const root = await protobuf.load(PROTO_FILES);
   console.log(`Scanning ${logDir}\n`);
 
-  const report = verifyLogs(logDir, root);
+  const rpcMap = buildRpcTypeMap(root, protobuf.Service);
+  const report = verifyLogs(logDir, root, rpcMap);
   const rows = [...report.byMethod.entries()].sort((a, b) => {
     const totalA = a[1].ok + a[1].fail + a[1].json;
     const totalB = b[1].ok + b[1].fail + b[1].json;
@@ -375,10 +363,10 @@ async function main() {
     String(totalOk + totalFail + totalJson).padStart(6)
   );
   console.log(
-    `\nLog files: ${report.files.length}, aiserver entries: ${report.totalEntries}, empty body: ${report.skippedNoBody}, non-aiserver skipped: ${report.skippedNonAiserver}, base64 bodies: ${report.base64Bodies}`
+    `\nLog files: ${report.files.length}, Connect RPC entries: ${report.totalEntries}, empty body: ${report.skippedNoBody}, non-RPC skipped: ${report.skippedNonConnect}, base64 bodies: ${report.base64Bodies}`
   );
   console.log(
-    `Insights extracted: billing=${report.insightBilling}, tokens=${report.insightTokens}, context=${report.insightContext}`
+    `Insights extracted: billing=${report.insightBilling}, tokens=${report.insightTokens}, context=${report.insightContext}, agent=${report.insightAgent}`
   );
 
   const failures = rows.filter(([, s]) => s.fail > 0);

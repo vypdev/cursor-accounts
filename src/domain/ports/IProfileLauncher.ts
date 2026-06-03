@@ -33,7 +33,11 @@ export interface IProfileLauncher {
   ): Promise<number | undefined>;
   getAppBundlePath(): string;
   getExecutablePath(): string;
-  buildLaunchArgs(userDataDir: string, projectPath?: string): string[];
+  buildLaunchArgs(
+    userDataDir: string,
+    projectPath?: string,
+    options?: { proxyUrl?: string }
+  ): string[];
   buildLaunchCommand(profile: Profile): string[];
   validateExecutable(): Promise<{ valid: boolean; error?: string }>;
 }
