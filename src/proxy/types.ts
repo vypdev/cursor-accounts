@@ -5,7 +5,11 @@ export const PROXY_STATE_FILE_NAME = 'proxy-state.json';
 export const PROXY_STATE_SCHEMA_VERSION = 1;
 export const DEFAULT_PROXY_PORT = 8080;
 export const PROXY_PORT_FALLBACKS = [8080, 8081, 8082, 8888] as const;
-export const MAX_BODY_LOG_BYTES = 10 * 1024;
+/** Default inline body limit in JSONL (4 MiB raw); larger bodies spill to logDir/bodies/. */
+export const DEFAULT_MAX_BODY_LOG_BYTES = 4 * 1024 * 1024;
+
+/** @deprecated Use DEFAULT_MAX_BODY_LOG_BYTES */
+export const MAX_BODY_LOG_BYTES = DEFAULT_MAX_BODY_LOG_BYTES;
 export const CONNECT_RPC_CONTENT_TYPE = 'application/connect+proto';
 
 export const CURSOR_HOST_SUFFIXES = [
@@ -20,6 +24,9 @@ export interface ProxyServerConfig {
   storageDir: string;
   logDir: string;
   maxLogSizeMb: number;
+  /** Max body size stored inline in JSONL; larger bodies written to bodies/*.bin */
+  maxBodyLogBytes: number;
+  spillLargeBodies: boolean;
 }
 
 /** Single JSON Lines log record for a request, response, or proxy error. */
@@ -37,6 +44,8 @@ export interface ProxyLogEntry {
   bodyRawBytes?: number;
   bodyDecompressed?: boolean;
   bodyTruncated?: boolean;
+  /** Relative path under log dir when body was spilled to disk */
+  bodyFile?: string;
   isConnectRpc?: boolean;
   isCursorHost?: boolean;
   requestId?: string;

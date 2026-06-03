@@ -108,7 +108,14 @@ export class MitmProxyServer extends EventEmitter {
           rawBody,
           contentEncoding
         );
-        const formatted = RequestLogger.formatBody(body, contentType);
+        const spillKey = requestId
+          ? `${requestId}-request`
+          : undefined;
+        const formatted = this.requestLogger.formatBody(
+          body,
+          contentType,
+          spillKey
+        );
         const entry: ProxyLogEntry = {
           timestamp: new Date().toISOString(),
           direction: 'request',
@@ -171,7 +178,14 @@ export class MitmProxyServer extends EventEmitter {
           rawBody,
           contentEncoding
         );
-        const formatted = RequestLogger.formatBody(body, contentType);
+        const spillKey = requestId
+          ? `${requestId}-response`
+          : undefined;
+        const formatted = this.requestLogger.formatBody(
+          body,
+          contentType,
+          spillKey
+        );
         const entry: ProxyLogEntry = {
           timestamp: new Date().toISOString(),
           direction: 'response',

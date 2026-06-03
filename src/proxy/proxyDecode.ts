@@ -42,8 +42,11 @@ export function messageTypeName(method: string, direction: 'request' | 'response
 /**
  * Decode a proxy log entry body using extracted protos.
  */
-export async function decodeProtoEntry(entry: ProxyLogEntry): Promise<DecodeProtoResult> {
-  const rawBody = bodyBufferFromLogEntry(entry);
+export async function decodeProtoEntry(
+  entry: ProxyLogEntry,
+  options?: { logDir?: string }
+): Promise<DecodeProtoResult> {
+  const rawBody = bodyBufferFromLogEntry(entry, options?.logDir);
   if (!rawBody || rawBody.length === 0) {
     return { error: 'No body data' };
   }

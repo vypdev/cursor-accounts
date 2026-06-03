@@ -67,11 +67,22 @@ The Accounts panel shows a **Temporary proxy** badge on profiles whose `settings
 
 ## View logs
 
-Logs are JSON Lines files under the extension global storage:
+Logs are JSON Lines files under shared proxy storage:
 
-`<globalStorage>/proxy/logs/proxy-YYYY-MM-DD-*.jsonl`
+`~/.cursor-accounts/proxy/logs/proxy-YYYY-MM-DD-*.jsonl`
+
+Large request/response bodies are **not truncated** by default: they are written in full to `logs/bodies/*.bin` and referenced from the JSONL line as `bodyFile`. Configure inline size via **Proxy: Max Body Log MB** (default 4) and **Proxy: Spill Large Bodies** (default on).
+
+Total disk usage (JSONL + spilled bodies) is capped by **Proxy: Max Log Size MB** (default 500).
 
 Open the folder via **View Logs** in the panel or **Cursor Accounts: Open Proxy Logs**.
+
+Analyze captured traffic:
+
+```bash
+pnpm run verify:proto-jsonl
+pnpm run analyze:proxy-traffic
+```
 
 ## Security
 

@@ -225,7 +225,7 @@ export class ProxyLogTailer {
     }
 
     if (entry.direction === 'request' || entry.direction === 'response') {
-      void buildTrafficSummary(entry, durationMs).then((summary) => {
+      void buildTrafficSummary(entry, durationMs, { logDir: this.logDir }).then((summary) => {
         this.handlers.onTraffic(summary);
       }).catch(() => {
         this.handlers.onTraffic(toTrafficSummary(entry, durationMs));

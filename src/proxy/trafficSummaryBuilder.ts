@@ -8,19 +8,21 @@ import type { ProxyLogEntry, ProxyTrafficSummary } from './types';
 export async function buildTrafficSummary(
   entry: ProxyLogEntry,
   durationMs?: number,
-  options?: { decode?: boolean }
+  options?: { decode?: boolean; logDir?: string }
 ): Promise<ProxyTrafficSummary> {
   const shouldDecode =
     options?.decode !== false &&
     entry.isConnectRpc &&
     (entry.direction === 'request' || entry.direction === 'response') &&
-    Boolean(entry.body ?? entry.bodyBase64);
+    Boolean(entry.body ?? entry.bodyBase64 ?? entry.bodyFile);
 
   if (!shouldDecode) {
     return toTrafficSummary(entry, durationMs);
   }
 
-  const { decoded, insights, rpcPath, error } = await decodeProtoEntry(entry);
+  const { decoded, insights, rpcPath, error } = await decodeProtoEntry(entry, {
+    logDir: options?.logDir,
+  });
   const summary = toTrafficSummary(entry, durationMs);
 
   if (rpcPath) {

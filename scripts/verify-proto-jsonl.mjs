@@ -215,7 +215,7 @@ function verifyLogs(logDir, root) {
         base64Bodies++;
       }
 
-      const bodyBuf = bodyBufferFromEntry(entry);
+      const bodyBuf = bodyBufferFromEntry(entry, logDir);
       if (!bodyBuf || bodyBuf.length === 0) {
         if (!entry.body || entry.body.length === 0) {
           skippedNoBody++;

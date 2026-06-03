@@ -2,15 +2,21 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { createWriteStream } from 'fs';
 import type { WriteStream } from 'fs';
-import { formatBodyForLog } from './bodyFormat';
+import { captureBodyForLog } from './bodyCapture';
 import {
   CONNECT_RPC_CONTENT_TYPE,
   CURSOR_HOST_SUFFIXES,
+  DEFAULT_MAX_BODY_LOG_BYTES,
   type ProxyLogEntry,
 } from './types';
 
 const LOG_FILE_PREFIX = 'proxy-';
 const LOG_FILE_EXT = '.jsonl';
+
+export interface RequestLoggerOptions {
+  maxBodyLogBytes?: number;
+  spillLargeBodies?: boolean;
+}
 
 /**
  * Append-only JSON Lines logger for intercepted proxy traffic.
@@ -20,14 +26,21 @@ export class RequestLogger {
   private currentLogPath: string | null = null;
   private writeChain: Promise<void> = Promise.resolve();
   private totalBytesWritten = 0;
+  private readonly maxBodyLogBytes: number;
+  private readonly spillLargeBodies: boolean;
 
   constructor(
     private readonly logDir: string,
-    private readonly maxTotalSizeBytes: number
-  ) {}
+    private readonly maxTotalSizeBytes: number,
+    options: RequestLoggerOptions = {}
+  ) {
+    this.maxBodyLogBytes = options.maxBodyLogBytes ?? DEFAULT_MAX_BODY_LOG_BYTES;
+    this.spillLargeBodies = options.spillLargeBodies !== false;
+  }
 
   async initialize(): Promise<void> {
     await fs.mkdir(this.logDir, { recursive: true });
+    await fs.mkdir(path.join(this.logDir, 'bodies'), { recursive: true });
     await this.rotateIfNeeded();
     await this.openNewLogFile();
   }
@@ -75,11 +88,28 @@ export class RequestLogger {
     return this.logDir;
   }
 
+  formatBody(
+    body: Buffer | string | undefined,
+    contentType?: string,
+    spillKey?: string
+  ): ReturnType<typeof captureBodyForLog> {
+    return captureBodyForLog(body, contentType, {
+      maxInlineBytes: this.maxBodyLogBytes,
+      spillLargeBodies: this.spillLargeBodies,
+      logDir: this.logDir,
+      spillKey,
+    });
+  }
+
+  /** @deprecated Use instance formatBody for spill support */
   static formatBody(
     body: Buffer | string | undefined,
     contentType?: string
-  ): ReturnType<typeof formatBodyForLog> {
-    return formatBodyForLog(body, contentType);
+  ): ReturnType<typeof captureBodyForLog> {
+    return captureBodyForLog(body, contentType, {
+      maxInlineBytes: DEFAULT_MAX_BODY_LOG_BYTES,
+      spillLargeBodies: false,
+    });
   }
 
   static normalizeHeaders(
@@ -123,11 +153,7 @@ export class RequestLogger {
     }
 
     const files = await this.listLogFiles();
-    let totalSize = 0;
-    for (const file of files) {
-      const stat = await fs.stat(file);
-      totalSize += stat.size;
-    }
+    let totalSize = await this.totalStorageBytes(files);
 
     while (totalSize > this.maxTotalSizeBytes && files.length > 0) {
       const oldest = files.shift();
@@ -137,6 +163,53 @@ export class RequestLogger {
       const stat = await fs.stat(oldest);
       await fs.unlink(oldest);
       totalSize -= stat.size;
+    }
+
+    if (totalSize > this.maxTotalSizeBytes) {
+      await this.pruneOldestBodyFiles(totalSize);
+    }
+  }
+
+  private async totalStorageBytes(jsonlFiles: string[]): Promise<number> {
+    let totalSize = 0;
+    for (const file of jsonlFiles) {
+      totalSize += (await fs.stat(file)).size;
+    }
+    const bodiesDir = path.join(this.logDir, 'bodies');
+    try {
+      const bodyFiles = await fs.readdir(bodiesDir);
+      for (const name of bodyFiles) {
+        totalSize += (await fs.stat(path.join(bodiesDir, name))).size;
+      }
+    } catch {
+      // no bodies dir yet
+    }
+    return totalSize;
+  }
+
+  private async pruneOldestBodyFiles(currentTotal: number): Promise<void> {
+    const bodiesDir = path.join(this.logDir, 'bodies');
+    let entries: { path: string; mtime: number; size: number }[];
+    try {
+      const names = await fs.readdir(bodiesDir);
+      entries = await Promise.all(
+        names.map(async (name) => {
+          const p = path.join(bodiesDir, name);
+          const stat = await fs.stat(p);
+          return { path: p, mtime: stat.mtimeMs, size: stat.size };
+        })
+      );
+    } catch {
+      return;
+    }
+    entries.sort((a, b) => a.mtime - b.mtime);
+    let total = currentTotal;
+    for (const entry of entries) {
+      if (total <= this.maxTotalSizeBytes) {
+        break;
+      }
+      await fs.unlink(entry.path);
+      total -= entry.size;
     }
   }
 

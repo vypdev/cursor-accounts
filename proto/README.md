@@ -54,7 +54,7 @@ Decodes JSONL entries and prints billing/token insights where available.
 
 The proxy (`src/proxy/`) now:
 
-- Logs binary bodies as **Base64** (`bodyBase64`, `bodyEncoding`)
+- Logs binary bodies as **Base64** inline up to **Max Body Log MB**, or full raw bytes in `logs/bodies/*.bin` (`bodyFile`)
 - **Decompresses** gzip/brotli before logging when possible
 - Decodes Connect/protobuf via `protoRegistry` + `proxyDecode` when tailing logs
 - Surfaces **billing / token / context** hints in the Output channel

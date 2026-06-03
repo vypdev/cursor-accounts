@@ -108,13 +108,17 @@ export class ProxyManager implements IProxyManager {
       const caPath = await this.certManager.ensureCaCertificate();
 
       const config = vscode.workspace.getConfiguration('cursorAccounts.proxy');
-      const maxLogSizeMb = config.get<number>('maxLogSizeMB', 100);
+      const maxLogSizeMb = config.get<number>('maxLogSizeMB', 500);
+      const maxBodyLogMb = config.get<number>('maxBodyLogMB', 4);
+      const spillLargeBodies = config.get<boolean>('spillLargeBodies', true);
 
       const serverConfig: ProxyServerConfig = {
         port,
         storageDir: this.storageDir,
         logDir: this.logDir,
         maxLogSizeMb,
+        maxBodyLogBytes: Math.max(1, Math.floor(maxBodyLogMb * 1024 * 1024)),
+        spillLargeBodies,
       };
 
       const scriptPath = path.join(

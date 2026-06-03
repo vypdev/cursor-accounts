@@ -123,7 +123,7 @@ async function main() {
           // skip
         }
       } else {
-        const raw = bodyBufferFromEntry(entry);
+        const raw = bodyBufferFromEntry(entry, logDir);
         if (raw) {
           obj = tryDecode(Type, raw);
         }

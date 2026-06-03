@@ -189,10 +189,22 @@
         },
         "cursorAccounts.proxy.maxLogSizeMB": {
           "type": "number",
-          "default": 100,
-          "minimum": 10,
-          "maximum": 1000,
+          "default": 500,
+          "minimum": 50,
+          "maximum": 5000,
           "description": "%configuration.proxy.maxLogSizeMB.description%"
+        },
+        "cursorAccounts.proxy.maxBodyLogMB": {
+          "type": "number",
+          "default": 4,
+          "minimum": 0.25,
+          "maximum": 64,
+          "description": "%configuration.proxy.maxBodyLogMB.description%"
+        },
+        "cursorAccounts.proxy.spillLargeBodies": {
+          "type": "boolean",
+          "default": true,
+          "description": "%configuration.proxy.spillLargeBodies.description%"
         },
         "cursorAccounts.proxy.autoLaunchWithProxy": {
           "type": "boolean",

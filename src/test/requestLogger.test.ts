@@ -41,15 +41,21 @@ describe('RequestLogger', () => {
     assert.equal(line.host, 'api2.cursor.sh');
   });
 
-  it('truncates large bodies', () => {
-    const large = 'x'.repeat(20_000);
-    const formatted = RequestLogger.formatBody(large);
-    assert.equal(formatted.bodyTruncated, true);
-    assert.ok((formatted.body?.length ?? 0) <= 10_240);
+  it('spills large bodies when spill is enabled', async () => {
+    const logger = new RequestLogger(tempDir, 1024 * 1024, {
+      maxBodyLogBytes: 4096,
+      spillLargeBodies: true,
+    });
+    await logger.initialize();
+    const large = Buffer.alloc(20_000, 0x01);
+    const formatted = logger.formatBody(large, 'application/proto', 'big-body');
+    assert.ok(formatted.bodyFile);
+    assert.equal(formatted.bodyTruncated, undefined);
   });
 
   it('encodes binary proto bodies as base64', () => {
-    const formatted = RequestLogger.formatBody(
+    const logger = new RequestLogger(tempDir, 1024 * 1024);
+    const formatted = logger.formatBody(
       Buffer.from([0, 1, 2, 255]),
       'application/proto'
     );

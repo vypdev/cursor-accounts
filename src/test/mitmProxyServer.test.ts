@@ -82,6 +82,8 @@ describe('MitmProxyServer forwarding', () => {
       storageDir: tempDir,
       logDir: path.join(tempDir, 'logs'),
       maxLogSizeMb: 1,
+      maxBodyLogBytes: 4 * 1024 * 1024,
+      spillLargeBodies: true,
     });
 
     const responseBody = await new Promise<string>((resolve, reject) => {

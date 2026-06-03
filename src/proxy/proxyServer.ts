@@ -29,7 +29,10 @@ async function main(): Promise<void> {
   const certDir = path.join(config.storageDir, 'certs');
   const certificateManager = new CertificateManager(certDir);
   const maxBytes = config.maxLogSizeMb * 1024 * 1024;
-  const requestLogger = new RequestLogger(config.logDir, maxBytes);
+  const requestLogger = new RequestLogger(config.logDir, maxBytes, {
+    maxBodyLogBytes: config.maxBodyLogBytes,
+    spillLargeBodies: config.spillLargeBodies,
+  });
   const server = new MitmProxyServer(certificateManager, requestLogger);
 
   server.on('error', (err) => {
