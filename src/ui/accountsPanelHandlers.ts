@@ -34,7 +34,7 @@ export interface AccountsPanelHandlerCallbacks {
   refresh(): Promise<void>;
   refreshInstances(): Promise<void>;
   refreshGithubSummaries(): Promise<void>;
-  refreshProxyStatus(): Promise<void>;
+  refreshProxyStatus(options?: { checkCertificate?: boolean }): Promise<void>;
   hasActiveWebview(): boolean;
 }
 
@@ -143,7 +143,7 @@ export class AccountsPanelHandlers {
         break;
 
       case 'refreshProxyStatus':
-        await this.callbacks.refreshProxyStatus();
+        await this.callbacks.refreshProxyStatus({ checkCertificate: true });
         break;
 
       default:
@@ -566,7 +566,7 @@ export class AccountsPanelHandlers {
         }),
       });
     }
-    await this.callbacks.refreshProxyStatus();
+    await this.callbacks.refreshProxyStatus({ checkCertificate: true });
   }
 
   private async handleStopProxy(): Promise<void> {
@@ -601,6 +601,7 @@ export class AccountsPanelHandlers {
       success: result.success,
       error: result.error,
     });
+    await this.callbacks.refreshProxyStatus({ checkCertificate: true });
   }
 
   private async handleSaveProxyCertificate(): Promise<void> {

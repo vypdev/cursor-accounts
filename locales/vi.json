@@ -283,6 +283,8 @@
   "webview.proxy.start": "Bắt đầu proxy",
   "webview.proxy.stop": "Dừng proxy",
   "webview.proxy.stopped": "Đã dừng",
+  "webview.proxy.certInstalled": "CA đã tin cậy",
+  "webview.proxy.certNotInstalled": "CA chưa tin cậy",
   "webview.proxy.thisWindow": "Cửa sổ này",
   "webview.proxy.title": "Proxy MITM",
   "webview.proxy.usingProxy": "Đang dùng proxy",

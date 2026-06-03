@@ -283,6 +283,8 @@
   "webview.proxy.start": "启动代理",
   "webview.proxy.stop": "停止代理",
   "webview.proxy.stopped": "已停止",
+  "webview.proxy.certInstalled": "CA 已信任",
+  "webview.proxy.certNotInstalled": "CA 未信任",
   "webview.proxy.thisWindow": "此窗口",
   "webview.proxy.title": "MITM 代理",
   "webview.proxy.usingProxy": "正在使用代理",

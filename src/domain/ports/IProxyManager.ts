@@ -18,6 +18,8 @@ export interface IProxyManager {
   getLogDirectory(): string;
   getProxyInstallGuide(): Promise<ProxyInstallGuide>;
   installCertificate(): Promise<{ success: boolean; error?: string }>;
+  checkCertificateInstalled(): Promise<boolean>;
+  getCachedCertificateInstalled(): boolean | undefined;
   getProxyServerUrl(): Promise<string | null>;
   onStatusChange(callback: () => void): void;
 }

@@ -283,6 +283,8 @@
   "webview.proxy.start": "프록시 시작",
   "webview.proxy.stop": "프록시 중지",
   "webview.proxy.stopped": "중지됨",
+  "webview.proxy.certInstalled": "CA 신뢰됨",
+  "webview.proxy.certNotInstalled": "CA 미신뢰",
   "webview.proxy.thisWindow": "이 창",
   "webview.proxy.title": "MITM 프록시",
   "webview.proxy.usingProxy": "프록시 사용 중",

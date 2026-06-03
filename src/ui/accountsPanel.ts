@@ -36,6 +36,7 @@ import { getLocale, getWebviewMessages, isRtlLocale, t } from '../l10n';
 import type { IProfileStorageAnalyzer } from '../domain/ports/IProfileStorageAnalyzer';
 import type { IStorageCleanupService } from '../domain/ports/IStorageCleanupService';
 import type { IProxyManager } from '../domain/ports/IProxyManager';
+import type { ProxyStatus } from '@cursor-accounts/types';
 import { AccountsPanelHandlers } from './accountsPanelHandlers';
 
 /** Webview panel view type id. */
@@ -95,7 +96,7 @@ export class AccountsPanelProvider {
         refresh: () => this.refresh(),
         refreshInstances: () => this.refreshInstances(),
         refreshGithubSummaries: () => this.refreshGithubSummaries(),
-        refreshProxyStatus: () => this.refreshProxyStatus(),
+        refreshProxyStatus: (options) => this.refreshProxyStatus(options),
         hasActiveWebview: () => this.getActiveWebview() !== undefined,
       }
     );
@@ -219,6 +220,12 @@ export class AccountsPanelProvider {
     this.attachWebviewMessageListener(this.panel.webview);
     this.panel.webview.html = this.getHtmlContent(this.panel.webview);
 
+    this.panel.onDidChangeViewState((event) => {
+      if (event.webviewPanel.visible) {
+        void this.refreshProxyStatus({ checkCertificate: true });
+      }
+    });
+
     this.panel.onDidDispose(() => {
       this.panel = undefined;
     });
@@ -276,7 +283,9 @@ export class AccountsPanelProvider {
         profileGithubSummaries: {},
         profileGithubTokenStatus: {},
         efficiencyStats: this.efficiencyService.getStatsStorage().getAllStats(),
-        proxyStatus: await this.proxyManager.getStatus(),
+        proxyStatus: await this.buildProxyStatusForWebview({
+          checkCertificate: true,
+        }),
         currentWindowUsesProxy:
           await this.proxyManager.isCurrentWindowUsingProxy(),
         locale: getLocale(),
@@ -302,13 +311,39 @@ export class AccountsPanelProvider {
     }
   }
 
+  private async buildProxyStatusForWebview(options?: {
+    checkCertificate?: boolean;
+  }): Promise<ProxyStatus | null> {
+    const status = await this.proxyManager.getStatus();
+    if (!status) {
+      return null;
+    }
+
+    let caCertificateInstalled: boolean | undefined;
+    if (options?.checkCertificate) {
+      caCertificateInstalled =
+        await this.proxyManager.checkCertificateInstalled();
+    } else {
+      caCertificateInstalled =
+        this.proxyManager.getCachedCertificateInstalled();
+    }
+
+    if (caCertificateInstalled === undefined) {
+      return status;
+    }
+
+    return { ...status, caCertificateInstalled };
+  }
+
   /** Push latest proxy status to the webview. */
-  public async refreshProxyStatus(): Promise<void> {
+  public async refreshProxyStatus(options?: {
+    checkCertificate?: boolean;
+  }): Promise<void> {
     if (!this.getActiveWebview()) {
       return;
     }
 
-    const proxyStatus = await this.proxyManager.getStatus();
+    const proxyStatus = await this.buildProxyStatusForWebview(options);
     await this.postMessage({ type: 'proxyStatus', data: proxyStatus });
 
     const usesProxy = await this.proxyManager.isCurrentWindowUsingProxy();

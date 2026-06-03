@@ -283,6 +283,8 @@
   "webview.proxy.start": "Starta proxy",
   "webview.proxy.stop": "Stoppa proxy",
   "webview.proxy.stopped": "Stoppad",
+  "webview.proxy.certInstalled": "CA betrodd",
+  "webview.proxy.certNotInstalled": "CA ej betrodd",
   "webview.proxy.thisWindow": "Det här fönstret",
   "webview.proxy.title": "MITM-proxy",
   "webview.proxy.usingProxy": "Använder proxy",

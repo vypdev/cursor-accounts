@@ -283,6 +283,8 @@
   "webview.proxy.start": "เริ่มพร็อกซี",
   "webview.proxy.stop": "หยุดพร็อกซี",
   "webview.proxy.stopped": "หยุดแล้ว",
+  "webview.proxy.certInstalled": "เชื่อถือ CA แล้ว",
+  "webview.proxy.certNotInstalled": "ยังไม่เชื่อถือ CA",
   "webview.proxy.thisWindow": "หน้าต่างนี้",
   "webview.proxy.title": "พร็อกซี MITM",
   "webview.proxy.usingProxy": "ใช้พร็อกซีอยู่",

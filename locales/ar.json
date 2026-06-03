@@ -283,6 +283,8 @@
   "webview.proxy.start": "تشغيل الوسيط",
   "webview.proxy.stop": "إيقاف الوسيط",
   "webview.proxy.stopped": "متوقف",
+  "webview.proxy.certInstalled": "شهادة CA موثوقة",
+  "webview.proxy.certNotInstalled": "شهادة CA غير موثوقة",
   "webview.proxy.thisWindow": "هذه النافذة",
   "webview.proxy.title": "وسيط MITM",
   "webview.proxy.usingProxy": "يستخدم الوسيط",

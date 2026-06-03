@@ -23,16 +23,28 @@ export const ProxyStatusCard: React.FC<ProxyStatusCardProps> = ({
 }) => {
   const { t } = useL10n();
   const isRunning = proxyStatus?.running ?? false;
+  const certInstalled = proxyStatus?.caCertificateInstalled === true;
 
   return (
     <section className="proxy-status-card" aria-label={t('proxy.title')}>
       <div className="proxy-status-header">
         <h3>{t('proxy.title')}</h3>
-        <span
-          className={`proxy-status-indicator ${isRunning ? 'running' : 'stopped'}`}
-        >
-          {isRunning ? t('proxy.running') : t('proxy.stopped')}
-        </span>
+        <div className="proxy-status-badges">
+          <span
+            className={`proxy-status-indicator ${isRunning ? 'running' : 'stopped'}`}
+          >
+            {isRunning ? t('proxy.running') : t('proxy.stopped')}
+          </span>
+          <span
+            className={`proxy-status-indicator ${
+              certInstalled ? 'installed' : 'not-installed'
+            }`}
+          >
+            {certInstalled
+              ? t('proxy.certInstalled')
+              : t('proxy.certNotInstalled')}
+          </span>
+        </div>
       </div>
 
       {isRunning && (

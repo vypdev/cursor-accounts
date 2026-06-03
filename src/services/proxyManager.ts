@@ -10,6 +10,7 @@ import type {
   ProxyStatus,
 } from '@cursor-accounts/types';
 import { buildProxyInstallGuide } from '../proxy/buildProxyInstallGuide';
+import { verifyCaCertificateInstalled } from '../proxy/installCaCertificate';
 import * as extensionLog from '../logging/extensionLog';
 import { CertificateManager } from '../proxy/certificateManager';
 import { isPortAvailable, isProcessAlive, resolveAvailablePort } from '../proxy/portUtils';
@@ -32,6 +33,7 @@ export class ProxyManager implements IProxyManager {
   private childProcess: ChildProcess | null = null;
   private activePort: number | null = null;
   private statusCallbacks: Array<() => void> = [];
+  private cachedCertificateInstalled: boolean | undefined;
   private readonly storageDir: string;
   private readonly logDir: string;
   private readonly certManager: CertificateManager;
@@ -256,6 +258,16 @@ export class ProxyManager implements IProxyManager {
   async getProxyInstallGuide(): Promise<ProxyInstallGuide> {
     const certPath = await this.getCertificatePath();
     return buildProxyInstallGuide({ certPath });
+  }
+
+  async checkCertificateInstalled(): Promise<boolean> {
+    const installed = await verifyCaCertificateInstalled();
+    this.cachedCertificateInstalled = installed;
+    return installed;
+  }
+
+  getCachedCertificateInstalled(): boolean | undefined {
+    return this.cachedCertificateInstalled;
   }
 
   async installCertificate(): Promise<{ success: boolean; error?: string }> {

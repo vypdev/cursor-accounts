@@ -283,6 +283,8 @@
   "webview.proxy.start": "Запустить прокси",
   "webview.proxy.stop": "Остановить прокси",
   "webview.proxy.stopped": "Остановлен",
+  "webview.proxy.certInstalled": "CA доверен",
+  "webview.proxy.certNotInstalled": "CA не доверен",
   "webview.proxy.thisWindow": "Это окно",
   "webview.proxy.title": "MITM-прокси",
   "webview.proxy.usingProxy": "Использует прокси",

@@ -1,6 +1,11 @@
 import { spawn } from 'child_process';
+import * as fs from 'fs/promises';
 import * as path from 'path';
 import { CA_COMMON_NAME } from './certificateManager';
+
+/** System CA file path from the Linux install guide. */
+export const LINUX_SYSTEM_CA_PATH =
+  '/usr/local/share/ca-certificates/cursor-accounts-mitm.crt';
 
 export interface CertificateInstallResult {
   success: boolean;
@@ -22,6 +27,11 @@ export function buildMacInstallScript(certPath: string): string {
   const cmd = `security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain "${quoted}"`;
   const escapedForAppleScript = cmd.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
   return `do shell script "${escapedForAppleScript}" with administrator privileges`;
+}
+
+export function buildWindowsVerifyCommand(commonName: string = CA_COMMON_NAME): string {
+  const escapedCn = commonName.replace(/'/g, "''");
+  return `$cert = Get-ChildItem Cert:\\LocalMachine\\Root | Where-Object { $_.Subject -like '*${escapedCn}*' } | Select-Object -First 1; if ($null -eq $cert) { exit 1 } else { exit 0 }`;
 }
 
 export function buildWindowsInstallCommand(certPath: string): string {
@@ -129,13 +139,22 @@ export async function verifyCaCertificateInstalled(
     }
 
     if (platform === 'win32') {
-      const ps = `Get-ChildItem Cert:\\LocalMachine\\Root | Where-Object { $_.Subject -like '*${CA_COMMON_NAME.replace(/'/g, "''")}*' } | Select-Object -First 1`;
+      const ps = buildWindowsVerifyCommand();
       const { code } = await runProcess(
         'powershell.exe',
         ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', ps],
         15_000
       );
       return code === 0;
+    }
+
+    if (platform === 'linux') {
+      try {
+        await fs.access(LINUX_SYSTEM_CA_PATH);
+        return true;
+      } catch {
+        return false;
+      }
     }
 
     return false;

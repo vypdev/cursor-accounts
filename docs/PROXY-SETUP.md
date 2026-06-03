@@ -19,6 +19,8 @@ HTTPS interception requires trusting the extension-generated CA:
 
 Without trusting the CA, Cursor may reject TLS connections when using the proxy.
 
+The MITM Proxy card in the Accounts panel shows two status badges: **Running / Stopped** (proxy process) and **CA trusted / CA not trusted** (system trust store). The CA badge is checked only when needed (opening or focusing the panel, after install, when starting the proxy)—not continuously in the background.
+
 ## Route Cursor through the proxy
 
 When the proxy is **running**, launching a profile from the Accounts panel adds:
@@ -47,7 +49,8 @@ Open the folder via **View Logs** in the panel or **Cursor Accounts: Open Proxy 
 | Issue | What to try |
 |-------|-------------|
 | Proxy fails to start | Another process may use the port; change **Proxy: Port** or stop the other service. |
-| Cursor network errors | Install the CA certificate; restart Cursor after trusting it. |
+| Cursor network errors | Install the CA certificate; confirm the panel shows **CA trusted**, then restart Cursor if needed. |
+| Panel shows **CA not trusted** after install | Focus the Accounts panel again to refresh; on Linux, confirm `/usr/local/share/ca-certificates/cursor-accounts-mitm.crt` exists and run `sudo update-ca-certificates`. |
 | Panel shows proxy running but this window does not use it | Launch the profile again after starting the proxy. |
 | Stale “running” status | The proxy process may have crashed; click **Stop Proxy** then **Start Proxy**. |
 

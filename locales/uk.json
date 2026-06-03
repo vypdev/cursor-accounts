@@ -283,6 +283,8 @@
   "webview.proxy.start": "Запустити проксі",
   "webview.proxy.stop": "Зупинити проксі",
   "webview.proxy.stopped": "Зупинено",
+  "webview.proxy.certInstalled": "CA довірено",
+  "webview.proxy.certNotInstalled": "CA не довірено",
   "webview.proxy.thisWindow": "Це вікно",
   "webview.proxy.title": "Проксі MITM",
   "webview.proxy.usingProxy": "Використовується проксі",

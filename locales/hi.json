@@ -283,6 +283,8 @@
   "webview.proxy.start": "प्रॉक्सी शुरू करें",
   "webview.proxy.stop": "प्रॉक्सी बंद करें",
   "webview.proxy.stopped": "बंद",
+  "webview.proxy.certInstalled": "CA विश्वसनीय",
+  "webview.proxy.certNotInstalled": "CA अविश्वसनीय",
   "webview.proxy.thisWindow": "यह विंडो",
   "webview.proxy.title": "MITM प्रॉक्सी",
   "webview.proxy.usingProxy": "प्रॉक्सी उपयोग में",

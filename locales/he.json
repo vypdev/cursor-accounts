@@ -283,6 +283,8 @@
   "webview.proxy.start": "הפעל פרוקסי",
   "webview.proxy.stop": "עצור פרוקסי",
   "webview.proxy.stopped": "מופסק",
+  "webview.proxy.certInstalled": "CA מהימן",
+  "webview.proxy.certNotInstalled": "CA לא מהימן",
   "webview.proxy.thisWindow": "חלון זה",
   "webview.proxy.title": "פרוקסי MITM",
   "webview.proxy.usingProxy": "משתמש בפרוקסי",

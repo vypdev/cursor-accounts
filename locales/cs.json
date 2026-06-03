@@ -283,6 +283,8 @@
   "webview.proxy.start": "Spustit proxy",
   "webview.proxy.stop": "Zastavit proxy",
   "webview.proxy.stopped": "Zastaveno",
+  "webview.proxy.certInstalled": "CA důvěryhodná",
+  "webview.proxy.certNotInstalled": "CA nedůvěryhodná",
   "webview.proxy.thisWindow": "Toto okno",
   "webview.proxy.title": "Proxy MITM",
   "webview.proxy.usingProxy": "Používá se proxy",

@@ -283,6 +283,8 @@
   "webview.proxy.start": "Avvia proxy",
   "webview.proxy.stop": "Arresta proxy",
   "webview.proxy.stopped": "Arrestato",
+  "webview.proxy.certInstalled": "CA attendibile",
+  "webview.proxy.certNotInstalled": "CA non attendibile",
   "webview.proxy.thisWindow": "Questa finestra",
   "webview.proxy.title": "Proxy MITM",
   "webview.proxy.usingProxy": "Usa il proxy",

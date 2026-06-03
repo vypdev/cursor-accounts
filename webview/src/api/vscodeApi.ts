@@ -182,6 +182,10 @@ class VSCodeAPI {
     this.sendMessage({ type: 'saveProxyCertificate' });
   }
 
+  refreshProxyStatus(): void {
+    this.sendMessage({ type: 'refreshProxyStatus' });
+  }
+
   saveState(state: Omit<WebviewPersistedState, 'version'>): void {
     this.vscode.setState({
       version: WEBVIEW_STATE_VERSION,

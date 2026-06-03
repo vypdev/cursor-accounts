@@ -1431,11 +1431,21 @@ form {
   font-weight: 600;
 }
 
-.proxy-status-indicator.running {
+.proxy-status-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.proxy-status-indicator.running,
+.proxy-status-indicator.installed {
   color: var(--vscode-testing-iconPassed, #3fb950);
 }
 
-.proxy-status-indicator.stopped {
+.proxy-status-indicator.stopped,
+.proxy-status-indicator.not-installed {
   color: var(--fg-secondary);
 }
 

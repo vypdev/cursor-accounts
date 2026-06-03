@@ -283,6 +283,8 @@
   "webview.proxy.start": "Start proxy",
   "webview.proxy.stop": "Stopp proxy",
   "webview.proxy.stopped": "Stoppet",
+  "webview.proxy.certInstalled": "CA klarert",
+  "webview.proxy.certNotInstalled": "CA ikke klarert",
   "webview.proxy.thisWindow": "Dette vinduet",
   "webview.proxy.title": "MITM-proxy",
   "webview.proxy.usingProxy": "Bruker proxy",

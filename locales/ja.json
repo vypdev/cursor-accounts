@@ -283,6 +283,8 @@
   "webview.proxy.start": "プロキシを開始",
   "webview.proxy.stop": "プロキシを停止",
   "webview.proxy.stopped": "停止",
+  "webview.proxy.certInstalled": "CA信頼済み",
+  "webview.proxy.certNotInstalled": "CA未信頼",
   "webview.proxy.thisWindow": "このウィンドウ",
   "webview.proxy.title": "MITMプロキシ",
   "webview.proxy.usingProxy": "プロキシ使用中",

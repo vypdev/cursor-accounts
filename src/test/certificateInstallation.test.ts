@@ -3,8 +3,10 @@ import { describe, it } from 'node:test';
 import {
   buildMacInstallScript,
   buildWindowsInstallCommand,
+  buildWindowsVerifyCommand,
   escapePowerShellSingleQuoted,
   escapeShellDoubleQuoted,
+  LINUX_SYSTEM_CA_PATH,
 } from '../proxy/installCaCertificate';
 
 describe('installCaCertificate command builders', () => {
@@ -29,5 +31,18 @@ describe('installCaCertificate command builders', () => {
     assert.match(cmd, /RunAs/);
     assert.match(cmd, /LocalMachine/);
     assert.match(cmd, /ca\.pem/);
+  });
+
+  it('buildWindowsVerifyCommand exits non-zero when cert is missing', () => {
+    const cmd = buildWindowsVerifyCommand();
+    assert.match(cmd, /exit 1/);
+    assert.match(cmd, /\$null -eq \$cert/);
+  });
+
+  it('LINUX_SYSTEM_CA_PATH matches install guide', () => {
+    assert.equal(
+      LINUX_SYSTEM_CA_PATH,
+      '/usr/local/share/ca-certificates/cursor-accounts-mitm.crt'
+    );
   });
 });

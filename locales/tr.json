@@ -283,6 +283,8 @@
   "webview.proxy.start": "Proxy'yi başlat",
   "webview.proxy.stop": "Proxy'yi durdur",
   "webview.proxy.stopped": "Durduruldu",
+  "webview.proxy.certInstalled": "CA güvenilir",
+  "webview.proxy.certNotInstalled": "CA güvenilir değil",
   "webview.proxy.thisWindow": "Bu pencere",
   "webview.proxy.title": "MITM Proxy",
   "webview.proxy.usingProxy": "Proxy kullanılıyor",

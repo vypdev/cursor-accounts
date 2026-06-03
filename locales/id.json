@@ -283,6 +283,8 @@
   "webview.proxy.start": "Mulai proxy",
   "webview.proxy.stop": "Hentikan proxy",
   "webview.proxy.stopped": "Dihentikan",
+  "webview.proxy.certInstalled": "CA dipercaya",
+  "webview.proxy.certNotInstalled": "CA tidak dipercaya",
   "webview.proxy.thisWindow": "Jendela ini",
   "webview.proxy.title": "Proxy MITM",
   "webview.proxy.usingProxy": "Menggunakan proxy",

@@ -265,6 +265,18 @@ const AppContent: React.FC = () => {
     };
   }, [storageProfileId]);
 
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        vscodeApi.refreshProxyStatus();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, []);
+
   const handleLaunch = useCallback((profileId: string) => {
     vscodeApi.launch(profileId);
   }, []);
