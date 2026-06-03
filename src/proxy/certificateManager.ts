@@ -102,4 +102,15 @@ export class CertificateManager {
     const { installCaCertificateElevated } = await import('./installCaCertificate');
     return installCaCertificateElevated(certPath);
   }
+
+  /**
+   * Remove the CA from the system trust store using native OS elevation prompts.
+   */
+  async uninstallCertificate(): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    const { uninstallCaCertificate } = await import('./installCaCertificate');
+    return uninstallCaCertificate();
+  }
 }

@@ -2,11 +2,14 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   buildMacInstallScript,
+  buildMacUninstallScript,
   buildWindowsInstallCommand,
+  buildWindowsUninstallCommand,
   buildWindowsVerifyCommand,
   escapePowerShellSingleQuoted,
   escapeShellDoubleQuoted,
   LINUX_SYSTEM_CA_PATH,
+  LINUX_UNINSTALL_MANUAL_MESSAGE,
 } from '../proxy/installCaCertificate';
 
 describe('installCaCertificate command builders', () => {
@@ -44,5 +47,24 @@ describe('installCaCertificate command builders', () => {
       LINUX_SYSTEM_CA_PATH,
       '/usr/local/share/ca-certificates/cursor-accounts-mitm.crt'
     );
+  });
+
+  it('buildMacUninstallScript includes delete-certificate and administrator privileges', () => {
+    const script = buildMacUninstallScript();
+    assert.match(script, /security delete-certificate/);
+    assert.match(script, /administrator privileges/);
+    assert.match(script, /Cursor Accounts MITM Proxy CA/);
+  });
+
+  it('buildWindowsUninstallCommand includes certutil and RunAs', () => {
+    const cmd = buildWindowsUninstallCommand();
+    assert.match(cmd, /certutil -delstore Root/);
+    assert.match(cmd, /RunAs/);
+    assert.match(cmd, /Cursor Accounts MITM Proxy CA/);
+  });
+
+  it('LINUX_UNINSTALL_MANUAL_MESSAGE references system CA path', () => {
+    assert.match(LINUX_UNINSTALL_MANUAL_MESSAGE, /cursor-accounts-mitm\.crt/);
+    assert.match(LINUX_UNINSTALL_MANUAL_MESSAGE, /update-ca-certificates/);
   });
 });

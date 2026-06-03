@@ -99,6 +99,7 @@ function createHandlers(overrides: {
           steps: [],
         }),
         installCertificate: async () => ({ success: true }),
+        uninstallCertificate: async () => ({ success: true }),
         checkCertificateInstalled: async () => false,
         getCachedCertificateInstalled: () => undefined,
         getProxyServerUrl: async () => null,

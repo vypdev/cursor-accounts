@@ -41,6 +41,39 @@ export function buildWindowsInstallCommand(certPath: string): string {
   return `Start-Process powershell -Verb RunAs -Wait -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-Command','${escapedInner}'`;
 }
 
+export function buildMacUninstallScript(
+  commonName: string = CA_COMMON_NAME
+): string {
+  const escapedCn = escapeShellDoubleQuoted(commonName);
+  const cmd = `security delete-certificate -c "${escapedCn}" /Library/Keychains/System.keychain`;
+  const escapedForAppleScript = cmd.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  return `do shell script "${escapedForAppleScript}" with administrator privileges`;
+}
+
+export function buildWindowsUninstallCommand(
+  commonName: string = CA_COMMON_NAME
+): string {
+  const escapedCn = commonName.replace(/'/g, "''");
+  const deleteCmd = `certutil -delstore Root "${escapedCn}"`;
+  const escapedInner = deleteCmd.replace(/'/g, "''");
+  return `Start-Process powershell -Verb RunAs -Wait -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-Command','${escapedInner}'`;
+}
+
+/** User-facing message when Linux uninstall must be done manually. */
+export const LINUX_UNINSTALL_MANUAL_MESSAGE =
+  'On Linux, run: sudo rm /usr/local/share/ca-certificates/cursor-accounts-mitm.crt && sudo update-ca-certificates';
+
+function normalizeInstallError(stderr: string, fallback: string): string {
+  const message = stderr.trim() || fallback;
+  if (/User canceled|user cancelled|cancelled|canceled/i.test(message)) {
+    return 'Installation canceled by user';
+  }
+  if (/denied|not authorized|permission/i.test(message)) {
+    return 'Permission denied';
+  }
+  return message;
+}
+
 function runProcess(
   command: string,
   args: string[],
@@ -83,17 +116,27 @@ export async function installCaCertificateElevated(
   }
 
   try {
+    const alreadyInstalled = await verifyCaCertificateInstalled(platform);
+    if (alreadyInstalled) {
+      return { success: true };
+    }
+
     if (platform === 'darwin') {
       const script = buildMacInstallScript(certPath);
       const { code, stderr } = await runProcess('osascript', ['-e', script]);
       if (code === 0) {
         return { success: true };
       }
-      const message = stderr || 'Installation was cancelled or failed';
-      if (/User canceled|canceled/i.test(message)) {
-        return { success: false, error: message };
+      if (await verifyCaCertificateInstalled(platform)) {
+        return { success: true };
       }
-      return { success: false, error: message };
+      return {
+        success: false,
+        error: normalizeInstallError(
+          stderr,
+          'Installation was cancelled or failed'
+        ),
+      };
     }
 
     if (platform === 'win32') {
@@ -108,9 +151,15 @@ export async function installCaCertificateElevated(
       if (code === 0) {
         return { success: true };
       }
+      if (await verifyCaCertificateInstalled(platform)) {
+        return { success: true };
+      }
       return {
         success: false,
-        error: stderr || 'Installation was cancelled or failed (UAC denied or error)',
+        error: normalizeInstallError(
+          stderr,
+          'Installation was cancelled or failed (UAC denied or error)'
+        ),
       };
     }
 
@@ -160,5 +209,73 @@ export async function verifyCaCertificateInstalled(
     return false;
   } catch {
     return false;
+  }
+}
+
+export async function uninstallCaCertificate(
+  platform: NodeJS.Platform = process.platform
+): Promise<CertificateInstallResult> {
+  if (platform === 'linux') {
+    return {
+      success: false,
+      error: LINUX_UNINSTALL_MANUAL_MESSAGE,
+    };
+  }
+
+  try {
+    const installed = await verifyCaCertificateInstalled(platform);
+    if (!installed) {
+      return { success: true };
+    }
+
+    if (platform === 'darwin') {
+      const script = buildMacUninstallScript();
+      const { code, stderr } = await runProcess('osascript', ['-e', script]);
+      if (code === 0) {
+        return { success: true };
+      }
+      if (!(await verifyCaCertificateInstalled(platform))) {
+        return { success: true };
+      }
+      return {
+        success: false,
+        error: normalizeInstallError(
+          stderr,
+          'Certificate removal was cancelled or failed'
+        ),
+      };
+    }
+
+    if (platform === 'win32') {
+      const psCommand = buildWindowsUninstallCommand();
+      const { code, stderr } = await runProcess('powershell.exe', [
+        '-NoProfile',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-Command',
+        psCommand,
+      ]);
+      if (code === 0) {
+        return { success: true };
+      }
+      if (!(await verifyCaCertificateInstalled(platform))) {
+        return { success: true };
+      }
+      return {
+        success: false,
+        error: normalizeInstallError(
+          stderr,
+          'Certificate removal was cancelled or failed (UAC denied or error)'
+        ),
+      };
+    }
+
+    return {
+      success: false,
+      error: `Automatic removal is not supported on ${platform}`,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { success: false, error: message };
   }
 }

@@ -279,7 +279,38 @@ export class ProxyManager implements IProxyManager {
           error: 'CA certificate is not available. Start the proxy once to generate it.',
         };
       }
-      return await this.certManager.installCertificateWithElevation();
+      const alreadyInstalled = await this.checkCertificateInstalled();
+      if (alreadyInstalled) {
+        return { success: true };
+      }
+      const result = await this.certManager.installCertificateWithElevation();
+      if (result.success) {
+        this.cachedCertificateInstalled = true;
+      } else {
+        const verified = await this.checkCertificateInstalled();
+        if (verified) {
+          return { success: true };
+        }
+      }
+      return result;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return { success: false, error: message };
+    }
+  }
+
+  async uninstallCertificate(): Promise<{ success: boolean; error?: string }> {
+    try {
+      const result = await this.certManager.uninstallCertificate();
+      if (result.success) {
+        this.cachedCertificateInstalled = false;
+      } else {
+        const stillInstalled = await this.checkCertificateInstalled();
+        if (!stillInstalled) {
+          return { success: true };
+        }
+      }
+      return result;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       return { success: false, error: message };

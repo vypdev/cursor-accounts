@@ -21,6 +21,16 @@ Without trusting the CA, Cursor may reject TLS connections when using the proxy.
 
 The MITM Proxy card in the Accounts panel shows two status badges: **Running / Stopped** (proxy process) and **CA trusted / CA not trusted** (system trust store). The CA badge is checked only when needed (opening or focusing the panel, after install, when starting the proxy)—not continuously in the background.
 
+## Remove the CA certificate
+
+When the panel shows **CA trusted**, a **Delete certificate** button appears on the MITM Proxy card:
+
+1. Click **Delete certificate** and confirm the prompt.
+2. **macOS / Windows:** the OS shows a native permission dialog (same as install). Accept to remove the CA from the system trust store.
+3. **Linux:** automatic removal is not supported; the extension shows the terminal commands to run (`sudo rm` the file under `/usr/local/share/ca-certificates/` + `sudo update-ca-certificates`).
+
+After removal, the badge should show **CA not trusted** when you focus the panel again.
+
 ## Route Cursor through the proxy
 
 When the proxy is **running**, launching a profile from the Accounts panel adds:

@@ -178,6 +178,10 @@ class VSCodeAPI {
     this.sendMessage({ type: 'installProxyCertificate' });
   }
 
+  uninstallProxyCertificate(): void {
+    this.sendMessage({ type: 'uninstallProxyCertificate' });
+  }
+
   saveProxyCertificate(): void {
     this.sendMessage({ type: 'saveProxyCertificate' });
   }

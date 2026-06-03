@@ -138,6 +138,10 @@ export class AccountsPanelHandlers {
         await this.handleInstallProxyCertificate();
         break;
 
+      case 'uninstallProxyCertificate':
+        await this.handleUninstallProxyCertificate();
+        break;
+
       case 'saveProxyCertificate':
         await this.handleSaveProxyCertificate();
         break;
@@ -596,10 +600,24 @@ export class AccountsPanelHandlers {
 
   private async handleInstallProxyCertificate(): Promise<void> {
     const result = await this.deps.proxyManager.installCertificate();
+    const installed = await this.deps.proxyManager.checkCertificateInstalled();
+    const success = result.success || installed;
     await this.callbacks.postMessage({
       type: 'certificateInstallResult',
-      success: result.success,
-      error: result.error,
+      success,
+      error: success ? undefined : result.error,
+    });
+    await this.callbacks.refreshProxyStatus({ checkCertificate: true });
+  }
+
+  private async handleUninstallProxyCertificate(): Promise<void> {
+    const result = await this.deps.proxyManager.uninstallCertificate();
+    const installed = await this.deps.proxyManager.checkCertificateInstalled();
+    const success = result.success && !installed;
+    await this.callbacks.postMessage({
+      type: 'certificateUninstallResult',
+      success,
+      error: success ? undefined : result.error,
     });
     await this.callbacks.refreshProxyStatus({ checkCertificate: true });
   }

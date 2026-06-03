@@ -5,11 +5,13 @@ import { useL10n } from '../l10n/context';
 export interface ProxyStatusCardProps {
   proxyStatus: ProxyStatus | null;
   currentWindowUsesProxy: boolean;
+  uninstallInProgress?: boolean;
   onStartProxy: () => void;
   onStopProxy: () => void;
   onShowLogs: () => void;
   onShowCertificate: () => void;
   onSaveCertificate: () => void;
+  onDeleteCertificate?: () => void;
 }
 
 export const ProxyStatusCard: React.FC<ProxyStatusCardProps> = ({
@@ -20,6 +22,8 @@ export const ProxyStatusCard: React.FC<ProxyStatusCardProps> = ({
   onShowLogs,
   onShowCertificate,
   onSaveCertificate,
+  uninstallInProgress = false,
+  onDeleteCertificate,
 }) => {
   const { t } = useL10n();
   const isRunning = proxyStatus?.running ?? false;
@@ -110,6 +114,19 @@ export const ProxyStatusCard: React.FC<ProxyStatusCardProps> = ({
         >
           {t('proxy.caCertificate')}
         </button>
+        {certInstalled && onDeleteCertificate && (
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={onDeleteCertificate}
+            disabled={uninstallInProgress}
+            title={t('proxy.deleteCertificateTitle')}
+          >
+            {uninstallInProgress
+              ? t('proxy.uninstall.inProgress')
+              : t('proxy.deleteCertificate')}
+          </button>
+        )}
       </div>
 
       {isRunning && !currentWindowUsesProxy && (
