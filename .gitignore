@@ -10,6 +10,7 @@ out/
 webview-dist/
 dist/
 .tmp/
+.tmp-proto-test/
 .bin-all-backup/
 *.tsbuildinfo
 webview/src/**/*.js

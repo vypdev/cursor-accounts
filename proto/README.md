@@ -1,32 +1,43 @@
-# Cursor `aiserver.v1` protos (extracted)
+# Cursor protobuf schemas (extracted)
 
-Protobuf schemas reverse-engineered from the **local Cursor IDE install**, for MITM proxy decode (Connect-RPC / `application/connect+proto`).
+Reverse-engineered from the **local Cursor IDE** bundle for MITM proxy decode (Connect-RPC / `application/connect+proto`).
+
+## Files
+
+| File | Package |
+|------|---------|
+| `aiserver/v1/aiserver.proto` | `aiserver.v1` — dashboard, usage, chat, cpp, … |
+| `agent/v1/agent.proto` | `agent.v1` — agent/tool messages referenced by aiserver |
+| `aiserver/v1/cursor-version.txt` | Cursor version used for extraction |
 
 ## Regenerate
 
 ```bash
 pnpm run extract:protos
-# or
-node scripts/extract-cursor-protos.mjs /Applications/Cursor.app
 ```
 
-Requires a installed Cursor app. On macOS the default path is `/Applications/Cursor.app`.
+Requires Cursor installed (default macOS path: `/Applications/Cursor.app`).
 
-Output:
+## Test (load schema + decode proxy traffic)
 
-- `aiserver/v1/aiserver.proto` — messages, enums, and RPC services
-- `aiserver/v1/cursor-version.txt` — Cursor version used for extraction
+```bash
+pnpm run test:proto
+```
 
-## Source
+Uses `protobufjs` to:
 
-Descriptors are parsed from:
+1. Load and resolve both `.proto` files
+2. Decode a binary `GetUsageLimitStatusAndActiveGrants` response from proxy logs
+3. Print JSON `GetCurrentPeriodUsage` responses when captured as Connect JSON
+
+## Source bundle
 
 `Cursor.app/Contents/Resources/app/out/vs/workbench/api/node/extensionHostProcess.js`
 
-That bundle embeds `@bufbuild/protobuf` message classes (`typeName`, `fields`, services).
-
 ## Notes
 
-- Schemas are tied to your Cursor version; re-run after IDE upgrades.
-- Nested types use flattened names (`GetCurrentPeriodUsageResponse_PlanUsage`).
-- Not an official Cursor API; for research/debug only (see [PROXY-SETUP.md](../docs/PROXY-SETUP.md)).
+- Re-run `extract:protos` after Cursor upgrades.
+- Nested types use `_` (e.g. `GetCurrentPeriodUsageResponse_PlanUsage`).
+- Cross-package fields use qualified names (e.g. `agent.v1.ModelDetails`).
+- RPC methods with unresolved minified types are commented out in the `.proto`.
+- Not an official Cursor API — research/debug only ([PROXY-SETUP.md](../docs/PROXY-SETUP.md)).
