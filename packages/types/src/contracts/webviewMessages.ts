@@ -14,6 +14,7 @@ import type {
   StorageCleanupResult,
 } from '../entities/StorageInfo';
 import type { ProxyStatus } from '../entities/ProxyStatus';
+import type { ProxyInstallGuide } from '../entities/ProxyInstallGuide';
 
 /** Quota information for a specific profile. */
 export interface ProfileQuota {
@@ -96,7 +97,8 @@ export type ToWebviewMessage =
       };
     }
   | { type: 'proxyStatus'; data: ProxyStatus | null }
-  | { type: 'currentWindowProxyUsage'; usesProxy: boolean };
+  | { type: 'currentWindowProxyUsage'; usesProxy: boolean }
+  | { type: 'proxyInstallGuide'; data: ProxyInstallGuide };
 
 /** Messages sent from webview to extension. */
 export type FromWebviewMessage =
@@ -132,6 +134,6 @@ export type FromWebviewMessage =
   | { type: 'startProxy' }
   | { type: 'stopProxy' }
   | { type: 'showProxyLogs' }
-  | { type: 'showProxyCertificate' }
+  | { type: 'getProxyInstallGuide' }
   | { type: 'saveProxyCertificate' }
   | { type: 'refreshProxyStatus' };

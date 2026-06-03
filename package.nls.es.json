@@ -31,7 +31,6 @@
   "commands.proxy.start.title": "Cursor Accounts: Iniciar proxy MITM",
   "commands.proxy.stop.title": "Cursor Accounts: Detener proxy MITM",
   "commands.proxy.showLogs.title": "Cursor Accounts: Abrir registros del proxy",
-  "commands.proxy.showCertificate.title": "Cursor Accounts: Instrucciones del certificado CA del proxy",
   "commands.proxy.saveCertificate.title": "Cursor Accounts: Guardar certificado CA del proxy…",
   "configuration.debug.webviewLifecycle.description": "Registrar diagnósticos del ciclo de vida del webview en el canal de salida de Cursor Accounts (desactivar tras resolver problemas).",
   "configuration.proxy.enabled.description": "Iniciar el proxy MITM al activar la extensión (observa el tráfico de red de Cursor).",

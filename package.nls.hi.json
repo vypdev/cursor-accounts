@@ -31,7 +31,6 @@
   "commands.proxy.start.title": "Cursor Accounts: MITM प्रॉक्सी शुरू करें",
   "commands.proxy.stop.title": "Cursor Accounts: MITM प्रॉक्सी बंद करें",
   "commands.proxy.showLogs.title": "Cursor Accounts: प्रॉक्सी लॉग खोलें",
-  "commands.proxy.showCertificate.title": "Cursor Accounts: प्रॉक्सी CA प्रमाणपत्र निर्देश दिखाएँ",
   "commands.proxy.saveCertificate.title": "Cursor Accounts: प्रॉक्सी CA प्रमाणपत्र सहेजें…",
   "configuration.debug.webviewLifecycle.description": "Webview जीवनचक्र निदान को Cursor Accounts आउटपुट चैनल में लॉग करें (समस्या हल होने के बाद बंद करें)।",
   "configuration.proxy.enabled.description": "एक्सटेंशन सक्रिय होने पर MITM प्रॉक्सी शुरू करें (Cursor नेटवर्क ट्रैफ़िक देखता है)।",

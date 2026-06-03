@@ -31,7 +31,6 @@
   "commands.proxy.start.title": "Cursor Accounts: MITMプロキシを開始",
   "commands.proxy.stop.title": "Cursor Accounts: MITMプロキシを停止",
   "commands.proxy.showLogs.title": "Cursor Accounts: プロキシログを開く",
-  "commands.proxy.showCertificate.title": "Cursor Accounts: プロキシCA証明書の手順を表示",
   "commands.proxy.saveCertificate.title": "Cursor Accounts: プロキシCA証明書を保存…",
   "configuration.debug.webviewLifecycle.description": "Webviewのライフサイクル診断をCursor Accounts出力チャネルに記録（トラブルシュート後は無効化）。",
   "configuration.proxy.enabled.description": "拡張機能の有効化時にMITMプロキシを開始（Cursorのネットワーク通信を監視）。",

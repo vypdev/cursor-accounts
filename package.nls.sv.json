@@ -31,7 +31,6 @@
   "commands.proxy.start.title": "Cursor Accounts: Starta MITM-proxy",
   "commands.proxy.stop.title": "Cursor Accounts: Stoppa MITM-proxy",
   "commands.proxy.showLogs.title": "Cursor Accounts: Öppna proxyloggar",
-  "commands.proxy.showCertificate.title": "Cursor Accounts: Proxy CA-certifikatinstruktioner",
   "commands.proxy.saveCertificate.title": "Cursor Accounts: Spara proxy CA-certifikat…",
   "configuration.debug.webviewLifecycle.description": "Logga webview livscykeldiagnostik till Cursor Accounts utdatakanal (inaktivera efter felsökning).",
   "configuration.proxy.enabled.description": "Starta MITM-proxy när tillägget aktiveras (övervakar Cursor-nätverkstrafik).",

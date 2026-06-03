@@ -1,4 +1,4 @@
-import type { ProxyStatus } from '@cursor-accounts/types';
+import type { ProxyInstallGuide, ProxyStatus } from '@cursor-accounts/types';
 
 /** Result of attempting to start the MITM proxy. */
 export interface ProxyStartResult {
@@ -16,7 +16,7 @@ export interface IProxyManager {
   isCurrentWindowUsingProxy(): Promise<boolean>;
   getCertificatePath(): Promise<string | null>;
   getLogDirectory(): string;
-  getCertificateInstallationInstructions(): Promise<string>;
+  getProxyInstallGuide(): Promise<ProxyInstallGuide>;
   getProxyServerUrl(): Promise<string | null>;
   onStatusChange(callback: () => void): void;
 }

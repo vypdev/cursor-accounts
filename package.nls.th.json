@@ -31,7 +31,6 @@
   "commands.proxy.start.title": "Cursor Accounts: เริ่มพร็อกซี MITM",
   "commands.proxy.stop.title": "Cursor Accounts: หยุดพร็อกซี MITM",
   "commands.proxy.showLogs.title": "Cursor Accounts: เปิดบันทึกพร็อกซี",
-  "commands.proxy.showCertificate.title": "Cursor Accounts: คำแนะนำใบรับรอง CA ของพร็อกซี",
   "commands.proxy.saveCertificate.title": "Cursor Accounts: บันทึกใบรับรอง CA ของพร็อกซี…",
   "configuration.debug.webviewLifecycle.description": "บันทึกการวินิจฉัยวงจรชีวิต webview ไปยังช่องเอาต์พุต Cursor Accounts (ปิดหลังแก้ปัญหา)",
   "configuration.proxy.enabled.description": "เริ่มพร็อกซี MITM เมื่อเปิดใช้ส่วนขยาย (ดูทราฟฟิกเครือข่ายของ Cursor)",

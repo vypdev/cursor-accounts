@@ -42,19 +42,6 @@ export function registerProxyCommands(
     }),
 
     vscode.commands.registerCommand(
-      'cursorAccounts.proxy.showCertificate',
-      async () => {
-        const instructions =
-          await proxyManager.getCertificateInstallationInstructions();
-        const doc = await vscode.workspace.openTextDocument({
-          content: instructions,
-          language: 'markdown',
-        });
-        await vscode.window.showTextDocument(doc, { preview: false });
-      }
-    ),
-
-    vscode.commands.registerCommand(
       'cursorAccounts.proxy.saveCertificate',
       async () => {
         const result = await saveCaCertificateAs(proxyManager);

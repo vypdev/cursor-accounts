@@ -31,7 +31,6 @@
   "commands.proxy.start.title": "Cursor Accounts: Mulai proxy MITM",
   "commands.proxy.stop.title": "Cursor Accounts: Hentikan proxy MITM",
   "commands.proxy.showLogs.title": "Cursor Accounts: Buka log proxy",
-  "commands.proxy.showCertificate.title": "Cursor Accounts: Petunjuk sertifikat CA proxy",
   "commands.proxy.saveCertificate.title": "Cursor Accounts: Simpan sertifikat CA proxy…",
   "configuration.debug.webviewLifecycle.description": "Catat diagnostik siklus hidup webview ke saluran output Cursor Accounts (nonaktifkan setelah pemecahan masalah).",
   "configuration.proxy.enabled.description": "Mulai proxy MITM saat ekstensi diaktifkan (memantau lalu lintas jaringan Cursor).",

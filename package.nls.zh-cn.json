@@ -31,7 +31,6 @@
   "commands.proxy.start.title": "Cursor Accounts：启动 MITM 代理",
   "commands.proxy.stop.title": "Cursor Accounts：停止 MITM 代理",
   "commands.proxy.showLogs.title": "Cursor Accounts：打开代理日志",
-  "commands.proxy.showCertificate.title": "Cursor Accounts：显示代理 CA 证书说明",
   "commands.proxy.saveCertificate.title": "Cursor Accounts：保存代理 CA 证书…",
   "configuration.debug.webviewLifecycle.description": "将 Webview 生命周期诊断记录到 Cursor Accounts 输出通道（排查后请禁用）。",
   "configuration.proxy.enabled.description": "扩展激活时启动 MITM 代理（观察 Cursor 网络流量）。",

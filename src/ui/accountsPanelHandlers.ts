@@ -130,8 +130,8 @@ export class AccountsPanelHandlers {
         await this.handleShowProxyLogs();
         break;
 
-      case 'showProxyCertificate':
-        await this.handleShowProxyCertificate();
+      case 'getProxyInstallGuide':
+        await this.handleGetProxyInstallGuide();
         break;
 
       case 'saveProxyCertificate':
@@ -582,14 +582,12 @@ export class AccountsPanelHandlers {
     );
   }
 
-  private async handleShowProxyCertificate(): Promise<void> {
-    const instructions =
-      await this.deps.proxyManager.getCertificateInstallationInstructions();
-    const doc = await vscode.workspace.openTextDocument({
-      content: instructions,
-      language: 'markdown',
+  private async handleGetProxyInstallGuide(): Promise<void> {
+    const guide = await this.deps.proxyManager.getProxyInstallGuide();
+    await this.callbacks.postMessage({
+      type: 'proxyInstallGuide',
+      data: guide,
     });
-    await vscode.window.showTextDocument(doc, { preview: false });
   }
 
   private async handleSaveProxyCertificate(): Promise<void> {

@@ -31,7 +31,6 @@
   "commands.proxy.start.title": "Cursor Accounts: MITM 프록시 시작",
   "commands.proxy.stop.title": "Cursor Accounts: MITM 프록시 중지",
   "commands.proxy.showLogs.title": "Cursor Accounts: 프록시 로그 열기",
-  "commands.proxy.showCertificate.title": "Cursor Accounts: 프록시 CA 인증서 안내 표시",
   "commands.proxy.saveCertificate.title": "Cursor Accounts: 프록시 CA 인증서 저장…",
   "configuration.debug.webviewLifecycle.description": "Webview 수명 주기 진단을 Cursor Accounts 출력 채널에 기록(문제 해결 후 비활성화).",
   "configuration.proxy.enabled.description": "확장 활성화 시 MITM 프록시 시작(Cursor 네트워크 트래픽 관찰).",

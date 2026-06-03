@@ -25,13 +25,13 @@ export const ProxyStatusCard: React.FC<ProxyStatusCardProps> = ({
   const isRunning = proxyStatus?.running ?? false;
 
   return (
-    <section className="proxy-status-card" aria-label={t('webview.proxy.title')}>
+    <section className="proxy-status-card" aria-label={t('proxy.title')}>
       <div className="proxy-status-header">
-        <h3>{t('webview.proxy.title')}</h3>
+        <h3>{t('proxy.title')}</h3>
         <span
           className={`proxy-status-indicator ${isRunning ? 'running' : 'stopped'}`}
         >
-          {isRunning ? t('webview.proxy.running') : t('webview.proxy.stopped')}
+          {isRunning ? t('proxy.running') : t('proxy.stopped')}
         </span>
       </div>
 
@@ -39,12 +39,12 @@ export const ProxyStatusCard: React.FC<ProxyStatusCardProps> = ({
         <div className="proxy-status-details">
           {proxyStatus?.port != null && (
             <p>
-              <span className="proxy-label">{t('webview.proxy.port')}:</span>{' '}
+              <span className="proxy-label">{t('proxy.port')}:</span>{' '}
               <span className="proxy-value">{proxyStatus.port}</span>
             </p>
           )}
           <p>
-            <span className="proxy-label">{t('webview.proxy.thisWindow')}:</span>{' '}
+            <span className="proxy-label">{t('proxy.thisWindow')}:</span>{' '}
             <span
               className={
                 currentWindowUsesProxy
@@ -53,13 +53,13 @@ export const ProxyStatusCard: React.FC<ProxyStatusCardProps> = ({
               }
             >
               {currentWindowUsesProxy
-                ? t('webview.proxy.usingProxy')
-                : t('webview.proxy.notUsingProxy')}
+                ? t('proxy.usingProxy')
+                : t('proxy.notUsingProxy')}
             </span>
           </p>
           {proxyStatus?.statistics && (
             <p>
-              <span className="proxy-label">{t('webview.proxy.requests')}:</span>{' '}
+              <span className="proxy-label">{t('proxy.requests')}:</span>{' '}
               <span className="proxy-value">
                 {proxyStatus.statistics.totalRequests} (
                 {proxyStatus.statistics.cursorRequests} Cursor)
@@ -73,15 +73,15 @@ export const ProxyStatusCard: React.FC<ProxyStatusCardProps> = ({
         {isRunning ? (
           <>
             <button type="button" className="btn-secondary" onClick={onStopProxy}>
-              {t('webview.proxy.stop')}
+              {t('proxy.stop')}
             </button>
             <button type="button" className="btn-secondary" onClick={onShowLogs}>
-              {t('webview.proxy.viewLogs')}
+              {t('proxy.viewLogs')}
             </button>
           </>
         ) : (
           <button type="button" className="btn-primary" onClick={onStartProxy}>
-            {t('webview.proxy.start')}
+            {t('proxy.start')}
           </button>
         )}
         <button
@@ -89,19 +89,19 @@ export const ProxyStatusCard: React.FC<ProxyStatusCardProps> = ({
           className="btn-secondary"
           onClick={onSaveCertificate}
         >
-          {t('webview.proxy.downloadCa')}
+          {t('proxy.downloadCa')}
         </button>
         <button
           type="button"
           className="btn-secondary"
           onClick={onShowCertificate}
         >
-          {t('webview.proxy.caCertificate')}
+          {t('proxy.caCertificate')}
         </button>
       </div>
 
       {isRunning && !currentWindowUsesProxy && (
-        <p className="proxy-status-notice">{t('webview.proxy.noticeRelaunch')}</p>
+        <p className="proxy-status-notice">{t('proxy.noticeRelaunch')}</p>
       )}
     </section>
   );

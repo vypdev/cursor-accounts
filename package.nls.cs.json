@@ -31,7 +31,6 @@
   "commands.proxy.start.title": "Cursor Accounts: Spustit proxy MITM",
   "commands.proxy.stop.title": "Cursor Accounts: Zastavit proxy MITM",
   "commands.proxy.showLogs.title": "Cursor Accounts: Otevřít protokoly proxy",
-  "commands.proxy.showCertificate.title": "Cursor Accounts: Pokyny k certifikátu CA proxy",
   "commands.proxy.saveCertificate.title": "Cursor Accounts: Uložit certifikát CA proxy…",
   "configuration.debug.webviewLifecycle.description": "Zaznamenávat diagnostiku životního cyklu webview do výstupního kanálu Cursor Accounts (vypněte po řešení problémů).",
   "configuration.proxy.enabled.description": "Spustit proxy MITM při aktivaci rozšíření (sleduje síťový provoz Cursor).",

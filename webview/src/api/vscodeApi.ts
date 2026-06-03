@@ -170,8 +170,8 @@ class VSCodeAPI {
     this.sendMessage({ type: 'showProxyLogs' });
   }
 
-  showProxyCertificate(): void {
-    this.sendMessage({ type: 'showProxyCertificate' });
+  getProxyInstallGuide(): void {
+    this.sendMessage({ type: 'getProxyInstallGuide' });
   }
 
   saveProxyCertificate(): void {

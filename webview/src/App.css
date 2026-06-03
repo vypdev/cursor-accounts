@@ -814,6 +814,14 @@ body {
   color: var(--fg-primary);
 }
 
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-color);
+}
+
 form {
   padding: 16px;
 }
@@ -1460,4 +1468,117 @@ form {
   font-size: 11px;
   color: var(--fg-secondary);
   line-height: 1.4;
+}
+
+.cert-install-modal {
+  max-width: 520px;
+}
+
+.cert-install-modal-body {
+  padding: 16px;
+}
+
+.cert-install-loading {
+  color: var(--fg-secondary);
+  font-size: 13px;
+}
+
+.cert-install-intro {
+  font-size: 13px;
+  color: var(--fg-secondary);
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+
+.cert-install-warning {
+  font-size: 12px;
+  color: var(--vscode-editorWarning-foreground, #cca700);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-bottom: 16px;
+  line-height: 1.4;
+}
+
+.cert-install-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.cert-install-step-header {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.cert-install-step-number {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--button-bg);
+  color: var(--button-fg);
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cert-install-step-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.cert-install-step-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.cert-install-step-body {
+  font-size: 12px;
+  color: var(--fg-secondary);
+  line-height: 1.45;
+  margin-bottom: 8px;
+}
+
+.cert-install-download-card {
+  margin-top: 8px;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-primary);
+}
+
+.cert-install-code-block {
+  position: relative;
+  margin-top: 8px;
+}
+
+.cert-install-code-block pre {
+  margin: 0;
+  padding: 10px 12px;
+  padding-right: 72px;
+  font-size: 11px;
+  line-height: 1.4;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.cert-install-copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 11px;
+  padding: 4px 8px;
 }

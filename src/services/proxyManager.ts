@@ -4,7 +4,12 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import type { ProxyStartResult, IProxyManager } from '../domain/ports/IProxyManager';
 import type { IProxyStateStore } from '../domain/ports/IProxyStateStore';
-import type { ProxyStateFile, ProxyStatus } from '@cursor-accounts/types';
+import type {
+  ProxyInstallGuide,
+  ProxyStateFile,
+  ProxyStatus,
+} from '@cursor-accounts/types';
+import { buildProxyInstallGuide } from '../proxy/buildProxyInstallGuide';
 import * as extensionLog from '../logging/extensionLog';
 import { CertificateManager } from '../proxy/certificateManager';
 import { isPortAvailable, isProcessAlive, resolveAvailablePort } from '../proxy/portUtils';
@@ -248,11 +253,9 @@ export class ProxyManager implements IProxyManager {
     return this.logDir;
   }
 
-  async getCertificateInstallationInstructions(): Promise<string> {
-    const certPath =
-      (await this.getCertificatePath()) ??
-      path.join(this.storageDir, 'certs', 'ca-cert.pem');
-    return this.certManager.getInstallationInstructions(certPath);
+  async getProxyInstallGuide(): Promise<ProxyInstallGuide> {
+    const certPath = await this.getCertificatePath();
+    return buildProxyInstallGuide({ certPath });
   }
 
   /**

@@ -18,7 +18,6 @@
   "commands.proxy.start.title": "Cursor Accounts: Start MITM Proxy",
   "commands.proxy.stop.title": "Cursor Accounts: Stop MITM Proxy",
   "commands.proxy.showLogs.title": "Cursor Accounts: Open Proxy Logs",
-  "commands.proxy.showCertificate.title": "Cursor Accounts: Show Proxy CA Certificate Instructions",
   "commands.proxy.saveCertificate.title": "Cursor Accounts: Save Proxy CA Certificate…",
   "configuration.title": "Cursor Accounts",
   "configuration.refresh.enabled.description": "Automatically refresh quota data from Cursor.",

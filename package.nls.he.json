@@ -31,7 +31,6 @@
   "commands.proxy.start.title": "Cursor Accounts: הפעל פרוקסי MITM",
   "commands.proxy.stop.title": "Cursor Accounts: עצור פרוקסי MITM",
   "commands.proxy.showLogs.title": "Cursor Accounts: פתח יומני פרוקסי",
-  "commands.proxy.showCertificate.title": "Cursor Accounts: הצג הוראות אישור CA לפרוקסי",
   "commands.proxy.saveCertificate.title": "Cursor Accounts: שמור אישור CA לפרוקסי…",
   "configuration.debug.webviewLifecycle.description": "רשום אבחון מחזור חיי webview בערוץ הפלט של Cursor Accounts (השבת לאחר פתרון תקלות).",
   "configuration.proxy.enabled.description": "הפעל פרוקסי MITM בהפעלת ההרחבה (צופה בתעבורת הרשת של Cursor).",

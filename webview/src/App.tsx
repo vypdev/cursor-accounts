@@ -5,6 +5,7 @@ import { EditProfileForm } from './components/EditProfileForm';
 import { EmptyState } from './components/EmptyState';
 import { ImportDialog } from './components/ImportDialog';
 import { ProfileList } from './components/ProfileList';
+import { CaCertificateInstallModal } from './components/CaCertificateInstallModal';
 import { ProxyStatusCard } from './components/ProxyStatusCard';
 import { StorageManagementModal } from './components/StorageManagementModal';
 import { L10nProvider, useL10n } from './l10n/context';
@@ -24,6 +25,7 @@ import type {
   ProfileGithubTokenStatusMap,
   EfficiencyStatsMap,
   ProxyStatus,
+  ProxyInstallGuide,
 } from './types';
 import './App.css';
 
@@ -51,6 +53,11 @@ const AppContent: React.FC = () => {
   const [efficiencyStats, setEfficiencyStats] = useState<EfficiencyStatsMap>({});
   const [proxyStatus, setProxyStatus] = useState<ProxyStatus | null>(null);
   const [currentWindowUsesProxy, setCurrentWindowUsesProxy] = useState(false);
+  const [showCertInstallModal, setShowCertInstallModal] = useState(false);
+  const [installGuide, setInstallGuide] = useState<ProxyInstallGuide | null>(
+    null
+  );
+  const [installGuideLoading, setInstallGuideLoading] = useState(false);
   const [showAddForm, setShowAddForm] = useState(
     persisted?.showAddForm ?? false
   );
@@ -123,6 +130,11 @@ const AppContent: React.FC = () => {
 
         case 'currentWindowProxyUsage':
           setCurrentWindowUsesProxy(message.usesProxy);
+          break;
+
+        case 'proxyInstallGuide':
+          setInstallGuide(message.data);
+          setInstallGuideLoading(false);
           break;
 
         case 'efficiencyStats':
@@ -348,7 +360,16 @@ const AppContent: React.FC = () => {
   }, []);
 
   const handleShowProxyCertificate = useCallback(() => {
-    vscodeApi.showProxyCertificate();
+    setShowCertInstallModal(true);
+    setInstallGuide(null);
+    setInstallGuideLoading(true);
+    vscodeApi.getProxyInstallGuide();
+  }, []);
+
+  const handleCloseCertInstallModal = useCallback(() => {
+    setShowCertInstallModal(false);
+    setInstallGuide(null);
+    setInstallGuideLoading(false);
   }, []);
 
   const handleSaveProxyCertificate = useCallback(() => {
@@ -559,6 +580,15 @@ const AppContent: React.FC = () => {
           isCurrent={editingProfile.id === currentProfile?.id}
           onSubmit={(updates) => handleEditSubmit(editingProfile.id, updates)}
           onCancel={closeEditForm}
+        />
+      )}
+
+      {showCertInstallModal && (
+        <CaCertificateInstallModal
+          guide={installGuide}
+          loading={installGuideLoading}
+          onClose={handleCloseCertInstallModal}
+          onSaveCertificate={handleSaveProxyCertificate}
         />
       )}
 

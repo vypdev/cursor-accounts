@@ -91,49 +91,4 @@ export class CertificateManager {
     return certPath;
   }
 
-  /**
-   * Platform-specific instructions for trusting the generated CA.
-   */
-  getInstallationInstructions(certPath: string): string {
-    const quoted = JSON.stringify(certPath);
-
-    switch (process.platform) {
-      case 'darwin':
-        return [
-          'Install the MITM proxy CA on macOS:',
-          '',
-          `1. Open Keychain Access`,
-          `2. File → Import Items… → select ${quoted}`,
-          '3. Double-click the imported certificate',
-          '4. Expand Trust → set "When using this certificate" to Always Trust',
-          '5. Close the dialog and enter your password',
-          '',
-          'Alternatively in Terminal:',
-          `sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain ${quoted}`,
-        ].join('\n');
-
-      case 'win32':
-        return [
-          'Install the MITM proxy CA on Windows:',
-          '',
-          `1. Double-click ${quoted}`,
-          '2. Install Certificate → Local Machine → Place in "Trusted Root Certification Authorities"',
-          '3. Finish the wizard',
-          '',
-          'Or run as Administrator in PowerShell:',
-          `Import-Certificate -FilePath ${quoted} -CertStoreLocation Cert:\\LocalMachine\\Root`,
-        ].join('\n');
-
-      default:
-        return [
-          'Install the MITM proxy CA on Linux:',
-          '',
-          `sudo cp ${quoted} /usr/local/share/ca-certificates/cursor-accounts-mitm.crt`,
-          'sudo update-ca-certificates',
-          '',
-          'For Chromium/Electron only (no system trust):',
-          `export NODE_EXTRA_CA_CERTS=${quoted}`,
-        ].join('\n');
-    }
-  }
 }

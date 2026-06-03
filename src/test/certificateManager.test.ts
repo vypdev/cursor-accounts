@@ -59,19 +59,4 @@ describe('CertificateManager', () => {
     assert.ok(keyPem.length > 0);
   });
 
-  it('returns platform-specific installation instructions', () => {
-    const manager = new CertificateManager(tempDir);
-    const instructions = manager.getInstallationInstructions('/tmp/ca-cert.pem');
-    assert.ok(instructions.includes('/tmp/ca-cert.pem'));
-    switch (process.platform) {
-      case 'darwin':
-        assert.ok(instructions.toLowerCase().includes('keychain'));
-        break;
-      case 'win32':
-        assert.ok(instructions.toLowerCase().includes('windows'));
-        break;
-      default:
-        assert.ok(instructions.includes('update-ca-certificates'));
-    }
-  });
 });

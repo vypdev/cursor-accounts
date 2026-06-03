@@ -91,10 +91,6 @@
         "title": "%commands.proxy.showLogs.title%"
       },
       {
-        "command": "cursorAccounts.proxy.showCertificate",
-        "title": "%commands.proxy.showCertificate.title%"
-      },
-      {
         "command": "cursorAccounts.proxy.saveCertificate",
         "title": "%commands.proxy.saveCertificate.title%"
       }

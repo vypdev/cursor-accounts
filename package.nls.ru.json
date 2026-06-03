@@ -31,7 +31,6 @@
   "commands.proxy.start.title": "Cursor Accounts: Запустить MITM-прокси",
   "commands.proxy.stop.title": "Cursor Accounts: Остановить MITM-прокси",
   "commands.proxy.showLogs.title": "Cursor Accounts: Открыть логи прокси",
-  "commands.proxy.showCertificate.title": "Cursor Accounts: Инструкция по CA-сертификату прокси",
   "commands.proxy.saveCertificate.title": "Cursor Accounts: Сохранить CA-сертификат прокси…",
   "configuration.debug.webviewLifecycle.description": "Записывать диагностику жизненного цикла webview в канал вывода Cursor Accounts (отключить после устранения неполадок).",
   "configuration.proxy.enabled.description": "Запускать MITM-прокси при активации расширения (наблюдает сетевой трафик Cursor).",
