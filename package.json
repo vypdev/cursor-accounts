@@ -233,6 +233,7 @@
   "scripts": {
     "vscode:prepublish": "node scripts/vscode-prepublish.mjs",
     "debug:usage": "node scripts/debug-usage.mjs",
+    "extract:protos": "node scripts/extract-cursor-protos.mjs",
     "compile": "pnpm --dir packages/types run build && pnpm --dir packages/shared run build && tsc -p ./ && node scripts/copy-migrations.mjs && pnpm --dir webview run build",
     "copy-migrations": "node scripts/copy-migrations.mjs",
     "compile:webview": "pnpm --dir webview run build",
