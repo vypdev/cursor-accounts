@@ -12,6 +12,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import protobuf from 'protobufjs';
 import { bodyBufferFromEntry } from './lib/proxy-log-body.mjs';
+import {
+  extractBillingInsight,
+  extractContextInsight,
+  extractTokenInsight,
+} from './lib/proxy-insights.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -58,28 +63,6 @@ function tryDecode(Type, raw) {
     }
   }
   return null;
-}
-
-function extractBilling(decoded) {
-  if (!decoded) return null;
-  return {
-    billingCycleStart: decoded.billing_cycle_start,
-    billingCycleEnd: decoded.billing_cycle_end,
-    planUsage: decoded.plan_usage,
-    spendLimit: decoded.spend_limit_usage,
-  };
-}
-
-function extractTokens(decoded) {
-  const usage =
-    decoded?.metadata?.token_usage ??
-    decoded?.token_usage ??
-    decoded?.usage;
-  if (!usage) return null;
-  return {
-    modelName: decoded?.metadata?.model_name ?? decoded?.model_name,
-    ...usage,
-  };
 }
 
 function parseRpc(url) {
@@ -152,14 +135,16 @@ async function main() {
       const key = `${rpc.method}:${entry.direction}`;
       byMethod.set(key, (byMethod.get(key) ?? 0) + 1);
 
-      const billing = extractBilling(obj);
-      const tokens = extractTokens(obj);
-      if (billing || tokens) {
+      const billing = extractBillingInsight(obj);
+      const tokens = extractTokenInsight(obj);
+      const context = extractContextInsight(obj);
+      if (billing || tokens || context) {
         insights++;
         if (insights <= 15) {
           console.log(`\n## ${key} (${file})`);
-          if (billing) console.log('  billing:', JSON.stringify(billing).slice(0, 200));
+          if (billing) console.log('  billing:', JSON.stringify(billing).slice(0, 280));
           if (tokens) console.log('  tokens:', JSON.stringify(tokens).slice(0, 200));
+          if (context) console.log('  context:', JSON.stringify(context));
         }
       }
     }

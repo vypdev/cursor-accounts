@@ -46,12 +46,33 @@ function centsToUsd(cents: unknown): number | undefined {
   return n != null ? n / 100 : undefined;
 }
 
-function isoFromUnixSeconds(sec: unknown): string | undefined {
-  const n = asNumber(sec);
+function pickField(
+  decoded: Record<string, unknown>,
+  snake: string,
+  camel: string
+): unknown {
+  if (decoded[snake] !== undefined) {
+    return decoded[snake];
+  }
+  return decoded[camel];
+}
+
+function isoFromTimestamp(value: unknown): string | undefined {
+  const n = asNumber(value);
   if (n == null) {
     return undefined;
   }
-  return new Date(n * 1000).toISOString();
+  const ms = n > 1e12 ? n : n * 1000;
+  return new Date(ms).toISOString();
+}
+
+function hasBillingData(info: BillingInfo): boolean {
+  return Boolean(
+    info.billingCycleStart ??
+      info.billingCycleEnd ??
+      info.planUsage ??
+      info.spendLimit
+  );
 }
 
 /**
@@ -62,26 +83,50 @@ export function extractBillingInfo(decoded: Record<string, unknown> | null | und
     return null;
   }
 
-  const planUsage = decoded.plan_usage as Record<string, unknown> | undefined;
-  const spendLimit = decoded.spend_limit_usage as Record<string, unknown> | undefined;
+  const planUsage = pickField(decoded, 'plan_usage', 'planUsage') as
+    | Record<string, unknown>
+    | undefined;
+  const spendLimit = pickField(decoded, 'spend_limit_usage', 'spendLimitUsage') as
+    | Record<string, unknown>
+    | undefined;
 
-  return {
-    billingCycleStart: isoFromUnixSeconds(decoded.billing_cycle_start),
-    billingCycleEnd: isoFromUnixSeconds(decoded.billing_cycle_end),
+  const info: BillingInfo = {
+    billingCycleStart: isoFromTimestamp(
+      pickField(decoded, 'billing_cycle_start', 'billingCycleStart')
+    ),
+    billingCycleEnd: isoFromTimestamp(
+      pickField(decoded, 'billing_cycle_end', 'billingCycleEnd')
+    ),
     planUsage: planUsage
       ? {
-          slowRequests: asNumber(planUsage.slow_premium_requests_count),
-          fastRequests: asNumber(planUsage.fast_premium_requests_count),
-          limit: asNumber(planUsage.plan_request_count_limit),
+          slowRequests: asNumber(
+            planUsage.slow_premium_requests_count ?? planUsage.slowPremiumRequestsCount
+          ),
+          fastRequests: asNumber(
+            planUsage.fast_premium_requests_count ?? planUsage.fastPremiumRequestsCount
+          ),
+          limit: asNumber(
+            planUsage.plan_request_count_limit ??
+              planUsage.planRequestCountLimit ??
+              planUsage.limit
+          ),
         }
       : undefined,
     spendLimit: spendLimit
       ? {
-          currentSpendUsd: centsToUsd(spendLimit.spend_usd_cents),
-          limitUsd: centsToUsd(spendLimit.spend_limit_usd_cents),
+          currentSpendUsd: centsToUsd(
+            spendLimit.spend_usd_cents ??
+              spendLimit.spendUsdCents ??
+              spendLimit.totalSpend
+          ),
+          limitUsd: centsToUsd(
+            spendLimit.spend_limit_usd_cents ?? spendLimit.spendLimitUsdCents
+          ),
         }
       : undefined,
   };
+
+  return hasBillingData(info) ? info : null;
 }
 
 /**
@@ -92,10 +137,14 @@ export function extractTokenUsage(decoded: Record<string, unknown> | null | unde
     return null;
   }
 
-  const metadata = decoded.metadata as Record<string, unknown> | undefined;
+  const metadata = (decoded.metadata ?? decoded.meta) as
+    | Record<string, unknown>
+    | undefined;
   const usage =
     (metadata?.token_usage as Record<string, unknown> | undefined) ??
+    (metadata?.tokenUsage as Record<string, unknown> | undefined) ??
     (decoded.token_usage as Record<string, unknown> | undefined) ??
+    (decoded.tokenUsage as Record<string, unknown> | undefined) ??
     (decoded.usage as Record<string, unknown> | undefined);
 
   if (!usage) {
@@ -105,11 +154,20 @@ export function extractTokenUsage(decoded: Record<string, unknown> | null | unde
   return {
     modelName:
       (metadata?.model_name as string | undefined) ??
-      (decoded.model_name as string | undefined),
-    promptTokens: asNumber(usage.prompt_tokens ?? usage.input_tokens),
-    completionTokens: asNumber(usage.completion_tokens ?? usage.output_tokens),
-    totalTokens: asNumber(usage.total_tokens),
-    cachedTokens: asNumber(usage.cached_tokens),
+      (metadata?.modelName as string | undefined) ??
+      (decoded.model_name as string | undefined) ??
+      (decoded.modelName as string | undefined),
+    promptTokens: asNumber(
+      usage.prompt_tokens ?? usage.promptTokens ?? usage.input_tokens ?? usage.inputTokens
+    ),
+    completionTokens: asNumber(
+      usage.completion_tokens ??
+        usage.completionTokens ??
+        usage.output_tokens ??
+        usage.outputTokens
+    ),
+    totalTokens: asNumber(usage.total_tokens ?? usage.totalTokens),
+    cachedTokens: asNumber(usage.cached_tokens ?? usage.cachedTokens),
   };
 }
 
@@ -123,7 +181,7 @@ export function extractConversationContext(
     return null;
   }
 
-  const messages = decoded.conversation_messages;
+  const messages = decoded.conversation_messages ?? decoded.conversationMessages;
   if (!Array.isArray(messages) || messages.length === 0) {
     return null;
   }

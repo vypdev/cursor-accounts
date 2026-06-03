@@ -133,6 +133,7 @@ function truncateUtf8(text: string, maxBytes: number): string {
 
 /** Truncate base64 so decoded size is at most maxDecodedBytes (approximate). */
 function truncateBase64(b64: string, maxDecodedBytes: number): string {
-  const maxB64Len = Math.ceil((maxDecodedBytes * 4) / 3);
+  let maxB64Len = Math.ceil((maxDecodedBytes * 4) / 3);
+  maxB64Len -= maxB64Len % 4;
   return b64.slice(0, maxB64Len);
 }

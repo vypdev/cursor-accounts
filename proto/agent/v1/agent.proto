@@ -5,301 +5,301 @@ package agent.v1;
 option go_package = "cursor/gen/agent/v1;agentv1";
 
 enum AgentMode { // agent.v1.AgentMode
-  AGENT_MODE_UNSPECIFIED = 0;
-  AGENT_MODE_AGENT = 1;
-  AGENT_MODE_ASK = 2;
-  AGENT_MODE_PLAN = 3;
-  AGENT_MODE_DEBUG = 4;
-  AGENT_MODE_TRIAGE = 5;
-  AGENT_MODE_PROJECT = 6;
-  AGENT_MODE_MULTITASK = 7;
+  AgentMode_AGENT_MODE_UNSPECIFIED = 0;
+  AgentMode_AGENT_MODE_AGENT = 1;
+  AgentMode_AGENT_MODE_ASK = 2;
+  AgentMode_AGENT_MODE_PLAN = 3;
+  AgentMode_AGENT_MODE_DEBUG = 4;
+  AgentMode_AGENT_MODE_TRIAGE = 5;
+  AgentMode_AGENT_MODE_PROJECT = 6;
+  AgentMode_AGENT_MODE_MULTITASK = 7;
 }
 
 enum AppliedAgentChange_ChangeType { // agent.v1.AppliedAgentChange.ChangeType
-  CHANGE_TYPE_UNSPECIFIED = 0;
-  CHANGE_TYPE_CREATED = 1;
-  CHANGE_TYPE_MODIFIED = 2;
-  CHANGE_TYPE_DELETED = 3;
+  AppliedAgentChange_ChangeType_CHANGE_TYPE_UNSPECIFIED = 0;
+  AppliedAgentChange_ChangeType_CHANGE_TYPE_CREATED = 1;
+  AppliedAgentChange_ChangeType_CHANGE_TYPE_MODIFIED = 2;
+  AppliedAgentChange_ChangeType_CHANGE_TYPE_DELETED = 3;
 }
 
 enum ArtifactPathErrorKind { // agent.v1.ArtifactPathErrorKind
-  ARTIFACT_PATH_ERROR_KIND_UNSPECIFIED = 0;
-  ARTIFACT_PATH_ERROR_KIND_MISSING = 1;
-  ARTIFACT_PATH_ERROR_KIND_PERMISSION = 2;
-  ARTIFACT_PATH_ERROR_KIND_NOT_A_FILE = 3;
-  ARTIFACT_PATH_ERROR_KIND_INVALID_PATH = 4;
-  ARTIFACT_PATH_ERROR_KIND_UNKNOWN = 5;
+  ArtifactPathErrorKind_ARTIFACT_PATH_ERROR_KIND_UNSPECIFIED = 0;
+  ArtifactPathErrorKind_ARTIFACT_PATH_ERROR_KIND_MISSING = 1;
+  ArtifactPathErrorKind_ARTIFACT_PATH_ERROR_KIND_PERMISSION = 2;
+  ArtifactPathErrorKind_ARTIFACT_PATH_ERROR_KIND_NOT_A_FILE = 3;
+  ArtifactPathErrorKind_ARTIFACT_PATH_ERROR_KIND_INVALID_PATH = 4;
+  ArtifactPathErrorKind_ARTIFACT_PATH_ERROR_KIND_UNKNOWN = 5;
 }
 
 enum ArtifactRestoreStatus { // agent.v1.ArtifactRestoreStatus
-  ARTIFACT_RESTORE_STATUS_UNSPECIFIED = 0;
-  ARTIFACT_RESTORE_STATUS_RESTORED = 1;
-  ARTIFACT_RESTORE_STATUS_SKIPPED_ALREADY_EXISTS = 2;
-  ARTIFACT_RESTORE_STATUS_REJECTED = 3;
+  ArtifactRestoreStatus_ARTIFACT_RESTORE_STATUS_UNSPECIFIED = 0;
+  ArtifactRestoreStatus_ARTIFACT_RESTORE_STATUS_RESTORED = 1;
+  ArtifactRestoreStatus_ARTIFACT_RESTORE_STATUS_SKIPPED_ALREADY_EXISTS = 2;
+  ArtifactRestoreStatus_ARTIFACT_RESTORE_STATUS_REJECTED = 3;
 }
 
 enum ArtifactUploadDispatchStatus { // agent.v1.ArtifactUploadDispatchStatus
-  ARTIFACT_UPLOAD_DISPATCH_STATUS_UNSPECIFIED = 0;
-  ARTIFACT_UPLOAD_DISPATCH_STATUS_ACCEPTED = 1;
-  ARTIFACT_UPLOAD_DISPATCH_STATUS_REJECTED = 2;
-  ARTIFACT_UPLOAD_DISPATCH_STATUS_SKIPPED_ALREADY_IN_PROGRESS = 3;
+  ArtifactUploadDispatchStatus_ARTIFACT_UPLOAD_DISPATCH_STATUS_UNSPECIFIED = 0;
+  ArtifactUploadDispatchStatus_ARTIFACT_UPLOAD_DISPATCH_STATUS_ACCEPTED = 1;
+  ArtifactUploadDispatchStatus_ARTIFACT_UPLOAD_DISPATCH_STATUS_REJECTED = 2;
+  ArtifactUploadDispatchStatus_ARTIFACT_UPLOAD_DISPATCH_STATUS_SKIPPED_ALREADY_IN_PROGRESS = 3;
 }
 
 enum ArtifactUploadStatus { // agent.v1.ArtifactUploadStatus
-  ARTIFACT_UPLOAD_STATUS_UNSPECIFIED = 0;
-  ARTIFACT_UPLOAD_STATUS_NOT_STARTED = 1;
-  ARTIFACT_UPLOAD_STATUS_IN_PROGRESS = 2;
-  ARTIFACT_UPLOAD_STATUS_COMPLETED = 3;
-  ARTIFACT_UPLOAD_STATUS_FAILED = 4;
+  ArtifactUploadStatus_ARTIFACT_UPLOAD_STATUS_UNSPECIFIED = 0;
+  ArtifactUploadStatus_ARTIFACT_UPLOAD_STATUS_NOT_STARTED = 1;
+  ArtifactUploadStatus_ARTIFACT_UPLOAD_STATUS_IN_PROGRESS = 2;
+  ArtifactUploadStatus_ARTIFACT_UPLOAD_STATUS_COMPLETED = 3;
+  ArtifactUploadStatus_ARTIFACT_UPLOAD_STATUS_FAILED = 4;
 }
 
 enum BackgroundTaskCompletionReason { // agent.v1.BackgroundTaskCompletionReason
-  BACKGROUND_TASK_COMPLETION_REASON_UNSPECIFIED = 0;
-  BACKGROUND_TASK_COMPLETION_REASON_TASK_FINISHED = 1;
-  BACKGROUND_TASK_COMPLETION_REASON_TASK_PROGRESS = 2;
+  BackgroundTaskCompletionReason_BACKGROUND_TASK_COMPLETION_REASON_UNSPECIFIED = 0;
+  BackgroundTaskCompletionReason_BACKGROUND_TASK_COMPLETION_REASON_TASK_FINISHED = 1;
+  BackgroundTaskCompletionReason_BACKGROUND_TASK_COMPLETION_REASON_TASK_PROGRESS = 2;
 }
 
 enum BackgroundTaskKind { // agent.v1.BackgroundTaskKind
-  BACKGROUND_TASK_KIND_UNSPECIFIED = 0;
-  BACKGROUND_TASK_KIND_SHELL = 1;
-  BACKGROUND_TASK_KIND_SUBAGENT = 2;
+  BackgroundTaskKind_BACKGROUND_TASK_KIND_UNSPECIFIED = 0;
+  BackgroundTaskKind_BACKGROUND_TASK_KIND_SHELL = 1;
+  BackgroundTaskKind_BACKGROUND_TASK_KIND_SUBAGENT = 2;
 }
 
 enum BackgroundTaskStatus { // agent.v1.BackgroundTaskStatus
-  BACKGROUND_TASK_STATUS_UNSPECIFIED = 0;
-  BACKGROUND_TASK_STATUS_SUCCESS = 1;
-  BACKGROUND_TASK_STATUS_ERROR = 2;
-  BACKGROUND_TASK_STATUS_ABORTED = 3;
+  BackgroundTaskStatus_BACKGROUND_TASK_STATUS_UNSPECIFIED = 0;
+  BackgroundTaskStatus_BACKGROUND_TASK_STATUS_SUCCESS = 1;
+  BackgroundTaskStatus_BACKGROUND_TASK_STATUS_ERROR = 2;
+  BackgroundTaskStatus_BACKGROUND_TASK_STATUS_ABORTED = 3;
 }
 
 enum BatchGetDiffErrorKind { // agent.v1.BatchGetDiffErrorKind
-  BATCH_GET_DIFF_ERROR_KIND_UNSPECIFIED = 0;
-  BATCH_GET_DIFF_ERROR_KIND_FETCH_FAILED = 1;
-  BATCH_GET_DIFF_ERROR_KIND_DIFF_FAILED = 2;
-  BATCH_GET_DIFF_ERROR_KIND_UNAUTHENTICATED = 3;
-  BATCH_GET_DIFF_ERROR_KIND_NOT_FOUND = 4;
-  BATCH_GET_DIFF_ERROR_KIND_INTERNAL = 5;
+  BatchGetDiffErrorKind_BATCH_GET_DIFF_ERROR_KIND_UNSPECIFIED = 0;
+  BatchGetDiffErrorKind_BATCH_GET_DIFF_ERROR_KIND_FETCH_FAILED = 1;
+  BatchGetDiffErrorKind_BATCH_GET_DIFF_ERROR_KIND_DIFF_FAILED = 2;
+  BatchGetDiffErrorKind_BATCH_GET_DIFF_ERROR_KIND_UNAUTHENTICATED = 3;
+  BatchGetDiffErrorKind_BATCH_GET_DIFF_ERROR_KIND_NOT_FOUND = 4;
+  BatchGetDiffErrorKind_BATCH_GET_DIFF_ERROR_KIND_INTERNAL = 5;
 }
 
 enum BugfixVerdict { // agent.v1.BugfixVerdict
-  BUGFIX_VERDICT_UNSPECIFIED = 0;
-  BUGFIX_VERDICT_FIXED = 1;
-  BUGFIX_VERDICT_FALSE_POSITIVE = 2;
-  BUGFIX_VERDICT_COULD_NOT_FIX = 3;
-  BUGFIX_VERDICT_RESOLVED_BY_OTHER_FIX = 4;
+  BugfixVerdict_BUGFIX_VERDICT_UNSPECIFIED = 0;
+  BugfixVerdict_BUGFIX_VERDICT_FIXED = 1;
+  BugfixVerdict_BUGFIX_VERDICT_FALSE_POSITIVE = 2;
+  BugfixVerdict_BUGFIX_VERDICT_COULD_NOT_FIX = 3;
+  BugfixVerdict_BUGFIX_VERDICT_RESOLVED_BY_OTHER_FIX = 4;
 }
 
 enum CommandClassifierResult_SuggestedSandboxMode { // agent.v1.CommandClassifierResult.SuggestedSandboxMode
-  SUGGESTED_SANDBOX_MODE_UNSPECIFIED = 0;
-  SUGGESTED_SANDBOX_MODE_SANDBOX = 1;
-  SUGGESTED_SANDBOX_MODE_NO_SANDBOX = 2;
-  SUGGESTED_SANDBOX_MODE_UNDETERMINED = 3;
+  CommandClassifierResult_SuggestedSandboxMode_SUGGESTED_SANDBOX_MODE_UNSPECIFIED = 0;
+  CommandClassifierResult_SuggestedSandboxMode_SUGGESTED_SANDBOX_MODE_SANDBOX = 1;
+  CommandClassifierResult_SuggestedSandboxMode_SUGGESTED_SANDBOX_MODE_NO_SANDBOX = 2;
+  CommandClassifierResult_SuggestedSandboxMode_SUGGESTED_SANDBOX_MODE_UNDETERMINED = 3;
 }
 
 enum CursorRuleSource { // agent.v1.CursorRuleSource
-  CURSOR_RULE_SOURCE_UNSPECIFIED = 0;
-  CURSOR_RULE_SOURCE_TEAM = 1;
-  CURSOR_RULE_SOURCE_USER = 2;
+  CursorRuleSource_CURSOR_RULE_SOURCE_UNSPECIFIED = 0;
+  CursorRuleSource_CURSOR_RULE_SOURCE_TEAM = 1;
+  CursorRuleSource_CURSOR_RULE_SOURCE_USER = 2;
 }
 
 enum CustomSubagentPermissionMode { // agent.v1.CustomSubagentPermissionMode
-  CUSTOM_SUBAGENT_PERMISSION_MODE_UNSPECIFIED = 0;
-  CUSTOM_SUBAGENT_PERMISSION_MODE_DEFAULT = 1;
-  CUSTOM_SUBAGENT_PERMISSION_MODE_READONLY = 2;
-  CUSTOM_SUBAGENT_PERMISSION_MODE_AGENT_ONLY = 3;
+  CustomSubagentPermissionMode_CUSTOM_SUBAGENT_PERMISSION_MODE_UNSPECIFIED = 0;
+  CustomSubagentPermissionMode_CUSTOM_SUBAGENT_PERMISSION_MODE_DEFAULT = 1;
+  CustomSubagentPermissionMode_CUSTOM_SUBAGENT_PERMISSION_MODE_READONLY = 2;
+  CustomSubagentPermissionMode_CUSTOM_SUBAGENT_PERMISSION_MODE_AGENT_ONLY = 3;
 }
 
 enum DiagnosticSeverity { // agent.v1.DiagnosticSeverity
-  DIAGNOSTIC_SEVERITY_UNSPECIFIED = 0;
-  DIAGNOSTIC_SEVERITY_ERROR = 1;
-  DIAGNOSTIC_SEVERITY_WARNING = 2;
-  DIAGNOSTIC_SEVERITY_INFORMATION = 3;
-  DIAGNOSTIC_SEVERITY_HINT = 4;
+  DiagnosticSeverity_DIAGNOSTIC_SEVERITY_UNSPECIFIED = 0;
+  DiagnosticSeverity_DIAGNOSTIC_SEVERITY_ERROR = 1;
+  DiagnosticSeverity_DIAGNOSTIC_SEVERITY_WARNING = 2;
+  DiagnosticSeverity_DIAGNOSTIC_SEVERITY_INFORMATION = 3;
+  DiagnosticSeverity_DIAGNOSTIC_SEVERITY_HINT = 4;
 }
 
 enum EntryType { // agent.v1.EntryType
-  ENTRY_TYPE_UNSPECIFIED = 0;
-  ENTRY_TYPE_FILE = 1;
-  ENTRY_TYPE_DIRECTORY = 2;
-  ENTRY_TYPE_SYMLINK = 3;
+  EntryType_ENTRY_TYPE_UNSPECIFIED = 0;
+  EntryType_ENTRY_TYPE_FILE = 1;
+  EntryType_ENTRY_TYPE_DIRECTORY = 2;
+  EntryType_ENTRY_TYPE_SYMLINK = 3;
 }
 
 enum ForceBackgroundShellStatus { // agent.v1.ForceBackgroundShellStatus
-  FORCE_BACKGROUND_SHELL_STATUS_UNSPECIFIED = 0;
-  FORCE_BACKGROUND_SHELL_STATUS_ACCEPTED = 1;
-  FORCE_BACKGROUND_SHELL_STATUS_NOT_FOUND = 2;
+  ForceBackgroundShellStatus_FORCE_BACKGROUND_SHELL_STATUS_UNSPECIFIED = 0;
+  ForceBackgroundShellStatus_FORCE_BACKGROUND_SHELL_STATUS_ACCEPTED = 1;
+  ForceBackgroundShellStatus_FORCE_BACKGROUND_SHELL_STATUS_NOT_FOUND = 2;
 }
 
 enum ForceBackgroundSubagentStatus { // agent.v1.ForceBackgroundSubagentStatus
-  FORCE_BACKGROUND_SUBAGENT_STATUS_UNSPECIFIED = 0;
-  FORCE_BACKGROUND_SUBAGENT_STATUS_ACCEPTED = 1;
-  FORCE_BACKGROUND_SUBAGENT_STATUS_NOT_FOUND = 2;
+  ForceBackgroundSubagentStatus_FORCE_BACKGROUND_SUBAGENT_STATUS_UNSPECIFIED = 0;
+  ForceBackgroundSubagentStatus_FORCE_BACKGROUND_SUBAGENT_STATUS_ACCEPTED = 1;
+  ForceBackgroundSubagentStatus_FORCE_BACKGROUND_SUBAGENT_STATUS_NOT_FOUND = 2;
 }
 
 enum Frame_Kind { // agent.v1.Frame.Kind
-  KIND_UNSPECIFIED = 0;
-  KIND_REQUEST = 1;
-  KIND_RESPONSE = 2;
-  KIND_ERROR = 3;
+  Frame_Kind_KIND_UNSPECIFIED = 0;
+  Frame_Kind_KIND_REQUEST = 1;
+  Frame_Kind_KIND_RESPONSE = 2;
+  Frame_Kind_KIND_ERROR = 3;
 }
 
 enum MouseButton { // agent.v1.MouseButton
-  MOUSE_BUTTON_UNSPECIFIED = 0;
-  MOUSE_BUTTON_LEFT = 1;
-  MOUSE_BUTTON_RIGHT = 2;
-  MOUSE_BUTTON_MIDDLE = 3;
-  MOUSE_BUTTON_BACK = 4;
-  MOUSE_BUTTON_FORWARD = 5;
+  MouseButton_MOUSE_BUTTON_UNSPECIFIED = 0;
+  MouseButton_MOUSE_BUTTON_LEFT = 1;
+  MouseButton_MOUSE_BUTTON_RIGHT = 2;
+  MouseButton_MOUSE_BUTTON_MIDDLE = 3;
+  MouseButton_MOUSE_BUTTON_BACK = 4;
+  MouseButton_MOUSE_BUTTON_FORWARD = 5;
 }
 
 enum NetworkPolicy_DefaultAction { // agent.v1.NetworkPolicy.DefaultAction
-  DEFAULT_ACTION_UNSPECIFIED = 0;
-  DEFAULT_ACTION_ALLOW = 1;
-  DEFAULT_ACTION_DENY = 2;
+  NetworkPolicy_DefaultAction_DEFAULT_ACTION_UNSPECIFIED = 0;
+  NetworkPolicy_DefaultAction_DEFAULT_ACTION_ALLOW = 1;
+  NetworkPolicy_DefaultAction_DEFAULT_ACTION_DENY = 2;
 }
 
 enum PackageType { // agent.v1.PackageType
-  PACKAGE_TYPE_UNSPECIFIED = 0;
-  PACKAGE_TYPE_CURSOR_PROJECT = 1;
-  PACKAGE_TYPE_CURSOR_PERSONAL = 2;
-  PACKAGE_TYPE_CLAUDE_SKILL = 3;
-  PACKAGE_TYPE_CLAUDE_PLUGIN = 4;
+  PackageType_PACKAGE_TYPE_UNSPECIFIED = 0;
+  PackageType_PACKAGE_TYPE_CURSOR_PROJECT = 1;
+  PackageType_PACKAGE_TYPE_CURSOR_PERSONAL = 2;
+  PackageType_PACKAGE_TYPE_CLAUDE_SKILL = 3;
+  PackageType_PACKAGE_TYPE_CLAUDE_PLUGIN = 4;
 }
 
 enum PrivateWorkerStatus { // agent.v1.PrivateWorkerStatus
-  PRIVATE_WORKER_STATUS_UNSPECIFIED = 0;
-  PRIVATE_WORKER_STATUS_DISCONNECTED = 1;
-  PRIVATE_WORKER_STATUS_READY = 2;
-  PRIVATE_WORKER_STATUS_CLAIMED = 3;
+  PrivateWorkerStatus_PRIVATE_WORKER_STATUS_UNSPECIFIED = 0;
+  PrivateWorkerStatus_PRIVATE_WORKER_STATUS_DISCONNECTED = 1;
+  PrivateWorkerStatus_PRIVATE_WORKER_STATUS_READY = 2;
+  PrivateWorkerStatus_PRIVATE_WORKER_STATUS_CLAIMED = 3;
 }
 
 enum RecordingMode { // agent.v1.RecordingMode
-  RECORDING_MODE_UNSPECIFIED = 0;
-  RECORDING_MODE_START_RECORDING = 1;
-  RECORDING_MODE_SAVE_RECORDING = 2;
-  RECORDING_MODE_DISCARD_RECORDING = 3;
+  RecordingMode_RECORDING_MODE_UNSPECIFIED = 0;
+  RecordingMode_RECORDING_MODE_START_RECORDING = 1;
+  RecordingMode_RECORDING_MODE_SAVE_RECORDING = 2;
+  RecordingMode_RECORDING_MODE_DISCARD_RECORDING = 3;
 }
 
 enum RequestedFilePathRejectedReason { // agent.v1.RequestedFilePathRejectedReason
-  REQUESTED_FILE_PATH_REJECTED_REASON_UNSPECIFIED = 0;
-  REQUESTED_FILE_PATH_REJECTED_REASON_SLASHES_NOT_ALLOWED = 1;
+  RequestedFilePathRejectedReason_REQUESTED_FILE_PATH_REJECTED_REASON_UNSPECIFIED = 0;
+  RequestedFilePathRejectedReason_REQUESTED_FILE_PATH_REJECTED_REASON_SLASHES_NOT_ALLOWED = 1;
 }
 
 enum SandboxPolicy_Type { // agent.v1.SandboxPolicy.Type
-  TYPE_UNSPECIFIED = 0;
-  TYPE_INSECURE_NONE = 1;
-  TYPE_WORKSPACE_READWRITE = 2;
-  TYPE_WORKSPACE_READONLY = 3;
+  SandboxPolicy_Type_TYPE_UNSPECIFIED = 0;
+  SandboxPolicy_Type_TYPE_INSECURE_NONE = 1;
+  SandboxPolicy_Type_TYPE_WORKSPACE_READWRITE = 2;
+  SandboxPolicy_Type_TYPE_WORKSPACE_READONLY = 3;
 }
 
 enum ScrollDirection { // agent.v1.ScrollDirection
-  SCROLL_DIRECTION_UNSPECIFIED = 0;
-  SCROLL_DIRECTION_UP = 1;
-  SCROLL_DIRECTION_DOWN = 2;
-  SCROLL_DIRECTION_LEFT = 3;
-  SCROLL_DIRECTION_RIGHT = 4;
+  ScrollDirection_SCROLL_DIRECTION_UNSPECIFIED = 0;
+  ScrollDirection_SCROLL_DIRECTION_UP = 1;
+  ScrollDirection_SCROLL_DIRECTION_DOWN = 2;
+  ScrollDirection_SCROLL_DIRECTION_LEFT = 3;
+  ScrollDirection_SCROLL_DIRECTION_RIGHT = 4;
 }
 
 enum SelectedPluginCapabilityType { // agent.v1.SelectedPluginCapabilityType
-  SELECTED_PLUGIN_CAPABILITY_TYPE_UNSPECIFIED = 0;
-  SELECTED_PLUGIN_CAPABILITY_TYPE_COMMAND = 1;
-  SELECTED_PLUGIN_CAPABILITY_TYPE_SKILL = 2;
-  SELECTED_PLUGIN_CAPABILITY_TYPE_SUBAGENT = 3;
+  SelectedPluginCapabilityType_SELECTED_PLUGIN_CAPABILITY_TYPE_UNSPECIFIED = 0;
+  SelectedPluginCapabilityType_SELECTED_PLUGIN_CAPABILITY_TYPE_COMMAND = 1;
+  SelectedPluginCapabilityType_SELECTED_PLUGIN_CAPABILITY_TYPE_SKILL = 2;
+  SelectedPluginCapabilityType_SELECTED_PLUGIN_CAPABILITY_TYPE_SUBAGENT = 3;
 }
 
 enum ShellAbortReason { // agent.v1.ShellAbortReason
-  SHELL_ABORT_REASON_UNSPECIFIED = 0;
-  SHELL_ABORT_REASON_USER_ABORT = 1;
-  SHELL_ABORT_REASON_TIMEOUT = 2;
+  ShellAbortReason_SHELL_ABORT_REASON_UNSPECIFIED = 0;
+  ShellAbortReason_SHELL_ABORT_REASON_USER_ABORT = 1;
+  ShellAbortReason_SHELL_ABORT_REASON_TIMEOUT = 2;
 }
 
 enum ShellBackgroundReason { // agent.v1.ShellBackgroundReason
-  SHELL_BACKGROUND_REASON_UNSPECIFIED = 0;
-  SHELL_BACKGROUND_REASON_TIMEOUT = 1;
-  SHELL_BACKGROUND_REASON_USER_REQUEST = 2;
+  ShellBackgroundReason_SHELL_BACKGROUND_REASON_UNSPECIFIED = 0;
+  ShellBackgroundReason_SHELL_BACKGROUND_REASON_TIMEOUT = 1;
+  ShellBackgroundReason_SHELL_BACKGROUND_REASON_USER_REQUEST = 2;
 }
 
 enum ShellHookApprovalRequirement_Kind { // agent.v1.ShellHookApprovalRequirement.Kind
-  KIND_UNSPECIFIED = 0;
-  KIND_FORCE_PROMPT = 1;
+  ShellHookApprovalRequirement_Kind_KIND_UNSPECIFIED = 0;
+  ShellHookApprovalRequirement_Kind_KIND_FORCE_PROMPT = 1;
 }
 
 enum SimulatedMsgReason { // agent.v1.SimulatedMsgReason
-  SIMULATED_MSG_REASON_UNSPECIFIED = 0;
-  SIMULATED_MSG_REASON_PLAN_EXECUTION = 1;
-  SIMULATED_MSG_REASON_COMMIT_REMINDER = 2;
-  SIMULATED_MSG_REASON_BACKGROUND_TASK_COMPLETION = 3;
-  SIMULATED_MSG_REASON_DIFF_TAB_COMMIT = 4;
-  SIMULATED_MSG_REASON_DIFF_TAB_COMMIT_AND_PUSH = 5;
-  SIMULATED_MSG_REASON_DIFF_TAB_PUSH = 6;
-  SIMULATED_MSG_REASON_DIFF_TAB_CREATE_PR = 7;
-  SIMULATED_MSG_REASON_DIFF_TAB_FIX_MERGE_CONFLICTS = 8;
-  SIMULATED_MSG_REASON_USER_SENT_TO_SUBAGENT = 9;
-  SIMULATED_MSG_REASON_USER_INTERRUPTED_SUBAGENT = 10;
-  SIMULATED_MSG_REASON_USER_QUEUED_TO_SUBAGENT = 11;
-  SIMULATED_MSG_REASON_BABYSIT_PR_IN_CLOUD = 12;
-  SIMULATED_MSG_REASON_CI_PANEL_INVESTIGATE_FAILURE = 13;
-  SIMULATED_MSG_REASON_MULTITASK = 14;
-  SIMULATED_MSG_REASON_BUILD_IN_PARALLEL = 15;
-  SIMULATED_MSG_REASON_MULTITASK_SPLIT_PRS = 16;
-  SIMULATED_MSG_REASON_APPLY_LOCALLY = 17;
-  SIMULATED_MSG_REASON_CHECKOUT_BRANCH = 18;
-  SIMULATED_MSG_REASON_DIFF_TAB_UPDATE_BRANCH = 19;
-  SIMULATED_MSG_REASON_PR_TAB_BUGBOT_FIX = 20;
-  SIMULATED_MSG_REASON_SESSION_GOAL_FOLLOWUP = 21;
+  SimulatedMsgReason_SIMULATED_MSG_REASON_UNSPECIFIED = 0;
+  SimulatedMsgReason_SIMULATED_MSG_REASON_PLAN_EXECUTION = 1;
+  SimulatedMsgReason_SIMULATED_MSG_REASON_COMMIT_REMINDER = 2;
+  SimulatedMsgReason_SIMULATED_MSG_REASON_BACKGROUND_TASK_COMPLETION = 3;
+  SimulatedMsgReason_SIMULATED_MSG_REASON_DIFF_TAB_COMMIT = 4;
+  SimulatedMsgReason_SIMULATED_MSG_REASON_DIFF_TAB_COMMIT_AND_PUSH = 5;
+  SimulatedMsgReason_SIMULATED_MSG_REASON_DIFF_TAB_PUSH = 6;
+  SimulatedMsgReason_SIMULATED_MSG_REASON_DIFF_TAB_CREATE_PR = 7;
+  SimulatedMsgReason_SIMULATED_MSG_REASON_DIFF_TAB_FIX_MERGE_CONFLICTS = 8;
+  SimulatedMsgReason_SIMULATED_MSG_REASON_USER_SENT_TO_SUBAGENT = 9;
+  SimulatedMsgReason_SIMULATED_MSG_REASON_USER_INTERRUPTED_SUBAGENT = 10;
+  SimulatedMsgReason_SIMULATED_MSG_REASON_USER_QUEUED_TO_SUBAGENT = 11;
+  SimulatedMsgReason_SIMULATED_MSG_REASON_BABYSIT_PR_IN_CLOUD = 12;
+  SimulatedMsgReason_SIMULATED_MSG_REASON_CI_PANEL_INVESTIGATE_FAILURE = 13;
+  SimulatedMsgReason_SIMULATED_MSG_REASON_MULTITASK = 14;
+  SimulatedMsgReason_SIMULATED_MSG_REASON_BUILD_IN_PARALLEL = 15;
+  SimulatedMsgReason_SIMULATED_MSG_REASON_MULTITASK_SPLIT_PRS = 16;
+  SimulatedMsgReason_SIMULATED_MSG_REASON_APPLY_LOCALLY = 17;
+  SimulatedMsgReason_SIMULATED_MSG_REASON_CHECKOUT_BRANCH = 18;
+  SimulatedMsgReason_SIMULATED_MSG_REASON_DIFF_TAB_UPDATE_BRANCH = 19;
+  SimulatedMsgReason_SIMULATED_MSG_REASON_PR_TAB_BUGBOT_FIX = 20;
+  SimulatedMsgReason_SIMULATED_MSG_REASON_SESSION_GOAL_FOLLOWUP = 21;
 }
 
 enum SmartModeClassifierDecision { // agent.v1.SmartModeClassifierDecision
-  SMART_MODE_CLASSIFIER_DECISION_UNSPECIFIED = 0;
-  SMART_MODE_CLASSIFIER_DECISION_ALLOW = 1;
-  SMART_MODE_CLASSIFIER_DECISION_BLOCK = 2;
+  SmartModeClassifierDecision_SMART_MODE_CLASSIFIER_DECISION_UNSPECIFIED = 0;
+  SmartModeClassifierDecision_SMART_MODE_CLASSIFIER_DECISION_ALLOW = 1;
+  SmartModeClassifierDecision_SMART_MODE_CLASSIFIER_DECISION_BLOCK = 2;
 }
 
 enum SubagentBackgroundReason { // agent.v1.SubagentBackgroundReason
-  SUBAGENT_BACKGROUND_REASON_UNSPECIFIED = 0;
-  SUBAGENT_BACKGROUND_REASON_AGENT_REQUEST = 1;
-  SUBAGENT_BACKGROUND_REASON_USER_REQUEST = 2;
-  SUBAGENT_BACKGROUND_REASON_QUEUED_FOLLOW_UP = 3;
+  SubagentBackgroundReason_SUBAGENT_BACKGROUND_REASON_UNSPECIFIED = 0;
+  SubagentBackgroundReason_SUBAGENT_BACKGROUND_REASON_AGENT_REQUEST = 1;
+  SubagentBackgroundReason_SUBAGENT_BACKGROUND_REASON_USER_REQUEST = 2;
+  SubagentBackgroundReason_SUBAGENT_BACKGROUND_REASON_QUEUED_FOLLOW_UP = 3;
 }
 
 enum SubagentExecutionEnvironment { // agent.v1.SubagentExecutionEnvironment
-  SUBAGENT_EXECUTION_ENVIRONMENT_UNSPECIFIED = 0;
-  SUBAGENT_EXECUTION_ENVIRONMENT_LOCAL = 1;
-  SUBAGENT_EXECUTION_ENVIRONMENT_CLOUD = 2;
+  SubagentExecutionEnvironment_SUBAGENT_EXECUTION_ENVIRONMENT_UNSPECIFIED = 0;
+  SubagentExecutionEnvironment_SUBAGENT_EXECUTION_ENVIRONMENT_LOCAL = 1;
+  SubagentExecutionEnvironment_SUBAGENT_EXECUTION_ENVIRONMENT_CLOUD = 2;
 }
 
 enum TaskMode { // agent.v1.TaskMode
-  TASK_MODE_UNSPECIFIED = 0;
-  TASK_MODE_AGENT = 1;
-  TASK_MODE_PLAN = 2;
+  TaskMode_TASK_MODE_UNSPECIFIED = 0;
+  TaskMode_TASK_MODE_AGENT = 1;
+  TaskMode_TASK_MODE_PLAN = 2;
 }
 
 enum ThinkingStyle { // agent.v1.ThinkingStyle
-  THINKING_STYLE_UNSPECIFIED = 0;
-  THINKING_STYLE_DEFAULT = 1;
-  THINKING_STYLE_CODEX = 2;
-  THINKING_STYLE_GPT5 = 3;
+  ThinkingStyle_THINKING_STYLE_UNSPECIFIED = 0;
+  ThinkingStyle_THINKING_STYLE_DEFAULT = 1;
+  ThinkingStyle_THINKING_STYLE_CODEX = 2;
+  ThinkingStyle_THINKING_STYLE_GPT5 = 3;
 }
 
 enum TimeoutBehavior { // agent.v1.TimeoutBehavior
-  TIMEOUT_BEHAVIOR_UNSPECIFIED = 0;
-  TIMEOUT_BEHAVIOR_CANCEL = 1;
-  TIMEOUT_BEHAVIOR_BACKGROUND = 2;
+  TimeoutBehavior_TIMEOUT_BEHAVIOR_UNSPECIFIED = 0;
+  TimeoutBehavior_TIMEOUT_BEHAVIOR_CANCEL = 1;
+  TimeoutBehavior_TIMEOUT_BEHAVIOR_BACKGROUND = 2;
 }
 
 enum TmuxSessionKind { // agent.v1.TmuxSessionKind
-  TMUX_SESSION_KIND_UNSPECIFIED = 0;
-  TMUX_SESSION_KIND_USER_MANUAL = 1;
-  TMUX_SESSION_KIND_AGENT_BACKGROUND = 2;
-  TMUX_SESSION_KIND_AGENT_INTERACTIVE = 3;
+  TmuxSessionKind_TMUX_SESSION_KIND_UNSPECIFIED = 0;
+  TmuxSessionKind_TMUX_SESSION_KIND_USER_MANUAL = 1;
+  TmuxSessionKind_TMUX_SESSION_KIND_AGENT_BACKGROUND = 2;
+  TmuxSessionKind_TMUX_SESSION_KIND_AGENT_INTERACTIVE = 3;
 }
 
 enum TodoStatus { // agent.v1.TodoStatus
-  TODO_STATUS_UNSPECIFIED = 0;
-  TODO_STATUS_PENDING = 1;
-  TODO_STATUS_IN_PROGRESS = 2;
-  TODO_STATUS_COMPLETED = 3;
-  TODO_STATUS_CANCELLED = 4;
+  TodoStatus_TODO_STATUS_UNSPECIFIED = 0;
+  TodoStatus_TODO_STATUS_PENDING = 1;
+  TodoStatus_TODO_STATUS_IN_PROGRESS = 2;
+  TodoStatus_TODO_STATUS_COMPLETED = 3;
+  TodoStatus_TODO_STATUS_CANCELLED = 4;
 }
 
 message AbortArgs { // agent.v1.AbortArgs
@@ -328,6 +328,13 @@ message AgentConversationTurn { // agent.v1.AgentConversationTurn
   UserMessage user_message = 1;
   repeated ConversationStep steps = 2;
   optional string request_id = 3;
+}
+
+message AgentConversationTurnStructure { // agent.v1.AgentConversationTurnStructure
+  bytes user_message = 1;
+  repeated bytes steps = 2;
+  optional string request_id = 3;
+  optional string encrypted_model = 4;
 }
 
 message AgentRunRequest { // agent.v1.AgentRunRequest
@@ -419,6 +426,11 @@ message AiAttributionSuccess { // agent.v1.AiAttributionSuccess
   optional OutputLocation output_location = 2;
 }
 
+message AiAttributionToolCall { // agent.v1.AiAttributionToolCall
+  AiAttributionArgs args = 1;
+  AiAttributionResult result = 2;
+}
+
 message ApiKeyCredentials { // agent.v1.ApiKeyCredentials
   string api_key = 1;
   optional string base_url = 2;
@@ -437,9 +449,14 @@ message ApplyAgentDiffArgs { // agent.v1.ApplyAgentDiffArgs
   string agent_id = 1;
 }
 
+message ApplyAgentDiffError { // agent.v1.ApplyAgentDiffError
+  string error = 1;
+  repeated AppliedAgentChange applied_changes = 2;
+}
+
 message ApplyAgentDiffResult { // agent.v1.ApplyAgentDiffResult
   ApplyAgentDiffSuccess success = 1;
-  bytes error = 2; // unresolved symbol kXt
+  ApplyAgentDiffError error = 2;
 }
 
 message ApplyAgentDiffSuccess { // agent.v1.ApplyAgentDiffSuccess
@@ -449,6 +466,12 @@ message ApplyAgentDiffSuccess { // agent.v1.ApplyAgentDiffSuccess
 message ApplyAgentDiffToolCall { // agent.v1.ApplyAgentDiffToolCall
   ApplyAgentDiffArgs args = 1;
   ApplyAgentDiffResult result = 2;
+}
+
+message ArtifactPathError { // agent.v1.ArtifactPathError
+  ArtifactPathErrorKind kind = 1;
+  string code = 2;
+  string message = 3;
 }
 
 message ArtifactUploadDispatchResult { // agent.v1.ArtifactUploadDispatchResult
@@ -766,6 +789,11 @@ message CancelSubagentAction { // agent.v1.CancelSubagentAction
   string subagent_id = 1;
 }
 
+message CanvasDiagnosticsArgs { // agent.v1.CanvasDiagnosticsArgs
+  string path = 1;
+  string tool_call_id = 2;
+}
+
 message CanvasDiagnosticsError { // agent.v1.CanvasDiagnosticsError
   string path = 1;
   string error = 2;
@@ -871,7 +899,7 @@ message ComputerUseAction { // agent.v1.ComputerUseAction
   TypeAction type = 7;
   KeyAction key = 8;
   WaitAction wait = 9;
-  bytes screenshot = 10; // unresolved symbol cQt
+  ScreenshotAction screenshot = 10;
   CursorPositionAction cursor_position = 11;
 }
 
@@ -1075,7 +1103,7 @@ message ConversationTurn { // agent.v1.ConversationTurn
 }
 
 message ConversationTurnStructure { // agent.v1.ConversationTurnStructure
-  bytes agent_conversation_turn = 1; // unresolved symbol fss
+  AgentConversationTurnStructure agent_conversation_turn = 1;
   ShellConversationTurnStructure shell_conversation_turn = 2;
 }
 
@@ -1563,7 +1591,7 @@ message ExecServerMessage { // agent.v1.ExecServerMessage
   ForceBackgroundSubagentArgs force_background_subagent_args = 31;
   SubagentAwaitArgs subagent_await_args = 37;
   SmartModeClassifierArgs smart_mode_classifier_args = 38;
-  bytes canvas_diagnostics_args = 40; // unresolved symbol Vns
+  CanvasDiagnosticsArgs canvas_diagnostics_args = 40;
   ShellAllowlistPrecheckArgs shell_allowlist_precheck_args = 41;
   McpAllowlistPrecheckArgs mcp_allowlist_precheck_args = 42;
   WebFetchAllowlistPrecheckArgs web_fetch_allowlist_precheck_args = 43;
@@ -1843,6 +1871,16 @@ message GetSignedUrlForAttachedMediaRequest { // agent.v1.GetSignedUrlForAttache
   optional int64 content_length_bytes = 4;
 }
 
+message GetSignedUrlForAttachedMediaResponse { // agent.v1.GetSignedUrlForAttachedMediaResponse
+  string key = 1;
+  string post_url = 2;
+  string get_url = 3;
+  int64 expires_at_unix_ms = 4;
+  int64 refresh_after_unix_ms = 5;
+  bytes post_fields = 6;
+  string put_url = 7;
+}
+
 message GetUsableModelsRequest { // agent.v1.GetUsableModelsRequest
   repeated string custom_model_ids = 1;
 }
@@ -2087,7 +2125,7 @@ message InteractionUpdate { // agent.v1.InteractionUpdate
   StepStartedUpdate step_started = 16;
   StepCompletedUpdate step_completed = 17;
   PromptSuggestionUpdate prompt_suggestion = 18;
-  bytes post_request_prompt = 19; // unresolved symbol Xss
+  PostRequestPromptUpdate post_request_prompt = 19;
   ActiveBranchChange active_branch_change = 20;
   FeedbackRequestUpdate feedback_request = 21;
 }
@@ -2429,10 +2467,15 @@ message McpPermissionDenied { // agent.v1.McpPermissionDenied
   bool is_readonly = 2;
 }
 
+message McpRejected { // agent.v1.McpRejected
+  string reason = 1;
+  bool is_readonly = 2;
+}
+
 message McpResult { // agent.v1.McpResult
   McpSuccess success = 1;
   McpError error = 2;
-  bytes rejected = 3; // unresolved symbol Fgt
+  McpRejected rejected = 3;
   McpPermissionDenied permission_denied = 4;
   McpToolNotFound tool_not_found = 5;
   McpServerNotFound server_not_found = 6;
@@ -2519,7 +2562,7 @@ message McpToolNotFound { // agent.v1.McpToolNotFound
 message McpToolResult { // agent.v1.McpToolResult
   McpSuccess success = 1;
   McpToolError error = 2;
-  bytes rejected = 3; // unresolved symbol Fgt
+  McpRejected rejected = 3;
   McpPermissionDenied permission_denied = 4;
 }
 
@@ -2651,6 +2694,13 @@ message Position { // agent.v1.Position
   uint32 column = 2;
 }
 
+message PostRequestPromptUpdate { // agent.v1.PostRequestPromptUpdate
+  string title = 1;
+  string message = 2;
+  string button_label = 3;
+  string button_url = 4;
+}
+
 message PostToolUseFailureRequestQuery { // agent.v1.PostToolUseFailureRequestQuery
   string tool_name = 1;
   bytes tool_input = 2; // unresolved symbol Ae
@@ -2730,7 +2780,7 @@ message PreFetchedBlob { // agent.v1.PreFetchedBlob
 message PreparedTaskSubagent { // agent.v1.PreparedTaskSubagent
   string subagent_id = 1;
   string subagent_type_name = 2;
-  bytes subagent_type = 3; // unresolved symbol gYe
+  SubagentType subagent_type = 3;
   string analytics_subagent_type = 4;
   string resolved_model_id = 5;
   bool effective_readonly = 6;
@@ -3083,9 +3133,13 @@ message ReadTodosArgs { // agent.v1.ReadTodosArgs
   repeated string id_filter = 2;
 }
 
+message ReadTodosError { // agent.v1.ReadTodosError
+  string error = 1;
+}
+
 message ReadTodosResult { // agent.v1.ReadTodosResult
   ReadTodosSuccess success = 1;
-  bytes error = 2; // unresolved symbol zKt
+  ReadTodosError error = 2;
 }
 
 message ReadTodosSuccess { // agent.v1.ReadTodosSuccess
@@ -3556,6 +3610,9 @@ message SandboxPolicyMergeSources { // agent.v1.SandboxPolicyMergeSources
   optional SandboxPolicy team_admin = 3;
 }
 
+message ScreenshotAction { // agent.v1.ScreenshotAction
+}
+
 message ScrollAction { // agent.v1.ScrollAction
   optional Coordinate coordinate = 1;
   ScrollDirection direction = 2;
@@ -3662,7 +3719,7 @@ message SelectedContext { // agent.v1.SelectedContext
   repeated SelectedGitPRDiffSelection git_pr_diff_selections = 20;
   repeated SelectedPullRequest selected_pull_requests = 21;
   repeated SelectedSubagent selected_subagents = 22;
-  repeated bytes selected_videos = 23; // unresolved symbol Aes
+  repeated SelectedVideo selected_videos = 23;
   repeated SelectedBrowser selected_browsers = 24;
   repeated SelectedDocument selected_documents = 25;
   repeated AgentSkill selected_skills = 26;
@@ -3822,6 +3879,19 @@ message SelectedUIElement { // agent.v1.SelectedUIElement
   optional string component_props_json = 6;
 }
 
+message SelectedVideo { // agent.v1.SelectedVideo
+  bytes blob_id = 1;
+  bytes data = 8;
+  SelectedVideo_BlobIdWithData blob_id_with_data = 9;
+  SelectedVideo_SignedUrl signed_url = 11;
+  string uuid = 2;
+  string path = 3;
+  optional float fps = 4;
+  string mime_type = 7;
+  string filename = 10;
+  bool materialize_to_filesystem = 12;
+}
+
 message SelectedVideo_BlobIdWithData { // agent.v1.SelectedVideo.BlobIdWithData
   bytes blob_id = 1;
   bytes data = 2;
@@ -3896,9 +3966,13 @@ message SetActiveBranchArgs { // agent.v1.SetActiveBranchArgs
   string branch_name = 2;
 }
 
+message SetActiveBranchError { // agent.v1.SetActiveBranchError
+  string error = 1;
+}
+
 message SetActiveBranchResult { // agent.v1.SetActiveBranchResult
   SetActiveBranchSuccess success = 1;
-  bytes error = 2; // unresolved symbol Cts
+  SetActiveBranchError error = 2;
 }
 
 message SetActiveBranchSuccess { // agent.v1.SetActiveBranchSuccess
@@ -4158,6 +4232,12 @@ message ShellTimeout { // agent.v1.ShellTimeout
   int32 timeout_ms = 3;
 }
 
+message ShellToolCall { // agent.v1.ShellToolCall
+  ShellArgs args = 1;
+  ShellResult result = 2;
+  optional string description = 3;
+}
+
 message ShellToolCallDelta { // agent.v1.ShellToolCallDelta
   ShellToolCallStdoutDelta stdout = 1;
   ShellToolCallStderrDelta stderr = 2;
@@ -4395,7 +4475,7 @@ message SubagentPersistedState { // agent.v1.SubagentPersistedState
   ConversationStateStructure conversation_state = 1;
   uint64 created_timestamp_ms = 2;
   uint64 last_used_timestamp_ms = 3;
-  bytes subagent_type = 4; // unresolved symbol gYe
+  SubagentType subagent_type = 4;
   optional string model_id = 5;
   SubagentExecutionEnvironment environment = 6;
   optional CloudSubagentReference cloud_subagent = 7;
@@ -4576,7 +4656,7 @@ message SwitchModeToolCall { // agent.v1.SwitchModeToolCall
 message TaskArgs { // agent.v1.TaskArgs
   string description = 1;
   string prompt = 2;
-  bytes subagent_type = 3; // unresolved symbol gYe
+  SubagentType subagent_type = 3;
   optional string model = 4;
   optional string resume = 5;
   optional string agent_id = 6;
@@ -4696,7 +4776,7 @@ message TokenDeltaUpdate { // agent.v1.TokenDeltaUpdate
 }
 
 message ToolCall { // agent.v1.ToolCall
-  bytes shell_tool_call = 1; // unresolved symbol tKt
+  ShellToolCall shell_tool_call = 1;
   DeleteToolCall delete_tool_call = 3;
   GlobToolCall glob_tool_call = 4;
   GrepToolCall grep_tool_call = 5;
@@ -4728,7 +4808,7 @@ message ToolCall { // agent.v1.ToolCall
   StartGrindPlanningToolCall start_grind_planning_tool_call = 36;
   WebFetchToolCall web_fetch_tool_call = 37;
   ReportBugfixResultsToolCall report_bugfix_results_tool_call = 38;
-  bytes ai_attribution_tool_call = 39; // unresolved symbol QQt
+  AiAttributionToolCall ai_attribution_tool_call = 39;
   PrManagementToolCall pr_management_tool_call = 40;
   McpAuthToolCall mcp_auth_tool_call = 41;
   AwaitToolCall await_tool_call = 42;
@@ -4840,6 +4920,11 @@ message UpdatePrAction { // agent.v1.UpdatePrAction
   optional string repo_url = 8;
 }
 
+message UpdatePrCodeTourArgs { // agent.v1.UpdatePrCodeTourArgs
+  string feedback = 1;
+  string tool_call_id = 2;
+}
+
 message UpdatePrCodeTourError { // agent.v1.UpdatePrCodeTourError
   string error = 1;
 }
@@ -4855,7 +4940,7 @@ message UpdatePrCodeTourSuccess { // agent.v1.UpdatePrCodeTourSuccess
 }
 
 message UpdatePrCodeTourToolCall { // agent.v1.UpdatePrCodeTourToolCall
-  bytes args = 1; // unresolved symbol zZt
+  UpdatePrCodeTourArgs args = 1;
   UpdatePrCodeTourResult result = 2;
 }
 
@@ -5178,7 +5263,7 @@ service AgentService { // agent.v1.AgentService
   rpc GetDefaultModelForCli(GetDefaultModelForCliRequest) returns (GetDefaultModelForCliResponse) {}
   rpc GetAllowedModelIntents(GetAllowedModelIntentsRequest) returns (GetAllowedModelIntentsResponse) {}
   rpc UploadConversationBlobs(UploadConversationBlobsRequest) returns (UploadConversationBlobsResponse) {}
-  // rpc GetSignedUrlForAttachedMedia skipped (unresolved request/response types)
+  rpc GetSignedUrlForAttachedMedia(GetSignedUrlForAttachedMediaRequest) returns (GetSignedUrlForAttachedMediaResponse) {}
   rpc NotifyConversationClone(NotifyConversationCloneRequest) returns (NotifyConversationCloneResponse) {}
   rpc GetNewChatNudgeLegacyModelPicker(GetNewChatNudgeLegacyModelPickerRequest) returns (GetNewChatNudgeLegacyModelPickerResponse) {}
 }

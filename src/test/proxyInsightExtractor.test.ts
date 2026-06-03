@@ -9,6 +9,18 @@ import {
 } from '../proxy/proxyInsightExtractor';
 
 describe('proxyInsightExtractor', () => {
+  it('extracts billing from Connect JSON camelCase', () => {
+    const billing = extractBillingInfo({
+      billingCycleStart: '1780348749000',
+      billingCycleEnd: '1782940749000',
+      planUsage: { limit: 7000, totalSpend: 17413 },
+      spendLimitUsage: { limitType: 'user' },
+    });
+
+    assert.ok(billing?.billingCycleStart);
+    assert.equal(billing?.planUsage?.limit, 7000);
+  });
+
   it('extracts billing from usage response shape', () => {
     const billing = extractBillingInfo({
       billing_cycle_start: '1700000000',

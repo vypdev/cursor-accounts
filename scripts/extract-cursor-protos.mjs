@@ -149,6 +149,18 @@ function extractDescriptors(bundle) {
     }
   }
 
+  // Bufbuild static blocks (constructors with nested `{}` break the generic classRe).
+  const staticFieldListRe = new RegExp(
+    `(\\w+)=class[^;]{0,4000}?static\\{this\\.typeName="((${packagePrefixes})\\.[^"]+)"\\}static\\{this\\.fields=n\\.util\\.newFieldList\\(\\(\\)=>\\[([\\s\\S]*?)\\]\\)\\}`,
+    'g'
+  );
+  for (const m of bundle.matchAll(staticFieldListRe)) {
+    symToType.set(m[1], m[2]);
+    if (!messageFieldsBlob.has(m[2])) {
+      messageFieldsBlob.set(m[2], m[4]);
+    }
+  }
+
   const typeNameAssignRe = new RegExp(
     `(\\w+)\\.typeName="((${packagePrefixes})\\.[^"]+)"`,
     'g'
