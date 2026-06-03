@@ -40,6 +40,8 @@ node_modules/jsdom/**
 !bin/**
 # Webview bundle (Phase 3)
 !webview-dist/**
+# Protobuf schemas for MITM decode (runtime + packaged extension)
+!proto/**
 # Extension icons only (README screenshots stay out of the VSIX)
 images/**
 !images/icon.png

@@ -149,6 +149,24 @@ function extractDescriptors(bundle) {
     }
   }
 
+  const typeNameAssignRe = new RegExp(
+    `(\\w+)\\.typeName="((${packagePrefixes})\\.[^"]+)"`,
+    'g'
+  );
+  for (const m of bundle.matchAll(typeNameAssignRe)) {
+    symToType.set(m[1], m[2]);
+  }
+
+  const quotedTypeRe = new RegExp(
+    `"typeName":"((${packagePrefixes})\\.[^"]+)"`,
+    'g'
+  );
+  for (const m of bundle.matchAll(quotedTypeRe)) {
+    if (!messageFieldsBlob.has(m[1])) {
+      messageFieldsBlob.set(m[1], '');
+    }
+  }
+
   const enumRe = /\.util\.setEnumType\((\w+),"([^"]+)",\[([\s\S]*?)\]\)/g;
   for (const m of bundle.matchAll(enumRe)) {
     const sym = m[1];
@@ -294,7 +312,11 @@ function generateProto(descriptors, pkg) {
     const name = localTypeName(fullName, prefix);
     lines.push(`enum ${name} { // ${fullName}`);
     values.forEach((v, i) => {
-      lines.push(`  ${v} = ${i};`);
+      const prefixed =
+        v.startsWith(`${name}_`) || v.startsWith(`${name.toUpperCase()}_`)
+          ? v
+          : `${name}_${v}`;
+      lines.push(`  ${prefixed} = ${i};`);
     });
     lines.push('}');
     lines.push('');

@@ -2,6 +2,7 @@ import * as fs from 'fs/promises';
 import { watch, type FSWatcher } from 'fs';
 import * as path from 'path';
 import { toTrafficSummary } from './proxyTrafficFormat';
+import { buildTrafficSummary } from './trafficSummaryBuilder';
 import type { ProxyLogEntry, ProxyTrafficSummary } from './types';
 
 const LOG_FILE_PREFIX = 'proxy-';
@@ -223,9 +224,12 @@ export class ProxyLogTailer {
       this.requestStartedAt.delete(requestId);
     }
 
-    const summary = toTrafficSummary(entry, durationMs);
     if (entry.direction === 'request' || entry.direction === 'response') {
-      this.handlers.onTraffic(summary);
+      void buildTrafficSummary(entry, durationMs).then((summary) => {
+        this.handlers.onTraffic(summary);
+      }).catch(() => {
+        this.handlers.onTraffic(toTrafficSummary(entry, durationMs));
+      });
     }
   }
 }

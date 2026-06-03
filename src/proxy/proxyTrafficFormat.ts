@@ -83,9 +83,13 @@ export function toTrafficSummary(
   }
 
   const contentType = entry.headers['content-type'];
-  const bodyBytes = entry.body
-    ? Buffer.byteLength(entry.body, 'utf8')
-    : 0;
+  const bodyBytes =
+    entry.bodyRawBytes ??
+    (entry.bodyBase64
+      ? Buffer.from(entry.bodyBase64, 'base64').length
+      : entry.body
+        ? Buffer.byteLength(entry.body, 'utf8')
+        : 0);
 
   return {
     timestamp: entry.timestamp,
@@ -141,8 +145,26 @@ export function formatTrafficLine(
       : '0 B';
   const duration =
     summary.durationMs != null ? `, ${summary.durationMs} ms` : '';
-  const meta = summary.bodyKind ? ` (${size}, ${summary.bodyKind}${duration})` : '';
+  const insightHint = formatInsightHint(summary);
+  const decodeHint = summary.decodeError ? ', decode-err' : summary.bodyDecoded ? ', decoded' : '';
+  const meta = summary.bodyKind
+    ? ` (${size}, ${summary.bodyKind}${duration}${decodeHint}${insightHint})`
+    : '';
   return `[${time}] ${PROXY_TRAFFIC_TAG} ← ${status} ${target}${meta}`;
+}
+
+function formatInsightHint(summary: ProxyTrafficSummary): string {
+  const parts: string[] = [];
+  if (summary.insights?.billing?.spendLimit?.currentSpendUsd != null) {
+    parts.push(`$${summary.insights.billing.spendLimit.currentSpendUsd.toFixed(2)}`);
+  }
+  if (summary.insights?.tokens?.totalTokens != null) {
+    parts.push(`${summary.insights.tokens.totalTokens} tok`);
+  }
+  if (summary.insights?.context?.messageCount != null) {
+    parts.push(`${summary.insights.context.messageCount} msgs`);
+  }
+  return parts.length > 0 ? `, ${parts.join(', ')}` : '';
 }
 
 export function redactHeadersForLog(

@@ -2,10 +2,10 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { createWriteStream } from 'fs';
 import type { WriteStream } from 'fs';
+import { formatBodyForLog } from './bodyFormat';
 import {
   CONNECT_RPC_CONTENT_TYPE,
   CURSOR_HOST_SUFFIXES,
-  MAX_BODY_LOG_BYTES,
   type ProxyLogEntry,
 } from './types';
 
@@ -76,19 +76,10 @@ export class RequestLogger {
   }
 
   static formatBody(
-    body: Buffer | string | undefined
-  ): { body?: string; bodyTruncated?: boolean } {
-    if (body == null) {
-      return {};
-    }
-    const text = typeof body === 'string' ? body : body.toString('utf8');
-    if (Buffer.byteLength(text, 'utf8') <= MAX_BODY_LOG_BYTES) {
-      return { body: text };
-    }
-    return {
-      body: text.slice(0, MAX_BODY_LOG_BYTES),
-      bodyTruncated: true,
-    };
+    body: Buffer | string | undefined,
+    contentType?: string
+  ): ReturnType<typeof formatBodyForLog> {
+    return formatBodyForLog(body, contentType);
   }
 
   static normalizeHeaders(

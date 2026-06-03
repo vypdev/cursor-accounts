@@ -12,6 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import protobuf from 'protobufjs';
+import { bodyBufferFromEntry } from './lib/proxy-log-body.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -116,6 +117,22 @@ function parseRpc(url) {
  * @param {Record<string, unknown>} obj
  * @param {protobuf.Type} Type
  */
+function extractBillingInsight(obj) {
+  if (!obj || typeof obj !== 'object') return null;
+  if (obj.billing_cycle_start != null || obj.plan_usage != null) {
+    return { billing: true };
+  }
+  return null;
+}
+
+function extractTokenInsight(obj) {
+  if (!obj || typeof obj !== 'object') return null;
+  const usage =
+    obj.metadata?.token_usage ?? obj.token_usage ?? obj.usage;
+  if (usage) return { tokens: true };
+  return null;
+}
+
 function jsonKeysMatchProto(obj, Type) {
   const protoFields = new Set(
     Type.fieldsArray.map((f) => f.name).filter(Boolean)
@@ -142,6 +159,10 @@ function verifyLogs(logDir, root) {
   let totalEntries = 0;
   let skippedNoBody = 0;
   let skippedNonAiserver = 0;
+  let insightBilling = 0;
+  let insightTokens = 0;
+  let insightContext = 0;
+  let base64Bodies = 0;
 
   const files = fs
     .readdirSync(logDir)
@@ -201,18 +222,28 @@ function verifyLogs(logDir, root) {
         else dashboard.get(dashKey).fail++;
       };
 
-      if (!entry.body || entry.body.length === 0) {
-        skippedNoBody++;
-        stats.ok++;
-        markDash(true);
-        continue;
+      if (entry.bodyBase64) {
+        base64Bodies++;
+      }
+
+      const bodyBuf = bodyBufferFromEntry(entry);
+      if (!bodyBuf || bodyBuf.length === 0) {
+        if (!entry.body || entry.body.length === 0) {
+          skippedNoBody++;
+          stats.ok++;
+          markDash(true);
+          continue;
+        }
       }
 
       if (ct.includes('json')) {
         stats.json++;
         try {
-          const obj = JSON.parse(entry.body);
+          const obj = JSON.parse(entry.body ?? bodyBuf?.toString('utf8') ?? '{}');
           const { unknown } = jsonKeysMatchProto(obj, Type);
+          if (extractBillingInsight(obj)) insightBilling++;
+          if (extractTokenInsight(obj)) insightTokens++;
+          if (obj.conversation_messages?.length) insightContext++;
           if (unknown.length === 0) {
             stats.ok++;
             markDash(true);
@@ -248,15 +279,23 @@ function verifyLogs(logDir, root) {
         stats.gzip++;
       }
 
-      const raw = Buffer.from(entry.body, 'latin1');
-      const result = tryDecodeProto(Type, raw, enc);
+      const raw = bodyBuf ?? Buffer.from(entry.body ?? '', 'latin1');
+      const result = tryDecodeProto(Type, raw, entry.bodyDecompressed ? '' : enc);
       if (result.ok) {
         stats.ok++;
         markDash(true);
+        if (extractBillingInsight(result.object)) insightBilling++;
+        if (extractTokenInsight(result.object)) insightTokens++;
+        if (result.object?.conversation_messages?.length) insightContext++;
         if (stats.samples.length < 1) {
           const keys = Object.keys(result.object).slice(0, 6).join(', ');
+          const encNote = entry.bodyDecompressed
+            ? ' decompressed'
+            : enc
+              ? ' gzip'
+              : '';
           stats.samples.push(
-            `proto decode OK ${result.payloadLen}b fields: ${keys}${enc ? ' gzip' : ''} (${file})`
+            `proto decode OK ${result.payloadLen}b fields: ${keys}${encNote} (${file})`
           );
         }
       } else {
@@ -279,6 +318,10 @@ function verifyLogs(logDir, root) {
     totalEntries,
     skippedNoBody,
     skippedNonAiserver,
+    insightBilling,
+    insightTokens,
+    insightContext,
+    base64Bodies,
   };
 }
 
@@ -334,7 +377,10 @@ async function main() {
     String(totalOk + totalFail + totalJson).padStart(6)
   );
   console.log(
-    `\nLog files: ${report.files.length}, aiserver entries: ${report.totalEntries}, empty body: ${report.skippedNoBody}, non-aiserver skipped: ${report.skippedNonAiserver}`
+    `\nLog files: ${report.files.length}, aiserver entries: ${report.totalEntries}, empty body: ${report.skippedNoBody}, non-aiserver skipped: ${report.skippedNonAiserver}, base64 bodies: ${report.base64Bodies}`
+  );
+  console.log(
+    `Insights extracted: billing=${report.insightBilling}, tokens=${report.insightTokens}, context=${report.insightContext}`
   );
 
   const failures = rows.filter(([, s]) => s.fail > 0);

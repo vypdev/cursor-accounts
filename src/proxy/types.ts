@@ -1,4 +1,5 @@
 import type { ProxyStatistics } from '@cursor-accounts/types';
+import type { ProxyInsights } from './proxyInsightExtractor';
 
 export const PROXY_STATE_FILE_NAME = 'proxy-state.json';
 export const PROXY_STATE_SCHEMA_VERSION = 1;
@@ -31,6 +32,10 @@ export interface ProxyLogEntry {
   statusCode?: number;
   headers: Record<string, string>;
   body?: string;
+  bodyBase64?: string;
+  bodyEncoding?: 'utf8' | 'base64';
+  bodyRawBytes?: number;
+  bodyDecompressed?: boolean;
   bodyTruncated?: boolean;
   isConnectRpc?: boolean;
   isCursorHost?: boolean;
@@ -50,6 +55,10 @@ export interface ProxyTrafficSummary {
   statusCode?: number;
   bodyBytes?: number;
   bodyKind?: 'json' | 'proto' | 'text' | 'empty';
+  rpcPath?: string;
+  bodyDecoded?: Record<string, unknown>;
+  decodeError?: string;
+  insights?: ProxyInsights;
   userAgent?: string;
   requestId?: string;
   isCursorHost?: boolean;

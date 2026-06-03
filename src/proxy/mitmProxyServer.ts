@@ -2,8 +2,11 @@ import { EventEmitter } from 'events';
 import { Proxy } from 'http-mitm-proxy';
 import type { ProxyStatistics } from '@cursor-accounts/types';
 import type { CertificateManager } from './certificateManager';
+import { decompressBodyBuffer } from './bodyFormat';
+import { getProtoRegistry } from './protoRegistry';
 import { RequestLogger } from './requestLogger';
 import { extractRequestId, toTrafficSummary } from './proxyTrafficFormat';
+import { buildTrafficSummary } from './trafficSummaryBuilder';
 import type { MitmProxyHandlers, ProxyLogEntry, ProxyServerConfig } from './types';
 
 export interface MitmProxyServerEvents {
@@ -42,6 +45,13 @@ export class MitmProxyServer extends EventEmitter {
 
     const sslCaDir = await this.certificateManager.ensureCaDirectoryForMitm();
     await this.requestLogger.initialize();
+
+    try {
+      await getProtoRegistry();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      process.stderr.write(`[proxy] proto registry init failed: ${message}\n`);
+    }
 
     const proxy = new Proxy();
     this.proxy = proxy;
@@ -91,9 +101,14 @@ export class MitmProxyServer extends EventEmitter {
       });
 
       ctx.onRequestEnd((_ctx, endCallback) => {
-        const body = Buffer.concat(bodyChunks);
-        this.statistics.bytesTransferred += body.length;
-        const formatted = RequestLogger.formatBody(body);
+        const rawBody = Buffer.concat(bodyChunks);
+        this.statistics.bytesTransferred += rawBody.length;
+        const contentEncoding = headers['content-encoding'];
+        const { body, decompressed } = decompressBodyBuffer(
+          rawBody,
+          contentEncoding
+        );
+        const formatted = RequestLogger.formatBody(body, contentType);
         const entry: ProxyLogEntry = {
           timestamp: new Date().toISOString(),
           direction: 'request',
@@ -102,12 +117,13 @@ export class MitmProxyServer extends EventEmitter {
           host,
           headers,
           ...formatted,
+          bodyDecompressed: decompressed || undefined,
           isConnectRpc: RequestLogger.isConnectRpcContentType(contentType),
           isCursorHost: RequestLogger.isCursorHost(host),
           requestId,
         };
         this.requestLogger.log(entry);
-        this.handlers?.onTraffic?.(toTrafficSummary(entry));
+        this.emitTrafficSummary(entry);
         endCallback();
       });
 
@@ -148,9 +164,14 @@ export class MitmProxyServer extends EventEmitter {
           0,
           this.statistics.activeConnections - 1
         );
-        const body = Buffer.concat(bodyChunks);
-        this.statistics.bytesTransferred += body.length;
-        const formatted = RequestLogger.formatBody(body);
+        const rawBody = Buffer.concat(bodyChunks);
+        this.statistics.bytesTransferred += rawBody.length;
+        const contentEncoding = headers['content-encoding'];
+        const { body, decompressed } = decompressBodyBuffer(
+          rawBody,
+          contentEncoding
+        );
+        const formatted = RequestLogger.formatBody(body, contentType);
         const entry: ProxyLogEntry = {
           timestamp: new Date().toISOString(),
           direction: 'response',
@@ -159,12 +180,13 @@ export class MitmProxyServer extends EventEmitter {
           statusCode,
           headers,
           ...formatted,
+          bodyDecompressed: decompressed || undefined,
           isConnectRpc: RequestLogger.isConnectRpcContentType(contentType),
           isCursorHost: RequestLogger.isCursorHost(host),
           requestId,
         };
         this.requestLogger.log(entry);
-        this.handlers?.onTraffic?.(toTrafficSummary(entry, durationMs));
+        this.emitTrafficSummary(entry, durationMs);
         endCallback();
       });
 
@@ -210,6 +232,20 @@ export class MitmProxyServer extends EventEmitter {
 
   getStatistics(): ProxyStatistics {
     return { ...this.statistics };
+  }
+
+  private emitTrafficSummary(entry: ProxyLogEntry, durationMs?: number): void {
+    if (!this.handlers?.onTraffic) {
+      return;
+    }
+
+    void buildTrafficSummary(entry, durationMs)
+      .then((summary) => {
+        this.handlers?.onTraffic?.(summary);
+      })
+      .catch(() => {
+        this.handlers?.onTraffic?.(toTrafficSummary(entry, durationMs));
+      });
   }
 
   private buildRequestUrl(ctx: {

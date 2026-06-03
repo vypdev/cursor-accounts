@@ -40,7 +40,24 @@ pnpm run verify:proto-jsonl
 Walks every `aiserver.v1.*` request/response in JSONL files and checks:
 
 - **JSON Connect** — response keys exist in the matching `*Request`/`*Response` message
-- **`application/proto`** — decode with `protobufjs` (and `gunzip` when `content-encoding: gzip`)
+- **`application/proto`** — decode with `protobufjs` (supports `bodyBase64`, decompressed bodies, and legacy UTF-8 logs)
+
+## Analyze traffic (decode + insights)
+
+```bash
+pnpm run analyze:proxy-traffic
+```
+
+Decodes JSONL entries and prints billing/token insights where available.
+
+## MITM integration
+
+The proxy (`src/proxy/`) now:
+
+- Logs binary bodies as **Base64** (`bodyBase64`, `bodyEncoding`)
+- **Decompresses** gzip/brotli before logging when possible
+- Decodes Connect/protobuf via `protoRegistry` + `proxyDecode` when tailing logs
+- Surfaces **billing / token / context** hints in the Output channel
 
 ## Source bundle
 

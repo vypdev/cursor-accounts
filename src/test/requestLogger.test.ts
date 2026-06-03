@@ -48,6 +48,15 @@ describe('RequestLogger', () => {
     assert.ok((formatted.body?.length ?? 0) <= 10_240);
   });
 
+  it('encodes binary proto bodies as base64', () => {
+    const formatted = RequestLogger.formatBody(
+      Buffer.from([0, 1, 2, 255]),
+      'application/proto'
+    );
+    assert.equal(formatted.bodyEncoding, 'base64');
+    assert.ok(formatted.bodyBase64);
+  });
+
   it('detects Connect-RPC content type', () => {
     assert.equal(
       RequestLogger.isConnectRpcContentType('application/connect+proto'),
