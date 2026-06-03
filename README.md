@@ -73,6 +73,7 @@ No additional installation required. See [docs/PLATFORM-SUPPORT.md](docs/PLATFOR
 - [Architecture](docs/ARCHITECTURE.md)
 - [Building & Packaging](docs/BUILD.md)
 - [API Research](docs/RESEARCH.md)
+- [Dashboard Usage Events API](docs/USAGE-EVENTS-API.md)
 - [Platform Support](docs/PLATFORM-SUPPORT.md)
 
 ### Other

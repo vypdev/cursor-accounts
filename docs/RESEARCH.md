@@ -20,6 +20,7 @@ Cursor staff (forum, 2026) state there is **no public personal usage API** for i
 |--------|----------|------|------|
 | IDE backend (Connect RPC) | `POST https://api2.cursor.sh/aiserver.v1.DashboardService/GetCurrentPeriodUsage` | Bearer JWT from `cursorAuth/accessToken` | Pro/Ultra; also attempted for enterprise |
 | Web dashboard | `GET https://cursor.com/api/usage-summary` | `WorkosCursorSessionToken` cookie (derived from JWT) | Enterprise / team accounts; fallback when IDE data is empty |
+| Web dashboard (usage table) | `POST https://cursor.com/api/dashboard/get-filtered-usage-events` | Same session cookie + `Origin: https://cursor.com` | **Not used** by this extension; see [USAGE-EVENTS-API.md](USAGE-EVENTS-API.md) |
 
 **IDE response fields used:**
 
@@ -166,6 +167,7 @@ For privacy and data handling, see [PRIVACY.md](PRIVACY.md).
 
 ## Related documentation
 
+- [USAGE-EVENTS-API.md](USAGE-EVENTS-API.md) — per-request usage table (`cursor.com/dashboard/usage`)
 - [HOW-IT-WORKS.md](HOW-IT-WORKS.md) — user-facing technical overview
 - [ARCHITECTURE.md](ARCHITECTURE.md) — extension structure and data flows
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md) — common issues and account-switching guidance
