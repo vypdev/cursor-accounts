@@ -259,6 +259,8 @@
   "webview.profileCard.repoPublic": "Public",
   "webview.profileCard.resets": "Reset: {date}",
   "webview.profileCard.running": "Obecnie uruchomiony",
+  "webview.profileCard.proxyTemporary": "Tymczasowy proxy",
+  "webview.profileCard.proxyTemporaryHint": "Ustawienia proxy tego profilu zostały tymczasowo zmienione. Zostaną przywrócone po zatrzymaniu proxy lub po otwarciu Cursora bez profilu.",
   "webview.profileCard.showInExplorer": "Pokaż w Eksploratorze",
   "webview.profileCard.signIn": "Zaloguj się",
   "webview.profileCard.teamBudgetLabel": "Zespół: {value}",

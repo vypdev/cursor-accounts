@@ -36,6 +36,7 @@ import { getLocale, getWebviewMessages, isRtlLocale, t } from '../l10n';
 import type { IProfileStorageAnalyzer } from '../domain/ports/IProfileStorageAnalyzer';
 import type { IStorageCleanupService } from '../domain/ports/IStorageCleanupService';
 import type { IProxyManager } from '../domain/ports/IProxyManager';
+import type { ProxySettingsService } from '../services/proxySettingsService';
 import type { ProxyStatus } from '@cursor-accounts/types';
 import { AccountsPanelHandlers } from './accountsPanelHandlers';
 
@@ -74,7 +75,8 @@ export class AccountsPanelProvider {
     authReader: IProfileAuthReader,
     storageCleanupService: IStorageCleanupService,
     storageAnalyzer: IProfileStorageAnalyzer,
-    private readonly proxyManager: IProxyManager
+    private readonly proxyManager: IProxyManager,
+    private readonly proxySettingsService?: ProxySettingsService
   ) {
     this.efficiencyService = efficiencyService;
 
@@ -140,6 +142,29 @@ export class AccountsPanelProvider {
         `[AccountsPanel] Auto-open on empty workspace skipped: ${extensionLog.formatError(error)}`
       );
     }
+  }
+
+  private async buildProfileProxyTemporary(): Promise<Record<string, boolean>> {
+    if (!this.proxySettingsService) {
+      return {};
+    }
+
+    const backupInfo = await this.proxySettingsService.getAllProxyBackupInfo();
+    const activeProxyUrl = await this.proxyManager.getProxyServerUrl();
+    const result: Record<string, boolean> = {};
+
+    for (const [profileId, info] of backupInfo) {
+      if (info.hasBackup) {
+        result[profileId] = true;
+      } else if (
+        activeProxyUrl != null &&
+        info.currentProxyUrl === activeProxyUrl
+      ) {
+        result[profileId] = true;
+      }
+    }
+
+    return result;
   }
 
   private buildProfileWorkspaces(
@@ -288,6 +313,7 @@ export class AccountsPanelProvider {
         }),
         currentWindowUsesProxy:
           await this.proxyManager.isCurrentWindowUsingProxy(),
+        profileProxyTemporary: await this.buildProfileProxyTemporary(),
         locale: getLocale(),
         messages: getWebviewMessages(),
       };

@@ -259,6 +259,8 @@
   "webview.profileCard.repoPublic": "Public",
   "webview.profileCard.resets": "Reset: {date}",
   "webview.profileCard.running": "In esecuzione",
+  "webview.profileCard.proxyTemporary": "Proxy temporaneo",
+  "webview.profileCard.proxyTemporaryHint": "Le impostazioni proxy di questo profilo sono state modificate temporaneamente. Verranno ripristinate quando il proxy si arresta o quando apri Cursor senza profilo.",
   "webview.profileCard.showInExplorer": "Mostra in Explorer",
   "webview.profileCard.signIn": "Accedi",
   "webview.profileCard.teamBudgetLabel": "Team: {value}",

@@ -259,6 +259,8 @@
   "webview.profileCard.repoPublic": "Public",
   "webview.profileCard.resets": "Tilbakestilles: {date}",
   "webview.profileCard.running": "Kjører nå",
+  "webview.profileCard.proxyTemporary": "Midlertidig proxy",
+  "webview.profileCard.proxyTemporaryHint": "Proxy-innstillingene for denne profilen er midlertidig endret. De gjenopprettes når proxyen stoppes, eller når du åpner Cursor uten profil.",
   "webview.profileCard.showInExplorer": "Vis i Utforsker",
   "webview.profileCard.signIn": "Logg inn",
   "webview.profileCard.teamBudgetLabel": "Team: {value}",

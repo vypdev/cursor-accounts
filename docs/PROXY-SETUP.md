@@ -35,12 +35,19 @@ After removal, the badge should show **CA not trusted** when you focus the panel
 
 ## Route Cursor through the proxy
 
-When the proxy is **running**, launching a profile from the Accounts panel adds:
+When the proxy is **running**, launching a profile from the Accounts panel:
 
-- `--proxy-server=http://127.0.0.1:<port>`
-- `NODE_EXTRA_CA_CERTS` pointing at the generated CA (for Node/Electron)
+- Writes `http.proxy` to that profile's `User/settings.json` (with `http.proxySupport: "override"`)
+- Backs up any existing `http.proxy` to `http.proxy.backup` (restored later)
+- Sets `NODE_EXTRA_CA_CERTS` in the environment when spawning Cursor (for Node/Electron)
 
-Windows opened **before** the proxy started do not use it until you launch a new profile window.
+When you **stop the proxy** or open the **default Cursor window** (no managed profile), the extension restores the original proxy settings in **all** stored profiles.
+
+When the proxy **starts**, temporary proxy overrides are cleared from every profile so none use the proxy until you launch a profile again.
+
+Windows opened **before** the proxy started, or already running when settings change, may need a **window reload** or relaunch to pick up `settings.json` changes.
+
+The Accounts panel shows a **Temporary proxy** badge on profiles whose `settings.json` was modified and will be restored automatically.
 
 ## View logs
 
@@ -63,7 +70,9 @@ Open the folder via **View Logs** in the panel or **Cursor Accounts: Open Proxy 
 | Proxy fails to start | Another process may use the port; change **Proxy: Port** or stop the other service. |
 | Cursor network errors | Install the CA certificate; confirm the panel shows **CA trusted**, then restart Cursor if needed. |
 | Panel shows **CA not trusted** after install | Focus the Accounts panel again to refresh; on Linux, confirm `/usr/local/share/ca-certificates/cursor-accounts-mitm.crt` exists and run `sudo update-ca-certificates`. |
-| Panel shows proxy running but this window does not use it | Launch the profile again after starting the proxy. |
+| Panel shows proxy running but this window does not use it | Launch the profile again after starting the proxy, or reload the window. |
+| Empty proxy logs | Ensure the profile window was launched after the proxy started; confirm `http.proxy` in that profile's settings. |
+| Profile shows **Temporary proxy** badge | Normal while the proxy is active; settings revert when the proxy stops or the default window opens. |
 | Stale “running” status | The proxy process may have crashed; click **Stop Proxy** then **Start Proxy**. |
 
 ## Configuration reference
@@ -73,4 +82,3 @@ Open the folder via **View Logs** in the panel or **Cursor Accounts: Open Proxy 
 | `cursorAccounts.proxy.enabled` | `false` | Start proxy on extension activation |
 | `cursorAccounts.proxy.port` | `8080` | Local TCP port |
 | `cursorAccounts.proxy.maxLogSizeMB` | `100` | Max total log size before rotation |
-| `cursorAccounts.proxy.autoLaunchWithProxy` | `true` | Inject proxy args when launching profiles if proxy is running |

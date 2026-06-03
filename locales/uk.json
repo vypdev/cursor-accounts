@@ -259,6 +259,8 @@
   "webview.profileCard.repoPublic": "Public",
   "webview.profileCard.resets": "Скидання: {date}",
   "webview.profileCard.running": "Зараз запущено",
+  "webview.profileCard.proxyTemporary": "Тимчасовий проксі",
+  "webview.profileCard.proxyTemporaryHint": "Налаштування проксі цього профілю тимчасово змінено. Вони будуть відновлені після зупинки проксі або відкриття Cursor без профілю.",
   "webview.profileCard.showInExplorer": "Показати в провіднику",
   "webview.profileCard.signIn": "Увійти",
   "webview.profileCard.teamBudgetLabel": "Команда: {value}",

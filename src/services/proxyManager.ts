@@ -2,7 +2,12 @@ import { fork, type ChildProcess } from 'child_process';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as vscode from 'vscode';
-import type { ProxyStartResult, IProxyManager } from '../domain/ports/IProxyManager';
+import type {
+  ProxyStartResult,
+  IProxyManager,
+  RestoreAllProfilesResult,
+} from '../domain/ports/IProxyManager';
+import type { ProxySettingsService } from './proxySettingsService';
 import type { IProxyStateStore } from '../domain/ports/IProxyStateStore';
 import type {
   ProxyInstallGuide,
@@ -42,7 +47,8 @@ export class ProxyManager implements IProxyManager {
   constructor(
     private readonly stateStore: IProxyStateStore,
     private readonly context: vscode.ExtensionContext,
-    storageDir: string = getSharedProxyStorageDir()
+    storageDir: string = getSharedProxyStorageDir(),
+    private readonly proxySettingsService?: ProxySettingsService
   ) {
     this.storageDir = storageDir;
     this.logDir = path.join(this.storageDir, 'logs');
@@ -143,6 +149,16 @@ export class ProxyManager implements IProxyManager {
       await this.stateStore.write(state);
 
       extensionLog.info(`[Proxy] Started on 127.0.0.1:${port} (pid ${child.pid})`);
+
+      if (this.proxySettingsService) {
+        const restoreResult = await this.proxySettingsService.restoreAllProfiles();
+        if (restoreResult.restored > 0) {
+          extensionLog.info(
+            `[Proxy] Cleared temporary proxy settings in ${restoreResult.restored} profile(s) on start`
+          );
+        }
+      }
+
       this.notifyStatusChange();
 
       return { success: true, port };
@@ -170,6 +186,20 @@ export class ProxyManager implements IProxyManager {
         }
       }
       await this.forceStopChild();
+
+      if (this.proxySettingsService) {
+        const restoreResult = await this.proxySettingsService.restoreAllProfiles();
+        if (restoreResult.errors.length > 0) {
+          extensionLog.warn(
+            `[Proxy] Restored ${restoreResult.restored} profile(s), ${restoreResult.errors.length} error(s)`
+          );
+        } else if (restoreResult.restored > 0) {
+          extensionLog.info(
+            `[Proxy] Restored proxy settings in ${restoreResult.restored} profile(s)`
+          );
+        }
+      }
+
       await this.stateStore.clear();
       extensionLog.info('[Proxy] Stopped');
       this.notifyStatusChange();
@@ -341,6 +371,13 @@ export class ProxyManager implements IProxyManager {
       return null;
     }
     return `http://127.0.0.1:${status.port}`;
+  }
+
+  async restoreAllProfileProxySettings(): Promise<RestoreAllProfilesResult> {
+    if (!this.proxySettingsService) {
+      return { restored: 0, errors: [] };
+    }
+    return await this.proxySettingsService.restoreAllProfiles();
   }
 
   private buildStatusFromChild(port: number): ProxyStatus {

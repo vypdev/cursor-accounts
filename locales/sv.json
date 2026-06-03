@@ -259,6 +259,8 @@
   "webview.profileCard.repoPublic": "Public",
   "webview.profileCard.resets": "Återställs: {date}",
   "webview.profileCard.running": "Körs nu",
+  "webview.profileCard.proxyTemporary": "Tillfällig proxy",
+  "webview.profileCard.proxyTemporaryHint": "Proxyinställningarna för den här profilen har ändrats tillfälligt. De återställs när proxyn stoppas eller när du öppnar Cursor utan profil.",
   "webview.profileCard.showInExplorer": "Visa i Utforskaren",
   "webview.profileCard.signIn": "Logga in",
   "webview.profileCard.teamBudgetLabel": "Team: {value}",

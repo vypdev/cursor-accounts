@@ -259,6 +259,8 @@
   "webview.profileCard.repoPublic": "Public",
   "webview.profileCard.resets": "リセット: {date}",
   "webview.profileCard.running": "実行中",
+  "webview.profileCard.proxyTemporary": "一時的なプロキシ",
+  "webview.profileCard.proxyTemporaryHint": "このプロファイルのプロキシ設定は一時的に変更されています。プロキシを停止するか、プロファイルなしで Cursor を開くと元に戻ります。",
   "webview.profileCard.showInExplorer": "エクスプローラーで表示",
   "webview.profileCard.signIn": "サインイン",
   "webview.profileCard.teamBudgetLabel": "チーム: {value}",

@@ -259,6 +259,8 @@
   "webview.profileCard.repoPublic": "Public",
   "webview.profileCard.resets": "Reset: {date}",
   "webview.profileCard.running": "Právě běží",
+  "webview.profileCard.proxyTemporary": "Dočasný proxy",
+  "webview.profileCard.proxyTemporaryHint": "Nastavení proxy tohoto profilu bylo dočasně změněno. Obnoví se po zastavení proxy nebo při otevření Cursoru bez profilu.",
   "webview.profileCard.showInExplorer": "Zobrazit v Průzkumníku",
   "webview.profileCard.signIn": "Přihlásit se",
   "webview.profileCard.teamBudgetLabel": "Tým: {value}",

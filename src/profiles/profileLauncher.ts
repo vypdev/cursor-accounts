@@ -6,6 +6,7 @@ import { ensureDirectory } from '../utils/pathUtils';
 import type { IInstanceDetector } from '../domain/ports/IInstanceDetector';
 import type { IProfileLauncher } from '../domain/ports/IProfileLauncher';
 import type { IProfileManager } from '../domain/ports/IProfileManager';
+import type { IProfileSettingsManager } from '../domain/ports/IProfileSettingsManager';
 import type { IProxyManager } from '../domain/ports/IProxyManager';
 import type { Profile } from './types';
 
@@ -45,16 +46,12 @@ export class ProfileLauncherError extends Error {
 /**
  * Build a clean environment for spawning Cursor outside the extension host.
  */
-/** Build argv for Cursor with optional proxy and project path. */
+/** Build argv for Cursor with optional project path. */
 export function buildLaunchArgs(
   userDataDir: string,
-  projectPath?: string,
-  proxyUrl?: string
+  projectPath?: string
 ): string[] {
   const args = ['--user-data-dir', userDataDir];
-  if (proxyUrl) {
-    args.push('--proxy-server', proxyUrl);
-  }
   if (projectPath) {
     args.push(projectPath);
   }
@@ -66,6 +63,7 @@ export function buildSpawnEnv(caCertPath?: string): NodeJS.ProcessEnv {
   for (const key of SPAWN_ENV_STRIP_KEYS) {
     delete env[key];
   }
+  delete env.NODE_EXTRA_CA_CERTS;
   if (caCertPath) {
     env.NODE_EXTRA_CA_CERTS = caCertPath;
   }
@@ -97,7 +95,8 @@ export class ProfileLauncher implements IProfileLauncher {
   constructor(
     private readonly profileManager: IProfileManager,
     private readonly instanceDetector?: IInstanceDetector,
-    private readonly proxyManager?: IProxyManager
+    private readonly proxyManager?: IProxyManager,
+    private readonly profileSettingsManager?: IProfileSettingsManager
   ) {}
 
   /**
@@ -174,13 +173,23 @@ export class ProfileLauncher implements IProfileLauncher {
       await ensureDirectory(userDataDir);
 
       const launchContext = await this.resolveProxyLaunchContext();
+      if (launchContext?.proxyUrl && this.profileSettingsManager) {
+        try {
+          await this.profileSettingsManager.applyProxySettings(
+            userDataDir,
+            launchContext.proxyUrl
+          );
+        } catch (error) {
+          extensionLog.warn(
+            `[ProfileLauncher] Failed to apply proxy settings: ${
+              error instanceof Error ? error.message : String(error)
+            }`
+          );
+        }
+      }
 
       const execPath = this.getExecutablePath();
-      const args = this.buildLaunchArgs(
-        userDataDir,
-        projectPath,
-        launchContext?.proxyUrl
-      );
+      const args = this.buildLaunchArgs(userDataDir, projectPath);
 
       extensionLog.info(
         `[ProfileLauncher] Spawn: ${this.formatSpawnCommand(execPath, args)}`
@@ -307,12 +316,8 @@ export class ProfileLauncher implements IProfileLauncher {
   /**
    * Build command line arguments for launching with profile.
    */
-  buildLaunchArgs(
-    userDataDir: string,
-    projectPath?: string,
-    proxyUrl?: string
-  ): string[] {
-    return buildLaunchArgs(userDataDir, projectPath, proxyUrl);
+  buildLaunchArgs(userDataDir: string, projectPath?: string): string[] {
+    return buildLaunchArgs(userDataDir, projectPath);
   }
 
   /**

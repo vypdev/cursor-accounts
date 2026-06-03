@@ -112,6 +112,7 @@ function createMockProxyManager(): IProxyManager {
     checkCertificateInstalled: async () => true,
     getCachedCertificateInstalled: () => true,
     getProxyServerUrl: async () => null,
+    restoreAllProfileProxySettings: async () => ({ restored: 0, errors: [] }),
     onStatusChange: () => undefined,
   };
 }

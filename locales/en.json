@@ -304,6 +304,8 @@
   "webview.profileCard.notTopActivity": "You're not in Cursor's Top Activity",
   "webview.profileCard.deleteConfirm": "Delete profile \"{name}\"?",
   "webview.profileCard.running": "Currently running",
+  "webview.profileCard.proxyTemporary": "Temporary proxy",
+  "webview.profileCard.proxyTemporaryHint": "Proxy settings in this profile were changed temporarily. They will be restored when the proxy stops or when you open Cursor without a profile.",
   "webview.profileCard.active": "Active",
   "webview.profileCard.noProjectOpen": "No project open — pick a recent project below or launch this profile",
   "webview.profileCard.theme": "Theme: {theme}",

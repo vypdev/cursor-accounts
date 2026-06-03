@@ -259,6 +259,8 @@
   "webview.profileCard.repoPublic": "Public",
   "webview.profileCard.resets": "Reset: {date}",
   "webview.profileCard.running": "Momenteel actief",
+  "webview.profileCard.proxyTemporary": "Tijdelijke proxy",
+  "webview.profileCard.proxyTemporaryHint": "De proxy-instellingen van dit profiel zijn tijdelijk gewijzigd. Ze worden hersteld wanneer de proxy stopt of wanneer je Cursor zonder profiel opent.",
   "webview.profileCard.showInExplorer": "Tonen in Verkenner",
   "webview.profileCard.signIn": "Aanmelden",
   "webview.profileCard.teamBudgetLabel": "Team: {value}",

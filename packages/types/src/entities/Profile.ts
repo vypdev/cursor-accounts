@@ -97,4 +97,6 @@ export interface ImportValidationResult {
 /** Profile enriched with scanned workspace folders. */
 export interface ProfileWithWorkspaces extends Profile {
   workspaces: WorkspaceInfo[];
+  /** True when MITM proxy settings are temporarily applied in settings.json. */
+  proxyTemporary?: boolean;
 }

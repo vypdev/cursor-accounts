@@ -60,6 +60,8 @@ export interface InitData {
   efficiencyStats: EfficiencyStatsMap;
   proxyStatus: ProxyStatus | null;
   currentWindowUsesProxy: boolean;
+  /** Profile IDs with temporary MITM proxy applied in settings.json. */
+  profileProxyTemporary: Record<string, boolean>;
   locale: string;
   messages: Record<string, string>;
 }

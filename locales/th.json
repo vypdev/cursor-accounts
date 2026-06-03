@@ -259,6 +259,8 @@
   "webview.profileCard.repoPublic": "Public",
   "webview.profileCard.resets": "รีเซ็ต: {date}",
   "webview.profileCard.running": "กำลังทำงานอยู่",
+  "webview.profileCard.proxyTemporary": "พร็อกซีชั่วคราว",
+  "webview.profileCard.proxyTemporaryHint": "การตั้งค่าพร็อกซีของโปรไฟล์นี้ถูกเปลี่ยนชั่วคราว จะถูกคืนค่าเมื่อหยุดพร็อกซีหรือเมื่อเปิด Cursor โดยไม่มีโปรไฟล์",
   "webview.profileCard.showInExplorer": "แสดงใน Explorer",
   "webview.profileCard.signIn": "เข้าสู่ระบบ",
   "webview.profileCard.teamBudgetLabel": "ทีม: {value}",

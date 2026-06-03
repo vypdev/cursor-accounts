@@ -259,6 +259,8 @@
   "webview.profileCard.repoPublic": "Public",
   "webview.profileCard.resets": "Đặt lại: {date}",
   "webview.profileCard.running": "Đang chạy",
+  "webview.profileCard.proxyTemporary": "Proxy tạm thời",
+  "webview.profileCard.proxyTemporaryHint": "Cài đặt proxy của hồ sơ này đã được thay đổi tạm thời. Sẽ được khôi phục khi dừng proxy hoặc khi mở Cursor không có hồ sơ.",
   "webview.profileCard.showInExplorer": "Hiển thị trong Explorer",
   "webview.profileCard.signIn": "Đăng nhập",
   "webview.profileCard.teamBudgetLabel": "Nhóm: {value}",

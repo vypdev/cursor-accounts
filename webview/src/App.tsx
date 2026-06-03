@@ -54,6 +54,9 @@ const AppContent: React.FC = () => {
   const [efficiencyStats, setEfficiencyStats] = useState<EfficiencyStatsMap>({});
   const [proxyStatus, setProxyStatus] = useState<ProxyStatus | null>(null);
   const [currentWindowUsesProxy, setCurrentWindowUsesProxy] = useState(false);
+  const [profileProxyTemporary, setProfileProxyTemporary] = useState<
+    Record<string, boolean>
+  >({});
   const [showCertInstallModal, setShowCertInstallModal] = useState(false);
   const [installGuide, setInstallGuide] = useState<ProxyInstallGuide | null>(
     null
@@ -125,6 +128,7 @@ const AppContent: React.FC = () => {
           setCurrentWindowUsesProxy(
             message.data.currentWindowUsesProxy ?? false
           );
+          setProfileProxyTemporary(message.data.profileProxyTemporary ?? {});
           setLoading(false);
           break;
 
@@ -601,6 +605,7 @@ const AppContent: React.FC = () => {
             quotas={quotas}
             efficiencyStats={efficiencyStats}
             runningInstances={runningInstances}
+            profileProxyTemporary={profileProxyTemporary}
             onLaunch={handleLaunch}
             onOpenProject={handleOpenProject}
             onEdit={handleEditOpen}

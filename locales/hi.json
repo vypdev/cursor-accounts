@@ -259,6 +259,8 @@
   "webview.profileCard.repoPublic": "Public",
   "webview.profileCard.resets": "रीसेट: {date}",
   "webview.profileCard.running": "वर्तमान में चल रहा है",
+  "webview.profileCard.proxyTemporary": "अस्थायी प्रॉक्सी",
+  "webview.profileCard.proxyTemporaryHint": "इस प्रोफ़ाइल की प्रॉक्सी सेटिंग अस्थायी रूप से बदली गई हैं। प्रॉक्सी बंद करने या बिना प्रोफ़ाइल Cursor खोलने पर पुनर्स्थापित होंगी।",
   "webview.profileCard.showInExplorer": "Explorer में दिखाएँ",
   "webview.profileCard.signIn": "साइन इन",
   "webview.profileCard.teamBudgetLabel": "टीम: {value}",

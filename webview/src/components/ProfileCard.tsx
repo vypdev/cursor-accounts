@@ -36,6 +36,7 @@ interface ProfileCardProps {
   githubTokenStatus?: ProfileGithubTokenStatus;
   quota?: ProfileQuota;
   isRunning: boolean;
+  proxyTemporary?: boolean;
   onLaunch: (id: string) => void;
   onOpenProject: (profileId: string, projectPath: string) => void;
   onEdit: (id: string) => void;
@@ -248,6 +249,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
   githubTokenStatus = 'not_configured',
   quota,
   isRunning,
+  proxyTemporary = false,
   onLaunch,
   onOpenProject,
   onEdit,
@@ -362,6 +364,14 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
           {isRunning && (
             <span className="running-indicator" title={t('profileCard.running')}>
               ●
+            </span>
+          )}
+          {proxyTemporary && (
+            <span
+              className="profile-proxy-temporary-badge"
+              title={t('profileCard.proxyTemporaryHint')}
+            >
+              {t('profileCard.proxyTemporary')}
             </span>
           )}
           <div className="profile-identity">

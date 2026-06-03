@@ -259,6 +259,8 @@
   "webview.profileCard.repoPublic": "Public",
   "webview.profileCard.resets": "Sıfırlanma: {date}",
   "webview.profileCard.running": "Şu anda çalışıyor",
+  "webview.profileCard.proxyTemporary": "Geçici proxy",
+  "webview.profileCard.proxyTemporaryHint": "Bu profilin proxy ayarları geçici olarak değiştirildi. Proxy durdurulduğunda veya profil olmadan Cursor açıldığında geri yüklenecek.",
   "webview.profileCard.showInExplorer": "Explorer'da Göster",
   "webview.profileCard.signIn": "Oturum Aç",
   "webview.profileCard.teamBudgetLabel": "Ekip: {value}",

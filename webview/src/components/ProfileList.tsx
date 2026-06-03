@@ -23,6 +23,7 @@ interface ProfileListProps {
   quotas: ProfileQuotaMap;
   efficiencyStats: EfficiencyStatsMap;
   runningInstances: InstanceInfoMap;
+  profileProxyTemporary: Record<string, boolean>;
   onLaunch: (id: string) => void;
   onOpenProject: (profileId: string, projectPath: string) => void;
   onEdit: (id: string) => void;
@@ -45,6 +46,7 @@ export const ProfileList: React.FC<ProfileListProps> = ({
   quotas,
   efficiencyStats,
   runningInstances,
+  profileProxyTemporary,
   onLaunch,
   onOpenProject,
   onEdit,
@@ -85,6 +87,7 @@ export const ProfileList: React.FC<ProfileListProps> = ({
           quota={quotas[profile.id]}
           efficiencyStats={efficiencyStats[profile.id]}
           isRunning={profile.id in runningInstances}
+          proxyTemporary={profileProxyTemporary[profile.id] === true}
           onLaunch={onLaunch}
           onOpenProject={onOpenProject}
           onEdit={onEdit}

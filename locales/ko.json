@@ -259,6 +259,8 @@
   "webview.profileCard.repoPublic": "Public",
   "webview.profileCard.resets": "초기화: {date}",
   "webview.profileCard.running": "현재 실행 중",
+  "webview.profileCard.proxyTemporary": "임시 프록시",
+  "webview.profileCard.proxyTemporaryHint": "이 프로필의 프록시 설정이 일시적으로 변경되었습니다. 프록시를 중지하거나 프로필 없이 Cursor를 열면 복원됩니다.",
   "webview.profileCard.showInExplorer": "탐색기에서 표시",
   "webview.profileCard.signIn": "로그인",
   "webview.profileCard.teamBudgetLabel": "팀: {value}",

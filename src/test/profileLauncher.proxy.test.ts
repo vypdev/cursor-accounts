@@ -3,17 +3,16 @@ import { describe, it } from 'node:test';
 import { buildLaunchArgs, buildSpawnEnv } from '../profiles/profileLauncher';
 
 describe('ProfileLauncher proxy injection', () => {
-  it('buildLaunchArgs includes --proxy-server when proxyUrl provided', () => {
-    const args = buildLaunchArgs('/data/profile', undefined, 'http://127.0.0.1:8080');
+  it('buildLaunchArgs does not include --proxy-server (proxy via settings.json)', () => {
+    const args = buildLaunchArgs('/data/profile', '/project/path');
     assert.deepEqual(args, [
       '--user-data-dir',
       '/data/profile',
-      '--proxy-server',
-      'http://127.0.0.1:8080',
+      '/project/path',
     ]);
   });
 
-  it('buildLaunchArgs omits proxy when proxyUrl not provided', () => {
+  it('buildLaunchArgs includes only user-data-dir when no project', () => {
     const args = buildLaunchArgs('/data/profile');
     assert.deepEqual(args, ['--user-data-dir', '/data/profile']);
   });

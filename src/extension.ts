@@ -22,6 +22,8 @@ import {
 import { InstanceDetector } from './profiles/instanceDetector';
 import { ProfileDetector } from './profiles/profileDetector';
 import { ProfileLauncher } from './profiles/profileLauncher';
+import { ProfileSettingsManager } from './profiles/profileSettingsManager';
+import { ProxySettingsService } from './services/proxySettingsService';
 import { createAccountsPanelStorageBundle } from './composition/createStorageServices';
 import { ProfileManager } from './profiles/profileManager';
 import { ProfileStorage } from './profiles/profileStorage';
@@ -79,13 +81,24 @@ export function activate(context: vscode.ExtensionContext): void {
   instanceDetectorRef = instanceDetector;
   const sharedProxyDir = getSharedProxyStorageDir();
   const proxyStateStore = new ProxyStateFileStore(sharedProxyDir);
-  const proxyManager = new ProxyManager(proxyStateStore, context, sharedProxyDir);
+  const profileSettingsManager = new ProfileSettingsManager();
+  const proxySettingsService = new ProxySettingsService(
+    profileManager,
+    profileSettingsManager
+  );
+  const proxyManager = new ProxyManager(
+    proxyStateStore,
+    context,
+    sharedProxyDir,
+    proxySettingsService
+  );
   proxyManagerRef = proxyManager;
 
   const profileLauncher = new ProfileLauncher(
     profileManager,
     instanceDetector,
-    proxyManager
+    proxyManager,
+    profileSettingsManager
   );
   const workspaceScanner = new WorkspaceScanner();
   const profileWorkspaceService = new ProfileWorkspaceService(
@@ -142,7 +155,8 @@ export function activate(context: vscode.ExtensionContext): void {
     profileAuthReader,
     storageBundle.storageCleanupService,
     storageBundle.storageAnalyzer,
-    proxyManager
+    proxyManager,
+    proxySettingsService
   );
 
   efficiencyStatsStorage.setStatsUpdatedListener(() => {
@@ -168,6 +182,24 @@ export function activate(context: vscode.ExtensionContext): void {
     await efficiencyService?.initialize();
 
     const currentProfile = await profileDetector.detectCurrentProfile();
+
+    if (currentProfile === null) {
+      extensionLog.info(
+        '[Extension] Default window detected - restoring proxy settings in all profiles'
+      );
+      const restoreResult = await proxySettingsService.restoreAllProfiles();
+      if (restoreResult.restored > 0) {
+        extensionLog.info(
+          `[Extension] Restored proxy settings in ${restoreResult.restored} profile(s)`
+        );
+      }
+      if (restoreResult.errors.length > 0) {
+        extensionLog.warn(
+          `[Extension] Failed to restore proxy settings for ${restoreResult.errors.length} profile(s)`
+        );
+      }
+    }
+
     const workspaceOpen = hasActiveWorkspace();
     if (shouldAutoOpenAccountsPanel(currentProfile, workspaceOpen)) {
       accountsPanel.openPanel();

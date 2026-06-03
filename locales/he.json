@@ -259,6 +259,8 @@
   "webview.profileCard.repoPublic": "Public",
   "webview.profileCard.resets": "איפוס: {date}",
   "webview.profileCard.running": "פועל כעת",
+  "webview.profileCard.proxyTemporary": "פרוקסי זמני",
+  "webview.profileCard.proxyTemporaryHint": "הגדרות הפרוקסי של פרופיל זה שונו זמנית. הן ישוחזרו בעת עצירת הפרוקסי או בפתיחת Cursor ללא פרופיל.",
   "webview.profileCard.showInExplorer": "הצג ב-Explorer",
   "webview.profileCard.signIn": "התחבר",
   "webview.profileCard.teamBudgetLabel": "צוות: {value}",

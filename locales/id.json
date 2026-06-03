@@ -259,6 +259,8 @@
   "webview.profileCard.repoPublic": "Public",
   "webview.profileCard.resets": "Reset: {date}",
   "webview.profileCard.running": "Sedang berjalan",
+  "webview.profileCard.proxyTemporary": "Proxy sementara",
+  "webview.profileCard.proxyTemporaryHint": "Pengaturan proxy profil ini diubah sementara. Akan dipulihkan saat proxy dihentikan atau saat membuka Cursor tanpa profil.",
   "webview.profileCard.showInExplorer": "Tampilkan di Explorer",
   "webview.profileCard.signIn": "Masuk",
   "webview.profileCard.teamBudgetLabel": "Tim: {value}",

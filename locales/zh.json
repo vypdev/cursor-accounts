@@ -259,6 +259,8 @@
   "webview.profileCard.repoPublic": "Public",
   "webview.profileCard.resets": "重置：{date}",
   "webview.profileCard.running": "正在运行",
+  "webview.profileCard.proxyTemporary": "临时代理",
+  "webview.profileCard.proxyTemporaryHint": "此配置文件的代理设置已临时修改。停止代理或在无配置文件的情况下打开 Cursor 时将恢复。",
   "webview.profileCard.showInExplorer": "在资源管理器中显示",
   "webview.profileCard.signIn": "登录",
   "webview.profileCard.teamBudgetLabel": "团队：{value}",

@@ -259,6 +259,8 @@
   "webview.profileCard.repoPublic": "Public",
   "webview.profileCard.resets": "إعادة التعيين: {date}",
   "webview.profileCard.running": "قيد التشغيل حالياً",
+  "webview.profileCard.proxyTemporary": "وكيل مؤقت",
+  "webview.profileCard.proxyTemporaryHint": "تم تعديل إعدادات الوكيل لهذا الملف الشخصي مؤقتاً. سيتم استعادتها عند إيقاف الوكيل أو عند فتح Cursor بدون ملف شخصي.",
   "webview.profileCard.showInExplorer": "عرض في Explorer",
   "webview.profileCard.signIn": "تسجيل الدخول",
   "webview.profileCard.teamBudgetLabel": "الفريق: {value}",
