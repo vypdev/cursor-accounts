@@ -30,6 +30,18 @@ Uses `protobufjs` to:
 2. Decode a binary `GetUsageLimitStatusAndActiveGrants` response from proxy logs
 3. Print JSON `GetCurrentPeriodUsage` responses when captured as Connect JSON
 
+## Verify against all proxy JSONL logs
+
+```bash
+pnpm run verify:proto-jsonl
+# optional: node scripts/verify-proto-jsonl.mjs ~/.cursor-accounts/proxy/logs
+```
+
+Walks every `aiserver.v1.*` request/response in JSONL files and checks:
+
+- **JSON Connect** — response keys exist in the matching `*Request`/`*Response` message
+- **`application/proto`** — decode with `protobufjs` (and `gunzip` when `content-encoding: gzip`)
+
 ## Source bundle
 
 `Cursor.app/Contents/Resources/app/out/vs/workbench/api/node/extensionHostProcess.js`
