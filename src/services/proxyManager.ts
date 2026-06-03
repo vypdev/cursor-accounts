@@ -157,6 +157,8 @@ export class ProxyManager implements IProxyManager {
             `[Proxy] Cleared temporary proxy settings in ${restoreResult.restored} profile(s) on start`
           );
         }
+        const proxyUrl = `http://127.0.0.1:${port}`;
+        await this.proxySettingsService.applyProxyForRunningProfiles(proxyUrl);
       }
 
       this.notifyStatusChange();

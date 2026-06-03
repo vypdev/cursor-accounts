@@ -5,6 +5,8 @@ import type {
   ProxyBackupInfo,
 } from '../domain/ports/IProfileSettingsManager';
 import { validateUserDataPath } from '../utils/pathUtils';
+import { resolveProfileSettingsPaths } from './applicationSettingsPath';
+import * as extensionLog from '../logging/extensionLog';
 
 export class ProfileSettingsError extends Error {
   constructor(
@@ -29,13 +31,15 @@ const PROXY_STRICT_SSL_OFF = false;
  */
 export class ProfileSettingsManager implements IProfileSettingsManager {
   async readSettings(
-    userDataDir: string
+    userDataDir: string,
+    settingsPath?: string
   ): Promise<Record<string, unknown> | null> {
     this.assertValidUserDataDir(userDataDir);
-    const settingsPath = this.getSettingsPath(userDataDir);
+    const resolvedPath =
+      settingsPath ?? (await this.getApplicationSettingsPath(userDataDir));
 
     try {
-      const content = await fs.readFile(settingsPath, 'utf-8');
+      const content = await fs.readFile(resolvedPath, 'utf-8');
       const jsonContent = this.stripJsonComments(content);
       return JSON.parse(jsonContent) as Record<string, unknown>;
     } catch (error) {
@@ -43,7 +47,7 @@ export class ProfileSettingsManager implements IProfileSettingsManager {
         return null;
       }
       throw new ProfileSettingsError(
-        `Failed to read settings at ${settingsPath}`,
+        `Failed to read settings at ${resolvedPath}`,
         error instanceof Error ? error : undefined
       );
     }
@@ -51,23 +55,25 @@ export class ProfileSettingsManager implements IProfileSettingsManager {
 
   async writeSettings(
     userDataDir: string,
-    settings: Record<string, unknown>
+    settings: Record<string, unknown>,
+    settingsPath?: string
   ): Promise<void> {
     this.assertValidUserDataDir(userDataDir);
-    const userDir = path.join(userDataDir, 'User');
+    const targetPath =
+      settingsPath ?? (await this.getApplicationSettingsPath(userDataDir));
+    const userDir = path.dirname(targetPath);
     await fs.mkdir(userDir, { recursive: true });
 
-    const settingsPath = path.join(userDir, 'settings.json');
-    const tmpPath = `${settingsPath}.${process.pid}.tmp`;
+    const tmpPath = `${targetPath}.${process.pid}.tmp`;
     const json = `${JSON.stringify(settings, null, 2)}\n`;
 
     try {
       await fs.writeFile(tmpPath, json, 'utf-8');
-      await fs.rename(tmpPath, settingsPath);
+      await fs.rename(tmpPath, targetPath);
     } catch (error) {
       await fs.unlink(tmpPath).catch(() => undefined);
       throw new ProfileSettingsError(
-        `Failed to write settings at ${settingsPath}`,
+        `Failed to write settings at ${targetPath}`,
         error instanceof Error ? error : undefined
       );
     }
@@ -97,11 +103,16 @@ export class ProfileSettingsManager implements IProfileSettingsManager {
     settings[PROXY_SUPPORT_KEY] = PROXY_SUPPORT_OVERRIDE;
     settings[PROXY_SSL_KEY] = PROXY_STRICT_SSL_OFF;
 
-    await this.writeSettings(userDataDir, settings);
+    const applicationPath = await this.getApplicationSettingsPath(userDataDir);
+    await this.writeSettings(userDataDir, settings, applicationPath);
+    extensionLog.info(
+      `[ProfileSettings] Applied proxy to application settings: ${applicationPath}`
+    );
   }
 
   async restoreProxySettings(userDataDir: string): Promise<void> {
-    const settings = await this.readSettings(userDataDir);
+    const applicationPath = await this.getApplicationSettingsPath(userDataDir);
+    const settings = await this.readSettings(userDataDir, applicationPath);
     if (settings == null) {
       return;
     }
@@ -112,7 +123,7 @@ export class ProfileSettingsManager implements IProfileSettingsManager {
       delete settings[PROXY_BACKUP_KEY];
       delete settings[PROXY_SUPPORT_KEY];
       delete settings[PROXY_SSL_KEY];
-      await this.writeSettings(userDataDir, settings);
+      await this.writeSettings(userDataDir, settings, applicationPath);
       return;
     }
 
@@ -123,12 +134,13 @@ export class ProfileSettingsManager implements IProfileSettingsManager {
     delete settings[PROXY_KEY];
     delete settings[PROXY_SUPPORT_KEY];
     delete settings[PROXY_SSL_KEY];
-    await this.writeSettings(userDataDir, settings);
+    await this.writeSettings(userDataDir, settings, applicationPath);
   }
 
   async getProxyBackupInfo(userDataDir: string): Promise<ProxyBackupInfo> {
     try {
-      const settings = await this.readSettings(userDataDir);
+      const applicationPath = await this.getApplicationSettingsPath(userDataDir);
+      const settings = await this.readSettings(userDataDir, applicationPath);
       if (settings == null) {
         return { hasBackup: false };
       }
@@ -146,8 +158,9 @@ export class ProfileSettingsManager implements IProfileSettingsManager {
     }
   }
 
-  private getSettingsPath(userDataDir: string): string {
-    return path.join(userDataDir, 'User', 'settings.json');
+  private async getApplicationSettingsPath(userDataDir: string): Promise<string> {
+    const paths = await resolveProfileSettingsPaths(userDataDir);
+    return paths.applicationSettingsPath;
   }
 
   private assertValidUserDataDir(userDataDir: string): void {

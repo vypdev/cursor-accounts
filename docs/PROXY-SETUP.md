@@ -47,6 +47,22 @@ When the proxy **starts**, temporary proxy overrides are cleared from every prof
 
 Windows opened **before** the proxy started, or already running when settings change, may need a **window reload** or relaunch to pick up `settings.json` changes.
 
+### Where to see `http.proxy` in Cursor Settings
+
+`http.proxy` is an **application-scoped** setting. In the Settings UI it appears under **Application → Proxy** with the note **(Applies to all profiles)** — that refers to Cursor’s built-in Settings Profiles inside the same window, not to Cursor Accounts profiles.
+
+The value is stored in:
+
+`<profile-user-data-dir>/User/settings.json`
+
+For a Cursor Accounts profile at `~/.cursor-myaccount`, open that file or run **Preferences: Open Application Settings (JSON)** (not **Open User Settings (JSON)**, which opens the current VS Code Settings Profile file under `User/profiles/...` and will not show `http.proxy`).
+
+If the field is empty after starting the proxy:
+
+1. Start the proxy, then **launch the profile again** from the Accounts panel (or reload the window).
+2. Confirm the proxy was running **before** launch.
+3. Check `User/settings.json` on disk for `http.proxy` and `http.proxySupport`.
+
 The Accounts panel shows a **Temporary proxy** badge on profiles whose `settings.json` was modified and will be restored automatically.
 
 ## View logs

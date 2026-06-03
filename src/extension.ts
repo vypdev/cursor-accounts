@@ -84,7 +84,8 @@ export function activate(context: vscode.ExtensionContext): void {
   const profileSettingsManager = new ProfileSettingsManager();
   const proxySettingsService = new ProxySettingsService(
     profileManager,
-    profileSettingsManager
+    profileSettingsManager,
+    instanceDetector
   );
   const proxyManager = new ProxyManager(
     proxyStateStore,
