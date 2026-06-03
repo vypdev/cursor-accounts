@@ -4,6 +4,8 @@ The Cursor Accounts extension can run a local MITM proxy to observe HTTP/HTTPS t
 
 ## Enable the proxy
 
+The proxy process and its state file live under `~/.cursor-accounts/proxy` so **every Cursor window** (default profile and profile windows) sees the same running/stopped status.
+
 1. Open VS Code/Cursor Settings and search for `cursorAccounts.proxy`.
 2. Set **Proxy: Enabled** to start the proxy when the extension activates, or use the Accounts panel **MITM Proxy** card to start/stop manually.
 3. Default listen address: `127.0.0.1:8080` (configurable via **Proxy: Port**).

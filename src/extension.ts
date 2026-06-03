@@ -9,6 +9,7 @@ import { TokenService } from './auth/tokenRefresh';
 import { registerProfileCommands } from './commands/profileCommands';
 import { registerProxyCommands } from './commands/proxyCommands';
 import { ProxyStateFileStore } from './proxy/proxyStateFileStore';
+import { getSharedProxyStorageDir } from './proxy/sharedProxyPaths';
 import { ProxyManager } from './services/proxyManager';
 import { affectsCursorAccountsConfig } from './config';
 import { initL10n, t } from './l10n';
@@ -76,8 +77,9 @@ export function activate(context: vscode.ExtensionContext): void {
   const profileDetector = new ProfileDetector(profileManager, context);
   const instanceDetector = new InstanceDetector(profileManager);
   instanceDetectorRef = instanceDetector;
-  const proxyStateStore = new ProxyStateFileStore(context.globalStorageUri.fsPath);
-  const proxyManager = new ProxyManager(proxyStateStore, context);
+  const sharedProxyDir = getSharedProxyStorageDir();
+  const proxyStateStore = new ProxyStateFileStore(sharedProxyDir);
+  const proxyManager = new ProxyManager(proxyStateStore, context, sharedProxyDir);
   proxyManagerRef = proxyManager;
 
   const profileLauncher = new ProfileLauncher(
@@ -145,6 +147,10 @@ export function activate(context: vscode.ExtensionContext): void {
 
   efficiencyStatsStorage.setStatsUpdatedListener(() => {
     void accountsPanel.postEfficiencyStats();
+  });
+
+  proxyManager.onStatusChange(() => {
+    void accountsPanel.refreshProxyStatus();
   });
 
   lifecycleLog.lifecycle('activate.begin', {

@@ -13,6 +13,7 @@ import { buildProxyInstallGuide } from '../proxy/buildProxyInstallGuide';
 import { verifyCaCertificateInstalled } from '../proxy/installCaCertificate';
 import * as extensionLog from '../logging/extensionLog';
 import { CertificateManager } from '../proxy/certificateManager';
+import { getSharedProxyStorageDir } from '../proxy/sharedProxyPaths';
 import { isPortAvailable, isProcessAlive, resolveAvailablePort } from '../proxy/portUtils';
 import {
   DEFAULT_PROXY_PORT,
@@ -40,10 +41,10 @@ export class ProxyManager implements IProxyManager {
 
   constructor(
     private readonly stateStore: IProxyStateStore,
-    private readonly context: vscode.ExtensionContext
+    private readonly context: vscode.ExtensionContext,
+    storageDir: string = getSharedProxyStorageDir()
   ) {
-    const base = context.globalStorageUri.fsPath;
-    this.storageDir = path.join(base, 'proxy');
+    this.storageDir = storageDir;
     this.logDir = path.join(this.storageDir, 'logs');
     this.certManager = new CertificateManager(path.join(this.storageDir, 'certs'));
   }
@@ -157,6 +158,16 @@ export class ProxyManager implements IProxyManager {
       if (this.childProcess?.connected) {
         this.childProcess.send({ type: 'shutdown' } satisfies ProxyParentMessage);
         await this.waitForExit(this.childProcess, PROXY_STOP_TIMEOUT_MS);
+      } else {
+        const state = await this.stateStore.read();
+        if (state?.pid != null) {
+          try {
+            process.kill(state.pid, 'SIGTERM');
+            await new Promise((resolve) => setTimeout(resolve, 500));
+          } catch {
+            // process may already be gone
+          }
+        }
       }
       await this.forceStopChild();
       await this.stateStore.clear();
