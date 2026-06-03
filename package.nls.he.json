@@ -31,10 +31,15 @@
   "commands.proxy.start.title": "Cursor Accounts: הפעל פרוקסי MITM",
   "commands.proxy.stop.title": "Cursor Accounts: עצור פרוקסי MITM",
   "commands.proxy.showLogs.title": "Cursor Accounts: פתח יומני פרוקסי",
+  "commands.proxy.showOutput.title": "Cursor Accounts: הצג תעבורת פרוקסי MITM",
   "commands.proxy.saveCertificate.title": "Cursor Accounts: שמור אישור CA לפרוקסי…",
   "configuration.debug.webviewLifecycle.description": "רשום אבחון מחזור חיי webview בערוץ הפלט של Cursor Accounts (השבת לאחר פתרון תקלות).",
   "configuration.proxy.enabled.description": "הפעל פרוקסי MITM בהפעלת ההרחבה (צופה בתעבורת הרשת של Cursor).",
   "configuration.proxy.port.description": "יציאת TCP של פרוקסי MITM מקומי (localhost בלבד).",
   "configuration.proxy.maxLogSizeMB.description": "גודל כולל מרבי של קובצי יומן הפרוקסי במגה-בייט.",
-  "configuration.proxy.autoLaunchWithProxy.description": "בהפעלת פרופיל, נתב תעבורה דרך הפרוקסי אם הוא פועל."
+  "configuration.proxy.autoLaunchWithProxy.description": "בהפעלת פרופיל, נתב תעבורה דרך הפרוקסי אם הוא פועל.",
+  "configuration.proxy.logTrafficToOutput.description": "כתוב תעבורת פרוקסי שנלכדה לערוץ הפלט Cursor MITM Proxy.",
+  "configuration.proxy.autoShowOutputChannel.description": "פתח אוטומטית את ערוץ הפלט Cursor MITM Proxy בעת הפעלת הפרוקסי.",
+  "configuration.proxy.outputCursorHostsOnly.description": "רשום רק תעבורת מארחי Cursor (cursor.sh, cursor.com) בערוץ הפלט של פרוקסי MITM.",
+  "configuration.proxy.outputTailFromStart.description": "בפתיחת ערוץ הפלט של פרוקסי MITM, השמע שורות אחרונות מקובץ הלוג הפעיל."
 }

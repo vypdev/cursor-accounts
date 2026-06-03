@@ -10,6 +10,7 @@ import {
 
 const proxyStateSchema = z.object({
   version: z.number(),
+  profileId: z.string(),
   running: z.boolean(),
   port: z.number().optional(),
   pid: z.number().optional(),
@@ -29,22 +30,17 @@ export class ProxyStateFileStoreError extends Error {
 }
 
 /**
- * Persists shared proxy state for multi-window visibility.
+ * Persists per-profile proxy state in each profile's userDataDir.
  */
 export class ProxyStateFileStore implements IProxyStateStore {
-  private readonly statePath: string;
-
-  constructor(globalStoragePath: string) {
-    this.statePath = path.join(globalStoragePath, PROXY_STATE_FILE_NAME);
+  getStatePath(userDataDir: string): string {
+    return path.join(userDataDir, PROXY_STATE_FILE_NAME);
   }
 
-  getStatePath(): string {
-    return this.statePath;
-  }
-
-  async read(): Promise<ProxyStateFile | null> {
+  async read(userDataDir: string): Promise<ProxyStateFile | null> {
+    const statePath = this.getStatePath(userDataDir);
     try {
-      const content = await fs.readFile(this.statePath, 'utf-8');
+      const content = await fs.readFile(statePath, 'utf-8');
       const parsed = JSON.parse(content) as unknown;
       const result = proxyStateSchema.safeParse(parsed);
       if (!result.success) {
@@ -63,20 +59,21 @@ export class ProxyStateFileStore implements IProxyStateStore {
     }
   }
 
-  async write(state: ProxyStateFile): Promise<void> {
+  async write(userDataDir: string, state: ProxyStateFile): Promise<void> {
     const validated = proxyStateSchema.parse({
       ...state,
       version: state.version ?? PROXY_STATE_SCHEMA_VERSION,
     });
 
-    await fs.mkdir(path.dirname(this.statePath), { recursive: true });
+    const statePath = this.getStatePath(userDataDir);
+    await fs.mkdir(path.dirname(statePath), { recursive: true });
 
-    const tempPath = `${this.statePath}.${process.pid}.tmp`;
+    const tempPath = `${statePath}.${process.pid}.tmp`;
     const content = JSON.stringify(validated, null, 2);
 
     try {
       await fs.writeFile(tempPath, content, { encoding: 'utf-8', mode: 0o600 });
-      await fs.rename(tempPath, this.statePath);
+      await fs.rename(tempPath, statePath);
     } catch (error) {
       try {
         await fs.unlink(tempPath);
@@ -90,9 +87,10 @@ export class ProxyStateFileStore implements IProxyStateStore {
     }
   }
 
-  async clear(): Promise<void> {
+  async clear(userDataDir: string): Promise<void> {
+    const statePath = this.getStatePath(userDataDir);
     try {
-      await fs.unlink(this.statePath);
+      await fs.unlink(statePath);
     } catch (error) {
       if (
         error instanceof Error &&

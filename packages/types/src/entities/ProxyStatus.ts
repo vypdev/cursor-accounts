@@ -18,9 +18,10 @@ export interface ProxyStatistics {
   activeConnections: number;
 }
 
-/** Persisted proxy state shared across extension host instances. */
+/** Persisted proxy state for a single profile (stored in userDataDir). */
 export interface ProxyStateFile {
   version: number;
+  profileId: string;
   running: boolean;
   port?: number;
   pid?: number;

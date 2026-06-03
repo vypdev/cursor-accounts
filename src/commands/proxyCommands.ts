@@ -1,11 +1,14 @@
 import * as vscode from 'vscode';
 import type { IProxyManager } from '../domain/ports/IProxyManager';
+import type { ProfileDetector } from '../profiles/profileDetector';
+import { isProfileProxyEnabled } from '@cursor-accounts/types';
 import { t } from '../l10n';
 import { saveCaCertificateAs } from '../proxy/saveCaCertificate';
 
 export function registerProxyCommands(
   context: vscode.ExtensionContext,
   proxyManager: IProxyManager,
+  profileDetector: ProfileDetector,
   onStatusChanged?: () => void
 ): void {
   proxyManager.onStatusChange(() => {
@@ -14,7 +17,13 @@ export function registerProxyCommands(
 
   context.subscriptions.push(
     vscode.commands.registerCommand('cursorAccounts.proxy.start', async () => {
-      const result = await proxyManager.start();
+      const currentProfile = await profileDetector.detectCurrentProfile();
+      if (!currentProfile || !isProfileProxyEnabled(currentProfile)) {
+        vscode.window.showWarningMessage(t('commands.proxy.requiresProfile'));
+        return;
+      }
+
+      const result = await proxyManager.start(currentProfile.id);
       if (result.success) {
         vscode.window.showInformationMessage(
           t('commands.proxy.started', { port: String(result.port ?? '') })
@@ -29,7 +38,13 @@ export function registerProxyCommands(
     }),
 
     vscode.commands.registerCommand('cursorAccounts.proxy.stop', async () => {
-      await proxyManager.stop();
+      const currentProfile = await profileDetector.detectCurrentProfile();
+      if (!currentProfile || !isProfileProxyEnabled(currentProfile)) {
+        vscode.window.showWarningMessage(t('commands.proxy.requiresProfile'));
+        return;
+      }
+
+      await proxyManager.stop(currentProfile.id);
       vscode.window.showInformationMessage(t('commands.proxy.stopped'));
     }),
 
@@ -41,8 +56,18 @@ export function registerProxyCommands(
       );
     }),
 
-    vscode.commands.registerCommand('cursorAccounts.proxy.showOutput', () => {
-      proxyManager.getOutputPresenter()?.show();
+    vscode.commands.registerCommand('cursorAccounts.proxy.showOutput', async () => {
+      const currentProfile = await profileDetector.detectCurrentProfile();
+      if (!currentProfile || !isProfileProxyEnabled(currentProfile)) {
+        vscode.window.showWarningMessage(t('commands.proxy.requiresProfile'));
+        return;
+      }
+
+      const tailFromStart = vscode.workspace
+        .getConfiguration('cursorAccounts.proxy')
+        .get<boolean>('outputTailFromStart', false);
+      await proxyManager.ensureOutputTailer(currentProfile.id, { tailFromStart });
+      proxyManager.showOutputChannel();
     }),
 
     vscode.commands.registerCommand(

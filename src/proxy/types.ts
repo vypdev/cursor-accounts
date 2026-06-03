@@ -2,7 +2,6 @@ import type { ProxyStatistics } from '@cursor-accounts/types';
 
 export const PROXY_STATE_FILE_NAME = 'proxy-state.json';
 export const PROXY_STATE_SCHEMA_VERSION = 1;
-export const PROXY_STATE_STALE_MS = 5 * 60 * 1000;
 export const DEFAULT_PROXY_PORT = 8080;
 export const PROXY_PORT_FALLBACKS = [8080, 8081, 8082, 8888] as const;
 export const MAX_BODY_LOG_BYTES = 10 * 1024;
@@ -22,10 +21,10 @@ export interface ProxyServerConfig {
   maxLogSizeMb: number;
 }
 
-/** Single JSON Lines log record for a request or response. */
+/** Single JSON Lines log record for a request, response, or proxy error. */
 export interface ProxyLogEntry {
   timestamp: string;
-  direction: 'request' | 'response';
+  direction: 'request' | 'response' | 'error';
   method?: string;
   url: string;
   host: string;
@@ -36,6 +35,8 @@ export interface ProxyLogEntry {
   isConnectRpc?: boolean;
   isCursorHost?: boolean;
   requestId?: string;
+  errorKind?: string;
+  errorMessage?: string;
 }
 
 /** Redacted traffic event for IPC and Output channel. */
@@ -71,6 +72,4 @@ export type ProxyParentMessage =
 export type ProxyChildMessage =
   | { type: 'ready'; port: number }
   | { type: 'error'; message: string }
-  | { type: 'stats'; data: ProxyStatistics }
-  | { type: 'traffic'; entry: ProxyTrafficSummary }
-  | { type: 'proxyError'; entry: ProxyTrafficSummary };
+  | { type: 'stats'; data: ProxyStatistics };

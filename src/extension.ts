@@ -36,6 +36,7 @@ import { RefreshService } from './services/refreshService';
 import { hasActiveWorkspace } from './services/activeWorkspaceService';
 import { AccountsPanelProvider } from './ui/accountsPanel';
 import { shouldAutoOpenAccountsPanel } from './ui/accountsPanelStartup';
+import { isProfileProxyEnabled } from '@cursor-accounts/types';
 import { StatusBarManager } from './ui/statusBarManager';
 import { EfficiencyService } from './modelEfficiency/efficiencyService';
 import { EfficiencyStatsStorage } from './modelEfficiency/efficiencyStatsStorage';
@@ -44,7 +45,6 @@ let refreshService: RefreshService | undefined;
 let multiProfileQuotaService: MultiProfileQuotaService | undefined;
 let efficiencyService: EfficiencyService | undefined;
 let instanceDetectorRef: InstanceDetector | undefined;
-let proxyManagerRef: ProxyManager | undefined;
 let proxyOutputPresenterRef: ProxyOutputPresenter | undefined;
 
 export function activate(context: vscode.ExtensionContext): void {
@@ -82,7 +82,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const instanceDetector = new InstanceDetector(profileManager);
   instanceDetectorRef = instanceDetector;
   const sharedProxyDir = getSharedProxyStorageDir();
-  const proxyStateStore = new ProxyStateFileStore(sharedProxyDir);
+  const proxyStateStore = new ProxyStateFileStore();
   const profileSettingsManager = new ProfileSettingsManager();
   const proxySettingsService = new ProxySettingsService(
     profileManager,
@@ -93,12 +93,13 @@ export function activate(context: vscode.ExtensionContext): void {
   proxyOutputPresenterRef = proxyOutputPresenter;
   const proxyManager = new ProxyManager(
     proxyStateStore,
+    profileManager,
     context,
     sharedProxyDir,
     proxySettingsService,
+    profileSettingsManager,
     proxyOutputPresenter
   );
-  proxyManagerRef = proxyManager;
 
   const profileLauncher = new ProfileLauncher(
     profileManager,
@@ -162,7 +163,8 @@ export function activate(context: vscode.ExtensionContext): void {
     storageBundle.storageCleanupService,
     storageBundle.storageAnalyzer,
     proxyManager,
-    proxySettingsService
+    proxySettingsService,
+    profileSettingsManager
   );
 
   efficiencyStatsStorage.setStatsUpdatedListener(() => {
@@ -189,19 +191,16 @@ export function activate(context: vscode.ExtensionContext): void {
 
     const currentProfile = await profileDetector.detectCurrentProfile();
 
-    if (currentProfile === null) {
-      extensionLog.info(
-        '[Extension] Default window detected - restoring proxy settings in all profiles'
-      );
-      const restoreResult = await proxySettingsService.restoreAllProfiles();
-      if (restoreResult.restored > 0) {
+    if (currentProfile && isProfileProxyEnabled(currentProfile)) {
+      const result = await proxyManager.ensureProfileProxy(currentProfile.id);
+      if (result.success) {
         extensionLog.info(
-          `[Extension] Restored proxy settings in ${restoreResult.restored} profile(s)`
+          `[Proxy] Ensured proxy for profile ${currentProfile.displayName} on port ${result.port ?? 'unknown'}`
         );
-      }
-      if (restoreResult.errors.length > 0) {
+        void accountsPanel.refreshProxyStatus();
+      } else {
         extensionLog.warn(
-          `[Extension] Failed to restore proxy settings for ${restoreResult.errors.length} profile(s)`
+          `[Proxy] Failed to ensure proxy for ${currentProfile.displayName}: ${result.error ?? 'unknown'}`
         );
       }
     }
@@ -244,25 +243,9 @@ export function activate(context: vscode.ExtensionContext): void {
     instanceDetector
   );
 
-  registerProxyCommands(context, proxyManager, () => {
+  registerProxyCommands(context, proxyManager, profileDetector, () => {
     void accountsPanel.refreshProxyStatus();
   });
-
-  const proxyConfig = vscode.workspace.getConfiguration('cursorAccounts.proxy');
-  if (proxyConfig.get<boolean>('enabled', false)) {
-    void proxyManager.start().then((result) => {
-      if (result.success) {
-        extensionLog.info(
-          `[Proxy] Auto-started on port ${result.port ?? 'unknown'}`
-        );
-        void accountsPanel.refreshProxyStatus();
-      } else {
-        extensionLog.warn(
-          `[Proxy] Auto-start failed: ${result.error ?? 'unknown'}`
-        );
-      }
-    });
-  }
 
   const profilesConfig = vscode.workspace.getConfiguration(
     'cursorAccounts.profiles'
@@ -380,12 +363,9 @@ export async function deactivate(): Promise<void> {
   refreshService = undefined;
   multiProfileQuotaService?.stop();
   multiProfileQuotaService = undefined;
+
   instanceDetectorRef?.stopAutoDetection();
   instanceDetectorRef = undefined;
   efficiencyService?.dispose();
   efficiencyService = undefined;
-  if (proxyManagerRef) {
-    await proxyManagerRef.stop();
-    proxyManagerRef = undefined;
-  }
 }

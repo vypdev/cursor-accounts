@@ -112,9 +112,13 @@ function createMockProxyManager(): IProxyManager {
     checkCertificateInstalled: async () => true,
     getCachedCertificateInstalled: () => true,
     getProxyServerUrl: async () => null,
+    getAllUsedPorts: async () => [],
+    ensureProfileProxy: async () => ({ success: true, port: 8080 }),
     restoreAllProfileProxySettings: async () => ({ restored: 0, errors: [] }),
     onStatusChange: () => undefined,
     getOutputPresenter: () => undefined,
+    ensureOutputTailer: async () => undefined,
+    showOutputChannel: () => undefined,
   };
 }
 

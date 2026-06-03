@@ -213,6 +213,11 @@
           "type": "boolean",
           "default": false,
           "description": "%configuration.proxy.outputCursorHostsOnly.description%"
+        },
+        "cursorAccounts.proxy.outputTailFromStart": {
+          "type": "boolean",
+          "default": false,
+          "description": "%configuration.proxy.outputTailFromStart.description%"
         }
       }
     }

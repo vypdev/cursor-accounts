@@ -23,7 +23,9 @@ import { createEmptyStorageBreakdown } from '@cursor-accounts/types';
 import type { ProfileDetector } from '../profiles/profileDetector';
 import { resolveRecentProjectLaunch } from '../profiles/recentProjectLaunchRouter';
 import type { ProfileWorkspaceService } from '../services/profileWorkspaceService';
+import type { IProfileSettingsManager } from '../domain/ports/IProfileSettingsManager';
 import type { IProxyManager } from '../domain/ports/IProxyManager';
+import { isProfileProxyEnabled } from '@cursor-accounts/types';
 import { saveCaCertificateAs } from '../proxy/saveCaCertificate';
 import { getOpenWorkspacePaths } from '../services/activeWorkspaceService';
 import { buildSuggestedProfileResponse } from './suggestedProfile';
@@ -50,6 +52,7 @@ export interface AccountsPanelHandlerDeps {
   storageAnalyzer: IProfileStorageAnalyzer;
   profileWorkspaceService: ProfileWorkspaceService;
   proxyManager: IProxyManager;
+  profileSettingsManager?: IProfileSettingsManager;
 }
 
 /**
@@ -286,11 +289,26 @@ export class AccountsPanelHandlers {
       updates
     );
 
+    if (updates.proxyEnabled === false) {
+      await this.deps.proxyManager.stop(profileId);
+      if (this.deps.profileSettingsManager) {
+        await this.deps.profileSettingsManager.restoreProxySettings(
+          profile.userDataDir
+        );
+      }
+    } else if (updates.proxyEnabled === true) {
+      const current = await this.deps.profileDetector.detectCurrentProfile();
+      if (current?.id === profileId && isProfileProxyEnabled(profile)) {
+        await this.deps.proxyManager.ensureProfileProxy(profileId);
+      }
+    }
+
     await this.callbacks.postMessage({
       type: 'success',
       message: t('panel.profileUpdated', { name: profile.displayName }),
     });
     await this.callbacks.refresh();
+    await this.callbacks.refreshProxyStatus({ checkCertificate: true });
   }
 
   private async handleDelete(profileId: string): Promise<void> {
@@ -558,7 +576,16 @@ export class AccountsPanelHandlers {
   }
 
   private async handleStartProxy(): Promise<void> {
-    const result = await this.deps.proxyManager.start();
+    const currentProfile = await this.deps.profileDetector.detectCurrentProfile();
+    if (!currentProfile || !isProfileProxyEnabled(currentProfile)) {
+      await this.callbacks.postMessage({
+        type: 'error',
+        message: t('commands.proxy.requiresProfile'),
+      });
+      return;
+    }
+
+    const result = await this.deps.proxyManager.start(currentProfile.id);
     if (result.success) {
       await this.callbacks.postMessage({
         type: 'success',
@@ -578,7 +605,16 @@ export class AccountsPanelHandlers {
   }
 
   private async handleStopProxy(): Promise<void> {
-    await this.deps.proxyManager.stop();
+    const currentProfile = await this.deps.profileDetector.detectCurrentProfile();
+    if (!currentProfile || !isProfileProxyEnabled(currentProfile)) {
+      await this.callbacks.postMessage({
+        type: 'error',
+        message: t('commands.proxy.requiresProfile'),
+      });
+      return;
+    }
+
+    await this.deps.proxyManager.stop(currentProfile.id);
     await this.callbacks.postMessage({
       type: 'success',
       message: t('commands.proxy.stopped'),

@@ -51,6 +51,31 @@ export class ProxyOutputPresenter {
     this.channel.appendLine('');
   }
 
+  appendAttached(port: number): void {
+    this.channel.appendLine(
+      `[${this.timeLabel()}] ${PROXY_TRAFFIC_TAG} ${t('proxy.output.attached', {
+        port: String(port),
+      })}`
+    );
+    this.channel.appendLine('');
+  }
+
+  appendTailing(logFilePath: string): void {
+    this.channel.appendLine(
+      `[${this.timeLabel()}] ${PROXY_TRAFFIC_TAG} ${t('proxy.output.tailing', {
+        path: logFilePath,
+      })}`
+    );
+    this.channel.appendLine('');
+  }
+
+  appendLogDisabled(): void {
+    this.channel.appendLine(
+      `[${this.timeLabel()}] ${PROXY_TRAFFIC_TAG} ${t('proxy.output.logDisabled')}`
+    );
+    this.channel.appendLine('');
+  }
+
   appendStopped(): void {
     this.channel.appendLine(
       `[${this.timeLabel()}] ${PROXY_TRAFFIC_TAG} ${t('proxy.output.stopped')}`

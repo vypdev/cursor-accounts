@@ -14,12 +14,12 @@ export interface ProxyStartResult {
   error?: string;
 }
 
-/** Port for managing the MITM proxy lifecycle and status. */
+/** Port for managing per-profile MITM proxy lifecycle and status. */
 export interface IProxyManager {
-  start(): Promise<ProxyStartResult>;
-  stop(): Promise<void>;
-  getStatus(): Promise<ProxyStatus | null>;
-  isRunning(): Promise<boolean>;
+  start(profileId: string): Promise<ProxyStartResult>;
+  stop(profileId: string): Promise<void>;
+  getStatus(profileId: string): Promise<ProxyStatus | null>;
+  isRunning(profileId: string): Promise<boolean>;
   isCurrentWindowUsingProxy(): Promise<boolean>;
   getCertificatePath(): Promise<string | null>;
   getLogDirectory(): string;
@@ -28,8 +28,15 @@ export interface IProxyManager {
   uninstallCertificate(): Promise<{ success: boolean; error?: string }>;
   checkCertificateInstalled(): Promise<boolean>;
   getCachedCertificateInstalled(): boolean | undefined;
-  getProxyServerUrl(): Promise<string | null>;
+  getProxyServerUrl(profileId: string): Promise<string | null>;
+  getAllUsedPorts(): Promise<number[]>;
+  ensureProfileProxy(profileId: string): Promise<ProxyStartResult>;
   restoreAllProfileProxySettings(): Promise<RestoreAllProfilesResult>;
   onStatusChange(callback: () => void): void;
   getOutputPresenter(): ProxyOutputPresenter | undefined;
+  ensureOutputTailer(
+    profileId: string,
+    options?: { tailFromStart?: boolean }
+  ): Promise<void>;
+  showOutputChannel(): void;
 }

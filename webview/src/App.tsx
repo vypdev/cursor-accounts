@@ -28,6 +28,7 @@ import type {
   ProxyStatus,
   ProxyInstallGuide,
 } from './types';
+import { isProfileProxyEnabled } from './types';
 import './App.css';
 
 const AppContent: React.FC = () => {
@@ -74,6 +75,9 @@ const AppContent: React.FC = () => {
     string | undefined
   >();
   const [suggestedNotice, setSuggestedNotice] = useState<string | undefined>();
+
+  const showProxyUi =
+    currentProfile != null && isProfileProxyEnabled(currentProfile);
   const [editingProfileId, setEditingProfileId] = useState<string | null>(
     persisted?.editingProfileId ?? null
   );
@@ -297,7 +301,7 @@ const AppContent: React.FC = () => {
 
   useEffect(() => {
     const onVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
+      if (document.visibilityState === 'visible' && showProxyUi) {
         vscodeApi.refreshProxyStatus();
       }
     };
@@ -305,7 +309,7 @@ const AppContent: React.FC = () => {
     return () => {
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
-  }, []);
+  }, [showProxyUi]);
 
   const handleLaunch = useCallback((profileId: string) => {
     vscodeApi.launch(profileId);
@@ -583,18 +587,20 @@ const AppContent: React.FC = () => {
           </div>
         )}
 
-        <ProxyStatusCard
-          proxyStatus={proxyStatus}
-          currentWindowUsesProxy={currentWindowUsesProxy}
-          uninstallInProgress={uninstallInProgress}
-          onStartProxy={handleStartProxy}
-          onStopProxy={handleStopProxy}
-          onShowLogs={handleShowProxyLogs}
-          onShowTraffic={handleShowProxyTraffic}
-          onShowCertificate={handleShowProxyCertificate}
-          onSaveCertificate={handleSaveProxyCertificate}
-          onDeleteCertificate={handleOpenUninstallConfirm}
-        />
+        {showProxyUi && (
+          <ProxyStatusCard
+            proxyStatus={proxyStatus}
+            currentWindowUsesProxy={currentWindowUsesProxy}
+            uninstallInProgress={uninstallInProgress}
+            onStartProxy={handleStartProxy}
+            onStopProxy={handleStopProxy}
+            onShowLogs={handleShowProxyLogs}
+            onShowTraffic={handleShowProxyTraffic}
+            onShowCertificate={handleShowProxyCertificate}
+            onSaveCertificate={handleSaveProxyCertificate}
+            onDeleteCertificate={handleOpenUninstallConfirm}
+          />
+        )}
 
         {profiles.length === 0 ? (
           <EmptyState onAddProfile={openAddForm} />
@@ -611,6 +617,7 @@ const AppContent: React.FC = () => {
             efficiencyStats={efficiencyStats}
             runningInstances={runningInstances}
             profileProxyTemporary={profileProxyTemporary}
+            showProxyIndicators={showProxyUi}
             onLaunch={handleLaunch}
             onOpenProject={handleOpenProject}
             onEdit={handleEditOpen}

@@ -38,6 +38,8 @@ import type { IStorageCleanupService } from '../domain/ports/IStorageCleanupServ
 import type { IProxyManager } from '../domain/ports/IProxyManager';
 import type { ProxySettingsService } from '../services/proxySettingsService';
 import type { ProxyStatus } from '@cursor-accounts/types';
+import { isProfileProxyEnabled } from '@cursor-accounts/types';
+import type { IProfileSettingsManager } from '../domain/ports/IProfileSettingsManager';
 import { AccountsPanelHandlers } from './accountsPanelHandlers';
 
 /** Webview panel view type id. */
@@ -76,7 +78,8 @@ export class AccountsPanelProvider {
     storageCleanupService: IStorageCleanupService,
     storageAnalyzer: IProfileStorageAnalyzer,
     private readonly proxyManager: IProxyManager,
-    private readonly proxySettingsService?: ProxySettingsService
+    private readonly proxySettingsService?: ProxySettingsService,
+    profileSettingsManager?: IProfileSettingsManager
   ) {
     this.efficiencyService = efficiencyService;
 
@@ -92,6 +95,7 @@ export class AccountsPanelProvider {
         storageAnalyzer,
         profileWorkspaceService,
         proxyManager,
+        profileSettingsManager,
       },
       {
         postMessage: (message) => this.postMessage(message),
@@ -144,22 +148,28 @@ export class AccountsPanelProvider {
     }
   }
 
-  private async buildProfileProxyTemporary(): Promise<Record<string, boolean>> {
-    if (!this.proxySettingsService) {
+  private shouldShowProxyUi(currentProfile: Profile | null): boolean {
+    return currentProfile != null && isProfileProxyEnabled(currentProfile);
+  }
+
+  private async buildProfileProxyTemporary(
+    currentProfile: Profile | null
+  ): Promise<Record<string, boolean>> {
+    if (!this.shouldShowProxyUi(currentProfile) || !this.proxySettingsService) {
       return {};
     }
 
     const backupInfo = await this.proxySettingsService.getAllProxyBackupInfo();
-    const activeProxyUrl = await this.proxyManager.getProxyServerUrl();
     const result: Record<string, boolean> = {};
 
     for (const [profileId, info] of backupInfo) {
       if (info.hasBackup) {
         result[profileId] = true;
-      } else if (
-        activeProxyUrl != null &&
-        info.currentProxyUrl === activeProxyUrl
-      ) {
+        continue;
+      }
+
+      const proxyUrl = await this.proxyManager.getProxyServerUrl(profileId);
+      if (proxyUrl != null && info.currentProxyUrl === proxyUrl) {
         result[profileId] = true;
       }
     }
@@ -308,12 +318,15 @@ export class AccountsPanelProvider {
         profileGithubSummaries: {},
         profileGithubTokenStatus: {},
         efficiencyStats: this.efficiencyService.getStatsStorage().getAllStats(),
-        proxyStatus: await this.buildProxyStatusForWebview({
-          checkCertificate: true,
-        }),
-        currentWindowUsesProxy:
-          await this.proxyManager.isCurrentWindowUsingProxy(),
-        profileProxyTemporary: await this.buildProfileProxyTemporary(),
+        proxyStatus: this.shouldShowProxyUi(currentProfile)
+          ? await this.buildProxyStatusForWebview({
+              checkCertificate: true,
+            })
+          : null,
+        currentWindowUsesProxy: this.shouldShowProxyUi(currentProfile)
+          ? await this.proxyManager.isCurrentWindowUsingProxy()
+          : false,
+        profileProxyTemporary: await this.buildProfileProxyTemporary(currentProfile),
         locale: getLocale(),
         messages: getWebviewMessages(),
       };
@@ -340,7 +353,12 @@ export class AccountsPanelProvider {
   private async buildProxyStatusForWebview(options?: {
     checkCertificate?: boolean;
   }): Promise<ProxyStatus | null> {
-    const status = await this.proxyManager.getStatus();
+    const currentProfile = await this.profileDetector.detectCurrentProfile();
+    if (!this.shouldShowProxyUi(currentProfile) || currentProfile == null) {
+      return null;
+    }
+
+    const status = await this.proxyManager.getStatus(currentProfile.id);
     if (!status) {
       return null;
     }
@@ -366,6 +384,16 @@ export class AccountsPanelProvider {
     checkCertificate?: boolean;
   }): Promise<void> {
     if (!this.getActiveWebview()) {
+      return;
+    }
+
+    const currentProfile = await this.profileDetector.detectCurrentProfile();
+    if (!this.shouldShowProxyUi(currentProfile)) {
+      await this.postMessage({ type: 'proxyStatus', data: null });
+      await this.postMessage({
+        type: 'currentWindowProxyUsage',
+        usesProxy: false,
+      });
       return;
     }
 

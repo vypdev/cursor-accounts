@@ -50,16 +50,18 @@ export class MitmProxyServer extends EventEmitter {
       const host = ctx?.clientToProxyRequest?.headers?.host ?? '';
       const url = ctx ? this.buildRequestUrl(ctx) : '';
       const message = err instanceof Error ? err.message : String(err);
-      this.handlers?.onProxyError?.({
+      const errorEntry: ProxyLogEntry = {
         timestamp: new Date().toISOString(),
-        kind: 'error',
+        direction: 'error',
         url: url || host || 'unknown',
         host: host || 'unknown',
-        endpoint: url || host || 'unknown',
+        headers: {},
         errorKind: errorKind ?? 'PROXY_ERROR',
         errorMessage: message,
         isCursorHost: host ? RequestLogger.isCursorHost(host) : undefined,
-      });
+      };
+      this.requestLogger.log(errorEntry);
+      this.handlers?.onProxyError?.(toTrafficSummary(errorEntry));
       this.emit('error', err instanceof Error ? err : new Error(message));
     });
 

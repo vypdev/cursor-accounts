@@ -13,7 +13,7 @@ describe('ProxyStateFileStore', () => {
     tempDir = await fs.mkdtemp(
       path.join(os.tmpdir(), 'cursor-accounts-proxy-state-')
     );
-    store = new ProxyStateFileStore(tempDir);
+    store = new ProxyStateFileStore();
   });
 
   afterEach(async () => {
@@ -21,12 +21,13 @@ describe('ProxyStateFileStore', () => {
   });
 
   it('returns null when state file is missing', async () => {
-    assert.equal(await store.read(), null);
+    assert.equal(await store.read(tempDir), null);
   });
 
-  it('writes and reads proxy state atomically', async () => {
+  it('writes and reads proxy state atomically in userDataDir', async () => {
     const state = {
       version: 1,
+      profileId: 'profile-a',
       running: true,
       port: 8080,
       pid: 12345,
@@ -35,23 +36,27 @@ describe('ProxyStateFileStore', () => {
       lastUpdatedAt: new Date().toISOString(),
     };
 
-    await store.write(state);
-    const read = await store.read();
+    await store.write(tempDir, state);
+    const read = await store.read(tempDir);
     assert.deepEqual(read, state);
+    assert.equal(store.getStatePath(tempDir), path.join(tempDir, 'proxy-state.json'));
   });
 
   it('returns null for corrupted JSON', async () => {
-    await fs.writeFile(store.getStatePath(), '{not json', 'utf8');
-    assert.equal(await store.read(), null);
+    const statePath = store.getStatePath(tempDir);
+    await fs.mkdir(tempDir, { recursive: true });
+    await fs.writeFile(statePath, '{not json', 'utf8');
+    assert.equal(await store.read(tempDir), null);
   });
 
   it('clears state file', async () => {
-    await store.write({
+    await store.write(tempDir, {
       version: 1,
+      profileId: 'profile-a',
       running: true,
       lastUpdatedAt: new Date().toISOString(),
     });
-    await store.clear();
-    assert.equal(await store.read(), null);
+    await store.clear(tempDir);
+    assert.equal(await store.read(tempDir), null);
   });
 });

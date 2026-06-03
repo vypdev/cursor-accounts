@@ -30,6 +30,7 @@
   "commands.proxy.started": "MITM proxy started on port {port}",
   "commands.proxy.startFailed": "Failed to start MITM proxy: {error}",
   "commands.proxy.stopped": "MITM proxy stopped",
+  "commands.proxy.requiresProfile": "Proxy commands require an active profile window. Open or launch a profile first.",
   "commands.proxy.saveCertificate.dialogTitle": "Save MITM proxy CA certificate",
   "commands.proxy.saveCertificate.saved": "CA certificate saved to {path}",
   "commands.proxy.saveCertificate.failed": "Failed to save CA certificate: {error}",
@@ -37,6 +38,9 @@
 
   "proxy.output.channelName": "Cursor MITM Proxy",
   "proxy.output.started": "Proxy listening on 127.0.0.1:{port}",
+  "proxy.output.attached": "Attached to running proxy on 127.0.0.1:{port}",
+  "proxy.output.tailing": "Tailing log file: {path}",
+  "proxy.output.logDisabled": "Traffic logging to output is disabled (cursorAccounts.proxy.logTrafficToOutput).",
   "proxy.output.stopped": "Proxy stopped",
 
   "commands.listProfiles.header": "Configured Cursor Profiles:",
@@ -288,6 +292,8 @@
   "webview.editProfile.efficiencyLabel": "Enable model efficiency analysis",
   "webview.editProfile.efficiencyHelp": "Analyzes prompt efficiency in the background using a Cursor API key",
   "webview.editProfile.efficiencyHint": "Analysis active — manage from this profile's window",
+  "webview.editProfile.proxyLabel": "Route traffic through MITM proxy",
+  "webview.editProfile.proxyHelp": "When enabled, windows for this profile use a dedicated local proxy to observe Cursor network traffic.",
 
   "webview.import.title": "Import Profiles",
   "webview.import.fileLabel": "Select export file",

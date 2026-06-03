@@ -1,8 +1,8 @@
 import type { ProxyStateFile } from '@cursor-accounts/types';
 
-/** Port for reading/writing shared proxy state across Cursor windows. */
+/** Port for reading/writing per-profile proxy state in userDataDir. */
 export interface IProxyStateStore {
-  read(): Promise<ProxyStateFile | null>;
-  write(state: ProxyStateFile): Promise<void>;
-  clear(): Promise<void>;
+  read(userDataDir: string): Promise<ProxyStateFile | null>;
+  write(userDataDir: string, state: ProxyStateFile): Promise<void>;
+  clear(userDataDir: string): Promise<void>;
 }

@@ -31,10 +31,15 @@
   "commands.proxy.start.title": "Cursor Accounts: Start MITM-proxy",
   "commands.proxy.stop.title": "Cursor Accounts: Stopp MITM-proxy",
   "commands.proxy.showLogs.title": "Cursor Accounts: Åpne proxy-logger",
+  "commands.proxy.showOutput.title": "Cursor Accounts: Vis MITM-proxytrafikk",
   "commands.proxy.saveCertificate.title": "Cursor Accounts: Lagre proxy CA-sertifikat…",
   "configuration.debug.webviewLifecycle.description": "Logg webview livssyklusdiagnostikk til Cursor Accounts utdatakanal (deaktiver etter feilsøking).",
   "configuration.proxy.enabled.description": "Start MITM-proxy når utvidelsen aktiveres (overvåker Cursor-nettverkstrafikk).",
   "configuration.proxy.port.description": "TCP-port for lokal MITM-proxy (kun localhost).",
   "configuration.proxy.maxLogSizeMB.description": "Maksimal total størrelse på proxy-loggfiler i megabyte.",
-  "configuration.proxy.autoLaunchWithProxy.description": "Ved profilstart, send trafikk via proxy hvis den kjører."
+  "configuration.proxy.autoLaunchWithProxy.description": "Ved profilstart, send trafikk via proxy hvis den kjører.",
+  "configuration.proxy.logTrafficToOutput.description": "Skriv fanget proxytrafikk til Cursor MITM Proxy-outputkanalen.",
+  "configuration.proxy.autoShowOutputChannel.description": "Åpne Cursor MITM Proxy-outputkanalen automatisk når proxyen starter.",
+  "configuration.proxy.outputCursorHostsOnly.description": "Logg kun Cursor-vertstrafikk (cursor.sh, cursor.com) i MITM Proxy-outputkanalen.",
+  "configuration.proxy.outputTailFromStart.description": "Når MITM Proxy-outputkanalen åpnes, spill av nylige linjer fra den aktive loggfilen."
 }

@@ -40,6 +40,7 @@ export {
   getTeamUsagePercent,
   hasDistinctTeamBudget,
   isEnterpriseUsage,
+  isProfileProxyEnabled,
 } from '@cursor-accounts/types';
 
 export * from './ports/ITokenProvider';

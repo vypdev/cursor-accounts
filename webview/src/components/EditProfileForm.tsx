@@ -25,6 +25,9 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
   const [efficiencyEnabled, setEfficiencyEnabled] = useState(
     profile.efficiencyAnalysisEnabled ?? false
   );
+  const [proxyEnabled, setProxyEnabled] = useState(
+    profile.proxyEnabled !== false
+  );
   const [error, setError] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -44,6 +47,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
         ...profile.metadata,
         notes: notes.trim() || undefined,
       },
+      proxyEnabled,
     };
 
     if (isCurrent) {
@@ -132,6 +136,19 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
               onChange={(e) => setNotes(e.target.value)}
               placeholder={t('editProfile.notesPlaceholder')}
             />
+          </div>
+
+          <div className="form-group checkbox">
+            <label htmlFor="edit-proxy">
+              <input
+                id="edit-proxy"
+                type="checkbox"
+                checked={proxyEnabled}
+                onChange={(e) => setProxyEnabled(e.target.checked)}
+              />
+              {t('editProfile.proxyLabel')}
+            </label>
+            <p className="form-help-text">{t('editProfile.proxyHelp')}</p>
           </div>
 
           {isCurrent ? (

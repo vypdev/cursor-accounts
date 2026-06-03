@@ -31,10 +31,15 @@
   "commands.proxy.start.title": "Cursor Accounts: เริ่มพร็อกซี MITM",
   "commands.proxy.stop.title": "Cursor Accounts: หยุดพร็อกซี MITM",
   "commands.proxy.showLogs.title": "Cursor Accounts: เปิดบันทึกพร็อกซี",
+  "commands.proxy.showOutput.title": "Cursor Accounts: แสดงทราฟฟิกพร็อกซี MITM",
   "commands.proxy.saveCertificate.title": "Cursor Accounts: บันทึกใบรับรอง CA ของพร็อกซี…",
   "configuration.debug.webviewLifecycle.description": "บันทึกการวินิจฉัยวงจรชีวิต webview ไปยังช่องเอาต์พุต Cursor Accounts (ปิดหลังแก้ปัญหา)",
   "configuration.proxy.enabled.description": "เริ่มพร็อกซี MITM เมื่อเปิดใช้ส่วนขยาย (ดูทราฟฟิกเครือข่ายของ Cursor)",
   "configuration.proxy.port.description": "พอร์ต TCP ของพร็อกซี MITM ในเครื่อง (localhost เท่านั้น)",
   "configuration.proxy.maxLogSizeMB.description": "ขนาดรวมสูงสุดของไฟล์บันทึกพร็อกซีเป็นเมกะไบต์",
-  "configuration.proxy.autoLaunchWithProxy.description": "เมื่อเปิดโปรไฟล์ ให้ส่งทราฟฟิกผ่านพร็อกซีหากพร็อกซีกำลังทำงาน"
+  "configuration.proxy.autoLaunchWithProxy.description": "เมื่อเปิดโปรไฟล์ ให้ส่งทราฟฟิกผ่านพร็อกซีหากพร็อกซีกำลังทำงาน",
+  "configuration.proxy.logTrafficToOutput.description": "เขียนทราฟฟิกพร็อกซีที่ดักจับไปยังช่อง output Cursor MITM Proxy",
+  "configuration.proxy.autoShowOutputChannel.description": "เปิดช่อง output Cursor MITM Proxy โดยอัตโนมัติเมื่อพร็อกซีเริ่มทำงาน",
+  "configuration.proxy.outputCursorHostsOnly.description": "บันทึกเฉพาะทราฟฟิกโฮสต์ Cursor (cursor.sh, cursor.com) ในช่อง output พร็อกซี MITM",
+  "configuration.proxy.outputTailFromStart.description": "เมื่อเปิดช่อง output พร็อกซี MITM ให้เล่นบรรทัดล่าสุดจากไฟล์ล็อกที่ใช้งานอยู่"
 }

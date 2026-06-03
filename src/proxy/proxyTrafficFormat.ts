@@ -69,6 +69,19 @@ export function toTrafficSummary(
   entry: ProxyLogEntry,
   durationMs?: number
 ): ProxyTrafficSummary {
+  if (entry.direction === 'error') {
+    return {
+      timestamp: entry.timestamp,
+      kind: 'error',
+      url: entry.url,
+      host: entry.host,
+      endpoint: formatEndpoint(entry.url, entry.host),
+      errorKind: entry.errorKind,
+      errorMessage: entry.errorMessage,
+      isCursorHost: entry.isCursorHost,
+    };
+  }
+
   const contentType = entry.headers['content-type'];
   const bodyBytes = entry.body
     ? Buffer.byteLength(entry.body, 'utf8')

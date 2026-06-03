@@ -31,10 +31,15 @@
   "commands.proxy.start.title": "Cursor Accounts: Mulai proxy MITM",
   "commands.proxy.stop.title": "Cursor Accounts: Hentikan proxy MITM",
   "commands.proxy.showLogs.title": "Cursor Accounts: Buka log proxy",
+  "commands.proxy.showOutput.title": "Cursor Accounts: Tampilkan lalu lintas proxy MITM",
   "commands.proxy.saveCertificate.title": "Cursor Accounts: Simpan sertifikat CA proxy…",
   "configuration.debug.webviewLifecycle.description": "Catat diagnostik siklus hidup webview ke saluran output Cursor Accounts (nonaktifkan setelah pemecahan masalah).",
   "configuration.proxy.enabled.description": "Mulai proxy MITM saat ekstensi diaktifkan (memantau lalu lintas jaringan Cursor).",
   "configuration.proxy.port.description": "Port TCP proxy MITM lokal (hanya localhost).",
   "configuration.proxy.maxLogSizeMB.description": "Ukuran total maksimum file log proxy dalam megabyte.",
-  "configuration.proxy.autoLaunchWithProxy.description": "Saat meluncurkan profil, arahkan lalu lintas melalui proxy jika proxy berjalan."
+  "configuration.proxy.autoLaunchWithProxy.description": "Saat meluncurkan profil, arahkan lalu lintas melalui proxy jika proxy berjalan.",
+  "configuration.proxy.logTrafficToOutput.description": "Tulis lalu lintas proxy yang diintercept ke saluran output Cursor MITM Proxy.",
+  "configuration.proxy.autoShowOutputChannel.description": "Buka saluran output Cursor MITM Proxy secara otomatis saat proxy dimulai.",
+  "configuration.proxy.outputCursorHostsOnly.description": "Hanya catat lalu lintas host Cursor (cursor.sh, cursor.com) di saluran output proxy MITM.",
+  "configuration.proxy.outputTailFromStart.description": "Saat membuka saluran output proxy MITM, putar ulang baris terbaru dari file log aktif."
 }

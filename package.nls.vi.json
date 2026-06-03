@@ -31,10 +31,15 @@
   "commands.proxy.start.title": "Cursor Accounts: Khởi động proxy MITM",
   "commands.proxy.stop.title": "Cursor Accounts: Dừng proxy MITM",
   "commands.proxy.showLogs.title": "Cursor Accounts: Mở nhật ký proxy",
+  "commands.proxy.showOutput.title": "Cursor Accounts: Hiển thị lưu lượng proxy MITM",
   "commands.proxy.saveCertificate.title": "Cursor Accounts: Lưu chứng chỉ CA proxy…",
   "configuration.debug.webviewLifecycle.description": "Ghi chẩn đoán vòng đời webview vào kênh đầu ra Cursor Accounts (tắt sau khi xử lý sự cố).",
   "configuration.proxy.enabled.description": "Khởi động proxy MITM khi bật tiện ích (theo dõi lưu lượng mạng Cursor).",
   "configuration.proxy.port.description": "Cổng TCP của proxy MITM cục bộ (chỉ localhost).",
   "configuration.proxy.maxLogSizeMB.description": "Kích thước tổng tối đa của tệp nhật ký proxy tính bằng megabyte.",
-  "configuration.proxy.autoLaunchWithProxy.description": "Khi khởi chạy hồ sơ, định tuyến lưu lượng qua proxy nếu proxy đang chạy."
+  "configuration.proxy.autoLaunchWithProxy.description": "Khi khởi chạy hồ sơ, định tuyến lưu lượng qua proxy nếu proxy đang chạy.",
+  "configuration.proxy.logTrafficToOutput.description": "Ghi lưu lượng proxy bị chặn vào kênh output Cursor MITM Proxy.",
+  "configuration.proxy.autoShowOutputChannel.description": "Tự động mở kênh output Cursor MITM Proxy khi proxy khởi động.",
+  "configuration.proxy.outputCursorHostsOnly.description": "Chỉ ghi lưu lượng host Cursor (cursor.sh, cursor.com) trong kênh output proxy MITM.",
+  "configuration.proxy.outputTailFromStart.description": "Khi mở kênh output proxy MITM, phát lại các dòng gần đây từ tệp log đang hoạt động."
 }

@@ -31,10 +31,15 @@
   "commands.proxy.start.title": "Cursor Accounts: Spustit proxy MITM",
   "commands.proxy.stop.title": "Cursor Accounts: Zastavit proxy MITM",
   "commands.proxy.showLogs.title": "Cursor Accounts: Otevřít protokoly proxy",
+  "commands.proxy.showOutput.title": "Cursor Accounts: Zobrazit provoz proxy MITM",
   "commands.proxy.saveCertificate.title": "Cursor Accounts: Uložit certifikát CA proxy…",
   "configuration.debug.webviewLifecycle.description": "Zaznamenávat diagnostiku životního cyklu webview do výstupního kanálu Cursor Accounts (vypněte po řešení problémů).",
   "configuration.proxy.enabled.description": "Spustit proxy MITM při aktivaci rozšíření (sleduje síťový provoz Cursor).",
   "configuration.proxy.port.description": "TCP port místní proxy MITM (pouze localhost).",
   "configuration.proxy.maxLogSizeMB.description": "Maximální celková velikost souborů protokolu proxy v megabajtech.",
-  "configuration.proxy.autoLaunchWithProxy.description": "Při spuštění profilu směrovat provoz přes proxy, pokud běží."
+  "configuration.proxy.autoLaunchWithProxy.description": "Při spuštění profilu směrovat provoz přes proxy, pokud běží.",
+  "configuration.proxy.logTrafficToOutput.description": "Zapisovat zachycený provoz proxy do výstupního kanálu Cursor MITM Proxy.",
+  "configuration.proxy.autoShowOutputChannel.description": "Automaticky otevřít výstupní kanál Cursor MITM Proxy při spuštění proxy.",
+  "configuration.proxy.outputCursorHostsOnly.description": "V výstupním kanálu proxy MITM zaznamenávat pouze provoz hostitelů Cursor (cursor.sh, cursor.com).",
+  "configuration.proxy.outputTailFromStart.description": "Při otevření výstupního kanálu proxy MITM přehrát poslední řádky z aktivního log souboru."
 }

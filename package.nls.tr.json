@@ -31,10 +31,15 @@
   "commands.proxy.start.title": "Cursor Accounts: MITM proxy'yi başlat",
   "commands.proxy.stop.title": "Cursor Accounts: MITM proxy'yi durdur",
   "commands.proxy.showLogs.title": "Cursor Accounts: Proxy günlüklerini aç",
+  "commands.proxy.showOutput.title": "Cursor Accounts: MITM proxy trafiğini göster",
   "commands.proxy.saveCertificate.title": "Cursor Accounts: Proxy CA sertifikasını kaydet…",
   "configuration.debug.webviewLifecycle.description": "Webview yaşam döngüsü tanılarını Cursor Accounts çıktı kanalına kaydet (sorun giderme sonrası kapat).",
   "configuration.proxy.enabled.description": "Uzantı etkinleştirildiğinde MITM proxy'yi başlat (Cursor ağ trafiğini izler).",
   "configuration.proxy.port.description": "Yerel MITM proxy için TCP portu (yalnızca localhost).",
   "configuration.proxy.maxLogSizeMB.description": "Proxy günlük dosyalarının megabayt cinsinden maksimum toplam boyutu.",
-  "configuration.proxy.autoLaunchWithProxy.description": "Profil başlatılırken proxy çalışıyorsa trafiği proxy üzerinden yönlendir."
+  "configuration.proxy.autoLaunchWithProxy.description": "Profil başlatılırken proxy çalışıyorsa trafiği proxy üzerinden yönlendir.",
+  "configuration.proxy.logTrafficToOutput.description": "Yakalanan proxy trafiğini Cursor MITM Proxy çıktı kanalına yaz.",
+  "configuration.proxy.autoShowOutputChannel.description": "Proxy başlatıldığında Cursor MITM Proxy çıktı kanalını otomatik aç.",
+  "configuration.proxy.outputCursorHostsOnly.description": "MITM Proxy çıktı kanalında yalnızca Cursor ana bilgisayar trafiğini (cursor.sh, cursor.com) günlükle.",
+  "configuration.proxy.outputTailFromStart.description": "MITM Proxy çıktı kanalı açılırken aktif log dosyasındaki son satırları yeniden oynat."
 }

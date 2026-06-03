@@ -31,10 +31,15 @@
   "commands.proxy.start.title": "Cursor Accounts: Uruchom proxy MITM",
   "commands.proxy.stop.title": "Cursor Accounts: Zatrzymaj proxy MITM",
   "commands.proxy.showLogs.title": "Cursor Accounts: Otwórz logi proxy",
+  "commands.proxy.showOutput.title": "Cursor Accounts: Pokaż ruch proxy MITM",
   "commands.proxy.saveCertificate.title": "Cursor Accounts: Zapisz certyfikat CA proxy…",
   "configuration.debug.webviewLifecycle.description": "Zapisuj diagnostykę cyklu życia webview w kanale wyjściowym Cursor Accounts (wyłącz po rozwiązaniu problemu).",
   "configuration.proxy.enabled.description": "Uruchom proxy MITM przy aktywacji rozszerzenia (obserwuje ruch sieciowy Cursor).",
   "configuration.proxy.port.description": "Port TCP lokalnego proxy MITM (tylko localhost).",
   "configuration.proxy.maxLogSizeMB.description": "Maksymalny łączny rozmiar plików logów proxy w megabajtach.",
-  "configuration.proxy.autoLaunchWithProxy.description": "Przy uruchamianiu profilu kieruj ruch przez proxy, jeśli jest uruchomione."
+  "configuration.proxy.autoLaunchWithProxy.description": "Przy uruchamianiu profilu kieruj ruch przez proxy, jeśli jest uruchomione.",
+  "configuration.proxy.logTrafficToOutput.description": "Zapisuj przechwycony ruch proxy do kanału wyjściowego Cursor MITM Proxy.",
+  "configuration.proxy.autoShowOutputChannel.description": "Automatycznie otwieraj kanał wyjściowy Cursor MITM Proxy po uruchomieniu proxy.",
+  "configuration.proxy.outputCursorHostsOnly.description": "Rejestruj tylko ruch hostów Cursor (cursor.sh, cursor.com) w kanale wyjściowym proxy MITM.",
+  "configuration.proxy.outputTailFromStart.description": "Przy otwieraniu kanału wyjściowego proxy MITM odtwarzaj ostatnie linie z aktywnego pliku logów."
 }

@@ -149,6 +149,7 @@ export class ProfileManager implements IProfileManager {
       theme: options.theme,
       color: options.color ?? this.generateRandomColor(),
       emoji: options.emoji,
+      proxyEnabled: true,
       metadata: {
         source: 'manual',
         notes: options.notes,

@@ -1,6 +1,7 @@
 import type { ChildProcess} from 'child_process';
 import { spawn } from 'child_process';
 import * as path from 'path';
+import { isProfileProxyEnabled } from '@cursor-accounts/types';
 import * as extensionLog from '../logging/extensionLog';
 import { ensureDirectory } from '../utils/pathUtils';
 import type { IInstanceDetector } from '../domain/ports/IInstanceDetector';
@@ -172,21 +173,10 @@ export class ProfileLauncher implements IProfileLauncher {
     try {
       await ensureDirectory(userDataDir);
 
-      const launchContext = await this.resolveProxyLaunchContext();
-      if (launchContext?.proxyUrl && this.profileSettingsManager) {
-        try {
-          await this.profileSettingsManager.applyProxySettings(
-            userDataDir,
-            launchContext.proxyUrl
-          );
-        } catch (error) {
-          extensionLog.warn(
-            `[ProfileLauncher] Failed to apply proxy settings: ${
-              error instanceof Error ? error.message : String(error)
-            }`
-          );
-        }
-      }
+      const profile = await this.profileManager.findProfileByPath(userDataDir);
+      const launchContext = profile
+        ? await this.resolveProxyLaunchContext(profile.id, userDataDir)
+        : null;
 
       const execPath = this.getExecutablePath();
       const args = this.buildLaunchArgs(userDataDir, projectPath);
@@ -217,9 +207,9 @@ export class ProfileLauncher implements IProfileLauncher {
         };
       }
 
-      const profile = await this.profileManager.findProfileByPath(userDataDir);
-      if (profile) {
-        await this.profileManager.updateProfile(profile.id, {
+      const matchedProfile = await this.profileManager.findProfileByPath(userDataDir);
+      if (matchedProfile) {
+        await this.profileManager.updateProfile(matchedProfile.id, {
           lastLaunched: new Date().toISOString(),
         });
       }
@@ -368,7 +358,10 @@ export class ProfileLauncher implements IProfileLauncher {
   /**
    * Spawn Cursor process (platform-specific implementation).
    */
-  private async resolveProxyLaunchContext(): Promise<{
+  private async resolveProxyLaunchContext(
+    profileId: string,
+    userDataDir: string
+  ): Promise<{
     proxyUrl: string;
     caCertPath: string;
   } | null> {
@@ -376,9 +369,40 @@ export class ProfileLauncher implements IProfileLauncher {
       return null;
     }
 
-    const proxyUrl = await this.proxyManager.getProxyServerUrl();
+    const profile = await this.profileManager.getProfile(profileId);
+    if (!profile || !isProfileProxyEnabled(profile)) {
+      return null;
+    }
+
+    const running = await this.proxyManager.isRunning(profileId);
+    if (!running) {
+      const startResult = await this.proxyManager.ensureProfileProxy(profileId);
+      if (!startResult.success) {
+        extensionLog.warn(
+          `[ProfileLauncher] Failed to start proxy for ${profileId}: ${startResult.error ?? 'unknown error'}`
+        );
+        return null;
+      }
+    }
+
+    const proxyUrl = await this.proxyManager.getProxyServerUrl(profileId);
     if (!proxyUrl) {
       return null;
+    }
+
+    if (this.profileSettingsManager) {
+      try {
+        await this.profileSettingsManager.applyProxySettings(
+          userDataDir,
+          proxyUrl
+        );
+      } catch (error) {
+        extensionLog.warn(
+          `[ProfileLauncher] Failed to apply proxy settings for ${profileId}: ${
+            error instanceof Error ? error.message : String(error)
+          }`
+        );
+      }
     }
 
     const caCertPath = await this.proxyManager.getCertificatePath();

@@ -31,10 +31,15 @@
   "commands.proxy.start.title": "Cursor Accounts : Démarrer le proxy MITM",
   "commands.proxy.stop.title": "Cursor Accounts : Arrêter le proxy MITM",
   "commands.proxy.showLogs.title": "Cursor Accounts : Ouvrir les journaux du proxy",
+  "commands.proxy.showOutput.title": "Cursor Accounts : Afficher le trafic du proxy MITM",
   "commands.proxy.saveCertificate.title": "Cursor Accounts : Enregistrer le certificat CA du proxy…",
   "configuration.debug.webviewLifecycle.description": "Journaliser les diagnostics du cycle de vie du webview dans le canal de sortie Cursor Accounts (désactiver après dépannage).",
   "configuration.proxy.enabled.description": "Démarrer le proxy MITM à l'activation de l'extension (observe le trafic réseau de Cursor).",
   "configuration.proxy.port.description": "Port TCP du proxy MITM local (localhost uniquement).",
   "configuration.proxy.maxLogSizeMB.description": "Taille totale maximale des fichiers journaux du proxy en mégaoctets.",
-  "configuration.proxy.autoLaunchWithProxy.description": "Lors du lancement d'un profil, acheminer le trafic via le proxy s'il est en cours d'exécution."
+  "configuration.proxy.autoLaunchWithProxy.description": "Lors du lancement d'un profil, acheminer le trafic via le proxy s'il est en cours d'exécution.",
+  "configuration.proxy.logTrafficToOutput.description": "Écrire le trafic proxy intercepté dans le canal de sortie Cursor MITM Proxy.",
+  "configuration.proxy.autoShowOutputChannel.description": "Ouvrir automatiquement le canal de sortie Cursor MITM Proxy au démarrage du proxy.",
+  "configuration.proxy.outputCursorHostsOnly.description": "N'enregistrer que le trafic des hôtes Cursor (cursor.sh, cursor.com) dans le canal de sortie du proxy MITM.",
+  "configuration.proxy.outputTailFromStart.description": "À l'ouverture du canal de sortie du proxy MITM, rejouer les lignes récentes du fichier journal actif."
 }

@@ -19,6 +19,10 @@ describe('ProxyManager certificate cache', () => {
         clear: async () => undefined,
       },
       {
+        getProfile: async () => null,
+        getProfiles: async () => [],
+      } as never,
+      {
         globalStorageUri: { fsPath: '/tmp/cursor-accounts-test' },
         extensionPath: '/tmp/extension',
       } as never

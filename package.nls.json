@@ -40,5 +40,6 @@
   "configuration.proxy.autoLaunchWithProxy.description": "When launching a profile, route traffic through the proxy if it is running.",
   "configuration.proxy.logTrafficToOutput.description": "Write intercepted proxy traffic to the Cursor MITM Proxy output channel.",
   "configuration.proxy.autoShowOutputChannel.description": "Automatically open the Cursor MITM Proxy output channel when the proxy starts.",
-  "configuration.proxy.outputCursorHostsOnly.description": "Only log Cursor host traffic (cursor.sh, cursor.com) in the MITM Proxy output channel."
+  "configuration.proxy.outputCursorHostsOnly.description": "Only log Cursor host traffic (cursor.sh, cursor.com) in the MITM Proxy output channel.",
+  "configuration.proxy.outputTailFromStart.description": "When opening the MITM Proxy output channel, replay recent lines from the active log file."
 }
