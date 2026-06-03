@@ -35,7 +35,7 @@ declare module 'http-mitm-proxy' {
       fn: (
         ctx: IContext | null,
         err: Error,
-        callback?: () => void
+        errorKind?: string
       ) => void
     ): void;
     onRequest(fn: (ctx: IContext, callback: () => void) => void): void;

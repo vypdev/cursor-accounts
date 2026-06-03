@@ -91,6 +91,10 @@
         "title": "%commands.proxy.showLogs.title%"
       },
       {
+        "command": "cursorAccounts.proxy.showOutput",
+        "title": "%commands.proxy.showOutput.title%"
+      },
+      {
         "command": "cursorAccounts.proxy.saveCertificate",
         "title": "%commands.proxy.saveCertificate.title%"
       }
@@ -194,6 +198,21 @@
           "type": "boolean",
           "default": true,
           "description": "%configuration.proxy.autoLaunchWithProxy.description%"
+        },
+        "cursorAccounts.proxy.logTrafficToOutput": {
+          "type": "boolean",
+          "default": true,
+          "description": "%configuration.proxy.logTrafficToOutput.description%"
+        },
+        "cursorAccounts.proxy.autoShowOutputChannel": {
+          "type": "boolean",
+          "default": false,
+          "description": "%configuration.proxy.autoShowOutputChannel.description%"
+        },
+        "cursorAccounts.proxy.outputCursorHostsOnly": {
+          "type": "boolean",
+          "default": false,
+          "description": "%configuration.proxy.outputCursorHostsOnly.description%"
         }
       }
     }

@@ -413,6 +413,10 @@ const AppContent: React.FC = () => {
     vscodeApi.showProxyLogs();
   }, []);
 
+  const handleShowProxyTraffic = useCallback(() => {
+    vscodeApi.showProxyTraffic();
+  }, []);
+
   const handleShowProxyCertificate = useCallback(() => {
     setShowCertInstallModal(true);
     setInstallGuide(null);
@@ -586,6 +590,7 @@ const AppContent: React.FC = () => {
           onStartProxy={handleStartProxy}
           onStopProxy={handleStopProxy}
           onShowLogs={handleShowProxyLogs}
+          onShowTraffic={handleShowProxyTraffic}
           onShowCertificate={handleShowProxyCertificate}
           onSaveCertificate={handleSaveProxyCertificate}
           onDeleteCertificate={handleOpenUninstallConfirm}

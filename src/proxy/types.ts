@@ -35,6 +35,31 @@ export interface ProxyLogEntry {
   bodyTruncated?: boolean;
   isConnectRpc?: boolean;
   isCursorHost?: boolean;
+  requestId?: string;
+}
+
+/** Redacted traffic event for IPC and Output channel. */
+export interface ProxyTrafficSummary {
+  timestamp: string;
+  kind: 'request' | 'response' | 'error';
+  method?: string;
+  url: string;
+  host: string;
+  endpoint: string;
+  statusCode?: number;
+  bodyBytes?: number;
+  bodyKind?: 'json' | 'proto' | 'text' | 'empty';
+  userAgent?: string;
+  requestId?: string;
+  isCursorHost?: boolean;
+  durationMs?: number;
+  errorKind?: string;
+  errorMessage?: string;
+}
+
+export interface MitmProxyHandlers {
+  onTraffic?: (summary: ProxyTrafficSummary) => void;
+  onProxyError?: (summary: ProxyTrafficSummary) => void;
 }
 
 /** IPC messages from parent to child. */
@@ -46,4 +71,6 @@ export type ProxyParentMessage =
 export type ProxyChildMessage =
   | { type: 'ready'; port: number }
   | { type: 'error'; message: string }
-  | { type: 'stats'; data: ProxyStatistics };
+  | { type: 'stats'; data: ProxyStatistics }
+  | { type: 'traffic'; entry: ProxyTrafficSummary }
+  | { type: 'proxyError'; entry: ProxyTrafficSummary };

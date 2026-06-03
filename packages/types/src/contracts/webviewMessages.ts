@@ -138,6 +138,7 @@ export type FromWebviewMessage =
   | { type: 'startProxy' }
   | { type: 'stopProxy' }
   | { type: 'showProxyLogs' }
+  | { type: 'showProxyTraffic' }
   | { type: 'getProxyInstallGuide' }
   | { type: 'installProxyCertificate' }
   | { type: 'uninstallProxyCertificate' }

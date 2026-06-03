@@ -1,4 +1,5 @@
 import type { ProxyInstallGuide, ProxyStatus } from '@cursor-accounts/types';
+import type { ProxyOutputPresenter } from '../../proxy/proxyOutputPresenter';
 
 /** Result of restoring proxy settings across all managed profiles. */
 export interface RestoreAllProfilesResult {
@@ -30,4 +31,5 @@ export interface IProxyManager {
   getProxyServerUrl(): Promise<string | null>;
   restoreAllProfileProxySettings(): Promise<RestoreAllProfilesResult>;
   onStatusChange(callback: () => void): void;
+  getOutputPresenter(): ProxyOutputPresenter | undefined;
 }

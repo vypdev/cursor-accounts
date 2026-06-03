@@ -30,7 +30,14 @@ async function main(): Promise<void> {
   const certificateManager = new CertificateManager(certDir);
   const maxBytes = config.maxLogSizeMb * 1024 * 1024;
   const requestLogger = new RequestLogger(config.logDir, maxBytes);
-  const server = new MitmProxyServer(certificateManager, requestLogger);
+  const server = new MitmProxyServer(certificateManager, requestLogger, {
+    onTraffic: (entry) => {
+      send({ type: 'traffic', entry });
+    },
+    onProxyError: (entry) => {
+      send({ type: 'proxyError', entry });
+    },
+  });
 
   server.on('error', (err) => {
     process.stderr.write(`[proxy] ${err.message}\n`);

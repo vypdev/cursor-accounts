@@ -19,6 +19,7 @@ import { verifyCaCertificateInstalled } from '../proxy/installCaCertificate';
 import * as extensionLog from '../logging/extensionLog';
 import { CertificateManager } from '../proxy/certificateManager';
 import { getSharedProxyStorageDir } from '../proxy/sharedProxyPaths';
+import { ProxyOutputPresenter, getProxyOutputConfig } from '../proxy/proxyOutputPresenter';
 import { isPortAvailable, isProcessAlive, resolveAvailablePort } from '../proxy/portUtils';
 import {
   DEFAULT_PROXY_PORT,
@@ -48,7 +49,8 @@ export class ProxyManager implements IProxyManager {
     private readonly stateStore: IProxyStateStore,
     private readonly context: vscode.ExtensionContext,
     storageDir: string = getSharedProxyStorageDir(),
-    private readonly proxySettingsService?: ProxySettingsService
+    private readonly proxySettingsService?: ProxySettingsService,
+    private readonly outputPresenter?: ProxyOutputPresenter
   ) {
     this.storageDir = storageDir;
     this.logDir = path.join(this.storageDir, 'logs');
@@ -123,6 +125,10 @@ export class ProxyManager implements IProxyManager {
         extensionLog.debug(`[Proxy] ${chunk.toString().trim()}`);
       });
 
+      child.on('message', (msg: ProxyChildMessage) => {
+        this.handleChildMessage(msg);
+      });
+
       child.on('exit', (code) => {
         extensionLog.warn(`[Proxy] Child process exited with code ${code ?? 'unknown'}`);
         this.childProcess = null;
@@ -149,6 +155,10 @@ export class ProxyManager implements IProxyManager {
       await this.stateStore.write(state);
 
       extensionLog.info(`[Proxy] Started on 127.0.0.1:${port} (pid ${child.pid})`);
+      this.outputPresenter?.appendStarted(port);
+      if (getProxyOutputConfig().autoShowOutputChannel) {
+        this.outputPresenter?.show();
+      }
 
       if (this.proxySettingsService) {
         const restoreResult = await this.proxySettingsService.restoreAllProfiles();
@@ -204,6 +214,7 @@ export class ProxyManager implements IProxyManager {
 
       await this.stateStore.clear();
       extensionLog.info('[Proxy] Stopped');
+      this.outputPresenter?.appendStopped();
       this.notifyStatusChange();
     } catch (error) {
       extensionLog.error(
@@ -296,6 +307,10 @@ export class ProxyManager implements IProxyManager {
 
   getLogDirectory(): string {
     return this.logDir;
+  }
+
+  getOutputPresenter(): ProxyOutputPresenter | undefined {
+    return this.outputPresenter;
   }
 
   async getProxyInstallGuide(): Promise<ProxyInstallGuide> {
@@ -397,6 +412,19 @@ export class ProxyManager implements IProxyManager {
       return true;
     }
     return Date.now() - updated > PROXY_STATE_STALE_MS;
+  }
+
+  private handleChildMessage(msg: ProxyChildMessage): void {
+    if (msg.type === 'traffic') {
+      this.outputPresenter?.appendTraffic(msg.entry);
+      return;
+    }
+    if (msg.type === 'proxyError') {
+      this.outputPresenter?.appendError(msg.entry);
+      extensionLog.warn(
+        `[Proxy] ${msg.entry.errorKind ?? 'PROXY_ERROR'}: ${msg.entry.errorMessage ?? 'unknown error'}`
+      );
+    }
   }
 
   private notifyStatusChange(): void {

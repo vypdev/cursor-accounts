@@ -9,6 +9,7 @@ export interface ProxyStatusCardProps {
   onStartProxy: () => void;
   onStopProxy: () => void;
   onShowLogs: () => void;
+  onShowTraffic: () => void;
   onShowCertificate: () => void;
   onSaveCertificate: () => void;
   onDeleteCertificate?: () => void;
@@ -20,6 +21,7 @@ export const ProxyStatusCard: React.FC<ProxyStatusCardProps> = ({
   onStartProxy,
   onStopProxy,
   onShowLogs,
+  onShowTraffic,
   onShowCertificate,
   onSaveCertificate,
   uninstallInProgress = false,
@@ -93,6 +95,9 @@ export const ProxyStatusCard: React.FC<ProxyStatusCardProps> = ({
             </button>
             <button type="button" className="btn-secondary" onClick={onShowLogs}>
               {t('proxy.viewLogs')}
+            </button>
+            <button type="button" className="btn-secondary" onClick={onShowTraffic}>
+              {t('proxy.viewTraffic')}
             </button>
           </>
         ) : (

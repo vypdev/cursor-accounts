@@ -41,6 +41,10 @@ export function registerProxyCommands(
       );
     }),
 
+    vscode.commands.registerCommand('cursorAccounts.proxy.showOutput', () => {
+      proxyManager.getOutputPresenter()?.show();
+    }),
+
     vscode.commands.registerCommand(
       'cursorAccounts.proxy.saveCertificate',
       async () => {

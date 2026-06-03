@@ -3,7 +3,8 @@ import { Proxy } from 'http-mitm-proxy';
 import type { ProxyStatistics } from '@cursor-accounts/types';
 import type { CertificateManager } from './certificateManager';
 import { RequestLogger } from './requestLogger';
-import type { ProxyServerConfig } from './types';
+import { extractRequestId, toTrafficSummary } from './proxyTrafficFormat';
+import type { MitmProxyHandlers, ProxyLogEntry, ProxyServerConfig } from './types';
 
 export interface MitmProxyServerEvents {
   error: (error: Error) => void;
@@ -11,7 +12,7 @@ export interface MitmProxyServerEvents {
 
 /**
  * HTTP/HTTPS MITM proxy using http-mitm-proxy.
- * Emits traffic through RequestLogger.
+ * Emits traffic through RequestLogger and optional handlers.
  */
 export class MitmProxyServer extends EventEmitter {
   private proxy: Proxy | null = null;
@@ -21,10 +22,12 @@ export class MitmProxyServer extends EventEmitter {
     bytesTransferred: 0,
     activeConnections: 0,
   };
+  private readonly requestStartedAt = new Map<string, number>();
 
   constructor(
     private readonly certificateManager: CertificateManager,
-    private readonly requestLogger: RequestLogger
+    private readonly requestLogger: RequestLogger,
+    private readonly handlers?: MitmProxyHandlers
   ) {
     super();
   }
@@ -43,11 +46,21 @@ export class MitmProxyServer extends EventEmitter {
     const proxy = new Proxy();
     this.proxy = proxy;
 
-    proxy.onError((_ctx, err, callback) => {
-      this.emit('error', err instanceof Error ? err : new Error(String(err)));
-      if (typeof callback === 'function') {
-        callback();
-      }
+    proxy.onError((ctx, err, errorKind) => {
+      const host = ctx?.clientToProxyRequest?.headers?.host ?? '';
+      const url = ctx ? this.buildRequestUrl(ctx) : '';
+      const message = err instanceof Error ? err.message : String(err);
+      this.handlers?.onProxyError?.({
+        timestamp: new Date().toISOString(),
+        kind: 'error',
+        url: url || host || 'unknown',
+        host: host || 'unknown',
+        endpoint: url || host || 'unknown',
+        errorKind: errorKind ?? 'PROXY_ERROR',
+        errorMessage: message,
+        isCursorHost: host ? RequestLogger.isCursorHost(host) : undefined,
+      });
+      this.emit('error', err instanceof Error ? err : new Error(message));
     });
 
     proxy.onRequest((ctx, callback) => {
@@ -64,6 +77,10 @@ export class MitmProxyServer extends EventEmitter {
       );
       const contentType = headers['content-type'];
       const url = this.buildRequestUrl(ctx);
+      const requestId = extractRequestId(headers);
+      if (requestId) {
+        this.requestStartedAt.set(requestId, Date.now());
+      }
 
       const bodyChunks: Buffer[] = [];
       ctx.onRequestData((_ctx, chunk, cb) => {
@@ -71,11 +88,11 @@ export class MitmProxyServer extends EventEmitter {
         cb(null, chunk);
       });
 
-      ctx.onRequestEnd(() => {
+      ctx.onRequestEnd((_ctx, endCallback) => {
         const body = Buffer.concat(bodyChunks);
         this.statistics.bytesTransferred += body.length;
         const formatted = RequestLogger.formatBody(body);
-        this.requestLogger.log({
+        const entry: ProxyLogEntry = {
           timestamp: new Date().toISOString(),
           direction: 'request',
           method: ctx.clientToProxyRequest.method,
@@ -85,7 +102,11 @@ export class MitmProxyServer extends EventEmitter {
           ...formatted,
           isConnectRpc: RequestLogger.isConnectRpcContentType(contentType),
           isCursorHost: RequestLogger.isCursorHost(host),
-        });
+          requestId,
+        };
+        this.requestLogger.log(entry);
+        this.handlers?.onTraffic?.(toTrafficSummary(entry));
+        endCallback();
       });
 
       callback();
@@ -101,6 +122,18 @@ export class MitmProxyServer extends EventEmitter {
       const contentType = headers['content-type'];
       const url = this.buildRequestUrl(ctx);
       const statusCode = ctx.serverToProxyResponse?.statusCode;
+      const requestHeaders = RequestLogger.normalizeHeaders(
+        ctx.clientToProxyRequest.headers as Record<string, string | string[] | undefined>
+      );
+      const requestId = extractRequestId(requestHeaders);
+      const startedAt = requestId
+        ? this.requestStartedAt.get(requestId)
+        : undefined;
+      const durationMs =
+        startedAt != null ? Math.max(0, Date.now() - startedAt) : undefined;
+      if (requestId) {
+        this.requestStartedAt.delete(requestId);
+      }
 
       const bodyChunks: Buffer[] = [];
       ctx.onResponseData((_ctx, chunk, cb) => {
@@ -108,7 +141,7 @@ export class MitmProxyServer extends EventEmitter {
         cb(null, chunk);
       });
 
-      ctx.onResponseEnd(() => {
+      ctx.onResponseEnd((_ctx, endCallback) => {
         this.statistics.activeConnections = Math.max(
           0,
           this.statistics.activeConnections - 1
@@ -116,7 +149,7 @@ export class MitmProxyServer extends EventEmitter {
         const body = Buffer.concat(bodyChunks);
         this.statistics.bytesTransferred += body.length;
         const formatted = RequestLogger.formatBody(body);
-        this.requestLogger.log({
+        const entry: ProxyLogEntry = {
           timestamp: new Date().toISOString(),
           direction: 'response',
           url,
@@ -126,7 +159,11 @@ export class MitmProxyServer extends EventEmitter {
           ...formatted,
           isConnectRpc: RequestLogger.isConnectRpcContentType(contentType),
           isCursorHost: RequestLogger.isCursorHost(host),
-        });
+          requestId,
+        };
+        this.requestLogger.log(entry);
+        this.handlers?.onTraffic?.(toTrafficSummary(entry, durationMs));
+        endCallback();
       });
 
       callback();
@@ -151,12 +188,21 @@ export class MitmProxyServer extends EventEmitter {
       return;
     }
 
-    await new Promise<void>((resolve) => {
-      this.proxy?.close(() => {
-        resolve();
-      });
-    });
+    const closing = this.proxy;
     this.proxy = null;
+
+    await Promise.race([
+      new Promise<void>((resolve) => {
+        closing.close(() => {
+          resolve();
+        });
+      }),
+      new Promise<void>((resolve) => {
+        setTimeout(resolve, 2_000);
+      }),
+    ]);
+
+    this.requestStartedAt.clear();
     await this.requestLogger.close();
   }
 

@@ -130,6 +130,10 @@ export class AccountsPanelHandlers {
         await this.handleShowProxyLogs();
         break;
 
+      case 'showProxyTraffic':
+        await this.handleShowProxyTraffic();
+        break;
+
       case 'getProxyInstallGuide':
         await this.handleGetProxyInstallGuide();
         break;
@@ -588,6 +592,10 @@ export class AccountsPanelHandlers {
       'revealFileInOS',
       vscode.Uri.file(logDir)
     );
+  }
+
+  private async handleShowProxyTraffic(): Promise<void> {
+    await vscode.commands.executeCommand('cursorAccounts.proxy.showOutput');
   }
 
   private async handleGetProxyInstallGuide(): Promise<void> {

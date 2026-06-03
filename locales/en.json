@@ -35,6 +35,10 @@
   "commands.proxy.saveCertificate.failed": "Failed to save CA certificate: {error}",
   "commands.proxy.saveCertificate.notFound": "CA certificate not available. Start the proxy once to generate it.",
 
+  "proxy.output.channelName": "Cursor MITM Proxy",
+  "proxy.output.started": "Proxy listening on 127.0.0.1:{port}",
+  "proxy.output.stopped": "Proxy stopped",
+
   "commands.listProfiles.header": "Configured Cursor Profiles:",
   "commands.listProfiles.noProfiles": "No profiles configured. Use \"Cursor Accounts: Add Profile\" to create one.",
   "commands.listProfiles.email": "  Email: {email}",
@@ -184,6 +188,7 @@
   "webview.proxy.start": "Start Proxy",
   "webview.proxy.stop": "Stop Proxy",
   "webview.proxy.viewLogs": "View Logs",
+  "webview.proxy.viewTraffic": "View Traffic",
   "webview.proxy.caCertificate": "Install instructions",
   "webview.proxy.downloadCa": "Save CA certificate…",
   "webview.proxy.deleteCertificate": "Delete certificate",

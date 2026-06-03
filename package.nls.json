@@ -18,6 +18,7 @@
   "commands.proxy.start.title": "Cursor Accounts: Start MITM Proxy",
   "commands.proxy.stop.title": "Cursor Accounts: Stop MITM Proxy",
   "commands.proxy.showLogs.title": "Cursor Accounts: Open Proxy Logs",
+  "commands.proxy.showOutput.title": "Cursor Accounts: Show MITM Proxy Traffic",
   "commands.proxy.saveCertificate.title": "Cursor Accounts: Save Proxy CA Certificate…",
   "configuration.title": "Cursor Accounts",
   "configuration.refresh.enabled.description": "Automatically refresh quota data from Cursor.",
@@ -36,5 +37,8 @@
   "configuration.proxy.enabled.description": "Start the MITM proxy when the extension activates (observes Cursor network traffic).",
   "configuration.proxy.port.description": "TCP port for the local MITM proxy (localhost only).",
   "configuration.proxy.maxLogSizeMB.description": "Maximum total size of proxy log files in megabytes.",
-  "configuration.proxy.autoLaunchWithProxy.description": "When launching a profile, route traffic through the proxy if it is running."
+  "configuration.proxy.autoLaunchWithProxy.description": "When launching a profile, route traffic through the proxy if it is running.",
+  "configuration.proxy.logTrafficToOutput.description": "Write intercepted proxy traffic to the Cursor MITM Proxy output channel.",
+  "configuration.proxy.autoShowOutputChannel.description": "Automatically open the Cursor MITM Proxy output channel when the proxy starts.",
+  "configuration.proxy.outputCursorHostsOnly.description": "Only log Cursor host traffic (cursor.sh, cursor.com) in the MITM Proxy output channel."
 }

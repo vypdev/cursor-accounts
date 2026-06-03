@@ -47,6 +47,10 @@
   "commands.proxy.saveCertificate.dialogTitle": "Guardar certificado CA del proxy MITM",
   "commands.proxy.saveCertificate.failed": "No se pudo guardar el certificado CA: {error}",
   "commands.proxy.saveCertificate.notFound": "Certificado CA no disponible. Inicia el proxy una vez para generarlo.",
+
+  "proxy.output.channelName": "Cursor MITM Proxy",
+  "proxy.output.started": "Proxy escuchando en 127.0.0.1:{port}",
+  "proxy.output.stopped": "Proxy detenido",
   "commands.proxy.saveCertificate.saved": "Certificado CA guardado en {path}",
   "commands.proxy.startFailed": "No se pudo iniciar el proxy MITM: {error}",
   "commands.proxy.started": "Proxy MITM iniciado en el puerto {port}",
@@ -293,6 +297,7 @@
   "webview.proxy.title": "Proxy MITM",
   "webview.proxy.usingProxy": "Usando el proxy",
   "webview.proxy.viewLogs": "Ver registros",
+  "webview.proxy.viewTraffic": "Ver tráfico",
   "webview.proxy.install.title": "Instalar CA del proxy MITM",
   "webview.proxy.install.intro": "Confía en el certificado generado para que Cursor pueda usar HTTPS a través del proxy. En macOS y Windows puedes instalarlo automáticamente (verás un diálogo nativo de permisos). En Linux, descarga el certificado y ejecuta los comandos de terminal que aparecen abajo.",
   "webview.proxy.install.mac.autoInstall.button": "Instalar en Llavero",

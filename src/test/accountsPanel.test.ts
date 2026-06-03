@@ -114,6 +114,7 @@ function createMockProxyManager(): IProxyManager {
     getProxyServerUrl: async () => null,
     restoreAllProfileProxySettings: async () => ({ restored: 0, errors: [] }),
     onStatusChange: () => undefined,
+    getOutputPresenter: () => undefined,
   };
 }
 

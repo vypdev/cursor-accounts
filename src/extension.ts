@@ -10,6 +10,7 @@ import { registerProfileCommands } from './commands/profileCommands';
 import { registerProxyCommands } from './commands/proxyCommands';
 import { ProxyStateFileStore } from './proxy/proxyStateFileStore';
 import { getSharedProxyStorageDir } from './proxy/sharedProxyPaths';
+import { ProxyOutputPresenter } from './proxy/proxyOutputPresenter';
 import { ProxyManager } from './services/proxyManager';
 import { affectsCursorAccountsConfig } from './config';
 import { initL10n, t } from './l10n';
@@ -44,6 +45,7 @@ let multiProfileQuotaService: MultiProfileQuotaService | undefined;
 let efficiencyService: EfficiencyService | undefined;
 let instanceDetectorRef: InstanceDetector | undefined;
 let proxyManagerRef: ProxyManager | undefined;
+let proxyOutputPresenterRef: ProxyOutputPresenter | undefined;
 
 export function activate(context: vscode.ExtensionContext): void {
   const activateTimestamp = lifecycleLog.markActivate();
@@ -87,11 +89,14 @@ export function activate(context: vscode.ExtensionContext): void {
     profileSettingsManager,
     instanceDetector
   );
+  const proxyOutputPresenter = new ProxyOutputPresenter();
+  proxyOutputPresenterRef = proxyOutputPresenter;
   const proxyManager = new ProxyManager(
     proxyStateStore,
     context,
     sharedProxyDir,
-    proxySettingsService
+    proxySettingsService,
+    proxyOutputPresenter
   );
   proxyManagerRef = proxyManager;
 
@@ -358,6 +363,12 @@ export function activate(context: vscode.ExtensionContext): void {
 
   context.subscriptions.push({
     dispose: () => efficiencyService?.dispose(),
+  });
+  context.subscriptions.push({
+    dispose: () => {
+      proxyOutputPresenterRef?.dispose();
+      proxyOutputPresenterRef = undefined;
+    },
   });
 
   refreshService.start();
