@@ -5,15 +5,19 @@ import { useL10n } from '../l10n/context';
 export interface CaCertificateInstallModalProps {
   guide: ProxyInstallGuide | null;
   loading: boolean;
+  installInProgress: boolean;
   onClose: () => void;
   onSaveCertificate: () => void;
+  onInstallCertificate: () => void;
 }
 
 export const CaCertificateInstallModal: React.FC<CaCertificateInstallModalProps> = ({
   guide,
   loading,
+  installInProgress,
   onClose,
   onSaveCertificate,
+  onInstallCertificate,
 }) => {
   const { t } = useL10n();
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
@@ -78,6 +82,21 @@ export const CaCertificateInstallModal: React.FC<CaCertificateInstallModalProps>
                         <h4 className="cert-install-step-title">{step.title}</h4>
                         {step.body && (
                           <p className="cert-install-step-body">{step.body}</p>
+                        )}
+
+                        {step.kind === 'install' && (
+                          <div className="cert-install-install-card">
+                            <button
+                              type="button"
+                              className="btn-primary"
+                              disabled={!guide.certAvailable || installInProgress}
+                              onClick={onInstallCertificate}
+                            >
+                              {installInProgress
+                                ? t('proxy.install.installInProgress')
+                                : step.title}
+                            </button>
+                          </div>
                         )}
 
                         {step.kind === 'download' && (

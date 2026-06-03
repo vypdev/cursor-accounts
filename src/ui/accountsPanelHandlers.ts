@@ -134,6 +134,10 @@ export class AccountsPanelHandlers {
         await this.handleGetProxyInstallGuide();
         break;
 
+      case 'installProxyCertificate':
+        await this.handleInstallProxyCertificate();
+        break;
+
       case 'saveProxyCertificate':
         await this.handleSaveProxyCertificate();
         break;
@@ -587,6 +591,15 @@ export class AccountsPanelHandlers {
     await this.callbacks.postMessage({
       type: 'proxyInstallGuide',
       data: guide,
+    });
+  }
+
+  private async handleInstallProxyCertificate(): Promise<void> {
+    const result = await this.deps.proxyManager.installCertificate();
+    await this.callbacks.postMessage({
+      type: 'certificateInstallResult',
+      success: result.success,
+      error: result.error,
     });
   }
 

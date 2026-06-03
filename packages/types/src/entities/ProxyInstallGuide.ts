@@ -1,6 +1,6 @@
 export type ProxyInstallPlatform = 'darwin' | 'win32' | 'linux';
 
-export type ProxyInstallStepKind = 'text' | 'download' | 'code';
+export type ProxyInstallStepKind = 'text' | 'download' | 'code' | 'install';
 
 export interface ProxyInstallStep {
   kind: ProxyInstallStepKind;

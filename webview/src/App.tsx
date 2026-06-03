@@ -58,6 +58,7 @@ const AppContent: React.FC = () => {
     null
   );
   const [installGuideLoading, setInstallGuideLoading] = useState(false);
+  const [installInProgress, setInstallInProgress] = useState(false);
   const [showAddForm, setShowAddForm] = useState(
     persisted?.showAddForm ?? false
   );
@@ -135,6 +136,17 @@ const AppContent: React.FC = () => {
         case 'proxyInstallGuide':
           setInstallGuide(message.data);
           setInstallGuideLoading(false);
+          break;
+
+        case 'certificateInstallResult':
+          setInstallInProgress(false);
+          if (message.success) {
+            setSuccess(t('proxy.install.installSuccess'));
+          } else if (message.error) {
+            setError(
+              t('proxy.install.installFailed', { error: message.error })
+            );
+          }
           break;
 
         case 'efficiencyStats':
@@ -370,6 +382,12 @@ const AppContent: React.FC = () => {
     setShowCertInstallModal(false);
     setInstallGuide(null);
     setInstallGuideLoading(false);
+    setInstallInProgress(false);
+  }, []);
+
+  const handleInstallProxyCertificate = useCallback(() => {
+    setInstallInProgress(true);
+    vscodeApi.installProxyCertificate();
   }, []);
 
   const handleSaveProxyCertificate = useCallback(() => {
@@ -587,8 +605,10 @@ const AppContent: React.FC = () => {
         <CaCertificateInstallModal
           guide={installGuide}
           loading={installGuideLoading}
+          installInProgress={installInProgress}
           onClose={handleCloseCertInstallModal}
           onSaveCertificate={handleSaveProxyCertificate}
+          onInstallCertificate={handleInstallProxyCertificate}
         />
       )}
 

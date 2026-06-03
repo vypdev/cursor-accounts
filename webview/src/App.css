@@ -1548,12 +1548,18 @@ form {
   margin-bottom: 8px;
 }
 
+.cert-install-install-card,
 .cert-install-download-card {
   margin-top: 8px;
   padding: 12px;
   border: 1px solid var(--border-color);
   border-radius: 6px;
   background: var(--bg-primary);
+}
+
+.cert-install-install-card .btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .cert-install-code-block {

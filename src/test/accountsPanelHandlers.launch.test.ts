@@ -83,6 +83,7 @@ function createHandlers(deps: {
           intro: 'Intro',
           steps: [],
         }),
+        installCertificate: async () => ({ success: true }),
         getProxyServerUrl: async () => null,
         onStatusChange: () => undefined,
       },

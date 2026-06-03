@@ -98,7 +98,8 @@ export type ToWebviewMessage =
     }
   | { type: 'proxyStatus'; data: ProxyStatus | null }
   | { type: 'currentWindowProxyUsage'; usesProxy: boolean }
-  | { type: 'proxyInstallGuide'; data: ProxyInstallGuide };
+  | { type: 'proxyInstallGuide'; data: ProxyInstallGuide }
+  | { type: 'certificateInstallResult'; success: boolean; error?: string };
 
 /** Messages sent from webview to extension. */
 export type FromWebviewMessage =
@@ -135,5 +136,6 @@ export type FromWebviewMessage =
   | { type: 'stopProxy' }
   | { type: 'showProxyLogs' }
   | { type: 'getProxyInstallGuide' }
+  | { type: 'installProxyCertificate' }
   | { type: 'saveProxyCertificate' }
   | { type: 'refreshProxyStatus' };

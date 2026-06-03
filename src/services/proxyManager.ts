@@ -258,6 +258,22 @@ export class ProxyManager implements IProxyManager {
     return buildProxyInstallGuide({ certPath });
   }
 
+  async installCertificate(): Promise<{ success: boolean; error?: string }> {
+    try {
+      const certPath = await this.getCertificatePath();
+      if (!certPath) {
+        return {
+          success: false,
+          error: 'CA certificate is not available. Start the proxy once to generate it.',
+        };
+      }
+      return await this.certManager.installCertificateWithElevation();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return { success: false, error: message };
+    }
+  }
+
   /**
    * Build proxy URL for ProfileLauncher when proxy is running.
    */

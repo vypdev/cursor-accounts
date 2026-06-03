@@ -13,10 +13,11 @@ The Cursor Accounts extension can run a local MITM proxy to observe HTTP/HTTPS t
 HTTPS interception requires trusting the extension-generated CA:
 
 1. In the Accounts panel MITM Proxy card, click **Install instructions** to open the guided setup dialog.
-2. Use **Save CA certificate…** in the dialog (step 1) to export the `.pem`, then follow the platform-specific trust steps shown in the same popup.
-3. You can also run **Cursor Accounts: Save Proxy CA Certificate…** from the Command Palette to export the file without opening the guide.
+2. **macOS / Windows:** click **Install to Keychain** or **Install certificate**. The OS shows a native permission dialog (macOS password / Windows UAC). Accept to install, or cancel to skip — installation is never forced.
+3. **Linux:** use **Save CA certificate…**, then copy and run the terminal commands shown in the dialog (`sudo cp` + `update-ca-certificates`).
+4. If automatic install fails, use the **Manual installation** section in the same dialog, or **Cursor Accounts: Save Proxy CA Certificate…** from the Command Palette.
 
-Without this step, Cursor may reject TLS connections when using the proxy.
+Without trusting the CA, Cursor may reject TLS connections when using the proxy.
 
 ## Route Cursor through the proxy
 

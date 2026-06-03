@@ -98,6 +98,7 @@ function createHandlers(overrides: {
           intro: 'Intro',
           steps: [],
         }),
+        installCertificate: async () => ({ success: true }),
         getProxyServerUrl: async () => null,
         onStatusChange: () => undefined,
       },

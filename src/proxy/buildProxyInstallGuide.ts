@@ -28,7 +28,11 @@ function downloadStep(): ProxyInstallStep {
   };
 }
 
-function textStep(titleKey: string, bodyKey: string, args?: Record<string, string>): ProxyInstallStep {
+function textStep(
+  titleKey: string,
+  bodyKey: string,
+  args?: Record<string, string>
+): ProxyInstallStep {
   return {
     kind: 'text',
     title: t(titleKey, args),
@@ -36,7 +40,11 @@ function textStep(titleKey: string, bodyKey: string, args?: Record<string, strin
   };
 }
 
-function codeStep(titleKey: string, codeKey: string, args: Record<string, string>): ProxyInstallStep {
+function codeStep(
+  titleKey: string,
+  codeKey: string,
+  args: Record<string, string>
+): ProxyInstallStep {
   return {
     kind: 'code',
     title: t(titleKey),
@@ -44,9 +52,31 @@ function codeStep(titleKey: string, codeKey: string, args: Record<string, string
   };
 }
 
+function installStep(titleKey: string, bodyKey: string): ProxyInstallStep {
+  return {
+    kind: 'install',
+    title: t(titleKey),
+    body: t(bodyKey),
+  };
+}
+
+function manualSectionHeader(): ProxyInstallStep[] {
+  return [
+    textStep(
+      'webview.proxy.install.manual.title',
+      'webview.proxy.install.manual.intro'
+    ),
+  ];
+}
+
 function buildMacSteps(certPath: string): ProxyInstallStep[] {
   const pathArg = { certPath };
   return [
+    installStep(
+      'webview.proxy.install.mac.autoInstall.button',
+      'webview.proxy.install.mac.autoInstall.body'
+    ),
+    ...manualSectionHeader(),
     downloadStep(),
     textStep(
       'webview.proxy.install.mac.step1.title',
@@ -79,6 +109,11 @@ function buildMacSteps(certPath: string): ProxyInstallStep[] {
 function buildWinSteps(certPath: string): ProxyInstallStep[] {
   const pathArg = { certPath };
   return [
+    installStep(
+      'webview.proxy.install.win.autoInstall.button',
+      'webview.proxy.install.win.autoInstall.body'
+    ),
+    ...manualSectionHeader(),
     downloadStep(),
     textStep(
       'webview.proxy.install.win.step1.title',

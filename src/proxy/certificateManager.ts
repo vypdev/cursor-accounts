@@ -5,7 +5,7 @@ import * as forge from 'node-forge';
 export const CA_CERT_FILE = 'ca-cert.pem';
 export const CA_KEY_FILE = 'ca-key.pem';
 
-const CA_COMMON_NAME = 'Cursor Accounts MITM Proxy CA';
+export const CA_COMMON_NAME = 'Cursor Accounts MITM Proxy CA';
 const CA_VALIDITY_YEARS = 10;
 
 /**
@@ -91,4 +91,15 @@ export class CertificateManager {
     return certPath;
   }
 
+  /**
+   * Install the CA into the system trust store using native OS elevation prompts.
+   */
+  async installCertificateWithElevation(): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    const certPath = await this.ensureCaCertificate();
+    const { installCaCertificateElevated } = await import('./installCaCertificate');
+    return installCaCertificateElevated(certPath);
+  }
 }

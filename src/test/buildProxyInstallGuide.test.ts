@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
+import { describe, it, beforeEach, afterEach } from 'node:test';
 import { initL10nForTests } from '../l10n';
 import { buildProxyInstallGuide } from '../proxy/buildProxyInstallGuide';
 
@@ -9,6 +9,16 @@ const enMessages: Record<string, string> = {
   'webview.proxy.install.certNotReady': 'Start the proxy once.',
   'webview.proxy.install.download.title': 'Download the CA certificate',
   'webview.proxy.install.download.body': 'Save the certificate file.',
+  'webview.proxy.install.copyCode': 'Copy',
+  'webview.proxy.install.copied': 'Copied',
+  'webview.proxy.install.loading': 'Loading…',
+  'webview.proxy.install.close': 'Close',
+  'webview.proxy.install.mac.autoInstall.button': 'Install to Keychain',
+  'webview.proxy.install.mac.autoInstall.body': 'Keychain prompt.',
+  'webview.proxy.install.win.autoInstall.button': 'Install certificate',
+  'webview.proxy.install.win.autoInstall.body': 'UAC prompt.',
+  'webview.proxy.install.manual.title': 'Manual installation',
+  'webview.proxy.install.manual.intro': 'Alternative steps.',
   'webview.proxy.install.command': 'Command',
   'webview.proxy.install.mac.step1.title': 'Open Keychain Access',
   'webview.proxy.install.mac.step1.body': 'Open Keychain Access app.',
@@ -41,16 +51,27 @@ const enMessages: Record<string, string> = {
 };
 
 describe('buildProxyInstallGuide', () => {
-  it('includes download step and platform-specific steps', () => {
+  const originalPlatform = process.platform;
+
+  beforeEach(() => {
     initL10nForTests(enMessages);
-    const guide = buildProxyInstallGuide({
-      certPath: '/tmp/ca-cert.pem',
+  });
+
+  afterEach(() => {
+    Object.defineProperty(process, 'platform', {
+      value: originalPlatform,
+      configurable: true,
     });
+  });
+
+  it('includes install step first on macOS', () => {
+    Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true });
+    const guide = buildProxyInstallGuide({ certPath: '/tmp/ca-cert.pem' });
 
     assert.equal(guide.certAvailable, true);
     assert.equal(guide.certPath, '/tmp/ca-cert.pem');
-    assert.ok(guide.steps.length >= 4);
-    assert.equal(guide.steps[0]?.kind, 'download');
+    assert.equal(guide.steps[0]?.kind, 'install');
+    assert.ok(guide.steps.some((s) => s.kind === 'download'));
     assert.ok(
       guide.steps.some(
         (s) => s.kind === 'code' && s.code?.includes('/tmp/ca-cert.pem')
@@ -58,8 +79,24 @@ describe('buildProxyInstallGuide', () => {
     );
   });
 
+  it('includes install step first on Windows', () => {
+    Object.defineProperty(process, 'platform', { value: 'win32', configurable: true });
+    const guide = buildProxyInstallGuide({ certPath: 'C:\\ca.pem' });
+
+    assert.equal(guide.steps[0]?.kind, 'install');
+    assert.ok(guide.steps.some((s) => s.kind === 'code'));
+  });
+
+  it('does not include install step on Linux', () => {
+    Object.defineProperty(process, 'platform', { value: 'linux', configurable: true });
+    const guide = buildProxyInstallGuide({ certPath: '/tmp/ca-cert.pem' });
+
+    assert.ok(!guide.steps.some((s) => s.kind === 'install'));
+    assert.equal(guide.steps[0]?.kind, 'download');
+  });
+
   it('marks cert as unavailable when path is missing', () => {
-    initL10nForTests(enMessages);
+    Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true });
     const guide = buildProxyInstallGuide({ certPath: null });
 
     assert.equal(guide.certAvailable, false);
