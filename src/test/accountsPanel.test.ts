@@ -18,6 +18,7 @@ import type { EfficiencyService } from '../modelEfficiency/efficiencyService';
 import type { IProfileAuthReader } from '../domain/ports/IProfileAuthReader';
 import type { IProfileStorageAnalyzer } from '../domain/ports/IProfileStorageAnalyzer';
 import type { IStorageCleanupService } from '../domain/ports/IStorageCleanupService';
+import type { IProxyManager } from '../domain/ports/IProxyManager';
 import { AccountsPanelProvider } from '../ui/accountsPanel';
 import { first } from './testUtils';
 
@@ -87,6 +88,21 @@ function createMockProfileWorkspaceService(): ProfileWorkspaceService {
     getWorkspacesForProfile: async () => [],
     getMostRecentWorkspace: async () => undefined,
   } as unknown as ProfileWorkspaceService;
+}
+
+function createMockProxyManager(): IProxyManager {
+  return {
+    start: async () => ({ success: true, port: 8080 }),
+    stop: async () => undefined,
+    getStatus: async () => ({ running: false, logDirectory: '/tmp/proxy-logs' }),
+    isRunning: async () => false,
+    isCurrentWindowUsingProxy: async () => false,
+    getCertificatePath: async () => null,
+    getLogDirectory: () => '/tmp/proxy-logs',
+    getCertificateInstallationInstructions: async () => 'instructions',
+    getProxyServerUrl: async () => null,
+    onStatusChange: () => undefined,
+  };
 }
 
 function createMockEfficiencyService(): EfficiencyService {
@@ -231,7 +247,8 @@ describe('AccountsPanelProvider', () => {
       createMockEfficiencyService(),
       createMockAuthReader(),
       createMockStorageCleanupService(),
-      createMockStorageAnalyzer()
+      createMockStorageAnalyzer(),
+      createMockProxyManager()
     );
 
     mockWebview = createMockWebview();
@@ -509,7 +526,8 @@ describe('AccountsPanelProvider', () => {
       createMockEfficiencyService(),
       createMockAuthReader(),
       createMockStorageCleanupService(),
-      createMockStorageAnalyzer()
+      createMockStorageAnalyzer(),
+      createMockProxyManager()
     );
 
     failingProvider.openPanel();

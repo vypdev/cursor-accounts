@@ -13,6 +13,7 @@ import type {
   StorageCleanupOptions,
   StorageCleanupResult,
 } from '../entities/StorageInfo';
+import type { ProxyStatus } from '../entities/ProxyStatus';
 
 /** Quota information for a specific profile. */
 export interface ProfileQuota {
@@ -56,6 +57,8 @@ export interface InitData {
   profileGithubSummaries: ProfileGithubSummariesMap;
   profileGithubTokenStatus: ProfileGithubTokenStatusMap;
   efficiencyStats: EfficiencyStatsMap;
+  proxyStatus: ProxyStatus | null;
+  currentWindowUsesProxy: boolean;
   locale: string;
   messages: Record<string, string>;
 }
@@ -91,7 +94,9 @@ export type ToWebviewMessage =
         summaries: ProfileGithubSummariesMap;
         tokenStatus: ProfileGithubTokenStatusMap;
       };
-    };
+    }
+  | { type: 'proxyStatus'; data: ProxyStatus | null }
+  | { type: 'currentWindowProxyUsage'; usesProxy: boolean };
 
 /** Messages sent from webview to extension. */
 export type FromWebviewMessage =
@@ -123,4 +128,10 @@ export type FromWebviewMessage =
   | { type: 'requestStorageInfo'; profileId: string }
   | { type: 'cleanStorage'; profileId: string; options: StorageCleanupOptions }
   | { type: 'configureGithubToken'; profileId: string }
-  | { type: 'clearGithubToken'; profileId: string };
+  | { type: 'clearGithubToken'; profileId: string }
+  | { type: 'startProxy' }
+  | { type: 'stopProxy' }
+  | { type: 'showProxyLogs' }
+  | { type: 'showProxyCertificate' }
+  | { type: 'saveProxyCertificate' }
+  | { type: 'refreshProxyStatus' };

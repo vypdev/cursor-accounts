@@ -27,5 +27,15 @@
   "configuration.profiles.instanceDetectionInterval.description": "Intervalle en secondes pour détecter les instances Cursor en cours d'exécution.",
   "configuration.modelEfficiency.showNotificationOnHigh.description": "Afficher une notification informative lorsque la sévérité d'efficacité du modèle est élevée.",
   "configuration.modelEfficiency.autoShowOutputChannel.description": "Ouvrir automatiquement le canal de sortie d'efficacité du modèle à chaque analyse.",
-  "configuration.modelEfficiency.pollIntervalSeconds.description": "Intervalle en secondes pour sonder state.vscdb du profil à la recherche de nouveaux messages utilisateur Composer (5–60)."
+  "configuration.modelEfficiency.pollIntervalSeconds.description": "Intervalle en secondes pour sonder state.vscdb du profil à la recherche de nouveaux messages utilisateur Composer (5–60).",
+  "commands.proxy.start.title": "Cursor Accounts : Démarrer le proxy MITM",
+  "commands.proxy.stop.title": "Cursor Accounts : Arrêter le proxy MITM",
+  "commands.proxy.showLogs.title": "Cursor Accounts : Ouvrir les journaux du proxy",
+  "commands.proxy.showCertificate.title": "Cursor Accounts : Instructions du certificat CA du proxy",
+  "commands.proxy.saveCertificate.title": "Cursor Accounts : Enregistrer le certificat CA du proxy…",
+  "configuration.debug.webviewLifecycle.description": "Journaliser les diagnostics du cycle de vie du webview dans le canal de sortie Cursor Accounts (désactiver après dépannage).",
+  "configuration.proxy.enabled.description": "Démarrer le proxy MITM à l'activation de l'extension (observe le trafic réseau de Cursor).",
+  "configuration.proxy.port.description": "Port TCP du proxy MITM local (localhost uniquement).",
+  "configuration.proxy.maxLogSizeMB.description": "Taille totale maximale des fichiers journaux du proxy en mégaoctets.",
+  "configuration.proxy.autoLaunchWithProxy.description": "Lors du lancement d'un profil, acheminer le trafic via le proxy s'il est en cours d'exécution."
 }

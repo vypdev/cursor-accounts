@@ -158,6 +158,26 @@ class VSCodeAPI {
     this.sendMessage({ type: 'clearGithubToken', profileId });
   }
 
+  startProxy(): void {
+    this.sendMessage({ type: 'startProxy' });
+  }
+
+  stopProxy(): void {
+    this.sendMessage({ type: 'stopProxy' });
+  }
+
+  showProxyLogs(): void {
+    this.sendMessage({ type: 'showProxyLogs' });
+  }
+
+  showProxyCertificate(): void {
+    this.sendMessage({ type: 'showProxyCertificate' });
+  }
+
+  saveProxyCertificate(): void {
+    this.sendMessage({ type: 'saveProxyCertificate' });
+  }
+
   saveState(state: Omit<WebviewPersistedState, 'version'>): void {
     this.vscode.setState({
       version: WEBVIEW_STATE_VERSION,

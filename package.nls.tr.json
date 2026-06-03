@@ -27,5 +27,15 @@
   "configuration.profiles.instanceDetectionInterval.description": "Çalışan Cursor örneklerini algılama aralığı (saniye).",
   "configuration.modelEfficiency.showNotificationOnHigh.description": "Model verimliliği önem derecesi yüksek olduğunda bilgi bildirimi göster.",
   "configuration.modelEfficiency.autoShowOutputChannel.description": "Her analizde Model Verimliliği çıktı kanalını otomatik olarak aç.",
-  "configuration.modelEfficiency.pollIntervalSeconds.description": "Yeni Composer kullanıcı mesajları için profil state.vscdb dosyasını yoklama aralığı (saniye) (5–60)."
+  "configuration.modelEfficiency.pollIntervalSeconds.description": "Yeni Composer kullanıcı mesajları için profil state.vscdb dosyasını yoklama aralığı (saniye) (5–60).",
+  "commands.proxy.start.title": "Cursor Accounts: MITM proxy'yi başlat",
+  "commands.proxy.stop.title": "Cursor Accounts: MITM proxy'yi durdur",
+  "commands.proxy.showLogs.title": "Cursor Accounts: Proxy günlüklerini aç",
+  "commands.proxy.showCertificate.title": "Cursor Accounts: Proxy CA sertifikası talimatları",
+  "commands.proxy.saveCertificate.title": "Cursor Accounts: Proxy CA sertifikasını kaydet…",
+  "configuration.debug.webviewLifecycle.description": "Webview yaşam döngüsü tanılarını Cursor Accounts çıktı kanalına kaydet (sorun giderme sonrası kapat).",
+  "configuration.proxy.enabled.description": "Uzantı etkinleştirildiğinde MITM proxy'yi başlat (Cursor ağ trafiğini izler).",
+  "configuration.proxy.port.description": "Yerel MITM proxy için TCP portu (yalnızca localhost).",
+  "configuration.proxy.maxLogSizeMB.description": "Proxy günlük dosyalarının megabayt cinsinden maksimum toplam boyutu.",
+  "configuration.proxy.autoLaunchWithProxy.description": "Profil başlatılırken proxy çalışıyorsa trafiği proxy üzerinden yönlendir."
 }

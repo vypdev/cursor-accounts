@@ -35,6 +35,7 @@ import type { EfficiencyService } from '../modelEfficiency/efficiencyService';
 import { getLocale, getWebviewMessages, isRtlLocale, t } from '../l10n';
 import type { IProfileStorageAnalyzer } from '../domain/ports/IProfileStorageAnalyzer';
 import type { IStorageCleanupService } from '../domain/ports/IStorageCleanupService';
+import type { IProxyManager } from '../domain/ports/IProxyManager';
 import { AccountsPanelHandlers } from './accountsPanelHandlers';
 
 /** Webview panel view type id. */
@@ -71,7 +72,8 @@ export class AccountsPanelProvider {
     efficiencyService: EfficiencyService,
     authReader: IProfileAuthReader,
     storageCleanupService: IStorageCleanupService,
-    storageAnalyzer: IProfileStorageAnalyzer
+    storageAnalyzer: IProfileStorageAnalyzer,
+    private readonly proxyManager: IProxyManager
   ) {
     this.efficiencyService = efficiencyService;
 
@@ -86,12 +88,14 @@ export class AccountsPanelProvider {
         storageCleanupService,
         storageAnalyzer,
         profileWorkspaceService,
+        proxyManager,
       },
       {
         postMessage: (message) => this.postMessage(message),
         refresh: () => this.refresh(),
         refreshInstances: () => this.refreshInstances(),
         refreshGithubSummaries: () => this.refreshGithubSummaries(),
+        refreshProxyStatus: () => this.refreshProxyStatus(),
         hasActiveWebview: () => this.getActiveWebview() !== undefined,
       }
     );
@@ -272,6 +276,9 @@ export class AccountsPanelProvider {
         profileGithubSummaries: {},
         profileGithubTokenStatus: {},
         efficiencyStats: this.efficiencyService.getStatsStorage().getAllStats(),
+        proxyStatus: await this.proxyManager.getStatus(),
+        currentWindowUsesProxy:
+          await this.proxyManager.isCurrentWindowUsingProxy(),
         locale: getLocale(),
         messages: getWebviewMessages(),
       };
@@ -293,6 +300,22 @@ export class AccountsPanelProvider {
         message: t('errors.failedLoadProfiles'),
       });
     }
+  }
+
+  /** Push latest proxy status to the webview. */
+  public async refreshProxyStatus(): Promise<void> {
+    if (!this.getActiveWebview()) {
+      return;
+    }
+
+    const proxyStatus = await this.proxyManager.getStatus();
+    await this.postMessage({ type: 'proxyStatus', data: proxyStatus });
+
+    const usesProxy = await this.proxyManager.isCurrentWindowUsingProxy();
+    await this.postMessage({
+      type: 'currentWindowProxyUsage',
+      usesProxy,
+    });
   }
 
   /** Push latest efficiency stats to the webview. */

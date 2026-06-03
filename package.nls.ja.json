@@ -27,5 +27,15 @@
   "configuration.profiles.instanceDetectionInterval.description": "実行中 Cursor インスタンスを検出する間隔（秒）。",
   "configuration.modelEfficiency.showNotificationOnHigh.description": "モデル効率の重大度が高い場合に情報通知を表示します。",
   "configuration.modelEfficiency.autoShowOutputChannel.description": "各分析でモデル効率出力チャネルを自動的に開きます。",
-  "configuration.modelEfficiency.pollIntervalSeconds.description": "新しい Composer ユーザーメッセージのためにプロファイル state.vscdb をポーリングする間隔（秒）（5–60）。"
+  "configuration.modelEfficiency.pollIntervalSeconds.description": "新しい Composer ユーザーメッセージのためにプロファイル state.vscdb をポーリングする間隔（秒）（5–60）。",
+  "commands.proxy.start.title": "Cursor Accounts: MITMプロキシを開始",
+  "commands.proxy.stop.title": "Cursor Accounts: MITMプロキシを停止",
+  "commands.proxy.showLogs.title": "Cursor Accounts: プロキシログを開く",
+  "commands.proxy.showCertificate.title": "Cursor Accounts: プロキシCA証明書の手順を表示",
+  "commands.proxy.saveCertificate.title": "Cursor Accounts: プロキシCA証明書を保存…",
+  "configuration.debug.webviewLifecycle.description": "Webviewのライフサイクル診断をCursor Accounts出力チャネルに記録（トラブルシュート後は無効化）。",
+  "configuration.proxy.enabled.description": "拡張機能の有効化時にMITMプロキシを開始（Cursorのネットワーク通信を監視）。",
+  "configuration.proxy.port.description": "ローカルMITMプロキシのTCPポート（localhostのみ）。",
+  "configuration.proxy.maxLogSizeMB.description": "プロキシログファイルの最大合計サイズ（メガバイト）。",
+  "configuration.proxy.autoLaunchWithProxy.description": "プロファイル起動時、プロキシが実行中ならトラフィックをプロキシ経由にする。"
 }

@@ -27,5 +27,15 @@
   "configuration.profiles.instanceDetectionInterval.description": "מרווח בשניות לזיהוי מופעי Cursor פועלים.",
   "configuration.modelEfficiency.showNotificationOnHigh.description": "הצגת התראת מידע כאשר חומרת יעילות המודל גבוהה.",
   "configuration.modelEfficiency.autoShowOutputChannel.description": "פתיחה אוטומטית של ערוץ הפלט של יעילות המודל בכל ניתוח.",
-  "configuration.modelEfficiency.pollIntervalSeconds.description": "מרווח בשניות לדגימת state.vscdb של הפרופיל עבור הודעות משתמש Composer חדשות (5–60)."
+  "configuration.modelEfficiency.pollIntervalSeconds.description": "מרווח בשניות לדגימת state.vscdb של הפרופיל עבור הודעות משתמש Composer חדשות (5–60).",
+  "commands.proxy.start.title": "Cursor Accounts: הפעל פרוקסי MITM",
+  "commands.proxy.stop.title": "Cursor Accounts: עצור פרוקסי MITM",
+  "commands.proxy.showLogs.title": "Cursor Accounts: פתח יומני פרוקסי",
+  "commands.proxy.showCertificate.title": "Cursor Accounts: הצג הוראות אישור CA לפרוקסי",
+  "commands.proxy.saveCertificate.title": "Cursor Accounts: שמור אישור CA לפרוקסי…",
+  "configuration.debug.webviewLifecycle.description": "רשום אבחון מחזור חיי webview בערוץ הפלט של Cursor Accounts (השבת לאחר פתרון תקלות).",
+  "configuration.proxy.enabled.description": "הפעל פרוקסי MITM בהפעלת ההרחבה (צופה בתעבורת הרשת של Cursor).",
+  "configuration.proxy.port.description": "יציאת TCP של פרוקסי MITM מקומי (localhost בלבד).",
+  "configuration.proxy.maxLogSizeMB.description": "גודל כולל מרבי של קובצי יומן הפרוקסי במגה-בייט.",
+  "configuration.proxy.autoLaunchWithProxy.description": "בהפעלת פרופיל, נתב תעבורה דרך הפרוקסי אם הוא פועל."
 }

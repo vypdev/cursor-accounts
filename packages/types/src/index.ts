@@ -7,6 +7,7 @@ export * from './entities/StorageInfo';
 export * from './entities/Workspace';
 export * from './entities/GitHub';
 export * from './entities/EfficiencyStats';
+export * from './entities/ProxyStatus';
 export * from './constants/profileConstants';
 export * from './rules/quotaRules';
 export * from './contracts/webviewMessages';

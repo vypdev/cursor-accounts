@@ -5,6 +5,7 @@ import { EditProfileForm } from './components/EditProfileForm';
 import { EmptyState } from './components/EmptyState';
 import { ImportDialog } from './components/ImportDialog';
 import { ProfileList } from './components/ProfileList';
+import { ProxyStatusCard } from './components/ProxyStatusCard';
 import { StorageManagementModal } from './components/StorageManagementModal';
 import { L10nProvider, useL10n } from './l10n/context';
 import type {
@@ -22,6 +23,7 @@ import type {
   ProfileGithubSummariesMap,
   ProfileGithubTokenStatusMap,
   EfficiencyStatsMap,
+  ProxyStatus,
 } from './types';
 import './App.css';
 
@@ -47,6 +49,8 @@ const AppContent: React.FC = () => {
   const [profileGithubTokenStatus, setProfileGithubTokenStatus] =
     useState<ProfileGithubTokenStatusMap>({});
   const [efficiencyStats, setEfficiencyStats] = useState<EfficiencyStatsMap>({});
+  const [proxyStatus, setProxyStatus] = useState<ProxyStatus | null>(null);
+  const [currentWindowUsesProxy, setCurrentWindowUsesProxy] = useState(false);
   const [showAddForm, setShowAddForm] = useState(
     persisted?.showAddForm ?? false
   );
@@ -106,7 +110,19 @@ const AppContent: React.FC = () => {
             message.data.profileGithubTokenStatus ?? {}
           );
           setEfficiencyStats(message.data.efficiencyStats ?? {});
+          setProxyStatus(message.data.proxyStatus ?? null);
+          setCurrentWindowUsesProxy(
+            message.data.currentWindowUsesProxy ?? false
+          );
           setLoading(false);
+          break;
+
+        case 'proxyStatus':
+          setProxyStatus(message.data);
+          break;
+
+        case 'currentWindowProxyUsage':
+          setCurrentWindowUsesProxy(message.usesProxy);
           break;
 
         case 'efficiencyStats':
@@ -319,6 +335,26 @@ const AppContent: React.FC = () => {
     persistUiState(showAddForm, null);
   }, [showAddForm, persistUiState]);
 
+  const handleStartProxy = useCallback(() => {
+    vscodeApi.startProxy();
+  }, []);
+
+  const handleStopProxy = useCallback(() => {
+    vscodeApi.stopProxy();
+  }, []);
+
+  const handleShowProxyLogs = useCallback(() => {
+    vscodeApi.showProxyLogs();
+  }, []);
+
+  const handleShowProxyCertificate = useCallback(() => {
+    vscodeApi.showProxyCertificate();
+  }, []);
+
+  const handleSaveProxyCertificate = useCallback(() => {
+    vscodeApi.saveProxyCertificate();
+  }, []);
+
   const handleExport = useCallback(
     (profileIds: string[], includeSettings: boolean) => {
       vscodeApi.exportProfiles(profileIds, includeSettings);
@@ -446,6 +482,16 @@ const AppContent: React.FC = () => {
             {success}
           </div>
         )}
+
+        <ProxyStatusCard
+          proxyStatus={proxyStatus}
+          currentWindowUsesProxy={currentWindowUsesProxy}
+          onStartProxy={handleStartProxy}
+          onStopProxy={handleStopProxy}
+          onShowLogs={handleShowProxyLogs}
+          onShowCertificate={handleShowProxyCertificate}
+          onSaveCertificate={handleSaveProxyCertificate}
+        />
 
         {profiles.length === 0 ? (
           <EmptyState onAddProfile={openAddForm} />

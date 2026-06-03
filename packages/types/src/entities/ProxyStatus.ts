@@ -1,0 +1,30 @@
+/** Live proxy status exposed to the webview and commands. */
+export interface ProxyStatus {
+  running: boolean;
+  port?: number;
+  pid?: number;
+  startedAt?: number;
+  caCertificatePath?: string;
+  caCertificateInstalled?: boolean;
+  logDirectory?: string;
+  statistics?: ProxyStatistics;
+}
+
+/** Aggregated traffic counters from the proxy child process. */
+export interface ProxyStatistics {
+  totalRequests: number;
+  cursorRequests: number;
+  bytesTransferred: number;
+  activeConnections: number;
+}
+
+/** Persisted proxy state shared across extension host instances. */
+export interface ProxyStateFile {
+  version: number;
+  running: boolean;
+  port?: number;
+  pid?: number;
+  startedAt?: string;
+  caCertificatePath?: string;
+  lastUpdatedAt: string;
+}

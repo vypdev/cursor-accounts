@@ -1,0 +1,179 @@
+import { EventEmitter } from 'events';
+import { Proxy } from 'http-mitm-proxy';
+import type { ProxyStatistics } from '@cursor-accounts/types';
+import type { CertificateManager } from './certificateManager';
+import { RequestLogger } from './requestLogger';
+import type { ProxyServerConfig } from './types';
+
+export interface MitmProxyServerEvents {
+  error: (error: Error) => void;
+}
+
+/**
+ * HTTP/HTTPS MITM proxy using http-mitm-proxy.
+ * Emits traffic through RequestLogger.
+ */
+export class MitmProxyServer extends EventEmitter {
+  private proxy: Proxy | null = null;
+  private statistics: ProxyStatistics = {
+    totalRequests: 0,
+    cursorRequests: 0,
+    bytesTransferred: 0,
+    activeConnections: 0,
+  };
+
+  constructor(
+    private readonly certificateManager: CertificateManager,
+    private readonly requestLogger: RequestLogger
+  ) {
+    super();
+  }
+
+  /**
+   * Start listening on the configured port (localhost only).
+   */
+  async start(config: ProxyServerConfig): Promise<void> {
+    if (this.proxy) {
+      return;
+    }
+
+    const sslCaDir = await this.certificateManager.ensureCaDirectoryForMitm();
+    await this.requestLogger.initialize();
+
+    const proxy = new Proxy();
+    this.proxy = proxy;
+
+    proxy.onError((_ctx, err, callback) => {
+      this.emit('error', err instanceof Error ? err : new Error(String(err)));
+      if (typeof callback === 'function') {
+        callback();
+      }
+    });
+
+    proxy.onRequest((ctx, callback) => {
+      this.statistics.totalRequests += 1;
+      this.statistics.activeConnections += 1;
+
+      const host = ctx.clientToProxyRequest.headers.host ?? '';
+      if (RequestLogger.isCursorHost(host)) {
+        this.statistics.cursorRequests += 1;
+      }
+
+      const headers = RequestLogger.normalizeHeaders(
+        ctx.clientToProxyRequest.headers as Record<string, string | string[] | undefined>
+      );
+      const contentType = headers['content-type'];
+      const url = this.buildRequestUrl(ctx);
+
+      const bodyChunks: Buffer[] = [];
+      ctx.onRequestData((_ctx, chunk, cb) => {
+        bodyChunks.push(chunk);
+        cb(null, chunk);
+      });
+
+      ctx.onRequestEnd(() => {
+        const body = Buffer.concat(bodyChunks);
+        this.statistics.bytesTransferred += body.length;
+        const formatted = RequestLogger.formatBody(body);
+        this.requestLogger.log({
+          timestamp: new Date().toISOString(),
+          direction: 'request',
+          method: ctx.clientToProxyRequest.method,
+          url,
+          host,
+          headers,
+          ...formatted,
+          isConnectRpc: RequestLogger.isConnectRpcContentType(contentType),
+          isCursorHost: RequestLogger.isCursorHost(host),
+        });
+      });
+
+      callback();
+    });
+
+    proxy.onResponse((ctx, callback) => {
+      const host = ctx.clientToProxyRequest.headers.host ?? '';
+      const headers = RequestLogger.normalizeHeaders(
+        ctx.serverToProxyResponse?.headers as
+          | Record<string, string | string[] | undefined>
+          | undefined ?? {}
+      );
+      const contentType = headers['content-type'];
+      const url = this.buildRequestUrl(ctx);
+      const statusCode = ctx.serverToProxyResponse?.statusCode;
+
+      const bodyChunks: Buffer[] = [];
+      ctx.onResponseData((_ctx, chunk, cb) => {
+        bodyChunks.push(chunk);
+        cb(null, chunk);
+      });
+
+      ctx.onResponseEnd(() => {
+        this.statistics.activeConnections = Math.max(
+          0,
+          this.statistics.activeConnections - 1
+        );
+        const body = Buffer.concat(bodyChunks);
+        this.statistics.bytesTransferred += body.length;
+        const formatted = RequestLogger.formatBody(body);
+        this.requestLogger.log({
+          timestamp: new Date().toISOString(),
+          direction: 'response',
+          url,
+          host,
+          statusCode,
+          headers,
+          ...formatted,
+          isConnectRpc: RequestLogger.isConnectRpcContentType(contentType),
+          isCursorHost: RequestLogger.isCursorHost(host),
+        });
+      });
+
+      callback();
+    });
+
+    await new Promise<void>((resolve, reject) => {
+      proxy.listen(
+        { port: config.port, host: '127.0.0.1', sslCaDir },
+        (err?: Error) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve();
+          }
+        }
+      );
+    });
+  }
+
+  async stop(): Promise<void> {
+    if (!this.proxy) {
+      return;
+    }
+
+    await new Promise<void>((resolve) => {
+      this.proxy?.close(() => {
+        resolve();
+      });
+    });
+    this.proxy = null;
+    await this.requestLogger.close();
+  }
+
+  getStatistics(): ProxyStatistics {
+    return { ...this.statistics };
+  }
+
+  private buildRequestUrl(ctx: {
+    clientToProxyRequest: { method?: string; url?: string; headers: { host?: string } };
+    isSSL?: boolean;
+  }): string {
+    const host = ctx.clientToProxyRequest.headers.host ?? 'unknown';
+    const pathPart = ctx.clientToProxyRequest.url ?? '/';
+    const scheme = ctx.isSSL ? 'https' : 'http';
+    if (pathPart.startsWith('http://') || pathPart.startsWith('https://')) {
+      return pathPart;
+    }
+    return `${scheme}://${host}${pathPart}`;
+  }
+}

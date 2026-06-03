@@ -27,5 +27,15 @@
   "configuration.profiles.instanceDetectionInterval.description": "الفترة بالثواني لاكتشاف مثيلات Cursor قيد التشغيل.",
   "configuration.modelEfficiency.showNotificationOnHigh.description": "عرض إشعار معلوماتي عندما تكون شدة كفاءة النموذج مرتفعة.",
   "configuration.modelEfficiency.autoShowOutputChannel.description": "فتح قناة مخرجات كفاءة النموذج تلقائياً عند كل تحليل.",
-  "configuration.modelEfficiency.pollIntervalSeconds.description": "الفترة بالثواني لاستطلاع state.vscdb الخاص بالملف الشخصي بحثاً عن رسائل مستخدم Composer جديدة (5–60)."
+  "configuration.modelEfficiency.pollIntervalSeconds.description": "الفترة بالثواني لاستطلاع state.vscdb الخاص بالملف الشخصي بحثاً عن رسائل مستخدم Composer جديدة (5–60).",
+  "commands.proxy.start.title": "Cursor Accounts: تشغيل وسيط MITM",
+  "commands.proxy.stop.title": "Cursor Accounts: إيقاف وسيط MITM",
+  "commands.proxy.showLogs.title": "Cursor Accounts: فتح سجلات الوسيط",
+  "commands.proxy.showCertificate.title": "Cursor Accounts: إرشادات شهادة CA للوسيط",
+  "commands.proxy.saveCertificate.title": "Cursor Accounts: حفظ شهادة CA للوسيط…",
+  "configuration.debug.webviewLifecycle.description": "تسجيل تشخيصات دورة حياة webview في قناة إخراج Cursor Accounts (عطّل بعد استكشاف الأخطاء).",
+  "configuration.proxy.enabled.description": "تشغيل وسيط MITM عند تفعيل الامتداد (يراقب حركة شبكة Cursor).",
+  "configuration.proxy.port.description": "منفذ TCP للوسيط MITM المحلي (localhost فقط).",
+  "configuration.proxy.maxLogSizeMB.description": "الحد الأقصى للحجم الإجمالي لملفات سجل الوسيط بالميغابايت.",
+  "configuration.proxy.autoLaunchWithProxy.description": "عند تشغيل ملف شخصي، توجيه الحركة عبر الوسيط إذا كان يعمل."
 }

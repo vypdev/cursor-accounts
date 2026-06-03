@@ -23,6 +23,8 @@ import { createEmptyStorageBreakdown } from '@cursor-accounts/types';
 import type { ProfileDetector } from '../profiles/profileDetector';
 import { resolveRecentProjectLaunch } from '../profiles/recentProjectLaunchRouter';
 import type { ProfileWorkspaceService } from '../services/profileWorkspaceService';
+import type { IProxyManager } from '../domain/ports/IProxyManager';
+import { saveCaCertificateAs } from '../proxy/saveCaCertificate';
 import { getOpenWorkspacePaths } from '../services/activeWorkspaceService';
 import { buildSuggestedProfileResponse } from './suggestedProfile';
 
@@ -32,6 +34,7 @@ export interface AccountsPanelHandlerCallbacks {
   refresh(): Promise<void>;
   refreshInstances(): Promise<void>;
   refreshGithubSummaries(): Promise<void>;
+  refreshProxyStatus(): Promise<void>;
   hasActiveWebview(): boolean;
 }
 
@@ -46,6 +49,7 @@ export interface AccountsPanelHandlerDeps {
   storageCleanupService: IStorageCleanupService;
   storageAnalyzer: IProfileStorageAnalyzer;
   profileWorkspaceService: ProfileWorkspaceService;
+  proxyManager: IProxyManager;
 }
 
 /**
@@ -112,6 +116,30 @@ export class AccountsPanelHandlers {
 
       case 'clearGithubToken':
         await this.handleClearGithubToken(message.profileId);
+        break;
+
+      case 'startProxy':
+        await this.handleStartProxy();
+        break;
+
+      case 'stopProxy':
+        await this.handleStopProxy();
+        break;
+
+      case 'showProxyLogs':
+        await this.handleShowProxyLogs();
+        break;
+
+      case 'showProxyCertificate':
+        await this.handleShowProxyCertificate();
+        break;
+
+      case 'saveProxyCertificate':
+        await this.handleSaveProxyCertificate();
+        break;
+
+      case 'refreshProxyStatus':
+        await this.callbacks.refreshProxyStatus();
         break;
 
       default:
@@ -515,5 +543,76 @@ export class AccountsPanelHandlers {
       message: t('panel.githubTokenCleared', { name: profile.displayName }),
     });
     await this.callbacks.refreshGithubSummaries();
+  }
+
+  private async handleStartProxy(): Promise<void> {
+    const result = await this.deps.proxyManager.start();
+    if (result.success) {
+      await this.callbacks.postMessage({
+        type: 'success',
+        message: t('commands.proxy.started', {
+          port: String(result.port ?? ''),
+        }),
+      });
+    } else {
+      await this.callbacks.postMessage({
+        type: 'error',
+        message: t('commands.proxy.startFailed', {
+          error: result.error ?? t('errors.unknown'),
+        }),
+      });
+    }
+    await this.callbacks.refreshProxyStatus();
+  }
+
+  private async handleStopProxy(): Promise<void> {
+    await this.deps.proxyManager.stop();
+    await this.callbacks.postMessage({
+      type: 'success',
+      message: t('commands.proxy.stopped'),
+    });
+    await this.callbacks.refreshProxyStatus();
+  }
+
+  private async handleShowProxyLogs(): Promise<void> {
+    const logDir = this.deps.proxyManager.getLogDirectory();
+    await vscode.commands.executeCommand(
+      'revealFileInOS',
+      vscode.Uri.file(logDir)
+    );
+  }
+
+  private async handleShowProxyCertificate(): Promise<void> {
+    const instructions =
+      await this.deps.proxyManager.getCertificateInstallationInstructions();
+    const doc = await vscode.workspace.openTextDocument({
+      content: instructions,
+      language: 'markdown',
+    });
+    await vscode.window.showTextDocument(doc, { preview: false });
+  }
+
+  private async handleSaveProxyCertificate(): Promise<void> {
+    const result = await saveCaCertificateAs(this.deps.proxyManager);
+
+    if (result.cancelled) {
+      return;
+    }
+
+    if (result.saved && result.path) {
+      await this.callbacks.postMessage({
+        type: 'success',
+        message: t('commands.proxy.saveCertificate.saved', { path: result.path }),
+      });
+      return;
+    }
+
+    await this.callbacks.postMessage({
+      type: 'error',
+      message: t('commands.proxy.saveCertificate.failed', {
+        error:
+          result.error ?? t('commands.proxy.saveCertificate.notFound'),
+      }),
+    });
   }
 }

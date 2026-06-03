@@ -7,6 +7,9 @@ import { isEnterpriseUsage } from './domain';
 import { ProfileAuthReader } from './auth/profileAuthReader';
 import { TokenService } from './auth/tokenRefresh';
 import { registerProfileCommands } from './commands/profileCommands';
+import { registerProxyCommands } from './commands/proxyCommands';
+import { ProxyStateFileStore } from './proxy/proxyStateFileStore';
+import { ProxyManager } from './services/proxyManager';
 import { affectsCursorAccountsConfig } from './config';
 import { initL10n, t } from './l10n';
 import * as extensionLog from './logging/extensionLog';
@@ -37,6 +40,7 @@ let refreshService: RefreshService | undefined;
 let multiProfileQuotaService: MultiProfileQuotaService | undefined;
 let efficiencyService: EfficiencyService | undefined;
 let instanceDetectorRef: InstanceDetector | undefined;
+let proxyManagerRef: ProxyManager | undefined;
 
 export function activate(context: vscode.ExtensionContext): void {
   const activateTimestamp = lifecycleLog.markActivate();
@@ -72,7 +76,15 @@ export function activate(context: vscode.ExtensionContext): void {
   const profileDetector = new ProfileDetector(profileManager, context);
   const instanceDetector = new InstanceDetector(profileManager);
   instanceDetectorRef = instanceDetector;
-  const profileLauncher = new ProfileLauncher(profileManager, instanceDetector);
+  const proxyStateStore = new ProxyStateFileStore(context.globalStorageUri.fsPath);
+  const proxyManager = new ProxyManager(proxyStateStore, context);
+  proxyManagerRef = proxyManager;
+
+  const profileLauncher = new ProfileLauncher(
+    profileManager,
+    instanceDetector,
+    proxyManager
+  );
   const workspaceScanner = new WorkspaceScanner();
   const profileWorkspaceService = new ProfileWorkspaceService(
     profileManager,
@@ -127,7 +139,8 @@ export function activate(context: vscode.ExtensionContext): void {
     efficiencyService,
     profileAuthReader,
     storageBundle.storageCleanupService,
-    storageBundle.storageAnalyzer
+    storageBundle.storageAnalyzer,
+    proxyManager
   );
 
   efficiencyStatsStorage.setStatsUpdatedListener(() => {
@@ -186,6 +199,26 @@ export function activate(context: vscode.ExtensionContext): void {
     profileDetector,
     instanceDetector
   );
+
+  registerProxyCommands(context, proxyManager, () => {
+    void accountsPanel.refreshProxyStatus();
+  });
+
+  const proxyConfig = vscode.workspace.getConfiguration('cursorAccounts.proxy');
+  if (proxyConfig.get<boolean>('enabled', false)) {
+    void proxyManager.start().then((result) => {
+      if (result.success) {
+        extensionLog.info(
+          `[Proxy] Auto-started on port ${result.port ?? 'unknown'}`
+        );
+        void accountsPanel.refreshProxyStatus();
+      } else {
+        extensionLog.warn(
+          `[Proxy] Auto-start failed: ${result.error ?? 'unknown'}`
+        );
+      }
+    });
+  }
 
   const profilesConfig = vscode.workspace.getConfiguration(
     'cursorAccounts.profiles'
@@ -291,7 +324,7 @@ export function activate(context: vscode.ExtensionContext): void {
   refreshService.start();
 }
 
-export function deactivate(): void {
+export async function deactivate(): Promise<void> {
   extensionLog.info('[Extension] Cursor Accounts deactivated');
   refreshService?.stop();
   refreshService = undefined;
@@ -301,4 +334,8 @@ export function deactivate(): void {
   instanceDetectorRef = undefined;
   efficiencyService?.dispose();
   efficiencyService = undefined;
+  if (proxyManagerRef) {
+    await proxyManagerRef.stop();
+    proxyManagerRef = undefined;
+  }
 }

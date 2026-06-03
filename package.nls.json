@@ -15,6 +15,11 @@
   "commands.importProfiles.title": "Cursor Accounts: Import Profiles",
   "commands.efficiency.showOutput.title": "Cursor Accounts: Show Model Efficiency Output",
   "commands.efficiency.restartDetector.title": "Cursor Accounts: Restart Prompt Detector",
+  "commands.proxy.start.title": "Cursor Accounts: Start MITM Proxy",
+  "commands.proxy.stop.title": "Cursor Accounts: Stop MITM Proxy",
+  "commands.proxy.showLogs.title": "Cursor Accounts: Open Proxy Logs",
+  "commands.proxy.showCertificate.title": "Cursor Accounts: Show Proxy CA Certificate Instructions",
+  "commands.proxy.saveCertificate.title": "Cursor Accounts: Save Proxy CA Certificate…",
   "configuration.title": "Cursor Accounts",
   "configuration.refresh.enabled.description": "Automatically refresh quota data from Cursor.",
   "configuration.refresh.intervalSeconds.description": "Polling interval in seconds (30–300).",
@@ -28,5 +33,9 @@
   "configuration.modelEfficiency.showNotificationOnHigh.description": "Show an information notification when model efficiency severity is high.",
   "configuration.modelEfficiency.autoShowOutputChannel.description": "Automatically open the Model Efficiency output channel on each analysis.",
   "configuration.modelEfficiency.pollIntervalSeconds.description": "Interval in seconds for polling the profile state.vscdb for new Composer user messages (5–60).",
-  "configuration.debug.webviewLifecycle.description": "Log webview lifecycle diagnostics to the Cursor Accounts output channel (disable after troubleshooting)."
+  "configuration.debug.webviewLifecycle.description": "Log webview lifecycle diagnostics to the Cursor Accounts output channel (disable after troubleshooting).",
+  "configuration.proxy.enabled.description": "Start the MITM proxy when the extension activates (observes Cursor network traffic).",
+  "configuration.proxy.port.description": "TCP port for the local MITM proxy (localhost only).",
+  "configuration.proxy.maxLogSizeMB.description": "Maximum total size of proxy log files in megabytes.",
+  "configuration.proxy.autoLaunchWithProxy.description": "When launching a profile, route traffic through the proxy if it is running."
 }

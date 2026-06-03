@@ -68,6 +68,18 @@ function createHandlers(deps: {
         getMostRecentWorkspace: async () => undefined,
         ...deps.profileWorkspaceService,
       } as ProfileWorkspaceService,
+      proxyManager: {
+        start: async () => ({ success: true, port: 8080 }),
+        stop: async () => undefined,
+        getStatus: async () => ({ running: false }),
+        isRunning: async () => false,
+        isCurrentWindowUsingProxy: async () => false,
+        getCertificatePath: async () => null,
+        getLogDirectory: () => '/tmp',
+        getCertificateInstallationInstructions: async () => '',
+        getProxyServerUrl: async () => null,
+        onStatusChange: () => undefined,
+      },
     },
     {
       postMessage: async () => undefined,
@@ -76,6 +88,7 @@ function createHandlers(deps: {
       },
       refreshInstances: async () => undefined,
       refreshGithubSummaries: async () => undefined,
+      refreshProxyStatus: async () => undefined,
       hasActiveWebview: () => true,
     }
   );

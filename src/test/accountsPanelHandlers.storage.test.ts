@@ -83,6 +83,18 @@ function createHandlers(overrides: {
         getWorkspacesForProfile: async () => [],
         getProfilesWithWorkspaces: async () => [],
       } as unknown as import('../services/profileWorkspaceService').ProfileWorkspaceService,
+      proxyManager: {
+        start: async () => ({ success: true, port: 8080 }),
+        stop: async () => undefined,
+        getStatus: async () => ({ running: false }),
+        isRunning: async () => false,
+        isCurrentWindowUsingProxy: async () => false,
+        getCertificatePath: async () => null,
+        getLogDirectory: () => '/tmp',
+        getCertificateInstallationInstructions: async () => '',
+        getProxyServerUrl: async () => null,
+        onStatusChange: () => undefined,
+      },
     },
     {
       postMessage: async (message) => {
@@ -91,6 +103,7 @@ function createHandlers(overrides: {
       refresh: async () => undefined,
       refreshInstances: async () => undefined,
       refreshGithubSummaries: async () => undefined,
+      refreshProxyStatus: async () => undefined,
       hasActiveWebview: () => true,
     }
   );

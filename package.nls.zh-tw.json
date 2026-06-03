@@ -27,5 +27,15 @@
   "configuration.profiles.instanceDetectionInterval.description": "偵測正在執行的 Cursor 執行個體的間隔（秒）。",
   "configuration.modelEfficiency.showNotificationOnHigh.description": "當模型效率嚴重程度為高時顯示資訊通知。",
   "configuration.modelEfficiency.autoShowOutputChannel.description": "每次分析時自動開啟模型效率輸出通道。",
-  "configuration.modelEfficiency.pollIntervalSeconds.description": "輪詢設定檔 state.vscdb 以取得新 Composer 使用者訊息的間隔（秒）（5–60）。"
+  "configuration.modelEfficiency.pollIntervalSeconds.description": "輪詢設定檔 state.vscdb 以取得新 Composer 使用者訊息的間隔（秒）（5–60）。",
+  "commands.proxy.start.title": "Cursor Accounts：啟動 MITM 代理",
+  "commands.proxy.stop.title": "Cursor Accounts：停止 MITM 代理",
+  "commands.proxy.showLogs.title": "Cursor Accounts：開啟代理記錄",
+  "commands.proxy.showCertificate.title": "Cursor Accounts：顯示代理 CA 憑證說明",
+  "commands.proxy.saveCertificate.title": "Cursor Accounts：儲存代理 CA 憑證…",
+  "configuration.debug.webviewLifecycle.description": "將 Webview 生命週期診斷記錄到 Cursor Accounts 輸出通道（排除問題後請停用）。",
+  "configuration.proxy.enabled.description": "擴充功能啟用時啟動 MITM 代理（觀察 Cursor 網路流量）。",
+  "configuration.proxy.port.description": "本機 MITM 代理的 TCP 連接埠（僅 localhost）。",
+  "configuration.proxy.maxLogSizeMB.description": "代理記錄檔的最大總大小（百萬位元組）。",
+  "configuration.proxy.autoLaunchWithProxy.description": "啟動設定檔時，若代理正在執行則透過代理路由流量。"
 }

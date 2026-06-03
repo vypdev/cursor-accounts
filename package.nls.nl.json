@@ -27,5 +27,15 @@
   "configuration.profiles.instanceDetectionInterval.description": "Interval in seconden voor het detecteren van actieve Cursor-instanties.",
   "configuration.modelEfficiency.showNotificationOnHigh.description": "Een informatiemelding weergeven wanneer de ernst van model-efficiëntie hoog is.",
   "configuration.modelEfficiency.autoShowOutputChannel.description": "Het Model-efficiëntie-uitvoerkanaal automatisch openen bij elke analyse.",
-  "configuration.modelEfficiency.pollIntervalSeconds.description": "Interval in seconden voor het pollen van state.vscdb van het profiel op nieuwe Composer-gebruikersberichten (5–60)."
+  "configuration.modelEfficiency.pollIntervalSeconds.description": "Interval in seconden voor het pollen van state.vscdb van het profiel op nieuwe Composer-gebruikersberichten (5–60).",
+  "commands.proxy.start.title": "Cursor Accounts: MITM-proxy starten",
+  "commands.proxy.stop.title": "Cursor Accounts: MITM-proxy stoppen",
+  "commands.proxy.showLogs.title": "Cursor Accounts: Proxy-logboeken openen",
+  "commands.proxy.showCertificate.title": "Cursor Accounts: Instructies proxy CA-certificaat",
+  "commands.proxy.saveCertificate.title": "Cursor Accounts: Proxy CA-certificaat opslaan…",
+  "configuration.debug.webviewLifecycle.description": "Webview-levenscyclusdiagnostiek loggen naar het Cursor Accounts-uitvoerkanaal (uitschakelen na probleemoplossing).",
+  "configuration.proxy.enabled.description": "Start de MITM-proxy bij activering van de extensie (observeert Cursor-netwerkverkeer).",
+  "configuration.proxy.port.description": "TCP-poort voor de lokale MITM-proxy (alleen localhost).",
+  "configuration.proxy.maxLogSizeMB.description": "Maximale totale grootte van proxy-logbestanden in megabytes.",
+  "configuration.proxy.autoLaunchWithProxy.description": "Bij het starten van een profiel verkeer via de proxy routeren als deze actief is."
 }

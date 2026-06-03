@@ -27,5 +27,15 @@
   "configuration.profiles.instanceDetectionInterval.description": "Intervall i sekunder for å oppdage kjørende Cursor-instanser.",
   "configuration.modelEfficiency.showNotificationOnHigh.description": "Vis et informasjonsvarsel når alvorlighetsgraden for modelleffektivitet er høy.",
   "configuration.modelEfficiency.autoShowOutputChannel.description": "Åpne automatisk utdatakanalen for modelleffektivitet ved hver analyse.",
-  "configuration.modelEfficiency.pollIntervalSeconds.description": "Intervall i sekunder for å avspørre profilens state.vscdb etter nye Composer-brukermeldinger (5–60)."
+  "configuration.modelEfficiency.pollIntervalSeconds.description": "Intervall i sekunder for å avspørre profilens state.vscdb etter nye Composer-brukermeldinger (5–60).",
+  "commands.proxy.start.title": "Cursor Accounts: Start MITM-proxy",
+  "commands.proxy.stop.title": "Cursor Accounts: Stopp MITM-proxy",
+  "commands.proxy.showLogs.title": "Cursor Accounts: Åpne proxy-logger",
+  "commands.proxy.showCertificate.title": "Cursor Accounts: Proxy CA-sertifikatinstruksjoner",
+  "commands.proxy.saveCertificate.title": "Cursor Accounts: Lagre proxy CA-sertifikat…",
+  "configuration.debug.webviewLifecycle.description": "Logg webview livssyklusdiagnostikk til Cursor Accounts utdatakanal (deaktiver etter feilsøking).",
+  "configuration.proxy.enabled.description": "Start MITM-proxy når utvidelsen aktiveres (overvåker Cursor-nettverkstrafikk).",
+  "configuration.proxy.port.description": "TCP-port for lokal MITM-proxy (kun localhost).",
+  "configuration.proxy.maxLogSizeMB.description": "Maksimal total størrelse på proxy-loggfiler i megabyte.",
+  "configuration.proxy.autoLaunchWithProxy.description": "Ved profilstart, send trafikk via proxy hvis den kjører."
 }

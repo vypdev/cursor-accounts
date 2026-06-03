@@ -78,6 +78,7 @@ No additional installation required. See [docs/PLATFORM-SUPPORT.md](docs/PLATFOR
 
 ### Other
 
+- [MITM Proxy Setup](docs/PROXY-SETUP.md) — observe Cursor IDE network traffic (research/debug)
 - [Privacy & Security](docs/PRIVACY.md)
 - [Contributing](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)

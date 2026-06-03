@@ -1400,3 +1400,64 @@ form {
   color: var(--fg-secondary);
   opacity: 0.7;
 }
+
+.proxy-status-card {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--bg-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.proxy-status-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.proxy-status-header h3 {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.proxy-status-indicator.running {
+  color: var(--vscode-testing-iconPassed, #3fb950);
+}
+
+.proxy-status-indicator.stopped {
+  color: var(--fg-secondary);
+}
+
+.proxy-status-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.proxy-label {
+  color: var(--fg-secondary);
+}
+
+.proxy-window-connected {
+  color: var(--vscode-testing-iconPassed, #3fb950);
+}
+
+.proxy-window-bypassed {
+  color: var(--vscode-editorWarning-foreground, #cca700);
+}
+
+.proxy-status-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.proxy-status-notice {
+  font-size: 11px;
+  color: var(--fg-secondary);
+  line-height: 1.4;
+}

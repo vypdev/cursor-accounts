@@ -27,5 +27,15 @@
   "configuration.profiles.instanceDetectionInterval.description": "Інтервал у секундах для виявлення запущених екземплярів Cursor.",
   "configuration.modelEfficiency.showNotificationOnHigh.description": "Показувати інформаційне сповіщення, коли серйозність ефективності моделі висока.",
   "configuration.modelEfficiency.autoShowOutputChannel.description": "Автоматично відкривати канал виводу ефективності моделі під час кожного аналізу.",
-  "configuration.modelEfficiency.pollIntervalSeconds.description": "Інтервал у секундах для опитування state.vscdb профілю на наявність нових користувацьких повідомлень Composer (5–60)."
+  "configuration.modelEfficiency.pollIntervalSeconds.description": "Інтервал у секундах для опитування state.vscdb профілю на наявність нових користувацьких повідомлень Composer (5–60).",
+  "commands.proxy.start.title": "Cursor Accounts: Запустити проксі MITM",
+  "commands.proxy.stop.title": "Cursor Accounts: Зупинити проксі MITM",
+  "commands.proxy.showLogs.title": "Cursor Accounts: Відкрити журнали проксі",
+  "commands.proxy.showCertificate.title": "Cursor Accounts: Інструкції з сертифіката CA проксі",
+  "commands.proxy.saveCertificate.title": "Cursor Accounts: Зберегти сертифікат CA проксі…",
+  "configuration.debug.webviewLifecycle.description": "Записувати діагностику життєвого циклу webview в канал виводу Cursor Accounts (вимкніть після усунення несправностей).",
+  "configuration.proxy.enabled.description": "Запускати проксі MITM при ввімкненні розширення (спостерігає за мережевим трафіком Cursor).",
+  "configuration.proxy.port.description": "TCP-порт локального проксі MITM (лише localhost).",
+  "configuration.proxy.maxLogSizeMB.description": "Максимальний загальний розмір файлів журналу проксі в мегабайтах.",
+  "configuration.proxy.autoLaunchWithProxy.description": "При запуску профілю направляти трафік через проксі, якщо він працює."
 }

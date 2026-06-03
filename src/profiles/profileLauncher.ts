@@ -6,6 +6,7 @@ import { ensureDirectory } from '../utils/pathUtils';
 import type { IInstanceDetector } from '../domain/ports/IInstanceDetector';
 import type { IProfileLauncher } from '../domain/ports/IProfileLauncher';
 import type { IProfileManager } from '../domain/ports/IProfileManager';
+import type { IProxyManager } from '../domain/ports/IProxyManager';
 import type { Profile } from './types';
 
 export interface LaunchResult {
@@ -44,10 +45,29 @@ export class ProfileLauncherError extends Error {
 /**
  * Build a clean environment for spawning Cursor outside the extension host.
  */
-export function buildSpawnEnv(): NodeJS.ProcessEnv {
+/** Build argv for Cursor with optional proxy and project path. */
+export function buildLaunchArgs(
+  userDataDir: string,
+  projectPath?: string,
+  proxyUrl?: string
+): string[] {
+  const args = ['--user-data-dir', userDataDir];
+  if (proxyUrl) {
+    args.push('--proxy-server', proxyUrl);
+  }
+  if (projectPath) {
+    args.push(projectPath);
+  }
+  return args;
+}
+
+export function buildSpawnEnv(caCertPath?: string): NodeJS.ProcessEnv {
   const env = { ...process.env };
   for (const key of SPAWN_ENV_STRIP_KEYS) {
     delete env[key];
+  }
+  if (caCertPath) {
+    env.NODE_EXTRA_CA_CERTS = caCertPath;
   }
   return env;
 }
@@ -76,7 +96,8 @@ function sleep(ms: number): Promise<void> {
 export class ProfileLauncher implements IProfileLauncher {
   constructor(
     private readonly profileManager: IProfileManager,
-    private readonly instanceDetector?: IInstanceDetector
+    private readonly instanceDetector?: IInstanceDetector,
+    private readonly proxyManager?: IProxyManager
   ) {}
 
   /**
@@ -152,14 +173,24 @@ export class ProfileLauncher implements IProfileLauncher {
     try {
       await ensureDirectory(userDataDir);
 
+      const launchContext = await this.resolveProxyLaunchContext();
+
       const execPath = this.getExecutablePath();
-      const args = this.buildLaunchArgs(userDataDir, projectPath);
+      const args = this.buildLaunchArgs(
+        userDataDir,
+        projectPath,
+        launchContext?.proxyUrl
+      );
 
       extensionLog.info(
         `[ProfileLauncher] Spawn: ${this.formatSpawnCommand(execPath, args)}`
       );
 
-      await this.spawnProcess(execPath, args);
+      await this.spawnProcess(
+        execPath,
+        args,
+        launchContext?.caCertPath
+      );
 
       let pid: number | undefined;
       if (this.instanceDetector) {
@@ -276,12 +307,12 @@ export class ProfileLauncher implements IProfileLauncher {
   /**
    * Build command line arguments for launching with profile.
    */
-  buildLaunchArgs(userDataDir: string, projectPath?: string): string[] {
-    const args = ['--user-data-dir', userDataDir];
-    if (projectPath) {
-      args.push(projectPath);
-    }
-    return args;
+  buildLaunchArgs(
+    userDataDir: string,
+    projectPath?: string,
+    proxyUrl?: string
+  ): string[] {
+    return buildLaunchArgs(userDataDir, projectPath, proxyUrl);
   }
 
   /**
@@ -332,11 +363,35 @@ export class ProfileLauncher implements IProfileLauncher {
   /**
    * Spawn Cursor process (platform-specific implementation).
    */
+  private async resolveProxyLaunchContext(): Promise<{
+    proxyUrl: string;
+    caCertPath: string;
+  } | null> {
+    if (!this.proxyManager) {
+      return null;
+    }
+
+    const proxyUrl = await this.proxyManager.getProxyServerUrl();
+    if (!proxyUrl) {
+      return null;
+    }
+
+    const caCertPath = await this.proxyManager.getCertificatePath();
+    if (!caCertPath) {
+      return { proxyUrl, caCertPath: '' };
+    }
+
+    return { proxyUrl, caCertPath };
+  }
+
   private async spawnProcess(
     execPath: string,
-    args: string[]
+    args: string[],
+    caCertPath?: string
   ): Promise<ChildProcess> {
-    const spawnEnv = buildSpawnEnv();
+    const spawnEnv = buildSpawnEnv(
+      caCertPath && caCertPath.length > 0 ? caCertPath : undefined
+    );
 
     return new Promise((resolve, reject) => {
       try {
