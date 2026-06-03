@@ -69,4 +69,4 @@ The proxy (`src/proxy/`) now:
 - Nested types use `_` (e.g. `GetCurrentPeriodUsageResponse_PlanUsage`).
 - Cross-package fields use qualified names (e.g. `agent.v1.ModelDetails`).
 - RPC methods with unresolved minified types are commented out in the `.proto`.
-- Not an official Cursor API — research/debug only ([PROXY-SETUP.md](../docs/PROXY-SETUP.md)).
+- Not an official Cursor API — research/debug only ([PROXY-SETUP.md](../docs/PROXY-SETUP.md), [TOKENS-AND-USAGE.md](../docs/TOKENS-AND-USAGE.md)).

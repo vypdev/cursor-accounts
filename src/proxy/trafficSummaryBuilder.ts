@@ -1,4 +1,4 @@
-import { decodeProtoEntry } from './proxyDecode';
+import { decodeProtoEntry, parseRpcPath } from './proxyDecode';
 import { toTrafficSummary } from './proxyTrafficFormat';
 import type { ProxyLogEntry, ProxyTrafficSummary } from './types';
 
@@ -10,11 +10,12 @@ export async function buildTrafficSummary(
   durationMs?: number,
   options?: { decode?: boolean; logDir?: string }
 ): Promise<ProxyTrafficSummary> {
+  const rpcPathFromUrl = parseRpcPath(entry.url);
   const shouldDecode =
     options?.decode !== false &&
-    entry.isConnectRpc &&
     (entry.direction === 'request' || entry.direction === 'response') &&
-    Boolean(entry.body ?? entry.bodyBase64 ?? entry.bodyFile);
+    Boolean(entry.body ?? entry.bodyBase64 ?? entry.bodyFile) &&
+    (entry.isConnectRpc === true || rpcPathFromUrl != null);
 
   if (!shouldDecode) {
     return toTrafficSummary(entry, durationMs);

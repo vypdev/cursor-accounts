@@ -68,6 +68,10 @@ describe('RequestLogger', () => {
       RequestLogger.isConnectRpcContentType('application/connect+proto'),
       true
     );
+    assert.equal(
+      RequestLogger.isConnectRpcContentType('application/proto'),
+      true
+    );
     assert.equal(RequestLogger.isConnectRpcContentType('application/json'), false);
   });
 

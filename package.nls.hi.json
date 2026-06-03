@@ -41,5 +41,9 @@
   "configuration.proxy.logTrafficToOutput.description": "इंटरसेप्ट किया गया प्रॉक्सी ट्रैफ़िक Cursor MITM Proxy आउटपुट चैनल में लिखें।",
   "configuration.proxy.autoShowOutputChannel.description": "प्रॉक्सी शुरू होने पर Cursor MITM Proxy आउटपुट चैनल स्वचालित रूप से खोलें।",
   "configuration.proxy.outputCursorHostsOnly.description": "MITM Proxy आउटपुट चैनल में केवल Cursor होस्ट ट्रैफ़िक (cursor.sh, cursor.com) लॉग करें।",
-  "configuration.proxy.outputTailFromStart.description": "MITM Proxy आउटपुट चैनल खोलते समय सक्रिय लॉग फ़ाइल की हाल की पंक्तियाँ दोहराएँ।"
+  "configuration.proxy.outputTailFromStart.description": "MITM Proxy आउटपुट चैनल खोलते समय सक्रिय लॉग फ़ाइल की हाल की पंक्तियाँ दोहराएँ।",
+  "configuration.proxy.maxBodyLogMB.description": "प्रत्येक JSONL पंक्ति में इनलाइन संग्रहीत अनुरोध/प्रतिक्रिया body का अधिकतम आकार। spill सक्षम होने पर बड़े body logs/bodies/ में सहेजे जाते हैं।",
+  "configuration.proxy.spillLargeBodies.description": "जब body इनलाइन सीमा से अधिक हो, काटने के बजाय पूर्ण कच्चे बाइट logs/bodies/ में सहेजें (विश्लेषण के लिए अनुशंसित)।",
+  "configuration.proxy.showLiveUsageInStatusBar.description": "MITM प्रॉक्सी चलते समय स्टेटस बार में एजेंट/चैट टोकन उपयोग लाइव दिखाएँ (प्रॉक्सी लॉग स्वचालित रूप से टेल करता है)।",
+  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "स्टेटस बार में लाइव लागत अनुमान के लिए प्रति मिलियन टोकन अनुमानित USD (वास्तविक बिलिंग भिन्न हो सकती है)।"
 }

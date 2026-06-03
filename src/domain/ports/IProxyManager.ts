@@ -38,5 +38,6 @@ export interface IProxyManager {
     profileId: string,
     options?: { tailFromStart?: boolean }
   ): Promise<void>;
+  ensureTrafficTailer(): Promise<void>;
   showOutputChannel(): void;
 }

@@ -41,5 +41,9 @@
   "configuration.proxy.logTrafficToOutput.description": "傍受したプロキシトラフィックを Cursor MITM Proxy 出力チャンネルに書き込む。",
   "configuration.proxy.autoShowOutputChannel.description": "プロキシ起動時に Cursor MITM Proxy 出力チャンネルを自動的に開く。",
   "configuration.proxy.outputCursorHostsOnly.description": "MITM Proxy 出力チャンネルには Cursor ホスト (cursor.sh, cursor.com) のトラフィックのみ記録する。",
-  "configuration.proxy.outputTailFromStart.description": "MITM Proxy 出力チャンネルを開く際、アクティブなログファイルから最近の行を再生する。"
+  "configuration.proxy.outputTailFromStart.description": "MITM Proxy 出力チャンネルを開く際、アクティブなログファイルから最近の行を再生する。",
+  "configuration.proxy.maxBodyLogMB.description": "各 JSONL 行にインライン保存するリクエスト/レスポンス body の最大サイズ。spill が有効な場合、より大きな body は logs/bodies/ に保存されます。",
+  "configuration.proxy.spillLargeBodies.description": "body がインライン制限を超えた場合、切り詰めず logs/bodies/ に完全な生バイトを保存します（分析に推奨）。",
+  "configuration.proxy.showLiveUsageInStatusBar.description": "MITM プロキシ実行中、ステータスバーにエージェント/チャットのトークン使用量をリアルタイム表示します（プロキシログを自動追跡）。",
+  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "ステータスバーのライブコスト見積もり用の、100 万トークンあたりの概算 USD（実際の請求は異なる場合があります）。"
 }

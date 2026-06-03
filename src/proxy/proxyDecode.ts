@@ -1,8 +1,14 @@
 import type { Type } from 'protobufjs';
+import {
+  bidiInnerRoleForRpc,
+  decodeBidiAgentPayload,
+} from './bidiAgentDecode';
 import { bodyBufferFromLogEntry } from './bodyFormat';
 import { connectPayloadCandidates, prepareConnectPayload } from './connectDecode';
 import {
+  extractAgentInnerInsights,
   extractInsightsForRpc,
+  mergeAgentSessionInfo,
   redactSensitive,
   type ProxyInsights,
 } from './proxyInsightExtractor';
@@ -42,6 +48,54 @@ export function messageTypeName(method: string, direction: 'request' | 'response
   return `aiserver.v1.${method}${suffix}`;
 }
 
+async function enrichInsightsFromBidi(
+  rpcPath: string,
+  direction: 'request' | 'response',
+  decoded: Record<string, unknown>,
+  insights: ProxyInsights | undefined
+): Promise<ProxyInsights | undefined> {
+  const role = bidiInnerRoleForRpc(rpcPath, direction);
+  if (!role) {
+    return insights;
+  }
+
+  const registry = await getProtoRegistry();
+  const inner = decodeBidiAgentPayload(
+    registry,
+    decoded.data,
+    decoded.dataBinary ?? decoded.data_binary,
+    role
+  );
+  if (!inner) {
+    return insights;
+  }
+
+  const innerAgent = extractAgentInnerInsights(inner);
+  if (!innerAgent) {
+    return insights;
+  }
+
+  const next: ProxyInsights = { ...(insights ?? {}) };
+  next.agent = mergeAgentSessionInfo(next.agent, innerAgent);
+  if (innerAgent.inputTokens != null || innerAgent.outputTokens != null) {
+    next.tokens = {
+      promptTokens: innerAgent.inputTokens,
+      completionTokens: innerAgent.outputTokens,
+      totalTokens:
+        innerAgent.inputTokens != null && innerAgent.outputTokens != null
+          ? innerAgent.inputTokens + innerAgent.outputTokens
+          : undefined,
+      cachedTokens: innerAgent.cacheReadTokens,
+    };
+  } else if (innerAgent.streamingTokens != null) {
+    next.tokens = {
+      totalTokens: innerAgent.streamingTokens,
+    };
+  }
+
+  return next;
+}
+
 /**
  * Decode a proxy log entry body using extracted protos.
  */
@@ -67,9 +121,18 @@ export async function decodeProtoEntry(
         entry.body ?? Buffer.from(rawBody).toString('utf8')
       ) as Record<string, unknown>;
       const redacted = redactSensitive(decoded) as Record<string, unknown>;
+      let insights = extractInsightsForRpc(rpcPath, redacted);
+      if (entry.direction === 'request' || entry.direction === 'response') {
+        insights = await enrichInsightsFromBidi(
+          rpcPath,
+          entry.direction,
+          redacted,
+          insights
+        );
+      }
       return {
         decoded: redacted,
-        insights: extractInsightsForRpc(rpcPath, redacted),
+        insights,
         rpcPath,
       };
     } catch (err) {
@@ -114,9 +177,18 @@ export async function decodeProtoEntry(
       try {
         const decoded = registry.decode(type, payload);
         const redacted = redactSensitive(decoded) as Record<string, unknown>;
+        let insights = extractInsightsForRpc(rpcPath, redacted);
+        if (entry.direction === 'request' || entry.direction === 'response') {
+          insights = await enrichInsightsFromBidi(
+            rpcPath,
+            entry.direction,
+            redacted,
+            insights
+          );
+        }
         return {
           decoded: redacted,
-          insights: extractInsightsForRpc(rpcPath, redacted),
+          insights,
           rpcPath,
         };
       } catch (err) {

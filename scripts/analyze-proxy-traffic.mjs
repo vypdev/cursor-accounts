@@ -19,6 +19,10 @@ import {
   extractTokenInsight,
 } from './lib/proxy-insights.mjs';
 import {
+  decodeBidiAgentInner,
+  extractAgentInnerInsight,
+} from './lib/bidi-agent-decode.mjs';
+import {
   buildRpcTypeMap,
   isInteractiveRpcPath,
   parseConnectRpcPath,
@@ -86,6 +90,7 @@ async function main() {
   let total = 0;
   let decoded = 0;
   let insights = 0;
+  let agentTokenEvents = 0;
   let interactiveDecoded = 0;
   /** @type {Map<string, number>} */
   const byMethod = new Map();
@@ -143,13 +148,33 @@ async function main() {
       }
 
       const billing = extractBillingInsight(obj);
-      const tokens = extractTokenInsight(obj);
+      let tokens = extractTokenInsight(obj);
       const context = extractContextInsight(obj);
-      const agent = extractAgentInsight(obj);
+      let agent = extractAgentInsight(obj);
+
+      const inner = await decodeBidiAgentInner(obj, rpcPath, entry.direction);
+      const innerAgent = inner ? extractAgentInnerInsight(inner) : null;
+      if (innerAgent) {
+        agent = agent ? { ...agent, ...innerAgent } : innerAgent;
+        if (innerAgent.streamingTokens != null || innerAgent.inputTokens != null) {
+          agentTokenEvents++;
+        }
+        if (innerAgent.inputTokens != null || innerAgent.outputTokens != null) {
+          tokens = {
+            inputTokens: innerAgent.inputTokens,
+            outputTokens: innerAgent.outputTokens,
+            cacheReadTokens: innerAgent.cacheReadTokens,
+            cacheWriteTokens: innerAgent.cacheWriteTokens,
+          };
+        } else if (innerAgent.streamingTokens != null) {
+          tokens = { totalTokens: innerAgent.streamingTokens };
+        }
+      }
+
       if (billing || tokens || context || agent) {
         insights++;
         if (insights <= 20) {
-          console.log(`\n## ${key} (${file})`);
+          console.log(`\n## ${key} (${path.basename(file)})`);
           if (billing) console.log('  billing:', JSON.stringify(billing).slice(0, 280));
           if (tokens) console.log('  tokens:', JSON.stringify(tokens).slice(0, 200));
           if (context) console.log('  context:', JSON.stringify(context));
@@ -164,6 +189,7 @@ async function main() {
   console.log(`Decoded: ${decoded}`);
   console.log(`Interactive RPC decoded: ${interactiveDecoded}`);
   console.log(`With insights: ${insights}`);
+  console.log(`Agent token events (token_delta / turn_ended): ${agentTokenEvents}`);
   console.log('\nTop decoded RPCs:');
   for (const [k, n] of [...byMethod.entries()].sort((a, b) => b[1] - a[1]).slice(0, 25)) {
     const tag = isInteractiveRpcPath(`/${k.split(':')[0]}`) ? ' *' : '';

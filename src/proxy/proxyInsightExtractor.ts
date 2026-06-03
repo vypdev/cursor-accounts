@@ -37,6 +37,19 @@ export interface AgentSessionInfo {
   dataPreview?: string;
   /** Length of `data_binary` on BidiAppend when present. */
   dataBytes?: number;
+  /** Latest streaming counter from InteractionUpdate.token_delta. */
+  streamingTokens?: number;
+  /** Final turn usage when InteractionUpdate.turn_ended is present. */
+  inputTokens?: number;
+  outputTokens?: number;
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
+  /** Billing correlation id from stream chunks (StreamChat / unified). */
+  usageUuid?: string;
+  /** Rough USD estimate from token counts (configurable rate). */
+  estimatedCostUsd?: number;
+  /** What triggered the latest agent usage fields. */
+  usageEvent?: 'token_delta' | 'turn_ended' | 'token_details' | 'usage_uuid';
 }
 
 export interface ProxyInsights {
@@ -159,6 +172,23 @@ export function extractTokenUsage(decoded: Record<string, unknown> | null | unde
     (decoded.token_usage as Record<string, unknown> | undefined) ??
     (decoded.tokenUsage as Record<string, unknown> | undefined) ??
     (decoded.usage as Record<string, unknown> | undefined);
+
+  const directInput = asNumber(
+    decoded.input_tokens ?? decoded.inputTokens
+  );
+  const directOutput = asNumber(
+    decoded.output_tokens ?? decoded.outputTokens
+  );
+  if (directInput != null || directOutput != null) {
+    return {
+      promptTokens: directInput,
+      completionTokens: directOutput,
+      totalTokens:
+        directInput != null && directOutput != null
+          ? directInput + directOutput
+          : undefined,
+    };
+  }
 
   if (!usage) {
     return null;
@@ -318,6 +348,118 @@ function pickRequestId(value: unknown): string | undefined {
   return undefined;
 }
 
+function pickTurnEnded(value: unknown): {
+  inputTokens?: number;
+  outputTokens?: number;
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
+} | null {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+  const record = value as Record<string, unknown>;
+  const inputTokens = asNumber(record.inputTokens ?? record.input_tokens);
+  const outputTokens = asNumber(record.outputTokens ?? record.output_tokens);
+  const cacheReadTokens = asNumber(
+    record.cacheReadTokens ?? record.cache_read_tokens
+  );
+  const cacheWriteTokens = asNumber(
+    record.cacheWriteTokens ?? record.cache_write_tokens
+  );
+  if (
+    inputTokens == null &&
+    outputTokens == null &&
+    cacheReadTokens == null &&
+    cacheWriteTokens == null
+  ) {
+    return null;
+  }
+  return { inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens };
+}
+
+/**
+ * Extract usage from nested AgentServerMessage / AgentClientMessage (Bidi `data`).
+ */
+export function extractAgentInnerInsights(
+  inner: Record<string, unknown>
+): AgentSessionInfo | null {
+  const interactionUpdate = (inner.interactionUpdate ??
+    inner.interaction_update) as Record<string, unknown> | undefined;
+
+  if (interactionUpdate) {
+    const tokenDelta = (interactionUpdate.tokenDelta ??
+      interactionUpdate.token_delta) as Record<string, unknown> | undefined;
+    const streamingTokens = asNumber(tokenDelta?.tokens);
+    const turn = pickTurnEnded(
+      interactionUpdate.turnEnded ?? interactionUpdate.turn_ended
+    );
+
+    if (streamingTokens != null) {
+      return {
+        streamingTokens,
+        usageEvent: 'token_delta',
+      };
+    }
+    if (turn) {
+      return {
+        inputTokens: turn.inputTokens,
+        outputTokens: turn.outputTokens,
+        cacheReadTokens: turn.cacheReadTokens,
+        cacheWriteTokens: turn.cacheWriteTokens,
+        usageEvent: 'turn_ended',
+      };
+    }
+  }
+
+  const checkpoint = (inner.conversationCheckpointUpdate ??
+    inner.conversation_checkpoint_update) as Record<string, unknown> | undefined;
+  const tokenDetails = (checkpoint?.tokenDetails ??
+    checkpoint?.token_details) as Record<string, unknown> | undefined;
+  const usedTokens = asNumber(
+    tokenDetails?.usedTokens ?? tokenDetails?.used_tokens
+  );
+  if (usedTokens != null) {
+    return {
+      streamingTokens: usedTokens,
+      usageEvent: 'token_details',
+    };
+  }
+
+  return null;
+}
+
+export function mergeAgentSessionInfo(
+  base: AgentSessionInfo | undefined,
+  extra: AgentSessionInfo | undefined
+): AgentSessionInfo | undefined {
+  if (!base && !extra) {
+    return undefined;
+  }
+  return { ...base, ...extra };
+}
+
+export function estimateTokenCostUsd(
+  tokens: {
+    inputTokens?: number;
+    outputTokens?: number;
+    cacheReadTokens?: number;
+    cacheWriteTokens?: number;
+    streamingTokens?: number;
+  },
+  dollarsPerMillionTokens: number
+): number | undefined {
+  const billed =
+    (tokens.inputTokens ?? 0) +
+    (tokens.outputTokens ?? 0) +
+    (tokens.cacheReadTokens ?? 0) +
+    (tokens.cacheWriteTokens ?? 0);
+  const total = billed > 0 ? billed : tokens.streamingTokens;
+  if (total == null || total <= 0 || dollarsPerMillionTokens <= 0) {
+    return undefined;
+  }
+  return (total / 1_000_000) * dollarsPerMillionTokens;
+}
+
 /**
  * Extract Agent bidi session fields from BidiAppend / BidiPoll / RunPoll payloads.
  */
@@ -398,6 +540,17 @@ export function extractInsightsForRpc(
 
   if (isAgentInteractiveRpc(rpcPath)) {
     insights.agent = extractAgentSessionInfo(decoded) ?? undefined;
+  }
+
+  const usageUuid =
+    (typeof decoded.usage_uuid === 'string' && decoded.usage_uuid) ||
+    (typeof decoded.usageUuid === 'string' && decoded.usageUuid) ||
+    undefined;
+  if (usageUuid) {
+    insights.agent = mergeAgentSessionInfo(insights.agent, {
+      usageUuid,
+      usageEvent: 'usage_uuid',
+    });
   }
 
   if (!insights.billing && !insights.tokens && !insights.context && !insights.agent) {

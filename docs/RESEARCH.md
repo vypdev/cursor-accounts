@@ -2,7 +2,7 @@
 
 This document records how quota data is obtained, refresh behavior, API limits, and account-switching feasibility. Implementation choices follow these findings; undocumented APIs are not assumed.
 
-**Last reviewed:** 2026-05-29
+**Last reviewed:** 2026-06-03
 
 ## 1. Quota / usage data
 
@@ -165,8 +165,23 @@ The extension caps enrichment to **5 recent git projects per profile** per refre
 
 For privacy and data handling, see [PRIVACY.md](PRIVACY.md).
 
+## Agent, Bidi, and live token observation (MITM)
+
+Optional localhost MITM proxy decodes Agent traffic on `api2` (HTTP/1: `RunPoll`, `BidiAppend`) or `agent.api5` (HTTP/2: `Run`, `RunSSE`). Findings:
+
+| Signal | Billing-grade? | Notes |
+|--------|----------------|-------|
+| `InteractionUpdate.token_delta` | No | Streaming progress counter; often 100×+ below real spend |
+| `InteractionUpdate.turn_ended` | Yes when present | Frequently **absent** in long HTTP/1 captures |
+| `GetCurrentPeriodUsage.totalSpend` delta | Period cents | Includes all Cursor usage in the window, not one chat |
+| Dashboard `chargedCents` | Per request | Not called by extension; best validation source |
+
+Full reference (RPC matrix, decode pipeline, scripts, validation): **[TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md)**. Setup: [PROXY-SETUP.md](PROXY-SETUP.md).
+
 ## Related documentation
 
+- [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md) — token signals and billing channels
+- [PROXY-SETUP.md](PROXY-SETUP.md) — MITM proxy setup
 - [USAGE-EVENTS-API.md](USAGE-EVENTS-API.md) — per-request usage table (`cursor.com/dashboard/usage`)
 - [HOW-IT-WORKS.md](HOW-IT-WORKS.md) — user-facing technical overview
 - [ARCHITECTURE.md](ARCHITECTURE.md) — extension structure and data flows

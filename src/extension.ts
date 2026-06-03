@@ -37,6 +37,7 @@ import { hasActiveWorkspace } from './services/activeWorkspaceService';
 import { AccountsPanelProvider } from './ui/accountsPanel';
 import { shouldAutoOpenAccountsPanel } from './ui/accountsPanelStartup';
 import { isProfileProxyEnabled } from '@cursor-accounts/types';
+import { AgentLiveUsageStatusBar } from './ui/agentLiveUsageStatusBar';
 import { StatusBarManager } from './ui/statusBarManager';
 import { EfficiencyService } from './modelEfficiency/efficiencyService';
 import { EfficiencyStatsStorage } from './modelEfficiency/efficiencyStatsStorage';
@@ -171,6 +172,13 @@ export function activate(context: vscode.ExtensionContext): void {
     void accountsPanel.postEfficiencyStats();
   });
 
+  const agentLiveUsageStatusBar = new AgentLiveUsageStatusBar(context);
+  proxyManager.onTraffic((summary) => {
+    agentLiveUsageStatusBar.ingest(summary);
+  });
+
+  void proxyManager.ensureTrafficTailer();
+
   proxyManager.onStatusChange(() => {
     void accountsPanel.refreshProxyStatus();
   });
@@ -197,6 +205,7 @@ export function activate(context: vscode.ExtensionContext): void {
         extensionLog.info(
           `[Proxy] Ensured proxy for profile ${currentProfile.displayName} on port ${result.port ?? 'unknown'}`
         );
+        await proxyManager.ensureTrafficTailer();
         void accountsPanel.refreshProxyStatus();
       } else {
         extensionLog.warn(

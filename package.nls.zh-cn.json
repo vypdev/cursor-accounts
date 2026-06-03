@@ -41,5 +41,9 @@
   "configuration.proxy.logTrafficToOutput.description": "将拦截的代理流量写入 Cursor MITM Proxy 输出通道。",
   "configuration.proxy.autoShowOutputChannel.description": "代理启动时自动打开 Cursor MITM Proxy 输出通道。",
   "configuration.proxy.outputCursorHostsOnly.description": "在 MITM Proxy 输出通道中仅记录 Cursor 主机流量（cursor.sh、cursor.com）。",
-  "configuration.proxy.outputTailFromStart.description": "打开 MITM Proxy 输出通道时，重放活动日志文件中的最近行。"
+  "configuration.proxy.outputTailFromStart.description": "打开 MITM Proxy 输出通道时，重放活动日志文件中的最近行。",
+  "configuration.proxy.maxBodyLogMB.description": "每条 JSONL 行内联存储的请求/响应 body 的最大大小。启用 spill 时，较大的 body 会保存到 logs/bodies/。",
+  "configuration.proxy.spillLargeBodies.description": "当 body 超过内联限制时，将完整原始字节保存到 logs/bodies/ 而不是截断（建议用于分析）。",
+  "configuration.proxy.showLiveUsageInStatusBar.description": "MITM 代理运行时，在状态栏显示 agent/chat 的实时 token 用量（自动跟踪代理日志）。",
+  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "状态栏实时成本估算的每百万 token 粗略 USD（实际计费可能不同）。"
 }

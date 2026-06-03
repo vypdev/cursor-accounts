@@ -109,6 +109,7 @@ function createHandlers(overrides: {
         onStatusChange: () => undefined,
         getOutputPresenter: () => undefined,
         ensureOutputTailer: async () => undefined,
+        ensureTrafficTailer: async () => undefined,
         showOutputChannel: () => undefined,
       },
     },

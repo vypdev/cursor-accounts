@@ -314,12 +314,25 @@ while (true) {
 }
 ```
 
+## Relationship to MITM proxy and live tokens
+
+The MITM proxy (see [PROXY-SETUP.md](PROXY-SETUP.md)) can decode **streaming** `token_delta` counters from Agent `RunPoll` traffic. Those values are **not** the same as dashboard `tokenUsage` or `chargedCents`.
+
+| Signal | Source | Comparable to `chargedCents`? |
+|--------|--------|-------------------------------|
+| `token_delta.tokens` | Agent stream in proxy logs | **No** — progress counter |
+| `turn_ended.*` | Same stream (when present) | Closer, but often missing in captures |
+| `tokenUsage` + `chargedCents` | This API | **Yes** — billing reference per row |
+
+Canonical comparison and validation steps: [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md).
+
 ## What this extension uses today
 
 | Need | Endpoint used by Cursor Accounts |
 |------|----------------------------------|
 | Status bar quota / % | `GetCurrentPeriodUsage`, `usage-summary` |
 | Per-request usage table | **Not integrated** — this document |
+| Live agent token hints (optional) | MITM proxy only — see [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md) |
 
 Debug script (quota only, no usage events yet): `node scripts/debug-usage.mjs --email <address>`.
 
@@ -337,5 +350,7 @@ Debug script (quota only, no usage events yet): `node scripts/debug-usage.mjs --
 - [Admin API — filtered usage events](https://cursor.com/docs/account/teams/admin-api)
 - [Unofficial dashboard API gist (dmwyatt)](https://gist.github.com/dmwyatt/1e9359b1862e7cbfe1e754fe4c8db764)
 - [cursor-usage CLI](https://github.com/dmwyatt/cursor-usage)
+- [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md) — all token/billing channels and validation
 - [RESEARCH.md](RESEARCH.md) — quota endpoints used by this extension
 - [HOW-IT-WORKS.md](HOW-IT-WORKS.md) — auth and session cookie flow
+- [PROXY-SETUP.md](PROXY-SETUP.md) — MITM proxy setup

@@ -41,5 +41,9 @@
   "configuration.proxy.logTrafficToOutput.description": "Abgefangenen Proxy-Traffic in den Cursor MITM Proxy-Ausgabekanal schreiben.",
   "configuration.proxy.autoShowOutputChannel.description": "Den Cursor MITM Proxy-Ausgabekanal beim Start des Proxys automatisch öffnen.",
   "configuration.proxy.outputCursorHostsOnly.description": "Nur Cursor-Host-Traffic (cursor.sh, cursor.com) im MITM-Proxy-Ausgabekanal protokollieren.",
-  "configuration.proxy.outputTailFromStart.description": "Beim Öffnen des MITM-Proxy-Ausgabekanals aktuelle Zeilen aus der aktiven Protokolldatei wiedergeben."
+  "configuration.proxy.outputTailFromStart.description": "Beim Öffnen des MITM-Proxy-Ausgabekanals aktuelle Zeilen aus der aktiven Protokolldatei wiedergeben.",
+  "configuration.proxy.maxBodyLogMB.description": "Maximale Größe des Request/Response-Body, der inline in jeder JSONL-Zeile gespeichert wird. Größere Bodies werden unter logs/bodies/ gespeichert, wenn Spill aktiviert ist.",
+  "configuration.proxy.spillLargeBodies.description": "Wenn ein Body das Inline-Limit überschreitet, die vollständigen Rohbytes in logs/bodies/ speichern statt zu kürzen (empfohlen für Analysen).",
+  "configuration.proxy.showLiveUsageInStatusBar.description": "Live-Nutzung von Agent/Chat-Tokens in der Statusleiste anzeigen, während der MITM-Proxy läuft (folgt Proxy-Logs automatisch).",
+  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "Ungefähre USD pro Million Tokens für Live-Kostenschätzungen in der Statusleiste (tatsächliche Abrechnung kann abweichen)."
 }

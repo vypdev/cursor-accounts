@@ -73,12 +73,13 @@ No additional installation required. See [docs/PLATFORM-SUPPORT.md](docs/PLATFOR
 - [Architecture](docs/ARCHITECTURE.md)
 - [Building & Packaging](docs/BUILD.md)
 - [API Research](docs/RESEARCH.md)
+- [Tokens and Usage](docs/TOKENS-AND-USAGE.md) — token signals, billing channels, MITM decode
 - [Dashboard Usage Events API](docs/USAGE-EVENTS-API.md)
 - [Platform Support](docs/PLATFORM-SUPPORT.md)
 
 ### Other
 
-- [MITM Proxy Setup](docs/PROXY-SETUP.md) — observe Cursor IDE network traffic (research/debug)
+- [MITM Proxy Setup](docs/PROXY-SETUP.md) — observe Cursor IDE network traffic (research/debug); see [TOKENS-AND-USAGE.md](docs/TOKENS-AND-USAGE.md) for token/billing semantics
 - [Privacy & Security](docs/PRIVACY.md)
 - [Contributing](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)

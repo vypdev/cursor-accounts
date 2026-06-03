@@ -41,5 +41,9 @@
   "configuration.proxy.logTrafficToOutput.description": "Записывать перехваченный трафик прокси в канал вывода Cursor MITM Proxy.",
   "configuration.proxy.autoShowOutputChannel.description": "Автоматически открывать канал вывода Cursor MITM Proxy при запуске прокси.",
   "configuration.proxy.outputCursorHostsOnly.description": "Записывать в канал вывода MITM-прокси только трафик хостов Cursor (cursor.sh, cursor.com).",
-  "configuration.proxy.outputTailFromStart.description": "При открытии канала вывода MITM-прокси воспроизводить последние строки из активного файла логов."
+  "configuration.proxy.outputTailFromStart.description": "При открытии канала вывода MITM-прокси воспроизводить последние строки из активного файла логов.",
+  "configuration.proxy.maxBodyLogMB.description": "Максимальный размер тела запроса/ответа, хранимого inline в каждой строке JSONL. Большие тела сохраняются в logs/bodies/, если включён spill.",
+  "configuration.proxy.spillLargeBodies.description": "Если тело превышает inline-лимит, сохранять полные сырые байты в logs/bodies/ вместо обрезки (рекомендуется для анализа).",
+  "configuration.proxy.showLiveUsageInStatusBar.description": "Показывать использование токенов агента/чата в реальном времени на панели состояния, пока работает MITM-прокси (автоматически отслеживает логи прокси).",
+  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "Примерные USD за миллион токенов для оценки стоимости в реальном времени на панели состояния (фактическое списание может отличаться)."
 }

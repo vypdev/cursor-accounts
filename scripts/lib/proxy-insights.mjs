@@ -31,6 +31,12 @@ export function extractTokenInsight(obj) {
   if (!obj || typeof obj !== 'object') {
     return null;
   }
+  if (obj.input_tokens != null || obj.inputTokens != null) {
+    return {
+      inputTokens: obj.inputTokens ?? obj.input_tokens,
+      outputTokens: obj.outputTokens ?? obj.output_tokens,
+    };
+  }
   const usage =
     obj.metadata?.token_usage ??
     obj.metadata?.tokenUsage ??
@@ -150,5 +156,11 @@ export function extractAgentInsight(obj) {
     eof: eof || undefined,
     dataPreview: dataPreview ?? undefined,
     dataBytes: dataBytes ?? undefined,
+    streamingTokens: obj.streamingTokens ?? obj.streaming_tokens,
+    inputTokens: obj.inputTokens ?? obj.input_tokens,
+    outputTokens: obj.outputTokens ?? obj.output_tokens,
+    cacheReadTokens: obj.cacheReadTokens ?? obj.cache_read_tokens,
+    cacheWriteTokens: obj.cacheWriteTokens ?? obj.cache_write_tokens,
+    usageEvent: obj.usageEvent ?? obj.usage_event,
   };
 }

@@ -44,9 +44,17 @@ The extension reads your local Cursor session and calls Cursor's quota APIs. No 
 
 **Detailed guide:** [HOW-IT-WORKS.md](HOW-IT-WORKS.md)
 
+## MITM proxy and live agent usage (optional)
+
+For research and debugging, you can run a localhost MITM proxy to capture Cursor network traffic. When enabled, a **separate** status bar item can show live `token_delta` counts and a rough cost estimate during Agent chat (`cursorAccounts.proxy.showLiveUsageInStatusBar`). This is not the same as the quota status bar.
+
+**Guides:** [PROXY-SETUP.md](PROXY-SETUP.md), [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md)
+
 ## Related documentation
 
 - [COMMANDS.md](COMMANDS.md) — full command reference
 - [GETTING-STARTED.md](GETTING-STARTED.md) — installation and first launch
+- [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md) — token and billing reference
+- [PROXY-SETUP.md](PROXY-SETUP.md) — MITM proxy setup
 - [CONFIGURATION.md](CONFIGURATION.md) — all settings
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md) — common issues

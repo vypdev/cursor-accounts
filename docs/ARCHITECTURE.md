@@ -2,7 +2,7 @@
 
 This document describes how the extension is structured, how data flows, and why key decisions were made. For API and quota research, see [RESEARCH.md](RESEARCH.md). For multi-profile product behavior, see [FEATURE-MULTI-PROFILE.md](FEATURE-MULTI-PROFILE.md).
 
-**Last reviewed:** 2026-06-02
+**Last reviewed:** 2026-06-03
 
 ## Overview
 
@@ -12,7 +12,7 @@ Cursor Accounts is a VS Code/Cursor extension (`vypdev.cursor-accounts`) that:
 2. Manages **multiple Cursor logins** via separate `--user-data-dir` profiles
 3. Optionally runs **model efficiency analysis** on Composer prompts (`@cursor/sdk`)
 
-There is no backend service. Everything runs in the **Extension Host**, with network calls only to `api2.cursor.sh` and `cursor.com`.
+There is no backend service. Everything runs in the **Extension Host**, with network calls to `api2.cursor.sh` and `cursor.com`. An optional **localhost MITM proxy** (child process) can intercept Cursor traffic for research; see [PROXY-SETUP.md](PROXY-SETUP.md) and [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md).
 
 ## Monorepo layout
 
@@ -95,6 +95,7 @@ graph TB
 | Storage adapters | `src/storage/` | Filesystem, SQLite maintenance, VS Code cache/command cleanup, profile storage analysis |
 | UI (host) | `src/ui/` | Status bar items, webview provider and message routing |
 | Efficiency | `src/modelEfficiency/` | Composer DB poll, SDK classify, output channel |
+| Proxy (optional) | `src/proxy/`, `src/services/proxyManager.ts` | MITM child process, decode, traffic tail, live usage status bar |
 | Webview | `webview/src/` | React Accounts panel (profiles, quotas, actions) |
 
 ## Architectural patterns
@@ -308,6 +309,30 @@ sequenceDiagram
 - **Webview protocol tests:** `src/test/accountsPanel.test.ts` (extension-side webview messaging and HTML setup)
 - **Storage tests:** `src/test/storageSize.test.ts`, `src/test/storageCleanupService.test.ts`, `src/test/storageCleanupService.full.test.ts`, `src/test/accountsPanelHandlers.storage.test.ts`, `src/test/fileSystemErrors.test.ts`
 
+## Optional MITM proxy subsystem
+
+When enabled, a **child Node process** runs `http-mitm-proxy` on localhost. The extension host does not terminate TLS itself; it tails JSONL logs and decodes Connect/protobuf for insights.
+
+```mermaid
+flowchart LR
+  Cursor[Cursor_profile_window] --> Proxy[proxy_child_process]
+  Proxy --> Logs[proxy_logs_JSONL]
+  Logs --> Tail[traffic_tail_IPC]
+  Tail --> Decode[proxyDecode_bidiAgentDecode]
+  Decode --> Insights[proxyInsightExtractor]
+  Insights --> Out[Output_channel]
+  Insights --> LiveBar[agentLiveUsageStatusBar]
+```
+
+| Component | Path | Role |
+|-----------|------|------|
+| Lifecycle | `src/services/proxyManager.ts` | Start/stop child, CA trust, profile `http.proxy`, IPC `traffic` events |
+| Logging | `src/proxy/requestLogger.ts`, `proxyServer.ts` | JSONL + optional body spill under `~/.cursor-accounts/proxy/logs/` |
+| Decode | `src/proxy/proxyDecode.ts`, `bidiAgentDecode.ts`, `proxyInsightExtractor.ts` | Map RPC bodies → `ProxyTrafficInsights` |
+| Presentation | `src/proxy/proxyTrafficFormat.ts`, `src/ui/agentLiveUsageStatusBar.ts` | Output hints and live token status bar (separate from quota bar) |
+
+Token semantics and billing channels: [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md). User setup: [PROXY-SETUP.md](PROXY-SETUP.md).
+
 ## Known maintainability notes
 
 - `extension.ts` concentrates wiring and migrations (~270 lines)
@@ -318,6 +343,8 @@ sequenceDiagram
 ## Related documentation
 
 - [HOW-IT-WORKS.md](HOW-IT-WORKS.md) — user-facing technical overview
+- [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md) — token signals and billing channels
+- [PROXY-SETUP.md](PROXY-SETUP.md) — MITM proxy setup
 - [FEATURE-MULTI-PROFILE.md](FEATURE-MULTI-PROFILE.md) — product flows and terminology
 - [RESEARCH.md](RESEARCH.md) — quota APIs and account-switching limits
 - [README.md](../README.md) — project overview and documentation index

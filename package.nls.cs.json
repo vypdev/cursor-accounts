@@ -41,5 +41,9 @@
   "configuration.proxy.logTrafficToOutput.description": "Zapisovat zachycený provoz proxy do výstupního kanálu Cursor MITM Proxy.",
   "configuration.proxy.autoShowOutputChannel.description": "Automaticky otevřít výstupní kanál Cursor MITM Proxy při spuštění proxy.",
   "configuration.proxy.outputCursorHostsOnly.description": "V výstupním kanálu proxy MITM zaznamenávat pouze provoz hostitelů Cursor (cursor.sh, cursor.com).",
-  "configuration.proxy.outputTailFromStart.description": "Při otevření výstupního kanálu proxy MITM přehrát poslední řádky z aktivního log souboru."
+  "configuration.proxy.outputTailFromStart.description": "Při otevření výstupního kanálu proxy MITM přehrát poslední řádky z aktivního log souboru.",
+  "configuration.proxy.maxBodyLogMB.description": "Maximální velikost těla požadavku/odpovědi uloženého inline v každém řádku JSONL. Větší těla se ukládají do logs/bodies/, pokud je spill povolen.",
+  "configuration.proxy.spillLargeBodies.description": "Pokud tělo překročí inline limit, uložit kompletní surové bajty do logs/bodies/ místo ořezání (doporučeno pro analýzu).",
+  "configuration.proxy.showLiveUsageInStatusBar.description": "Zobrazovat živé využití tokenů agenta/chatu ve stavovém řádku, zatímco běží proxy MITM (automaticky sleduje logy proxy).",
+  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "Hrubé USD za milion tokenů pro odhady živých nákladů ve stavovém řádku (skutečná fakturace se může lišit)."
 }

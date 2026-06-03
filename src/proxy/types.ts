@@ -90,4 +90,5 @@ export type ProxyParentMessage =
 export type ProxyChildMessage =
   | { type: 'ready'; port: number }
   | { type: 'error'; message: string }
-  | { type: 'stats'; data: ProxyStatistics };
+  | { type: 'stats'; data: ProxyStatistics }
+  | { type: 'traffic'; summary: ProxyTrafficSummary };

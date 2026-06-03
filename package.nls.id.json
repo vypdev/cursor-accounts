@@ -41,5 +41,9 @@
   "configuration.proxy.logTrafficToOutput.description": "Tulis lalu lintas proxy yang diintercept ke saluran output Cursor MITM Proxy.",
   "configuration.proxy.autoShowOutputChannel.description": "Buka saluran output Cursor MITM Proxy secara otomatis saat proxy dimulai.",
   "configuration.proxy.outputCursorHostsOnly.description": "Hanya catat lalu lintas host Cursor (cursor.sh, cursor.com) di saluran output proxy MITM.",
-  "configuration.proxy.outputTailFromStart.description": "Saat membuka saluran output proxy MITM, putar ulang baris terbaru dari file log aktif."
+  "configuration.proxy.outputTailFromStart.description": "Saat membuka saluran output proxy MITM, putar ulang baris terbaru dari file log aktif.",
+  "configuration.proxy.maxBodyLogMB.description": "Ukuran maksimum body permintaan/respons yang disimpan inline di setiap baris JSONL. Body yang lebih besar disimpan di logs/bodies/ jika spill diaktifkan.",
+  "configuration.proxy.spillLargeBodies.description": "Saat body melebihi batas inline, simpan byte mentah lengkap ke logs/bodies/ alih-alih memotong (disarankan untuk analisis).",
+  "configuration.proxy.showLiveUsageInStatusBar.description": "Tampilkan penggunaan token agent/chat langsung di bilah status saat proxy MITM berjalan (mengikuti log proxy secara otomatis).",
+  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "Perkiraan USD per juta token untuk estimasi biaya langsung di bilah status (penagihan aktual mungkin berbeda)."
 }

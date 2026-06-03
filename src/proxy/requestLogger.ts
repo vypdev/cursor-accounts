@@ -129,7 +129,14 @@ export class RequestLogger {
     if (!contentType) {
       return false;
     }
-    return contentType.toLowerCase().includes(CONNECT_RPC_CONTENT_TYPE);
+    const lower = contentType.toLowerCase();
+    return (
+      lower.includes(CONNECT_RPC_CONTENT_TYPE) ||
+      lower.includes('application/proto') ||
+      lower.includes('application/connect') ||
+      lower.includes('application/grpc') ||
+      lower.includes('application/grpc+proto')
+    );
   }
 
   static isCursorHost(host: string): boolean {

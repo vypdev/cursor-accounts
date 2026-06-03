@@ -41,5 +41,9 @@
   "configuration.proxy.logTrafficToOutput.description": "כתוב תעבורת פרוקסי שנלכדה לערוץ הפלט Cursor MITM Proxy.",
   "configuration.proxy.autoShowOutputChannel.description": "פתח אוטומטית את ערוץ הפלט Cursor MITM Proxy בעת הפעלת הפרוקסי.",
   "configuration.proxy.outputCursorHostsOnly.description": "רשום רק תעבורת מארחי Cursor (cursor.sh, cursor.com) בערוץ הפלט של פרוקסי MITM.",
-  "configuration.proxy.outputTailFromStart.description": "בפתיחת ערוץ הפלט של פרוקסי MITM, השמע שורות אחרונות מקובץ הלוג הפעיל."
+  "configuration.proxy.outputTailFromStart.description": "בפתיחת ערוץ הפלט של פרוקסי MITM, השמע שורות אחרונות מקובץ הלוג הפעיל.",
+  "configuration.proxy.maxBodyLogMB.description": "גודל מרבי של body בקשה/תגובה המאוחסן inline בכל שורת JSONL. body גדולים יותר נשמרים ב-logs/bodies/ כאשר spill מופעל.",
+  "configuration.proxy.spillLargeBodies.description": "כאשר body חורג ממגבלת inline, שמור את הבайטים הגולמיים המלאים ב-logs/bodies/ במקום לקצץ (מומלץ לניתוח).",
+  "configuration.proxy.showLiveUsageInStatusBar.description": "הצג שימוש חי בטוקנים של agent/chat בשורת המצב בזמן שפרוקסי MITM פועל (עוקב אחר לוגי הפרוקסי אוטומטית).",
+  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "USD משוערים למיליון טוקנים להערכות עלות חיות בשורת המצב (חיוב בפועל עשוי להיות שונה)."
 }

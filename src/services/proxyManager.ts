@@ -22,6 +22,7 @@ import * as extensionLog from '../logging/extensionLog';
 import { CertificateManager } from '../proxy/certificateManager';
 import { getSharedProxyStorageDir } from '../proxy/sharedProxyPaths';
 import { ProxyOutputPresenter, getProxyOutputConfig } from '../proxy/proxyOutputPresenter';
+import { estimateTokenCostUsd } from '../proxy/proxyInsightExtractor';
 import { ProxyLogTailer } from '../proxy/proxyLogTailer';
 import { isPortAvailable, isProcessAlive } from '../proxy/portUtils';
 import {
@@ -34,7 +35,10 @@ import {
   type ProxyChildMessage,
   type ProxyParentMessage,
   type ProxyServerConfig,
+  type ProxyTrafficSummary,
 } from '../proxy/types';
+
+export type ProxyTrafficListener = (summary: ProxyTrafficSummary) => void;
 
 const PROXY_START_TIMEOUT_MS = 15_000;
 const PROXY_STOP_TIMEOUT_MS = 5_000;
@@ -51,6 +55,7 @@ interface ProfileProxyRuntime {
 export class ProxyManager implements IProxyManager {
   private readonly childProcesses = new Map<string, ProfileProxyRuntime>();
   private readonly statusCallbacks: Array<() => void> = [];
+  private readonly trafficListeners: ProxyTrafficListener[] = [];
   private cachedCertificateInstalled: boolean | undefined;
   private logTailer: ProxyLogTailer | null = null;
   private logTailerStartedForPort: number | null = null;
@@ -74,6 +79,58 @@ export class ProxyManager implements IProxyManager {
 
   onStatusChange(callback: () => void): void {
     this.statusCallbacks.push(callback);
+  }
+
+  onTraffic(listener: ProxyTrafficListener): void {
+    this.trafficListeners.push(listener);
+  }
+
+  private enrichTrafficSummary(summary: ProxyTrafficSummary): ProxyTrafficSummary {
+    const agent = summary.insights?.agent;
+    if (!agent) {
+      return summary;
+    }
+    const rate = vscode.workspace
+      .getConfiguration('cursorAccounts.proxy')
+      .get<number>('estimatedDollarsPerMillionTokens', 4);
+    const cost = estimateTokenCostUsd(agent, rate);
+    if (cost == null) {
+      return summary;
+    }
+    return {
+      ...summary,
+      insights: {
+        ...summary.insights,
+        agent: { ...agent, estimatedCostUsd: cost },
+      },
+    };
+  }
+
+  private emitTraffic(summary: ProxyTrafficSummary): void {
+    const enriched = this.enrichTrafficSummary(summary);
+    if (getProxyOutputConfig().logTrafficToOutput) {
+      this.outputPresenter?.appendTraffic(enriched);
+    }
+    for (const listener of this.trafficListeners) {
+      try {
+        listener(enriched);
+      } catch (error) {
+        extensionLog.debug(
+          `[Proxy] traffic listener error: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    }
+  }
+
+  private emitTrafficError(summary: ProxyTrafficSummary): void {
+    this.outputPresenter?.appendError(summary);
+    for (const listener of this.trafficListeners) {
+      try {
+        listener(summary);
+      } catch {
+        // ignore listener errors on errors
+      }
+    }
   }
 
   async start(profileId: string): Promise<ProxyStartResult> {
@@ -371,6 +428,29 @@ export class ProxyManager implements IProxyManager {
     });
   }
 
+  /**
+   * Start tailing JSONL logs for live insights (status bar tokens).
+   * Runs even when logTrafficToOutput is false.
+   */
+  async ensureTrafficTailer(): Promise<void> {
+    for (const [profileId, runtime] of this.childProcesses) {
+      await this.ensureLogTailer(profileId, runtime.port, { attached: false });
+      return;
+    }
+
+    const profiles = await this.profileManager.getProfiles();
+    for (const profile of profiles) {
+      if (!(await this.isRunning(profile.id))) {
+        continue;
+      }
+      const status = await this.getStatus(profile.id);
+      if (status?.port != null) {
+        await this.ensureLogTailer(profile.id, status.port, { attached: false });
+        return;
+      }
+    }
+  }
+
   showOutputChannel(): void {
     const settings = getProxyOutputConfig();
     this.outputPresenter?.show();
@@ -500,6 +580,9 @@ export class ProxyManager implements IProxyManager {
     if (msg.type === 'stats') {
       return;
     }
+    if (msg.type === 'traffic') {
+      this.emitTraffic(msg.summary);
+    }
   }
 
   private async applyProxySettingsForProfile(
@@ -537,11 +620,7 @@ export class ProxyManager implements IProxyManager {
     this.stopLogTailer();
 
     const outputSettings = getProxyOutputConfig();
-    if (!outputSettings.logTrafficToOutput) {
-      return;
-    }
-
-    if (options.attached) {
+    if (options.attached && outputSettings.logTrafficToOutput) {
       this.outputPresenter?.appendAttached(port);
     }
 
@@ -555,10 +634,10 @@ export class ProxyManager implements IProxyManager {
       this.logDir,
       {
         onTraffic: (summary) => {
-          this.outputPresenter?.appendTraffic(summary);
+          this.emitTraffic(summary);
         },
         onError: (summary) => {
-          this.outputPresenter?.appendError(summary);
+          this.emitTrafficError(summary);
           extensionLog.warn(
             `[Proxy:${profileId}] ${summary.errorKind ?? 'PROXY_ERROR'}: ${summary.errorMessage ?? 'unknown error'}`
           );

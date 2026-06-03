@@ -35,6 +35,20 @@ See [FEATURE-MULTI-PROFILE.md](FEATURE-MULTI-PROFILE.md) for user flows and prof
 
 See [MODEL-EFFICIENCY.md](MODEL-EFFICIENCY.md) for how to enable analysis per profile.
 
+## MITM proxy
+
+| Command ID | Palette title | Description |
+|------------|---------------|-------------|
+| `cursorAccounts.proxy.start` | Cursor Accounts: Start Proxy | Start the localhost MITM proxy |
+| `cursorAccounts.proxy.stop` | Cursor Accounts: Stop Proxy | Stop the proxy and restore profile proxy settings |
+| `cursorAccounts.proxy.showLogs` | Cursor Accounts: Open Proxy Logs | Open `~/.cursor-accounts/proxy/logs/` in the file manager |
+| `cursorAccounts.proxy.showOutput` | Cursor Accounts: Show Proxy Output | Open the MITM Proxy output channel |
+| `cursorAccounts.proxy.saveCertificate` | Cursor Accounts: Save Proxy CA Certificate… | Export the CA for manual trust (e.g. Linux) |
+
+Panel equivalents: **Start Proxy**, **Stop Proxy**, **View Logs**, **Install instructions** on the Accounts MITM Proxy card.
+
+See [PROXY-SETUP.md](PROXY-SETUP.md) and [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md).
+
 ## Related UI actions (not commands)
 
 These actions are available in the UI but are **not** registered as Command Palette commands:
@@ -77,4 +91,6 @@ These actions are available in the UI but are **not** registered as Command Pale
 - [FEATURES.md](FEATURES.md) — feature overview
 - [FEATURE-MULTI-PROFILE.md](FEATURE-MULTI-PROFILE.md) — multi-profile management
 - [MODEL-EFFICIENCY.md](MODEL-EFFICIENCY.md) — model efficiency analysis
+- [PROXY-SETUP.md](PROXY-SETUP.md) — MITM proxy setup
+- [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md) — token signals and billing
 - [CONFIGURATION.md](CONFIGURATION.md) — settings that affect command behavior

@@ -41,5 +41,9 @@
   "configuration.proxy.logTrafficToOutput.description": "كتابة حركة الوسيط المعترضة إلى قناة إخراج Cursor MITM Proxy.",
   "configuration.proxy.autoShowOutputChannel.description": "فتح قناة إخراج Cursor MITM Proxy تلقائيًا عند بدء الوسيط.",
   "configuration.proxy.outputCursorHostsOnly.description": "تسجيل حركة مضيفي Cursor فقط (cursor.sh, cursor.com) في قناة إخراج وسيط MITM.",
-  "configuration.proxy.outputTailFromStart.description": "عند فتح قناة إخراج وسيط MITM، إعادة تشغيل الأسطر الأخيرة من ملف السجل النشط."
+  "configuration.proxy.outputTailFromStart.description": "عند فتح قناة إخراج وسيط MITM، إعادة تشغيل الأسطر الأخيرة من ملف السجل النشط.",
+  "configuration.proxy.maxBodyLogMB.description": "الحد الأقصى لحجم body الطلب/الاستجابة المخزن inline في كل سطر JSONL. تُحفظ body الأكبر في logs/bodies/ عند تفعيل spill.",
+  "configuration.proxy.spillLargeBodies.description": "عندما يتجاوز body الحد inline، احفظ البايتات الخام الكاملة في logs/bodies/ بدلاً من الاقتطاع (موصى به للتحليل).",
+  "configuration.proxy.showLiveUsageInStatusBar.description": "إظهار استخدام رموز agent/chat المباشر في شريط الحالة أثناء تشغيل وسيط MITM (يتتبع سجلات الوسيط تلقائياً).",
+  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "USD تقريبية لكل مليون رمز لتقديرات التكلفة المباشرة في شريط الحالة (قد يختلف الفوتر الفعلي)."
 }

@@ -28,6 +28,9 @@ Public GitHub data uses unauthenticated API requests (rate-limited per GitHub po
 | Last-known quota | Extension `globalState` | Cached for instant display on startup |
 | Profile metadata | `~/.cursor-accounts/config.json` | No tokens; optional `githubTokenPath` (file path only) |
 | Model efficiency API key | VS Code Secret Storage (active window) | Created when efficiency analysis is enabled |
+| MITM proxy logs (optional) | `~/.cursor-accounts/proxy/logs/` | JSONL traffic, spilled bodies, generated CA under `proxy/certs/` |
+
+When the MITM proxy is enabled, logs may contain **authorization headers**, cookies, chat payloads, and tool output. Treat log files like secrets; see [PROXY-SETUP.md](PROXY-SETUP.md) and [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md).
 
 ## Token handling and security
 
@@ -43,3 +46,5 @@ Be aware that extensions installed in a profile can access that profile's tokens
 - [HOW-IT-WORKS.md](HOW-IT-WORKS.md) — authentication and token refresh flow
 - [RESEARCH.md](RESEARCH.md) — API endpoints and account-switching constraints
 - [FEATURE-MULTI-PROFILE.md](FEATURE-MULTI-PROFILE.md) — profile isolation and security
+- [PROXY-SETUP.md](PROXY-SETUP.md) — MITM proxy security notes
+- [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md) — what appears in proxy logs

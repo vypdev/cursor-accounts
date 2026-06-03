@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { parseRpcPath } from '../proxy/proxyDecode';
 import {
+  extractAgentInnerInsights,
   extractAgentSessionInfo,
   extractInsightsForRpc,
 } from '../proxy/proxyInsightExtractor';
@@ -56,6 +57,30 @@ describe('extractAgentSessionInfo', () => {
     assert.equal(info?.requestId, 'req-data');
     assert.equal(info?.dataPreview, '{"type":"user"}');
     assert.equal(info?.dataBytes, 3);
+  });
+
+  it('extracts token_delta from inner agent server message', () => {
+    const info = extractAgentInnerInsights({
+      interactionUpdate: { tokenDelta: { tokens: 603 } },
+    });
+    assert.equal(info?.streamingTokens, 603);
+    assert.equal(info?.usageEvent, 'token_delta');
+  });
+
+  it('extracts turn_ended token breakdown', () => {
+    const info = extractAgentInnerInsights({
+      interactionUpdate: {
+        turnEnded: {
+          inputTokens: 1000,
+          outputTokens: 200,
+          cacheReadTokens: 50,
+        },
+      },
+    });
+    assert.equal(info?.inputTokens, 1000);
+    assert.equal(info?.outputTokens, 200);
+    assert.equal(info?.cacheReadTokens, 50);
+    assert.equal(info?.usageEvent, 'turn_ended');
   });
 
   it('includes agent insights for BidiAppend rpc path', () => {

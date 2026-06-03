@@ -41,5 +41,9 @@
   "configuration.proxy.logTrafficToOutput.description": "เขียนทราฟฟิกพร็อกซีที่ดักจับไปยังช่อง output Cursor MITM Proxy",
   "configuration.proxy.autoShowOutputChannel.description": "เปิดช่อง output Cursor MITM Proxy โดยอัตโนมัติเมื่อพร็อกซีเริ่มทำงาน",
   "configuration.proxy.outputCursorHostsOnly.description": "บันทึกเฉพาะทราฟฟิกโฮสต์ Cursor (cursor.sh, cursor.com) ในช่อง output พร็อกซี MITM",
-  "configuration.proxy.outputTailFromStart.description": "เมื่อเปิดช่อง output พร็อกซี MITM ให้เล่นบรรทัดล่าสุดจากไฟล์ล็อกที่ใช้งานอยู่"
+  "configuration.proxy.outputTailFromStart.description": "เมื่อเปิดช่อง output พร็อกซี MITM ให้เล่นบรรทัดล่าสุดจากไฟล์ล็อกที่ใช้งานอยู่",
+  "configuration.proxy.maxBodyLogMB.description": "ขนาดสูงสุดของ body คำขอ/การตอบกลับที่เก็บ inline ในแต่ละบรรทัด JSONL body ที่ใหญ่กว่าจะถูกบันทึกใน logs/bodies/ เมื่อเปิด spill",
+  "configuration.proxy.spillLargeBodies.description": "เมื่อ body เกินขีดจำกัด inline ให้บันทึก byte ดิบทั้งหมดใน logs/bodies/ แทนการตัดทอน (แนะนำสำหรับการวิเคราะห์)",
+  "configuration.proxy.showLiveUsageInStatusBar.description": "แสดงการใช้โทเค็น agent/chat แบบสดในแถบสถานะขณะพร็อกซี MITM ทำงาน (ติดตามล็อกพร็อกซีอัตโนมัติ)",
+  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "USD โดยประมาณต่อล้านโทเค็นสำหรับประมาณการต้นทุนแบบสดในแถบสถานะ (การเรียกเก็บเงินจริงอาจต่างกัน)"
 }

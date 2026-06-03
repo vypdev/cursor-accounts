@@ -94,6 +94,7 @@ function createHandlers(deps: {
         onStatusChange: () => undefined,
         getOutputPresenter: () => undefined,
         ensureOutputTailer: async () => undefined,
+        ensureTrafficTailer: async () => undefined,
         showOutputChannel: () => undefined,
       },
     },

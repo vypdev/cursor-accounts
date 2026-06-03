@@ -41,5 +41,9 @@
   "configuration.proxy.logTrafficToOutput.description": "Yakalanan proxy trafiğini Cursor MITM Proxy çıktı kanalına yaz.",
   "configuration.proxy.autoShowOutputChannel.description": "Proxy başlatıldığında Cursor MITM Proxy çıktı kanalını otomatik aç.",
   "configuration.proxy.outputCursorHostsOnly.description": "MITM Proxy çıktı kanalında yalnızca Cursor ana bilgisayar trafiğini (cursor.sh, cursor.com) günlükle.",
-  "configuration.proxy.outputTailFromStart.description": "MITM Proxy çıktı kanalı açılırken aktif log dosyasındaki son satırları yeniden oynat."
+  "configuration.proxy.outputTailFromStart.description": "MITM Proxy çıktı kanalı açılırken aktif log dosyasındaki son satırları yeniden oynat.",
+  "configuration.proxy.maxBodyLogMB.description": "Her JSONL satırında satır içi saklanan istek/yanıt body’sinin maksimum boyutu. Spill etkinse daha büyük body’ler logs/bodies/ altına kaydedilir.",
+  "configuration.proxy.spillLargeBodies.description": "Bir body satır içi sınırı aştığında, kısaltmak yerine tam ham baytları logs/bodies/ altına kaydet (analiz için önerilir).",
+  "configuration.proxy.showLiveUsageInStatusBar.description": "MITM proxy çalışırken durum çubuğunda agent/sohbet token kullanımını canlı göster (proxy loglarını otomatik izler).",
+  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "Durum çubuğunda canlı maliyet tahminleri için milyon token başına yaklaşık USD (gerçek faturalama farklı olabilir)."
 }

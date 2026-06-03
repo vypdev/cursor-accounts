@@ -40,6 +40,25 @@ Settings are grouped by area: refresh polling, status bar display, multi-profile
 
 See [MODEL-EFFICIENCY.md](MODEL-EFFICIENCY.md) for how to enable and use model efficiency analysis per profile.
 
+## MITM proxy (research / debugging)
+
+Optional localhost proxy to observe Cursor network traffic. Setup: [PROXY-SETUP.md](PROXY-SETUP.md). Token and billing semantics: [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md).
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `cursorAccounts.proxy.enabled` | `false` | Start proxy when the extension activates |
+| `cursorAccounts.proxy.port` | `8080` | Listen port (per-profile launches may use 8081, 8082, or 8888) |
+| `cursorAccounts.proxy.maxLogSizeMB` | `500` | Max total log disk usage before rotation |
+| `cursorAccounts.proxy.maxBodyLogMB` | `4` | Inline body size threshold before spill to `logs/bodies/` |
+| `cursorAccounts.proxy.spillLargeBodies` | `true` | Write large bodies to sidecar `.bin` files |
+| `cursorAccounts.proxy.autoLaunchWithProxy` | `true` | Apply proxy settings when launching a profile from Accounts |
+| `cursorAccounts.proxy.logTrafficToOutput` | `true` | Stream decoded traffic lines to MITM Proxy output |
+| `cursorAccounts.proxy.autoShowOutputChannel` | `false` | Open output channel when proxy starts |
+| `cursorAccounts.proxy.outputCursorHostsOnly` | `false` | Filter output to Cursor API hosts |
+| `cursorAccounts.proxy.outputTailFromStart` | `false` | Tail log from beginning when output opens |
+| `cursorAccounts.proxy.showLiveUsageInStatusBar` | `true` | Show live agent token counter + rough cost estimate |
+| `cursorAccounts.proxy.estimatedDollarsPerMillionTokens` | `4` | Flat rate for live cost estimate (not real billing) |
+
 ## Common scenarios
 
 ### Verify you are on the correct account
@@ -59,3 +78,5 @@ The Accounts panel refreshes quotas for all configured profiles on `cursorAccoun
 - [FEATURES.md](FEATURES.md) — what each setting affects in the UI
 - [MODEL-EFFICIENCY.md](MODEL-EFFICIENCY.md) — model efficiency feature details
 - [FEATURE-MULTI-PROFILE.md](FEATURE-MULTI-PROFILE.md) — multi-profile behavior
+- [PROXY-SETUP.md](PROXY-SETUP.md) — MITM proxy setup
+- [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md) — token signals and cost validation

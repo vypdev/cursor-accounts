@@ -41,5 +41,9 @@
   "configuration.proxy.logTrafficToOutput.description": "Ghi lưu lượng proxy bị chặn vào kênh output Cursor MITM Proxy.",
   "configuration.proxy.autoShowOutputChannel.description": "Tự động mở kênh output Cursor MITM Proxy khi proxy khởi động.",
   "configuration.proxy.outputCursorHostsOnly.description": "Chỉ ghi lưu lượng host Cursor (cursor.sh, cursor.com) trong kênh output proxy MITM.",
-  "configuration.proxy.outputTailFromStart.description": "Khi mở kênh output proxy MITM, phát lại các dòng gần đây từ tệp log đang hoạt động."
+  "configuration.proxy.outputTailFromStart.description": "Khi mở kênh output proxy MITM, phát lại các dòng gần đây từ tệp log đang hoạt động.",
+  "configuration.proxy.maxBodyLogMB.description": "Kích thước tối đa của body request/response lưu inline trong mỗi dòng JSONL. Body lớn hơn được lưu trong logs/bodies/ khi bật spill.",
+  "configuration.proxy.spillLargeBodies.description": "Khi body vượt giới hạn inline, lưu toàn bộ byte thô vào logs/bodies/ thay vì cắt ngắn (khuyến nghị cho phân tích).",
+  "configuration.proxy.showLiveUsageInStatusBar.description": "Hiển thị mức sử dụng token agent/chat trực tiếp trên thanh trạng thái khi proxy MITM đang chạy (tự động theo dõi log proxy).",
+  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "USD ước tính cho mỗi triệu token để ước tính chi phí trực tiếp trên thanh trạng thái (hóa đơn thực tế có thể khác)."
 }

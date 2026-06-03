@@ -2,6 +2,8 @@
 
 The Cursor Accounts extension can run a local MITM proxy to observe HTTP/HTTPS traffic between Cursor and its servers. This is intended for **research and debugging** only.
 
+For what each token/billing signal means (`token_delta`, `turn_ended`, quota cents, dashboard rows), see **[TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md)**.
+
 ## Enable the proxy
 
 The proxy process and its state file live under `~/.cursor-accounts/proxy` so **every Cursor window** (default profile and profile windows) sees the same running/stopped status.
@@ -88,7 +90,10 @@ Analyze captured traffic:
 pnpm run verify:proto-jsonl
 pnpm run analyze:proxy-traffic
 pnpm run scan:proxy-interactive
+pnpm run summarize:session-tokens -- ~/.cursor-accounts/proxy/logs/<log>.jsonl
 ```
+
+Session token/cost report (proxy deltas vs `GetCurrentPeriodUsage` delta): [TOKENS-AND-USAGE.md — Analysis scripts](TOKENS-AND-USAGE.md#analysis-scripts).
 
 ### Interactive chat vs background traffic
 
@@ -110,9 +115,12 @@ If you only see `api2` + `ReportAgentSnapshot` but **no** interactive RPCs, the 
 2. With MITM, prefer **HTTP/1** (`cursor.general.disableHttp2: true`) so Agent uses `RunPoll` on `api2`.
 3. Send a **new Agent message** while logging.
 4. Run `pnpm run scan:proxy-interactive` — expect `RunPoll` / `BidiAppend` on api2, or `api5` / `StreamComposer` depending on HTTP mode.
-5. Run `pnpm run analyze:proxy-traffic` — decoded `BidiAppend` rows include `insights.agent` (`requestId`, `appendSeqno`, optional `dataPreview` / `dataBytes`).
+5. Run `pnpm run analyze:proxy-traffic` — decoded `BidiAppend` / `RunPoll` include nested agent frames (`token_delta`, `turn_ended` when present).
+6. With the extension proxy + `cursorAccounts.proxy.showLiveUsageInStatusBar`, live token counts and a rough cost estimate appear in a **separate status bar item** during agent/chat (click opens MITM Proxy output). This is not the same as the quota status bar.
 
-Composer message **metadata** is also stored locally in `state.vscdb`; the MITM proxy only sees **network** RPCs.
+**Token and billing signals** (glossary, RPC matrix, validation, limitations): **[TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md)**.
+
+Tune live cost estimates with `cursorAccounts.proxy.estimatedDollarsPerMillionTokens` (default 4). Composer message **metadata** is also stored locally in `state.vscdb`; the MITM proxy only sees **network** RPCs.
 
 ## Security
 
@@ -129,15 +137,25 @@ Composer message **metadata** is also stored locally in `state.vscdb`; the MITM 
 | Panel shows **CA not trusted** after install | Focus the Accounts panel again to refresh; on Linux, confirm `/usr/local/share/ca-certificates/cursor-accounts-mitm.crt` exists and run `sudo update-ca-certificates`. |
 | Panel shows proxy running but this window does not use it | Launch the profile again after starting the proxy, or reload the window. |
 | Empty proxy logs | Ensure the profile window was launched after the proxy started; confirm `http.proxy` in that profile's settings. |
-| Logs have billing/snapshots but no chat | Agent chat uses `agent.api5.cursor.sh`, not `StreamComposer` on `api2`; relaunch profile, send a test prompt, run `scan:proxy-interactive`. Many `HTTPS_CLIENT_ERROR` / certificate lines mean the CA is not trusted for some clients — reinstall CA and relaunch. |
+| Logs have billing/snapshots but no chat | Agent may use **`api2` + `RunPoll`/`BidiAppend` (HTTP/1)** or **`agent.api5` + `Run`/`RunSSE` (HTTP/2)** — not legacy `StreamComposer` alone. Relaunch profile, send a test prompt, run `scan:proxy-interactive`. Many `HTTPS_CLIENT_ERROR` lines mean the CA is not trusted — reinstall CA and relaunch. See [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md#traffic-matrix-which-rpcs-carry-tokens). |
 | Network Diagnostics: API/Chat/Agent fail, SSL warns `Node MITM Proxy CA` | Proxy leaf certs signed by wrong CA; stop proxy, restart extension/proxy (regenerates `certs/ca.pem`), confirm diagnostics mention `Cursor Accounts MITM Proxy CA` or no warning after trusting panel CA. Try `cursor.general.disableHttp2` only after CA matches. |
 | Profile shows **Temporary proxy** badge | Normal while the proxy is active; settings revert when the proxy stops or the default window opens. |
 | Stale “running” status | The proxy process may have crashed; click **Stop Proxy** then **Start Proxy**. |
 
 ## Configuration reference
 
+Full proxy settings table: [CONFIGURATION.md — MITM proxy](CONFIGURATION.md#mitm-proxy-research--debugging).
+
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `cursorAccounts.proxy.enabled` | `false` | Start proxy on extension activation |
-| `cursorAccounts.proxy.port` | `8080` | Local TCP port |
-| `cursorAccounts.proxy.maxLogSizeMB` | `100` | Max total log size before rotation |
+| `cursorAccounts.proxy.port` | `8080` | Local TCP port (per-profile launches may use 8081, 8082, or 8888) |
+| `cursorAccounts.proxy.maxLogSizeMB` | `500` | Max total log size before rotation |
+
+## Related documentation
+
+- [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md) — token signals, billing channels, validation
+- [USAGE-EVENTS-API.md](USAGE-EVENTS-API.md) — dashboard per-request usage table
+- [CONFIGURATION.md](CONFIGURATION.md) — all `cursorAccounts.proxy.*` settings
+- [PRIVACY.md](PRIVACY.md) — sensitive data in proxy logs
+- [proto/README.md](../proto/README.md) — protobuf decode tooling

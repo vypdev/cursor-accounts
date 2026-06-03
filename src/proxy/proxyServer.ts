@@ -33,7 +33,17 @@ async function main(): Promise<void> {
     maxBodyLogBytes: config.maxBodyLogBytes,
     spillLargeBodies: config.spillLargeBodies,
   });
-  const server = new MitmProxyServer(certificateManager, requestLogger);
+  const server = new MitmProxyServer(certificateManager, requestLogger, {
+    onTraffic: (summary) => {
+      send({
+        type: 'traffic',
+        summary: {
+          ...summary,
+          bodyDecoded: undefined,
+        },
+      });
+    },
+  });
 
   server.on('error', (err) => {
     process.stderr.write(`[proxy] ${err.message}\n`);

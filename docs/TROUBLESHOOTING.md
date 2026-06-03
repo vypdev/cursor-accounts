@@ -9,6 +9,8 @@ Common issues and how to resolve them.
 3. Check the Extension Host log for errors (Help → Toggle Developer Tools → Console)
 4. Compare status bar values with **Cursor Settings → Usage** or [cursor.com/dashboard/usage](https://cursor.com/dashboard/usage)
 
+**Quota vs dashboard vs proxy:** The status bar uses `GetCurrentPeriodUsage` / `usage-summary` (period spend and %). The dashboard usage **table** is a different API (`get-filtered-usage-events`) with per-request tokens and cost. The optional MITM proxy shows **live streaming counters** (`token_delta`), which are not billed tokens. See [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md).
+
 ## Common issues
 
 | Symptom | Action |
@@ -72,4 +74,7 @@ Include: Cursor version, OS/platform, account type (personal/enterprise), and re
 - [GETTING-STARTED.md](GETTING-STARTED.md) — installation and first launch
 - [CONFIGURATION.md](CONFIGURATION.md) — settings that affect display and refresh
 - [RESEARCH.md](RESEARCH.md) — known API limitations
+- [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md) — token signals and cost validation
+- [PROXY-SETUP.md](PROXY-SETUP.md) — MITM proxy troubleshooting
+- [USAGE-EVENTS-API.md](USAGE-EVENTS-API.md) — dashboard per-request usage table
 - [PLATFORM-SUPPORT.md](PLATFORM-SUPPORT.md) — platform and binary details

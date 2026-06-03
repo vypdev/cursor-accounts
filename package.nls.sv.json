@@ -41,5 +41,9 @@
   "configuration.proxy.logTrafficToOutput.description": "Skriv avlyssnad proxytrafik till Cursor MITM Proxy-utdatakanalen.",
   "configuration.proxy.autoShowOutputChannel.description": "Öppna Cursor MITM Proxy-utdatakanalen automatiskt när proxyn startar.",
   "configuration.proxy.outputCursorHostsOnly.description": "Logga endast Cursor-värdtrafik (cursor.sh, cursor.com) i MITM Proxy-utdatakanalen.",
-  "configuration.proxy.outputTailFromStart.description": "När MITM Proxy-utdatakanalen öppnas, spela upp senaste raderna från den aktiva loggfilen."
+  "configuration.proxy.outputTailFromStart.description": "När MITM Proxy-utdatakanalen öppnas, spela upp senaste raderna från den aktiva loggfilen.",
+  "configuration.proxy.maxBodyLogMB.description": "Maximal storlek på request/response-body som lagras inline i varje JSONL-rad. Större body lagras under logs/bodies/ när spill är aktiverat.",
+  "configuration.proxy.spillLargeBodies.description": "När en body överskrider inline-gränsen, spara fullständiga råa byte i logs/bodies/ istället för att trunkera (rekommenderas för analys).",
+  "configuration.proxy.showLiveUsageInStatusBar.description": "Visa live agent/chatt-tokenanvändning i statusfältet medan MITM-proxyn körs (följer proxyloggar automatiskt).",
+  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "Ungefärliga USD per miljon tokens för live-kostnadsuppskattningar i statusfältet (faktisk fakturering kan skilja sig)."
 }
