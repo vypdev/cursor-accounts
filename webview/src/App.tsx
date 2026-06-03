@@ -6,6 +6,7 @@ import { EmptyState } from './components/EmptyState';
 import { ImportDialog } from './components/ImportDialog';
 import { ProfileList } from './components/ProfileList';
 import { CaCertificateInstallModal } from './components/CaCertificateInstallModal';
+import { CaCertificateUninstallModal } from './components/CaCertificateUninstallModal';
 import { ProxyStatusCard } from './components/ProxyStatusCard';
 import { StorageManagementModal } from './components/StorageManagementModal';
 import { L10nProvider, useL10n } from './l10n/context';
@@ -60,6 +61,7 @@ const AppContent: React.FC = () => {
   const [installGuideLoading, setInstallGuideLoading] = useState(false);
   const [installInProgress, setInstallInProgress] = useState(false);
   const [uninstallInProgress, setUninstallInProgress] = useState(false);
+  const [showUninstallConfirm, setShowUninstallConfirm] = useState(false);
   const [showAddForm, setShowAddForm] = useState(
     persisted?.showAddForm ?? false
   );
@@ -154,6 +156,7 @@ const AppContent: React.FC = () => {
 
         case 'certificateUninstallResult':
           setUninstallInProgress(false);
+          setShowUninstallConfirm(false);
           if (message.success) {
             setError(null);
             setSuccess(t('proxy.uninstall.success'));
@@ -425,16 +428,20 @@ const AppContent: React.FC = () => {
     vscodeApi.installProxyCertificate();
   }, []);
 
-  const handleUninstallProxyCertificate = useCallback(() => {
-    const confirmed = window.confirm(
-      `${t('proxy.uninstall.confirmTitle')}\n\n${t('proxy.uninstall.confirmBody')}`
-    );
-    if (!confirmed) {
-      return;
+  const handleOpenUninstallConfirm = useCallback(() => {
+    setShowUninstallConfirm(true);
+  }, []);
+
+  const handleCloseUninstallConfirm = useCallback(() => {
+    if (!uninstallInProgress) {
+      setShowUninstallConfirm(false);
     }
+  }, [uninstallInProgress]);
+
+  const handleConfirmUninstallProxyCertificate = useCallback(() => {
     setUninstallInProgress(true);
     vscodeApi.uninstallProxyCertificate();
-  }, [t]);
+  }, []);
 
   const handleSaveProxyCertificate = useCallback(() => {
     vscodeApi.saveProxyCertificate();
@@ -577,7 +584,7 @@ const AppContent: React.FC = () => {
           onShowLogs={handleShowProxyLogs}
           onShowCertificate={handleShowProxyCertificate}
           onSaveCertificate={handleSaveProxyCertificate}
-          onDeleteCertificate={handleUninstallProxyCertificate}
+          onDeleteCertificate={handleOpenUninstallConfirm}
         />
 
         {profiles.length === 0 ? (
@@ -646,6 +653,14 @@ const AppContent: React.FC = () => {
           isCurrent={editingProfile.id === currentProfile?.id}
           onSubmit={(updates) => handleEditSubmit(editingProfile.id, updates)}
           onCancel={closeEditForm}
+        />
+      )}
+
+      {showUninstallConfirm && (
+        <CaCertificateUninstallModal
+          inProgress={uninstallInProgress}
+          onConfirm={handleConfirmUninstallProxyCertificate}
+          onCancel={handleCloseUninstallConfirm}
         />
       )}
 

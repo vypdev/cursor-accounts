@@ -822,6 +822,17 @@ body {
   border-top: 1px solid var(--border-color);
 }
 
+.cert-uninstall-modal-body {
+  padding: 16px;
+}
+
+.cert-uninstall-modal-body p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--fg-secondary);
+}
+
 form {
   padding: 16px;
 }

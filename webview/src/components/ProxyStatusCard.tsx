@@ -100,20 +100,24 @@ export const ProxyStatusCard: React.FC<ProxyStatusCardProps> = ({
             {t('proxy.start')}
           </button>
         )}
-        <button
-          type="button"
-          className="btn-secondary"
-          onClick={onSaveCertificate}
-        >
-          {t('proxy.downloadCa')}
-        </button>
-        <button
-          type="button"
-          className="btn-secondary"
-          onClick={onShowCertificate}
-        >
-          {t('proxy.caCertificate')}
-        </button>
+        {!certInstalled && (
+          <>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={onSaveCertificate}
+            >
+              {t('proxy.downloadCa')}
+            </button>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={onShowCertificate}
+            >
+              {t('proxy.caCertificate')}
+            </button>
+          </>
+        )}
         {certInstalled && onDeleteCertificate && (
           <button
             type="button"
