@@ -27,6 +27,8 @@ export interface ProxyServerConfig {
   /** Max body size stored inline in JSONL; larger bodies written to bodies/*.bin */
   maxBodyLogBytes: number;
   spillLargeBodies: boolean;
+  /** When true, writes JSONL logs for debugging. When false, traffic flows via IPC only. */
+  developmentMode: boolean;
 }
 
 /** Single JSON Lines log record for a request, response, or proxy error. */

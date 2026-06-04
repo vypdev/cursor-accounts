@@ -2,7 +2,7 @@
 
 Canonical reference for **what token and billing signals exist**, where they appear (quota APIs, dashboard, MITM proxy), and how to interpret them. For proxy setup, see [PROXY-SETUP.md](PROXY-SETUP.md). For the dashboard usage table API, see [USAGE-EVENTS-API.md](USAGE-EVENTS-API.md).
 
-**Last reviewed:** 2026-06-03
+**Last reviewed:** 2026-06-04
 
 ## Overview
 
@@ -105,7 +105,7 @@ Use Channel B to validate Channel A/C: filter `startDate` / `endDate` to your MI
 
 ## Channel C — MITM proxy (network observation)
 
-Requires [PROXY-SETUP.md](PROXY-SETUP.md). Logs live under `~/.cursor-accounts/proxy/logs/`.
+Requires [PROXY-SETUP.md](PROXY-SETUP.md). Logs live under `~/.cursor-accounts/proxy/logs/`. JSONL field reference: [PROXY-JSONL-SCHEMA.md](PROXY-JSONL-SCHEMA.md). Agent/subagent IDs: [PROXY-AGENT-IDS-AND-SUBAGENTS.md](PROXY-AGENT-IDS-AND-SUBAGENTS.md).
 
 ### Traffic matrix (which RPCs carry tokens)
 
@@ -171,7 +171,7 @@ Protobuf sources: [`proto/agent/v1/agent.proto`](../proto/agent/v1/agent.proto),
 2. Client polls **`RunPoll`**; responses carry **`BidiPollResponse`** with hex/base64 `data`.
 3. Each `data` blob decodes to **`agent.v1.AgentServerMessage`** (server → client) or **`AgentClientMessage`** (client → server on append).
 
-Multiple `request_id` values in one log window mean multiple Agent sessions or restarts.
+Multiple `request_id` values in one log window mean multiple Agent **network sessions**, **parallel subagents**, or restarts — not necessarily multiple chat tabs. To identify the **chat tab**, decode `runRequest.conversationId` from `BidiAppend` (see [PROXY-AGENT-IDS-AND-SUBAGENTS.md](PROXY-AGENT-IDS-AND-SUBAGENTS.md#chat-windows-and-agent-identifiers)). The live status bar sums tokens across all sessions regardless of tab.
 
 ### Inner message: `InteractionUpdate`
 
@@ -251,6 +251,40 @@ Settings: [CONFIGURATION.md](CONFIGURATION.md) (proxy section), [PROXY-SETUP.md]
 
 ---
 
+## Parallel subagents and token attribution
+
+When the Agent launches **parallel Task subagents**, the MITM proxy observes **separate bidi sessions** — one `request_id` per worker — not nested token frames on the parent id.
+
+### Empirical findings (local JSONL, 2026-06-03)
+
+| Metric | Parent session | Parallel subagent sessions |
+|--------|----------------|----------------------------|
+| `request_id` | Single UUID for orchestrator | One UUID **per** subagent |
+| `BidiAppend` volume | High (heartbeats + tool traffic) | High per worker while running |
+| `token_delta` peak | Often **lower** (orchestration only) | Often **higher** (actual model work) |
+| Result path | Receives `subagent_result` on `BidiAppend` | `SubagentSuccess.agent_id`, optional `transcript_path` |
+
+Example from `proxy-2026-06-03-1780529195876.jsonl` (~20 min, parallel locale translations):
+
+- **13** distinct bidi `request_id`s in one window.
+- Parent `cecdd311…`: max `token_delta` **480**; subagent `cc9489b7…`: max **3746**.
+- **`turn_ended`**: 0 events (all sessions).
+- Period **`totalSpend` delta**: **$7.35** vs naive sum of `token_delta` peaks **$0.03** (~228× ratio).
+
+### Implications for the extension UI
+
+[`agentLiveUsageStatusBar.ts`](../src/ui/agentLiveUsageStatusBar.ts) aggregates tokens across **all** active `request_id`s. During parallel subagent work this:
+
+- Correctly reflects **total concurrent generation activity**.
+- **Overstates** “this chat’s tokens” if interpreted as parent-only.
+- Cannot attribute spend to parent vs child without parsing `parent_request_id` / `subagent_result` (not implemented).
+
+For billed cost of a parent turn including subagents, use Channel B (`get-filtered-usage-events`) or Channel A period delta — not summed `token_delta`.
+
+Full ID matrix and protobuf fields: [PROXY-AGENT-IDS-AND-SUBAGENTS.md](PROXY-AGENT-IDS-AND-SUBAGENTS.md).
+
+---
+
 ## Analysis scripts
 
 | Script | Command | Purpose |
@@ -306,6 +340,8 @@ Batch counts from `analyze:proxy-traffic` may under-report checkpoint tokens com
 | `token_delta` ≠ billing | Live status bar can under-estimate vs real spend by 100×+ |
 | `total_cents` in proto | Not mapped to insights |
 | Shallow agent merge | Latest poll overwrites `insights.agent`; no per-turn history in UI |
+| Parallel subagents | Each subagent = separate `request_id` + `token_delta`; UI sums all sessions |
+| No subagent tree in insights | `parent_request_id`, `subagent_result` not extracted |
 | Period `totalSpend` | Includes **all** Cursor usage in the interval, not one conversation |
 | Dashboard API | Undocumented; may change without notice |
 | Script decode lag | `bidi-agent-decode.mjs` missing `token_details` / `StreamBidi` |
@@ -317,6 +353,8 @@ Batch counts from `analyze:proxy-traffic` may under-report checkpoint tokens com
 | Document | Topic |
 |----------|--------|
 | [PROXY-SETUP.md](PROXY-SETUP.md) | Enable proxy, CA, routing, log paths |
+| [PROXY-JSONL-SCHEMA.md](PROXY-JSONL-SCHEMA.md) | JSONL line fields, body spill, examples |
+| [PROXY-AGENT-IDS-AND-SUBAGENTS.md](PROXY-AGENT-IDS-AND-SUBAGENTS.md) | `request_id`, chat tab `conversation_id`, parallel subagents |
 | [USAGE-EVENTS-API.md](USAGE-EVENTS-API.md) | Per-request `tokenUsage` + `chargedCents` |
 | [HOW-IT-WORKS.md](HOW-IT-WORKS.md) | Quota fetch, auth, refresh |
 | [RESEARCH.md](RESEARCH.md) | API research, quota fields |

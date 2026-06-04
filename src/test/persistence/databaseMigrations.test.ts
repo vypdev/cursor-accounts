@@ -44,14 +44,15 @@ describe('DatabaseMigrator', () => {
 
     const result = await migrator.migrate();
     assert.equal(result.success, true);
-    assert.equal(result.toVersion, 1);
+    assert.equal(result.toVersion, 2);
     assert.ok(result.migrationsApplied.includes('001_initial_schema.sql'));
+    assert.ok(result.migrationsApplied.includes('002_agent_tracking.sql'));
 
     const validation = await migrator.validate();
     assert.equal(validation.valid, true);
 
     const version = await migrator.getCurrentVersion();
-    assert.equal(version, 1);
+    assert.equal(version, 2);
   });
 
   it('does not reapply migrations when already at target version', async () => {

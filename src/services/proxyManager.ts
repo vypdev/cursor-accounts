@@ -37,6 +37,9 @@ import {
   type ProxyServerConfig,
   type ProxyTrafficSummary,
 } from '../proxy/types';
+import { AgentTrackingDatabase } from '../persistence/agentTrackingDatabase';
+import { getEfficiencyDbPath } from '../persistence/efficiencyDatabase';
+import { AgentTrackingService } from './agentTrackingService';
 
 export type ProxyTrafficListener = (summary: ProxyTrafficSummary) => void;
 
@@ -59,6 +62,7 @@ export class ProxyManager implements IProxyManager {
   private cachedCertificateInstalled: boolean | undefined;
   private logTailer: ProxyLogTailer | null = null;
   private logTailerStartedForPort: number | null = null;
+  private readonly agentTrackingServices = new Map<string, AgentTrackingService>();
   private readonly storageDir: string;
   private readonly logDir: string;
   private readonly certManager: CertificateManager;
@@ -106,8 +110,11 @@ export class ProxyManager implements IProxyManager {
     };
   }
 
-  private emitTraffic(summary: ProxyTrafficSummary): void {
+  private emitTraffic(summary: ProxyTrafficSummary, profileId?: string): void {
     const enriched = this.enrichTrafficSummary(summary);
+    if (profileId) {
+      void this.agentTrackingServices.get(profileId)?.ingestTraffic(enriched);
+    }
     if (getProxyOutputConfig().logTrafficToOutput) {
       this.outputPresenter?.appendTraffic(enriched);
     }
@@ -120,6 +127,12 @@ export class ProxyManager implements IProxyManager {
         );
       }
     }
+  }
+
+  private isProxyDevelopmentMode(): boolean {
+    return vscode.workspace
+      .getConfiguration('cursorAccounts.proxy')
+      .get<boolean>('developmentMode', false);
   }
 
   private emitTrafficError(summary: ProxyTrafficSummary): void {
@@ -142,7 +155,10 @@ export class ProxyManager implements IProxyManager {
 
       const existing = await this.getStatus(profileId);
       if (existing?.running && existing.port != null) {
-        await this.ensureLogTailer(profileId, existing.port, { attached: true });
+        await this.ensureAgentTracking(profileId, profile.userDataDir);
+        if (this.isProxyDevelopmentMode()) {
+          await this.ensureLogTailer(profileId, existing.port, { attached: true });
+        }
         await this.applyProxySettingsForProfile(profile.userDataDir, existing.port);
         return { success: true, port: existing.port };
       }
@@ -168,6 +184,7 @@ export class ProxyManager implements IProxyManager {
       const maxLogSizeMb = config.get<number>('maxLogSizeMB', 500);
       const maxBodyLogMb = config.get<number>('maxBodyLogMB', 4);
       const spillLargeBodies = config.get<boolean>('spillLargeBodies', true);
+      const developmentMode = config.get<boolean>('developmentMode', false);
 
       const serverConfig: ProxyServerConfig = {
         port,
@@ -176,6 +193,7 @@ export class ProxyManager implements IProxyManager {
         maxLogSizeMb,
         maxBodyLogBytes: Math.max(1, Math.floor(maxBodyLogMb * 1024 * 1024)),
         spillLargeBodies,
+        developmentMode,
       };
 
       const scriptPath = path.join(
@@ -215,7 +233,7 @@ export class ProxyManager implements IProxyManager {
       });
 
       child.on('message', (msg: ProxyChildMessage) => {
-        this.handleChildMessage(msg);
+        this.handleChildMessage(profileId, msg);
       });
 
       child.on('exit', (code) => {
@@ -250,7 +268,10 @@ export class ProxyManager implements IProxyManager {
         `[Proxy:${profileId}] Started on 127.0.0.1:${port} (pid ${child.pid})`
       );
       this.outputPresenter?.appendStarted(port);
-      await this.ensureLogTailer(profileId, port, { attached: false });
+      await this.ensureAgentTracking(profileId, profile.userDataDir);
+      if (developmentMode) {
+        await this.ensureLogTailer(profileId, port, { attached: false });
+      }
       if (getProxyOutputConfig().autoShowOutputChannel) {
         this.outputPresenter?.show();
       }
@@ -429,10 +450,12 @@ export class ProxyManager implements IProxyManager {
   }
 
   /**
-   * Start tailing JSONL logs for live insights (status bar tokens).
-   * Runs even when logTrafficToOutput is false.
+   * Start tailing JSONL logs for cross-window traffic (development mode only).
    */
   async ensureTrafficTailer(): Promise<void> {
+    if (!this.isProxyDevelopmentMode()) {
+      return;
+    }
     for (const [profileId, runtime] of this.childProcesses) {
       await this.ensureLogTailer(profileId, runtime.port, { attached: false });
       return;
@@ -555,6 +578,7 @@ export class ProxyManager implements IProxyManager {
       if (status?.port != null) {
         const profile = await this.profileManager.getProfile(profileId);
         if (profile) {
+          await this.ensureAgentTracking(profileId, profile.userDataDir);
           await this.applyProxySettingsForProfile(profile.userDataDir, status.port);
         }
         await this.ensureOutputTailer(profileId);
@@ -576,13 +600,51 @@ export class ProxyManager implements IProxyManager {
     };
   }
 
-  private handleChildMessage(msg: ProxyChildMessage): void {
+  private handleChildMessage(profileId: string, msg: ProxyChildMessage): void {
     if (msg.type === 'stats') {
       return;
     }
     if (msg.type === 'traffic') {
-      this.emitTraffic(msg.summary);
+      this.emitTraffic(msg.summary, profileId);
     }
+  }
+
+  private async ensureAgentTracking(
+    profileId: string,
+    userDataDir: string
+  ): Promise<void> {
+    if (this.agentTrackingServices.has(profileId)) {
+      return;
+    }
+
+    try {
+      const dbPath = getEfficiencyDbPath(userDataDir);
+      const repository = new AgentTrackingDatabase(
+        dbPath,
+        this.context.extensionPath
+      );
+      const service = new AgentTrackingService(repository, profileId);
+      await service.initialize();
+      this.agentTrackingServices.set(profileId, service);
+    } catch (error) {
+      extensionLog.error(
+        `[AgentTracking] Failed to initialize for ${profileId}: ${extensionLog.formatError(error)}`
+      );
+    }
+  }
+
+  private resolveProfileIdForTailerTraffic(): string | undefined {
+    if (this.logTailerStartedForPort != null) {
+      for (const [profileId, runtime] of this.childProcesses) {
+        if (runtime.port === this.logTailerStartedForPort) {
+          return profileId;
+        }
+      }
+    }
+    if (this.childProcesses.size === 1) {
+      return this.childProcesses.keys().next().value;
+    }
+    return undefined;
   }
 
   private async applyProxySettingsForProfile(
@@ -634,7 +696,8 @@ export class ProxyManager implements IProxyManager {
       this.logDir,
       {
         onTraffic: (summary) => {
-          this.emitTraffic(summary);
+          const profileId = this.resolveProfileIdForTailerTraffic();
+          this.emitTraffic(summary, profileId);
         },
         onError: (summary) => {
           this.emitTrafficError(summary);
@@ -730,6 +793,7 @@ export class ProxyManager implements IProxyManager {
   private async forceStopChild(profileId: string): Promise<void> {
     const runtime = this.childProcesses.get(profileId);
     this.childProcesses.delete(profileId);
+    this.agentTrackingServices.delete(profileId);
 
     if (!runtime) {
       return;

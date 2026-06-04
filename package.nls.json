@@ -45,5 +45,6 @@
   "configuration.proxy.outputCursorHostsOnly.description": "Only log Cursor host traffic (cursor.sh, cursor.com) in the MITM Proxy output channel.",
   "configuration.proxy.outputTailFromStart.description": "When opening the MITM Proxy output channel, replay recent lines from the active log file.",
   "configuration.proxy.showLiveUsageInStatusBar.description": "Show live agent/chat token usage in the status bar while the MITM proxy is running (tails proxy logs automatically).",
-  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "Rough USD per million tokens for live cost estimates in the status bar (actual billing may differ)."
+  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "Rough USD per million tokens for live cost estimates in the status bar (actual billing may differ).",
+  "configuration.proxy.developmentMode.description": "Write proxy traffic to local JSONL log files for debugging. Leave disabled for normal use; the extension receives traffic in real time via IPC."
 }

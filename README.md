@@ -74,12 +74,14 @@ No additional installation required. See [docs/PLATFORM-SUPPORT.md](docs/PLATFOR
 - [Building & Packaging](docs/BUILD.md)
 - [API Research](docs/RESEARCH.md)
 - [Tokens and Usage](docs/TOKENS-AND-USAGE.md) — token signals, billing channels, MITM decode
+- [Proxy JSONL Schema](docs/PROXY-JSONL-SCHEMA.md) — MITM log format and body spill
+- [Agent IDs & Subagents](docs/PROXY-AGENT-IDS-AND-SUBAGENTS.md) — bidi sessions, **chat tab ids**, parallel subagents
 - [Dashboard Usage Events API](docs/USAGE-EVENTS-API.md)
 - [Platform Support](docs/PLATFORM-SUPPORT.md)
 
 ### Other
 
-- [MITM Proxy Setup](docs/PROXY-SETUP.md) — observe Cursor IDE network traffic (research/debug); see [TOKENS-AND-USAGE.md](docs/TOKENS-AND-USAGE.md) for token/billing semantics
+- [MITM Proxy Setup](docs/PROXY-SETUP.md) — observe Cursor IDE network traffic (research/debug); see [TOKENS-AND-USAGE.md](docs/TOKENS-AND-USAGE.md) for token/billing semantics, [PROXY-JSONL-SCHEMA.md](docs/PROXY-JSONL-SCHEMA.md) for log format
 - [Privacy & Security](docs/PRIVACY.md)
 - [Contributing](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)

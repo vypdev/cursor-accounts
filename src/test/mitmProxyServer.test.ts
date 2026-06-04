@@ -84,6 +84,7 @@ describe('MitmProxyServer forwarding', () => {
       maxLogSizeMb: 1,
       maxBodyLogBytes: 4 * 1024 * 1024,
       spillLargeBodies: true,
+      developmentMode: true,
     });
 
     const responseBody = await new Promise<string>((resolve, reject) => {

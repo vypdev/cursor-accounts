@@ -7,6 +7,7 @@ import { bodyBufferFromLogEntry } from './bodyFormat';
 import { connectPayloadCandidates, prepareConnectPayload } from './connectDecode';
 import {
   extractAgentInnerInsights,
+  extractConversationAndSubagentIds,
   extractInsightsForRpc,
   mergeAgentSessionInfo,
   redactSensitive,
@@ -70,12 +71,26 @@ async function enrichInsightsFromBidi(
     return insights;
   }
 
-  const innerAgent = extractAgentInnerInsights(inner);
-  if (!innerAgent) {
-    return insights;
+  const next: ProxyInsights = { ...(insights ?? {}) };
+  const relationshipIds = extractConversationAndSubagentIds(inner);
+  if (Object.keys(relationshipIds).length > 0) {
+    next.agent = mergeAgentSessionInfo(next.agent, relationshipIds);
+    if (relationshipIds.conversationId || relationshipIds.conversationGroupId) {
+      next.context = {
+        ...next.context,
+        conversationId:
+          relationshipIds.conversationId ?? next.context?.conversationId,
+        conversationGroupId:
+          relationshipIds.conversationGroupId ?? next.context?.conversationGroupId,
+      };
+    }
   }
 
-  const next: ProxyInsights = { ...(insights ?? {}) };
+  const innerAgent = extractAgentInnerInsights(inner);
+  if (!innerAgent) {
+    return Object.keys(next).length > 0 ? next : insights;
+  }
+
   next.agent = mergeAgentSessionInfo(next.agent, innerAgent);
   if (innerAgent.inputTokens != null || innerAgent.outputTokens != null) {
     next.tokens = {

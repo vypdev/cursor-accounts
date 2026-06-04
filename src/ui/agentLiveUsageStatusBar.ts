@@ -21,16 +21,11 @@ function formatTokenCount(n: number): string {
   return String(Math.round(n));
 }
 
-function pickDisplayTokens(agent: AgentSessionInfo): number | undefined {
-  const billed =
-    (agent.inputTokens ?? 0) +
-    (agent.outputTokens ?? 0) +
-    (agent.cacheReadTokens ?? 0) +
-    (agent.cacheWriteTokens ?? 0);
-  if (billed > 0) {
-    return billed;
-  }
-  return agent.streamingTokens;
+interface SessionState {
+  agent: AgentSessionInfo;
+  cumulativeBaseline: number; // sum of completed turn peaks
+  currentPeak: number; // highest streamingTokens in current turn
+  lastActivity: number; // timestamp for cleanup
 }
 
 /**
@@ -38,7 +33,7 @@ function pickDisplayTokens(agent: AgentSessionInfo): number | undefined {
  */
 export class AgentLiveUsageStatusBar {
   private readonly item: vscode.StatusBarItem;
-  private readonly sessions = new Map<string, AgentSessionInfo>();
+  private readonly sessions = new Map<string, SessionState>();
   private activeSessionId: string | undefined;
   private idleTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -101,25 +96,53 @@ export class AgentLiveUsageStatusBar {
       });
     }
 
-    if (!mergedAgent || pickDisplayTokens(mergedAgent) == null) {
+    if (!mergedAgent) {
       return;
     }
 
     const dollarsPerM = vscode.workspace
       .getConfiguration('cursorAccounts.proxy')
       .get<number>('estimatedDollarsPerMillionTokens', 4);
-    const estimatedCostUsd =
-      estimateTokenCostUsd(mergedAgent, dollarsPerM) ??
-      mergedAgent.estimatedCostUsd;
 
+    // Reset detection for cumulative token tracking
     const prev = this.sessions.get(sessionId);
-    this.sessions.set(
-      sessionId,
-      mergeAgentSessionInfo(prev, {
-        ...mergedAgent,
-        estimatedCostUsd,
-      }) ?? mergedAgent
-    );
+    const newStreamingTokens = mergedAgent.streamingTokens;
+
+    let cumulativeBaseline = prev?.cumulativeBaseline ?? 0;
+    let currentPeak = prev?.currentPeak ?? 0;
+
+    // Detect counter reset: peak was significant (≥300) and new value drops to ≤150
+    const RESET_PEAK_THRESHOLD = 300;
+    const RESET_DROP_THRESHOLD = 150;
+
+    if (newStreamingTokens != null) {
+      if (
+        currentPeak >= RESET_PEAK_THRESHOLD &&
+        newStreamingTokens <= RESET_DROP_THRESHOLD
+      ) {
+        // Counter reset detected: accumulate previous peak, start new turn
+        cumulativeBaseline += currentPeak;
+        currentPeak = newStreamingTokens;
+      } else if (newStreamingTokens > currentPeak) {
+        // Counter increased within current turn
+        currentPeak = newStreamingTokens;
+      }
+      // If newStreamingTokens < currentPeak but no reset detected, keep existing peak
+    }
+
+    // Merge with previous agent data
+    const finalAgent = mergeAgentSessionInfo(prev?.agent, {
+      ...mergedAgent,
+      estimatedCostUsd: estimateTokenCostUsd(mergedAgent, dollarsPerM) ?? mergedAgent.estimatedCostUsd,
+    }) ?? mergedAgent;
+
+    this.sessions.set(sessionId, {
+      agent: finalAgent,
+      cumulativeBaseline,
+      currentPeak,
+      lastActivity: Date.now(),
+    });
+
     this.activeSessionId = sessionId;
     this.refreshDisplay();
     this.scheduleIdleHide();
@@ -143,19 +166,42 @@ export class AgentLiveUsageStatusBar {
   }
 
   private refreshDisplay(): void {
-    if (!this.isEnabled() || !this.activeSessionId) {
+    if (!this.isEnabled() || this.sessions.size === 0) {
       this.item.hide();
       return;
     }
 
-    const agent = this.sessions.get(this.activeSessionId);
-    if (!agent) {
-      this.item.hide();
-      return;
+    // Sum tokens across all active sessions (handles parallel agents)
+    let totalStreamingTokens = 0;
+    let totalBilled = 0;
+    let totalCost = 0;
+    let sessionCount = 0;
+
+    for (const sessionState of this.sessions.values()) {
+      const agent = sessionState.agent;
+      sessionCount++;
+
+      // Accumulate streaming tokens (baseline + current peak for each session)
+      totalStreamingTokens += sessionState.cumulativeBaseline + sessionState.currentPeak;
+
+      // Accumulate billed tokens if available
+      const billed =
+        (agent.inputTokens ?? 0) +
+        (agent.outputTokens ?? 0) +
+        (agent.cacheReadTokens ?? 0) +
+        (agent.cacheWriteTokens ?? 0);
+      totalBilled += billed;
+
+      // Sum costs
+      if (agent.estimatedCostUsd != null) {
+        totalCost += agent.estimatedCostUsd;
+      }
     }
 
-    const total = pickDisplayTokens(agent);
-    if (total == null || total <= 0) {
+    // Display total across all sessions
+    const total = totalBilled > 0 ? totalBilled : totalStreamingTokens;
+
+    if (total <= 0) {
       this.item.hide();
       return;
     }
@@ -165,23 +211,44 @@ export class AgentLiveUsageStatusBar {
       t('agentLiveUsage.statusBar.tokens', { count: tokenLabel }),
     ];
 
-    if (agent.inputTokens != null && agent.outputTokens != null) {
-      parts.push(
-        t('agentLiveUsage.statusBar.inOut', {
-          input: formatTokenCount(agent.inputTokens),
-          output: formatTokenCount(agent.outputTokens),
-        })
+    // Show aggregated in/out if we have billed tokens
+    if (totalBilled > 0) {
+      const totalInput = Array.from(this.sessions.values()).reduce(
+        (sum, s) => sum + (s.agent.inputTokens ?? 0),
+        0
       );
+      const totalOutput = Array.from(this.sessions.values()).reduce(
+        (sum, s) => sum + (s.agent.outputTokens ?? 0),
+        0
+      );
+
+      if (totalInput > 0 || totalOutput > 0) {
+        parts.push(
+          t('agentLiveUsage.statusBar.inOut', {
+            input: formatTokenCount(totalInput),
+            output: formatTokenCount(totalOutput),
+          })
+        );
+      }
     }
 
+    // Estimate cost if not already calculated
+    const dollarsPerM = vscode.workspace
+      .getConfiguration('cursorAccounts.proxy')
+      .get<number>('estimatedDollarsPerMillionTokens', 4);
+
     const cost =
-      agent.estimatedCostUsd ??
-      estimateTokenCostUsd(
-        agent,
-        vscode.workspace
-          .getConfiguration('cursorAccounts.proxy')
-          .get<number>('estimatedDollarsPerMillionTokens', 4)
-      );
+      totalCost > 0
+        ? totalCost
+        : estimateTokenCostUsd(
+            {
+              inputTokens: totalBilled > 0 ? totalBilled / 2 : undefined,
+              outputTokens: totalBilled > 0 ? totalBilled / 2 : undefined,
+              streamingTokens: totalBilled > 0 ? undefined : totalStreamingTokens,
+            },
+            dollarsPerM
+          );
+
     if (cost != null && cost > 0) {
       parts.push(
         t('agentLiveUsage.statusBar.estimatedCost', {
@@ -198,51 +265,63 @@ export class AgentLiveUsageStatusBar {
     this.item.backgroundColor = new vscode.ThemeColor(
       'statusBarItem.warningBackground'
     );
-    this.item.tooltip = this.buildTooltip(agent, total, cost);
+    this.item.tooltip = this.buildTooltip(total, cost, sessionCount);
     this.item.show();
   }
 
   private buildTooltip(
-    agent: AgentSessionInfo,
     total: number,
-    cost: number | undefined
+    cost: number | undefined,
+    sessionCount: number
   ): string {
     const lines = [
       t('agentLiveUsage.tooltip.title'),
       t('agentLiveUsage.tooltip.total', { count: String(total) }),
     ];
-    if (agent.streamingTokens != null) {
-      lines.push(
-        t('agentLiveUsage.tooltip.streaming', {
-          count: String(agent.streamingTokens),
-        })
-      );
+
+    if (sessionCount > 1) {
+      lines.push(`Active sessions: ${sessionCount}`);
     }
-    if (agent.inputTokens != null || agent.outputTokens != null) {
+
+    // Show per-session breakdown
+    for (const [sessionId, sessionState] of this.sessions.entries()) {
+      const agent = sessionState.agent;
+      const sessionTotal = sessionState.cumulativeBaseline + sessionState.currentPeak;
+
+      lines.push('');
       lines.push(
-        t('agentLiveUsage.tooltip.turn', {
-          input: String(agent.inputTokens ?? 0),
-          output: String(agent.outputTokens ?? 0),
-        })
+        `Session ${sessionId.slice(0, 8)}: ${sessionTotal} tokens (baseline: ${sessionState.cumulativeBaseline}, current: ${sessionState.currentPeak})`
       );
+
+      if (agent.inputTokens != null || agent.outputTokens != null) {
+        lines.push(
+          `  ${t('agentLiveUsage.tooltip.turn', {
+            input: String(agent.inputTokens ?? 0),
+            output: String(agent.outputTokens ?? 0),
+          })}`
+        );
+      }
+
+      if (agent.cacheReadTokens != null || agent.cacheWriteTokens != null) {
+        lines.push(
+          `  ${t('agentLiveUsage.tooltip.cache', {
+            read: String(agent.cacheReadTokens ?? 0),
+            write: String(agent.cacheWriteTokens ?? 0),
+          })}`
+        );
+      }
+
+      if (agent.usageUuid) {
+        lines.push(`  ${t('agentLiveUsage.tooltip.usageUuid', { id: agent.usageUuid })}`);
+      }
     }
-    if (agent.cacheReadTokens != null || agent.cacheWriteTokens != null) {
-      lines.push(
-        t('agentLiveUsage.tooltip.cache', {
-          read: String(agent.cacheReadTokens ?? 0),
-          write: String(agent.cacheWriteTokens ?? 0),
-        })
-      );
-    }
+
     if (cost != null) {
+      lines.push('');
       lines.push(t('agentLiveUsage.tooltip.estimatedCost'));
     }
-    if (agent.usageUuid) {
-      lines.push(t('agentLiveUsage.tooltip.usageUuid', { id: agent.usageUuid }));
-    }
-    if (agent.requestId) {
-      lines.push(t('agentLiveUsage.tooltip.requestId', { id: agent.requestId }));
-    }
+
+    lines.push('');
     lines.push(t('agentLiveUsage.tooltip.hint'));
     return lines.join('\n');
   }

@@ -5,6 +5,7 @@ import type { CertificateManager } from './certificateManager';
 import { decompressBodyBuffer } from './bodyFormat';
 import { getProtoRegistry } from './protoRegistry';
 import { RequestLogger } from './requestLogger';
+import type { ProxyTrafficLogger } from './nullLogger';
 import { extractRequestId, toTrafficSummary } from './proxyTrafficFormat';
 import { buildTrafficSummary } from './trafficSummaryBuilder';
 import type { MitmProxyHandlers, ProxyLogEntry, ProxyServerConfig } from './types';
@@ -29,7 +30,7 @@ export class MitmProxyServer extends EventEmitter {
 
   constructor(
     private readonly certificateManager: CertificateManager,
-    private readonly requestLogger: RequestLogger,
+    private readonly requestLogger: ProxyTrafficLogger,
     private readonly handlers?: MitmProxyHandlers
   ) {
     super();

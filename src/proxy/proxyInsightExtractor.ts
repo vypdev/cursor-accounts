@@ -22,6 +22,7 @@ export interface BillingInfo {
 
 export interface ConversationContext {
   conversationId?: string;
+  conversationGroupId?: string;
   messageCount?: number;
   totalContextTokens?: number;
   includedFiles?: string[];
@@ -30,6 +31,10 @@ export interface ConversationContext {
 /** Bidi/Agent poll session metadata (HTTP/1 api2 path). */
 export interface AgentSessionInfo {
   requestId?: string;
+  conversationId?: string;
+  conversationGroupId?: string;
+  parentRequestId?: string;
+  subagentRequestId?: string;
   appendSeqno?: number;
   pollSeqno?: number;
   eof?: boolean;
@@ -48,6 +53,8 @@ export interface AgentSessionInfo {
   usageUuid?: string;
   /** Rough USD estimate from token counts (configurable rate). */
   estimatedCostUsd?: number;
+  /** Model name observed on this agent session. */
+  modelName?: string;
   /** What triggered the latest agent usage fields. */
   usageEvent?: 'token_delta' | 'turn_ended' | 'token_details' | 'usage_uuid';
 }
@@ -426,6 +433,83 @@ export function extractAgentInnerInsights(
   }
 
   return null;
+}
+
+function pickStringField(
+  decoded: Record<string, unknown>,
+  snake: string,
+  camel: string
+): string | undefined {
+  const value = pickField(decoded, snake, camel);
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
+/**
+ * Extract conversation and subagent linkage from nested Agent bidi messages.
+ */
+export function extractConversationAndSubagentIds(
+  decoded: Record<string, unknown>
+): Partial<AgentSessionInfo> {
+  const result: Partial<AgentSessionInfo> = {};
+
+  const runRequest = pickField(decoded, 'run_request', 'runRequest');
+  if (runRequest && typeof runRequest === 'object') {
+    const req = runRequest as Record<string, unknown>;
+    result.conversationId = pickStringField(req, 'conversation_id', 'conversationId');
+    result.conversationGroupId = pickStringField(
+      req,
+      'conversation_group_id',
+      'conversationGroupId'
+    );
+    result.parentRequestId = pickStringField(
+      req,
+      'parent_request_id',
+      'parentRequestId'
+    );
+    result.subagentRequestId = pickStringField(
+      req,
+      'subagent_request_id',
+      'subagentRequestId'
+    );
+  }
+
+  const prewarmRequest = pickField(decoded, 'prewarm_request', 'prewarmRequest');
+  if (prewarmRequest && typeof prewarmRequest === 'object') {
+    const req = prewarmRequest as Record<string, unknown>;
+    result.conversationId ??= pickStringField(req, 'conversation_id', 'conversationId');
+    result.conversationGroupId ??= pickStringField(
+      req,
+      'conversation_group_id',
+      'conversationGroupId'
+    );
+  }
+
+  const subagentResult = pickField(decoded, 'subagent_result', 'subagentResult');
+  if (subagentResult && typeof subagentResult === 'object') {
+    const resultObj = subagentResult as Record<string, unknown>;
+    const success = pickField(resultObj, 'success', 'success');
+    if (success && typeof success === 'object') {
+      const successObj = success as Record<string, unknown>;
+      result.subagentRequestId = pickStringField(successObj, 'agent_id', 'agentId');
+    }
+  }
+
+  const taskArgs = pickField(decoded, 'task_tool_call_args', 'taskToolCallArgs');
+  if (taskArgs && typeof taskArgs === 'object') {
+    const args = taskArgs as Record<string, unknown>;
+    result.parentRequestId ??= pickStringField(
+      args,
+      'parent_request_id',
+      'parentRequestId'
+    );
+    result.subagentRequestId ??= pickStringField(
+      args,
+      'subagent_request_id',
+      'subagentRequestId'
+    );
+  }
+
+  return result;
 }
 
 export function mergeAgentSessionInfo(

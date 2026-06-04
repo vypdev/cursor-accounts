@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   extractBillingInfo,
+  extractConversationAndSubagentIds,
   extractConversationContext,
   extractInsightsForRpc,
   extractTokenUsage,
@@ -100,5 +101,33 @@ describe('proxyInsightExtractor', () => {
     });
     assert.equal(insights?.agent?.requestId, 'agent-req-99');
     assert.equal(insights?.agent?.pollSeqno, 3);
+  });
+
+  it('extracts conversation and subagent ids from runRequest', () => {
+    const ids = extractConversationAndSubagentIds({
+      runRequest: {
+        conversationId: 'conv-abc',
+        conversationGroupId: 'group-1',
+        parentRequestId: 'req-parent',
+        subagentRequestId: 'req-sub',
+      },
+    });
+
+    assert.equal(ids.conversationId, 'conv-abc');
+    assert.equal(ids.conversationGroupId, 'group-1');
+    assert.equal(ids.parentRequestId, 'req-parent');
+    assert.equal(ids.subagentRequestId, 'req-sub');
+  });
+
+  it('extracts subagent id from subagentResult.success', () => {
+    const ids = extractConversationAndSubagentIds({
+      subagentResult: {
+        success: {
+          agentId: 'sub-agent-1',
+        },
+      },
+    });
+
+    assert.equal(ids.subagentRequestId, 'sub-agent-1');
   });
 });

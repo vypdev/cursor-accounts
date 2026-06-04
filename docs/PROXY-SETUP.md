@@ -2,7 +2,7 @@
 
 The Cursor Accounts extension can run a local MITM proxy to observe HTTP/HTTPS traffic between Cursor and its servers. This is intended for **research and debugging** only.
 
-For what each token/billing signal means (`token_delta`, `turn_ended`, quota cents, dashboard rows), see **[TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md)**.
+For what each token/billing signal means (`token_delta`, `turn_ended`, quota cents, dashboard rows), see **[TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md)**. For JSONL field reference and agent/subagent IDs, see **[PROXY-JSONL-SCHEMA.md](PROXY-JSONL-SCHEMA.md)** and **[PROXY-AGENT-IDS-AND-SUBAGENTS.md](PROXY-AGENT-IDS-AND-SUBAGENTS.md)**.
 
 ## Enable the proxy
 
@@ -118,7 +118,7 @@ If you only see `api2` + `ReportAgentSnapshot` but **no** interactive RPCs, the 
 5. Run `pnpm run analyze:proxy-traffic` — decoded `BidiAppend` / `RunPoll` include nested agent frames (`token_delta`, `turn_ended` when present).
 6. With the extension proxy + `cursorAccounts.proxy.showLiveUsageInStatusBar`, live token counts and a rough cost estimate appear in a **separate status bar item** during agent/chat (click opens MITM Proxy output). This is not the same as the quota status bar.
 
-**Token and billing signals** (glossary, RPC matrix, validation, limitations): **[TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md)**.
+**Token and billing signals** (glossary, RPC matrix, parallel subagents, validation, limitations): **[TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md)**.
 
 Tune live cost estimates with `cursorAccounts.proxy.estimatedDollarsPerMillionTokens` (default 4). Composer message **metadata** is also stored locally in `state.vscdb`; the MITM proxy only sees **network** RPCs.
 
@@ -155,6 +155,8 @@ Full proxy settings table: [CONFIGURATION.md — MITM proxy](CONFIGURATION.md#mi
 ## Related documentation
 
 - [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md) — token signals, billing channels, validation
+- [PROXY-JSONL-SCHEMA.md](PROXY-JSONL-SCHEMA.md) — JSONL line schema and body spill
+- [PROXY-AGENT-IDS-AND-SUBAGENTS.md](PROXY-AGENT-IDS-AND-SUBAGENTS.md) — `request_id`, **chat tab `conversation_id`**, parallel subagents, transcripts
 - [USAGE-EVENTS-API.md](USAGE-EVENTS-API.md) — dashboard per-request usage table
 - [CONFIGURATION.md](CONFIGURATION.md) — all `cursorAccounts.proxy.*` settings
 - [PRIVACY.md](PRIVACY.md) — sensitive data in proxy logs

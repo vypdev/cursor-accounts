@@ -2,7 +2,7 @@
 
 This document describes how the extension is structured, how data flows, and why key decisions were made. For API and quota research, see [RESEARCH.md](RESEARCH.md). For multi-profile product behavior, see [FEATURE-MULTI-PROFILE.md](FEATURE-MULTI-PROFILE.md).
 
-**Last reviewed:** 2026-06-03
+**Last reviewed:** 2026-06-04
 
 ## Overview
 
@@ -331,7 +331,9 @@ flowchart LR
 | Decode | `src/proxy/proxyDecode.ts`, `bidiAgentDecode.ts`, `proxyInsightExtractor.ts` | Map RPC bodies → `ProxyTrafficInsights` |
 | Presentation | `src/proxy/proxyTrafficFormat.ts`, `src/ui/agentLiveUsageStatusBar.ts` | Output hints and live token status bar (separate from quota bar) |
 
-Token semantics and billing channels: [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md). User setup: [PROXY-SETUP.md](PROXY-SETUP.md).
+Token semantics and billing channels: [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md). JSONL schema: [PROXY-JSONL-SCHEMA.md](PROXY-JSONL-SCHEMA.md). Agent/subagent IDs and parallel workers: [PROXY-AGENT-IDS-AND-SUBAGENTS.md](PROXY-AGENT-IDS-AND-SUBAGENTS.md). User setup: [PROXY-SETUP.md](PROXY-SETUP.md).
+
+The live usage status bar keys sessions by bidi `request_id` and **sums** all active sessions (including parallel subagents, each with its own id). Parent/child subagent linkage exists in protos and in `subagent_result` frames but is **not** extracted into insights today.
 
 ## Known maintainability notes
 
@@ -344,6 +346,8 @@ Token semantics and billing channels: [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md)
 
 - [HOW-IT-WORKS.md](HOW-IT-WORKS.md) — user-facing technical overview
 - [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md) — token signals and billing channels
+- [PROXY-JSONL-SCHEMA.md](PROXY-JSONL-SCHEMA.md) — MITM JSONL log format
+- [PROXY-AGENT-IDS-AND-SUBAGENTS.md](PROXY-AGENT-IDS-AND-SUBAGENTS.md) — Agent session IDs and parallel subagents
 - [PROXY-SETUP.md](PROXY-SETUP.md) — MITM proxy setup
 - [FEATURE-MULTI-PROFILE.md](FEATURE-MULTI-PROFILE.md) — product flows and terminology
 - [RESEARCH.md](RESEARCH.md) — quota APIs and account-switching limits

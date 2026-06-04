@@ -242,6 +242,11 @@
           "minimum": 0,
           "maximum": 100,
           "description": "%configuration.proxy.estimatedDollarsPerMillionTokens.description%"
+        },
+        "cursorAccounts.proxy.developmentMode": {
+          "type": "boolean",
+          "default": false,
+          "description": "%configuration.proxy.developmentMode.description%"
         }
       }
     }

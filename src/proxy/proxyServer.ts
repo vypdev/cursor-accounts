@@ -8,6 +8,8 @@ import type { ProxyChildMessage, ProxyParentMessage } from './types';
 import { CertificateManager } from './certificateManager';
 import { MitmProxyServer } from './mitmProxyServer';
 import { RequestLogger } from './requestLogger';
+import { NullLogger } from './nullLogger';
+import type { ProxyTrafficLogger } from './nullLogger';
 import type { ProxyServerConfig } from './types';
 
 function send(message: ProxyChildMessage): void {
@@ -29,10 +31,12 @@ async function main(): Promise<void> {
   const certDir = path.join(config.storageDir, 'certs');
   const certificateManager = new CertificateManager(certDir);
   const maxBytes = config.maxLogSizeMb * 1024 * 1024;
-  const requestLogger = new RequestLogger(config.logDir, maxBytes, {
-    maxBodyLogBytes: config.maxBodyLogBytes,
-    spillLargeBodies: config.spillLargeBodies,
-  });
+  const requestLogger: ProxyTrafficLogger = config.developmentMode
+    ? new RequestLogger(config.logDir, maxBytes, {
+        maxBodyLogBytes: config.maxBodyLogBytes,
+        spillLargeBodies: config.spillLargeBodies,
+      })
+    : new NullLogger();
   const server = new MitmProxyServer(certificateManager, requestLogger, {
     onTraffic: (summary) => {
       send({
