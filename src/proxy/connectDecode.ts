@@ -113,3 +113,12 @@ export function prepareConnectPayload(
   const decompressed = decompressBody(body, contentEncoding);
   return connectPayloadCandidates(decompressed);
 }
+
+/** Build a Connect-RPC envelope around a protobuf payload (for tests and tooling). */
+export function wrapConnectEnvelope(payload: Buffer, flags = 0): Buffer {
+  const framed = Buffer.alloc(5 + payload.length);
+  framed.writeUInt8(flags, 0);
+  framed.writeUInt32BE(payload.length, 1);
+  payload.copy(framed, 5);
+  return framed;
+}

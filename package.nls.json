@@ -19,6 +19,7 @@
   "commands.proxy.stop.title": "Cursor Accounts: Stop MITM Proxy",
   "commands.proxy.showLogs.title": "Cursor Accounts: Open Proxy Logs",
   "commands.proxy.showOutput.title": "Cursor Accounts: Show MITM Proxy Traffic",
+  "commands.proxy.showTokenDetector.title": "Cursor Accounts: Show Token Detector Output",
   "commands.proxy.saveCertificate.title": "Cursor Accounts: Save Proxy CA Certificate…",
   "configuration.title": "Cursor Accounts",
   "configuration.refresh.enabled.description": "Automatically refresh quota data from Cursor.",
@@ -46,5 +47,7 @@
   "configuration.proxy.outputTailFromStart.description": "When opening the MITM Proxy output channel, replay recent lines from the active log file.",
   "configuration.proxy.showLiveUsageInStatusBar.description": "Show live agent/chat token usage in the status bar while the MITM proxy is running (tails proxy logs automatically).",
   "configuration.proxy.estimatedDollarsPerMillionTokens.description": "Rough USD per million tokens for live cost estimates in the status bar (actual billing may differ).",
-  "configuration.proxy.developmentMode.description": "Write proxy traffic to local JSONL log files for debugging. Leave disabled for normal use; the extension receives traffic in real time via IPC."
+  "configuration.proxy.developmentMode.description": "Write proxy traffic to local JSONL log files for debugging. Leave disabled for normal use; the extension receives traffic in real time via IPC.",
+  "configuration.proxy.logTokenDetectorToOutput.description": "Write agent/token/conversation events from proxy IPC to the Cursor Token Detector output channel.",
+  "configuration.proxy.autoShowTokenDetectorChannel.description": "Automatically open the Cursor Token Detector output channel when agent or token events arrive."
 }

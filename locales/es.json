@@ -47,14 +47,12 @@
   "commands.proxy.saveCertificate.dialogTitle": "Guardar certificado CA del proxy MITM",
   "commands.proxy.saveCertificate.failed": "No se pudo guardar el certificado CA: {error}",
   "commands.proxy.saveCertificate.notFound": "Certificado CA no disponible. Inicia el proxy una vez para generarlo.",
-
   "proxy.output.channelName": "Cursor MITM Proxy",
   "proxy.output.started": "Proxy escuchando en 127.0.0.1:{port}",
   "proxy.output.attached": "Conectado al proxy en ejecución en 127.0.0.1:{port}",
   "proxy.output.tailing": "Siguiendo archivo de log: {path}",
   "proxy.output.logDisabled": "El registro de tráfico en output está desactivado (cursorAccounts.proxy.logTrafficToOutput).",
   "proxy.output.stopped": "Proxy detenido",
-
   "agentLiveUsage.statusBar.tokens": "{count} tok",
   "agentLiveUsage.statusBar.inOut": "entrada {input} / salida {output}",
   "agentLiveUsage.statusBar.estimatedCost": "{cost}",
@@ -67,7 +65,6 @@
   "agentLiveUsage.tooltip.usageUuid": "UUID de uso: {id}",
   "agentLiveUsage.tooltip.requestId": "Petición bidi: {id}",
   "agentLiveUsage.tooltip.hint": "Abre la salida MITM Proxy para ver cada petición.",
-
   "commands.proxy.saveCertificate.saved": "Certificado CA guardado en {path}",
   "commands.proxy.startFailed": "No se pudo iniciar el proxy MITM: {error}",
   "commands.proxy.started": "Proxy MITM iniciado en el puerto {port}",
@@ -405,5 +402,7 @@
   "webview.storage.total": "Almacenamiento total",
   "webview.storage.vacuumDatabase": "Compactar base de datos (VACUUM)",
   "webview.storage.wal": "Registro WAL",
-  "webview.storage.workspace": "Almacenamiento de workspace"
+  "webview.storage.workspace": "Almacenamiento de workspace",
+  "tokenDetector.output.channelName": "Cursor Token Detector",
+  "tokenDetector.output.trackingInitialized": "Seguimiento de agentes inicializado para el perfil {profileId}"
 }

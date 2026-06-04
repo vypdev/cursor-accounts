@@ -54,7 +54,6 @@
   "proxy.output.tailing": "עוקב אחר קובץ לוג: {path}",
   "proxy.output.logDisabled": "רישום תעבורה ל-output מושבת (cursorAccounts.proxy.logTrafficToOutput).",
   "proxy.output.stopped": "הפרוקסי נעצר",
-
   "agentLiveUsage.statusBar.tokens": "{count} tok",
   "agentLiveUsage.statusBar.inOut": "קלט {input} / פלט {output}",
   "agentLiveUsage.statusBar.estimatedCost": "{cost}",
@@ -403,5 +402,7 @@
   "webview.storage.total": "אחסון כולל",
   "webview.storage.vacuumDatabase": "דחוס מסד נתונים (VACUUM)",
   "webview.storage.wal": "יומן write-ahead (WAL)",
-  "webview.storage.workspace": "אחסון workspace"
+  "webview.storage.workspace": "אחסון workspace",
+  "tokenDetector.output.channelName": "Cursor Token Detector",
+  "tokenDetector.output.trackingInitialized": "Agent tracking initialized for profile {profileId}"
 }

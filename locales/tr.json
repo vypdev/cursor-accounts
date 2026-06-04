@@ -54,7 +54,6 @@
   "proxy.output.tailing": "Log dosyası izleniyor: {path}",
   "proxy.output.logDisabled": "Output'a trafik günlüğü devre dışı (cursorAccounts.proxy.logTrafficToOutput).",
   "proxy.output.stopped": "Proxy durduruldu",
-
   "agentLiveUsage.statusBar.tokens": "{count} tok",
   "agentLiveUsage.statusBar.inOut": "girdi {input} / çıktı {output}",
   "agentLiveUsage.statusBar.estimatedCost": "{cost}",
@@ -403,5 +402,7 @@
   "webview.storage.total": "Toplam depolama",
   "webview.storage.vacuumDatabase": "Veritabanını sıkıştır (VACUUM)",
   "webview.storage.wal": "Write-ahead günlüğü (WAL)",
-  "webview.storage.workspace": "Workspace depolaması"
+  "webview.storage.workspace": "Workspace depolaması",
+  "tokenDetector.output.channelName": "Cursor Token Detector",
+  "tokenDetector.output.trackingInitialized": "Agent tracking initialized for profile {profileId}"
 }

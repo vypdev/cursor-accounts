@@ -22,6 +22,7 @@ import * as extensionLog from '../logging/extensionLog';
 import { CertificateManager } from '../proxy/certificateManager';
 import { getSharedProxyStorageDir } from '../proxy/sharedProxyPaths';
 import { ProxyOutputPresenter, getProxyOutputConfig } from '../proxy/proxyOutputPresenter';
+import { TokenDetectorOutputPresenter } from '../proxy/tokenDetectorOutputPresenter';
 import { estimateTokenCostUsd } from '../proxy/proxyInsightExtractor';
 import { ProxyLogTailer } from '../proxy/proxyLogTailer';
 import { isPortAvailable, isProcessAlive } from '../proxy/portUtils';
@@ -39,6 +40,7 @@ import {
 } from '../proxy/types';
 import { AgentTrackingDatabase } from '../persistence/agentTrackingDatabase';
 import { getEfficiencyDbPath } from '../persistence/efficiencyDatabase';
+import { TokenTurnDetectionService } from '../domain/services/tokenTurnDetectionService';
 import { AgentTrackingService } from './agentTrackingService';
 
 export type ProxyTrafficListener = (summary: ProxyTrafficSummary) => void;
@@ -74,7 +76,8 @@ export class ProxyManager implements IProxyManager {
     storageDir: string = getSharedProxyStorageDir(),
     private readonly proxySettingsService?: ProxySettingsService,
     private readonly profileSettingsManager?: IProfileSettingsManager,
-    private readonly outputPresenter?: ProxyOutputPresenter
+    private readonly outputPresenter?: ProxyOutputPresenter,
+    private readonly tokenDetectorPresenter?: TokenDetectorOutputPresenter
   ) {
     this.storageDir = storageDir;
     this.logDir = path.join(this.storageDir, 'logs');
@@ -115,6 +118,7 @@ export class ProxyManager implements IProxyManager {
     if (profileId) {
       void this.agentTrackingServices.get(profileId)?.ingestTraffic(enriched);
     }
+    this.tokenDetectorPresenter?.appendTraffic(enriched, profileId);
     if (getProxyOutputConfig().logTrafficToOutput) {
       this.outputPresenter?.appendTraffic(enriched);
     }
@@ -434,6 +438,14 @@ export class ProxyManager implements IProxyManager {
     return this.outputPresenter;
   }
 
+  getTokenDetectorPresenter(): TokenDetectorOutputPresenter | undefined {
+    return this.tokenDetectorPresenter;
+  }
+
+  showTokenDetectorChannel(): void {
+    this.tokenDetectorPresenter?.show();
+  }
+
   async ensureOutputTailer(
     profileId: string,
     options?: { tailFromStart?: boolean }
@@ -623,9 +635,15 @@ export class ProxyManager implements IProxyManager {
         dbPath,
         this.context.extensionPath
       );
-      const service = new AgentTrackingService(repository, profileId);
+      const turnDetectionService = new TokenTurnDetectionService();
+      const service = new AgentTrackingService(
+        repository,
+        profileId,
+        turnDetectionService
+      );
       await service.initialize();
       this.agentTrackingServices.set(profileId, service);
+      this.tokenDetectorPresenter?.appendInitialized(profileId);
     } catch (error) {
       extensionLog.error(
         `[AgentTracking] Failed to initialize for ${profileId}: ${extensionLog.formatError(error)}`

@@ -54,7 +54,6 @@
   "proxy.output.tailing": "Suivi du fichier journal : {path}",
   "proxy.output.logDisabled": "L'enregistrement du trafic dans la sortie est désactivé (cursorAccounts.proxy.logTrafficToOutput).",
   "proxy.output.stopped": "Proxy arrêté",
-
   "agentLiveUsage.statusBar.tokens": "{count} tok",
   "agentLiveUsage.statusBar.inOut": "entrée {input} / sortie {output}",
   "agentLiveUsage.statusBar.estimatedCost": "{cost}",
@@ -403,5 +402,7 @@
   "webview.storage.total": "Stockage total",
   "webview.storage.vacuumDatabase": "Compacter la base de données (VACUUM)",
   "webview.storage.wal": "Journal write-ahead (WAL)",
-  "webview.storage.workspace": "Stockage workspace"
+  "webview.storage.workspace": "Stockage workspace",
+  "tokenDetector.output.channelName": "Cursor Token Detector",
+  "tokenDetector.output.trackingInitialized": "Agent tracking initialized for profile {profileId}"
 }

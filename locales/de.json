@@ -54,7 +54,6 @@
   "proxy.output.tailing": "Protokolldatei wird verfolgt: {path}",
   "proxy.output.logDisabled": "Traffic-Protokollierung in Output ist deaktiviert (cursorAccounts.proxy.logTrafficToOutput).",
   "proxy.output.stopped": "Proxy gestoppt",
-
   "agentLiveUsage.statusBar.tokens": "{count} tok",
   "agentLiveUsage.statusBar.inOut": "Eingabe {input} / Ausgabe {output}",
   "agentLiveUsage.statusBar.estimatedCost": "{cost}",
@@ -403,5 +402,7 @@
   "webview.storage.total": "Gesamtspeicher",
   "webview.storage.vacuumDatabase": "Datenbank komprimieren (VACUUM)",
   "webview.storage.wal": "Write-Ahead-Log (WAL)",
-  "webview.storage.workspace": "Workspace-Speicher"
+  "webview.storage.workspace": "Workspace-Speicher",
+  "tokenDetector.output.channelName": "Cursor Token Detector",
+  "tokenDetector.output.trackingInitialized": "Agent tracking initialized for profile {profileId}"
 }

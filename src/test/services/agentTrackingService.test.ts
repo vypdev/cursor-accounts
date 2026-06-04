@@ -1,13 +1,23 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { IAgentTrackingRepository } from '../../domain/ports/IAgentTrackingRepository';
+import type {
+  DetectedTurn,
+  ITokenTurnDetectionService,
+} from '../../domain/ports/ITokenTurnDetectionService';
 import { AgentTrackingService } from '../../services/agentTrackingService';
 import type { ProxyTrafficSummary } from '../../proxy/types';
 
 class MockRepository implements IAgentTrackingRepository {
   conversations: Array<{ conversationId: string; timestamp: number }> = [];
   agents: Array<{ requestId: string; conversationId: string }> = [];
-  tokens: Array<{ requestId: string; tokenType: string }> = [];
+  tokens: Array<{
+    requestId: string;
+    tokenType: string;
+    turnIndex?: number;
+    httpRequestId?: string;
+    streamingTokens?: number;
+  }> = [];
 
   async initialize(): Promise<void> {}
 
@@ -32,10 +42,16 @@ class MockRepository implements IAgentTrackingRepository {
   async insertTokenSnapshot(tokens: {
     requestId: string;
     tokenType: string;
+    turnIndex?: number;
+    httpRequestId?: string;
+    streamingTokens?: number;
   }): Promise<void> {
     this.tokens.push({
       requestId: tokens.requestId,
       tokenType: tokens.tokenType,
+      turnIndex: tokens.turnIndex,
+      httpRequestId: tokens.httpRequestId,
+      streamingTokens: tokens.streamingTokens,
     });
   }
 
@@ -183,5 +199,47 @@ describe('AgentTrackingService', () => {
     await assert.doesNotReject(async () => {
       await service.ingestTraffic(summary);
     });
+  });
+
+  it('persists one snapshot per detected RunSSE turn', async () => {
+    const repo = new MockRepository();
+    const turnDetection: ITokenTurnDetectionService = {
+      detectTurns() {
+        return [
+          { streamingTokens: 300, turnIndex: 0 },
+          { streamingTokens: 200, turnIndex: 1 },
+        ] satisfies DetectedTurn[];
+      },
+    };
+    const service = new AgentTrackingService(repo, 'prof-1', turnDetection);
+    await service.initialize();
+
+    await service.ingestTraffic({
+      timestamp: new Date(1_000_000).toISOString(),
+      kind: 'response',
+      url: 'https://agent.api5.cursor.sh/agent.v1.AgentService/RunSSE',
+      host: 'agent.api5.cursor.sh',
+      endpoint: '/agent.v1.AgentService/RunSSE',
+      httpRequestId: 'http-req-1',
+      insights: {
+        agent: {
+          requestId: 'bidi-req-1',
+          conversationId: 'conv-456',
+        },
+        allTokenFrames: [
+          { streamingTokens: 300, usageEvent: 'token_delta' },
+          { streamingTokens: 100, usageEvent: 'token_delta' },
+          { streamingTokens: 200, usageEvent: 'token_delta' },
+        ],
+      },
+    } satisfies ProxyTrafficSummary);
+
+    assert.equal(repo.tokens.length, 2);
+    assert.equal(repo.tokens[0]?.requestId, 'bidi-req-1');
+    assert.equal(repo.tokens[0]?.turnIndex, 0);
+    assert.equal(repo.tokens[0]?.streamingTokens, 300);
+    assert.equal(repo.tokens[0]?.httpRequestId, 'http-req-1');
+    assert.equal(repo.tokens[1]?.turnIndex, 1);
+    assert.equal(repo.tokens[1]?.streamingTokens, 200);
   });
 });

@@ -238,7 +238,8 @@ ON CONFLICT(request_id) DO UPDATE SET
     const sql = `
 INSERT INTO agent_tokens (
   request_id, token_type, streaming_tokens, input_tokens, output_tokens,
-  cache_read_tokens, cache_write_tokens, total_tokens, usage_uuid, recorded_at, model_name
+  cache_read_tokens, cache_write_tokens, total_tokens, usage_uuid, recorded_at,
+  model_name, turn_index, http_request_id
 ) VALUES (
   ${sqlLiteral(tokens.requestId)},
   ${sqlLiteral(tokens.tokenType)},
@@ -250,7 +251,9 @@ INSERT INTO agent_tokens (
   ${sqlNumber(tokens.totalTokens)},
   ${sqlLiteral(tokens.usageUuid)},
   ${tokens.recordedAt},
-  ${sqlLiteral(tokens.modelName)}
+  ${sqlLiteral(tokens.modelName)},
+  ${sqlNumber(tokens.turnIndex)},
+  ${sqlLiteral(tokens.httpRequestId)}
 );
 `.trim();
     await this.executor.runStatement(sql);

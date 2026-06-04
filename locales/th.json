@@ -54,7 +54,6 @@
   "proxy.output.tailing": "กำลังติดตามไฟล์ล็อก: {path}",
   "proxy.output.logDisabled": "การบันทึกทราฟฟิกไปยัง output ถูกปิดใช้งาน (cursorAccounts.proxy.logTrafficToOutput)",
   "proxy.output.stopped": "พร็อกซีหยุดแล้ว",
-
   "agentLiveUsage.statusBar.tokens": "{count} tok",
   "agentLiveUsage.statusBar.inOut": "เข้า {input} / ออก {output}",
   "agentLiveUsage.statusBar.estimatedCost": "{cost}",
@@ -403,5 +402,7 @@
   "webview.storage.total": "พื้นที่จัดเก็บทั้งหมด",
   "webview.storage.vacuumDatabase": "บีบอัดฐานข้อมูล (VACUUM)",
   "webview.storage.wal": "บันทึก write-ahead (WAL)",
-  "webview.storage.workspace": "พื้นที่จัดเก็บ workspace"
+  "webview.storage.workspace": "พื้นที่จัดเก็บ workspace",
+  "tokenDetector.output.channelName": "Cursor Token Detector",
+  "tokenDetector.output.trackingInitialized": "Agent tracking initialized for profile {profileId}"
 }

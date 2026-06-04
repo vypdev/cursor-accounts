@@ -54,7 +54,6 @@
   "proxy.output.tailing": "Monitorando arquivo de log: {path}",
   "proxy.output.logDisabled": "O registro de tráfego no output está desativado (cursorAccounts.proxy.logTrafficToOutput).",
   "proxy.output.stopped": "Proxy parado",
-
   "agentLiveUsage.statusBar.tokens": "{count} tok",
   "agentLiveUsage.statusBar.inOut": "entrada {input} / saída {output}",
   "agentLiveUsage.statusBar.estimatedCost": "{cost}",
@@ -403,5 +402,7 @@
   "webview.storage.total": "Armazenamento total",
   "webview.storage.vacuumDatabase": "Compactar banco de dados (VACUUM)",
   "webview.storage.wal": "Log write-ahead (WAL)",
-  "webview.storage.workspace": "Armazenamento de workspace"
+  "webview.storage.workspace": "Armazenamento de workspace",
+  "tokenDetector.output.channelName": "Cursor Token Detector",
+  "tokenDetector.output.trackingInitialized": "Agent tracking initialized for profile {profileId}"
 }

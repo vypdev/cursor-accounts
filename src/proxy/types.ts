@@ -72,6 +72,8 @@ export interface ProxyTrafficSummary {
   insights?: ProxyInsights;
   userAgent?: string;
   requestId?: string;
+  /** HTTP x-request-id used to correlate RunSSE request/response pairs. */
+  httpRequestId?: string;
   isCursorHost?: boolean;
   durationMs?: number;
   errorKind?: string;

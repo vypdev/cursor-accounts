@@ -54,7 +54,6 @@
   "proxy.output.tailing": "Melacak file log: {path}",
   "proxy.output.logDisabled": "Pencatatan lalu lintas ke output dinonaktifkan (cursorAccounts.proxy.logTrafficToOutput).",
   "proxy.output.stopped": "Proxy dihentikan",
-
   "agentLiveUsage.statusBar.tokens": "{count} tok",
   "agentLiveUsage.statusBar.inOut": "masuk {input} / keluar {output}",
   "agentLiveUsage.statusBar.estimatedCost": "{cost}",
@@ -403,5 +402,7 @@
   "webview.storage.total": "Total penyimpanan",
   "webview.storage.vacuumDatabase": "Kompres basis data (VACUUM)",
   "webview.storage.wal": "Log write-ahead (WAL)",
-  "webview.storage.workspace": "Penyimpanan workspace"
+  "webview.storage.workspace": "Penyimpanan workspace",
+  "tokenDetector.output.channelName": "Cursor Token Detector",
+  "tokenDetector.output.trackingInitialized": "Agent tracking initialized for profile {profileId}"
 }

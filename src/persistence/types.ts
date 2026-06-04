@@ -95,7 +95,7 @@ export interface AgentRecord {
 export type AgentTokenType = 'delta' | 'turn_ended' | 'token_details';
 
 export interface TokenSnapshotRecord {
-  id: number;
+  id?: number;
   requestId: string;
   tokenType: AgentTokenType;
   streamingTokens?: number;
@@ -107,6 +107,8 @@ export interface TokenSnapshotRecord {
   usageUuid?: string;
   recordedAt: number;
   modelName?: string;
+  turnIndex?: number;
+  httpRequestId?: string;
 }
 
 export interface AgentTreeNode {

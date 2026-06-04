@@ -54,7 +54,6 @@
   "proxy.output.tailing": "Отслеживание файла логов: {path}",
   "proxy.output.logDisabled": "Запись трафика в output отключена (cursorAccounts.proxy.logTrafficToOutput).",
   "proxy.output.stopped": "Прокси остановлен",
-
   "agentLiveUsage.statusBar.tokens": "{count} tok",
   "agentLiveUsage.statusBar.inOut": "вход {input} / выход {output}",
   "agentLiveUsage.statusBar.estimatedCost": "{cost}",
@@ -403,5 +402,7 @@
   "webview.storage.total": "Общий объём",
   "webview.storage.vacuumDatabase": "Сжать базу данных (VACUUM)",
   "webview.storage.wal": "Журнал упреждающей записи (WAL)",
-  "webview.storage.workspace": "Хранилище workspace"
+  "webview.storage.workspace": "Хранилище workspace",
+  "tokenDetector.output.channelName": "Cursor Token Detector",
+  "tokenDetector.output.trackingInitialized": "Agent tracking initialized for profile {profileId}"
 }

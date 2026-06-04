@@ -71,6 +71,13 @@ export function registerProxyCommands(
     }),
 
     vscode.commands.registerCommand(
+      'cursorAccounts.proxy.showTokenDetector',
+      async () => {
+        proxyManager.showTokenDetectorChannel();
+      }
+    ),
+
+    vscode.commands.registerCommand(
       'cursorAccounts.proxy.saveCertificate',
       async () => {
         const result = await saveCaCertificateAs(proxyManager);

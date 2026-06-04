@@ -111,6 +111,8 @@ function createHandlers(overrides: {
         ensureOutputTailer: async () => undefined,
         ensureTrafficTailer: async () => undefined,
         showOutputChannel: () => undefined,
+        getTokenDetectorPresenter: () => undefined,
+        showTokenDetectorChannel: () => undefined,
       },
     },
     {

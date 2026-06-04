@@ -54,7 +54,6 @@
   "proxy.output.tailing": "ログファイルを追跡中: {path}",
   "proxy.output.logDisabled": "トラフィックの output へのログ記録は無効です (cursorAccounts.proxy.logTrafficToOutput)。",
   "proxy.output.stopped": "プロキシが停止しました",
-
   "agentLiveUsage.statusBar.tokens": "{count} tok",
   "agentLiveUsage.statusBar.inOut": "入力 {input} / 出力 {output}",
   "agentLiveUsage.statusBar.estimatedCost": "{cost}",
@@ -403,5 +402,7 @@
   "webview.storage.total": "合計ストレージ",
   "webview.storage.vacuumDatabase": "データベースを圧縮 (VACUUM)",
   "webview.storage.wal": "Write-ahead ログ (WAL)",
-  "webview.storage.workspace": "ワークスペース ストレージ"
+  "webview.storage.workspace": "ワークスペース ストレージ",
+  "tokenDetector.output.channelName": "Cursor Token Detector",
+  "tokenDetector.output.trackingInitialized": "Agent tracking initialized for profile {profileId}"
 }

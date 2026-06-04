@@ -251,6 +251,43 @@ Settings: [CONFIGURATION.md](CONFIGURATION.md) (proxy section), [PROXY-SETUP.md]
 
 ---
 
+## Turn tracking in RunSSE streams (HTTP/2)
+
+**RunSSE:** One HTTP response contains hundreds of `token_delta` frames. The extension scans the full stream, detects turn resets, and persists one row per turn in `agent_tokens`.
+
+**RunPoll (HTTP/1):** Each response is a single frame; one snapshot per response. Turn detection is not applied within a response (documented for future extension).
+
+### Correlation model
+
+| Layer | Key | Role |
+|-------|-----|------|
+| HTTP | `x-request-id` | Pairs RunSSE request with its response stream |
+| Agent | bidi `request_id` | Primary key for agent session and token rows |
+| Turn | `turn_index` | Sequence number within one bidi session (0, 1, 2…) |
+
+Attribution to parent vs subagent uses **bidi `request_id`**, not token counter shape. Each parallel subagent has its own `request_id` and independent turn sequence.
+
+### Turn detection algorithm
+
+Ported from [`agentLiveUsageStatusBar.ts`](../src/ui/agentLiveUsageStatusBar.ts) into domain service [`TokenTurnDetectionService`](../src/domain/services/tokenTurnDetectionService.ts):
+
+1. Track peak streaming counter within current turn
+2. If peak ≥ **300** and next value ≤ **150** → emit previous peak as completed turn, start new turn
+3. After all frames, emit final peak
+
+### Database representation
+
+```sql
+SELECT request_id, turn_index, streaming_tokens, http_request_id
+FROM agent_tokens
+WHERE request_id = 'abc123'
+ORDER BY turn_index;
+```
+
+Schema details: [DATABASE-SCHEMA.md](DATABASE-SCHEMA.md).
+
+---
+
 ## Parallel subagents and token attribution
 
 When the Agent launches **parallel Task subagents**, the MITM proxy observes **separate bidi sessions** — one `request_id` per worker — not nested token frames on the parent id.

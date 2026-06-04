@@ -1,4 +1,5 @@
 import type { IAgentTrackingRepository } from '../domain/ports/IAgentTrackingRepository';
+import type { ITokenTurnDetectionService } from '../domain/ports/ITokenTurnDetectionService';
 import type { AgentTokenType } from '../persistence/types';
 import type { ProxyTrafficSummary } from '../proxy/types';
 import type { AgentSessionInfo } from '../proxy/proxyInsightExtractor';
@@ -10,7 +11,8 @@ import * as extensionLog from '../logging/extensionLog';
 export class AgentTrackingService {
   constructor(
     private readonly repository: IAgentTrackingRepository,
-    private readonly profileId: string
+    private readonly profileId: string,
+    private readonly turnDetectionService?: ITokenTurnDetectionService
   ) {}
 
   async initialize(): Promise<void> {
@@ -65,6 +67,31 @@ export class AgentTrackingService {
         profileId: this.profileId,
       });
 
+      const allTokenFrames = insights.allTokenFrames;
+      const httpRequestId = summary.httpRequestId;
+      const modelName = insights.tokens?.modelName ?? agent.modelName;
+
+      if (
+        allTokenFrames &&
+        allTokenFrames.length > 0 &&
+        this.turnDetectionService
+      ) {
+        const turns = this.turnDetectionService.detectTurns(allTokenFrames);
+        for (const turn of turns) {
+          await this.repository.insertTokenSnapshot({
+            requestId: agent.requestId,
+            tokenType: 'delta',
+            streamingTokens: turn.streamingTokens,
+            totalTokens: turn.streamingTokens,
+            recordedAt: timestamp,
+            modelName,
+            turnIndex: turn.turnIndex,
+            httpRequestId,
+          });
+        }
+        return;
+      }
+
       if (agent.usageEvent && this.hasTokenData(agent)) {
         await this.repository.insertTokenSnapshot({
           requestId: agent.requestId,
@@ -77,7 +104,8 @@ export class AgentTrackingService {
           totalTokens: this.resolveTotalTokens(agent, insights.tokens?.totalTokens),
           usageUuid: agent.usageUuid,
           recordedAt: timestamp,
-          modelName: insights.tokens?.modelName ?? agent.modelName,
+          modelName,
+          httpRequestId,
         });
       }
     } catch (error) {

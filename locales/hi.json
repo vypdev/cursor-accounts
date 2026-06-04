@@ -54,7 +54,6 @@
   "proxy.output.tailing": "लॉग फ़ाइल टेल कर रहा है: {path}",
   "proxy.output.logDisabled": "output में ट्रैफ़िक लॉगिंग अक्षम है (cursorAccounts.proxy.logTrafficToOutput)।",
   "proxy.output.stopped": "प्रॉक्सी बंद",
-
   "agentLiveUsage.statusBar.tokens": "{count} tok",
   "agentLiveUsage.statusBar.inOut": "इन {input} / आउट {output}",
   "agentLiveUsage.statusBar.estimatedCost": "{cost}",
@@ -403,5 +402,7 @@
   "webview.storage.total": "कुल स्टोरेज",
   "webview.storage.vacuumDatabase": "डेटाबेस कॉम्पैक्ट करें (VACUUM)",
   "webview.storage.wal": "Write-ahead लॉग (WAL)",
-  "webview.storage.workspace": "Workspace स्टोरेज"
+  "webview.storage.workspace": "Workspace स्टोरेज",
+  "tokenDetector.output.channelName": "Cursor Token Detector",
+  "tokenDetector.output.trackingInitialized": "Agent tracking initialized for profile {profileId}"
 }

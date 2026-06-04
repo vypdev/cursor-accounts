@@ -54,7 +54,6 @@
   "proxy.output.tailing": "متابعة ملف السجل: {path}",
   "proxy.output.logDisabled": "تسجيل الحركة في output معطل (cursorAccounts.proxy.logTrafficToOutput).",
   "proxy.output.stopped": "تم إيقاف الوسيط",
-
   "agentLiveUsage.statusBar.tokens": "{count} tok",
   "agentLiveUsage.statusBar.inOut": "إدخال {input} / إخراج {output}",
   "agentLiveUsage.statusBar.estimatedCost": "{cost}",
@@ -403,5 +402,7 @@
   "webview.storage.total": "إجمالي التخزين",
   "webview.storage.vacuumDatabase": "ضغط قاعدة البيانات (VACUUM)",
   "webview.storage.wal": "سجل الكتابة المسبقة (WAL)",
-  "webview.storage.workspace": "تخزين workspace"
+  "webview.storage.workspace": "تخزين workspace",
+  "tokenDetector.output.channelName": "Cursor Token Detector",
+  "tokenDetector.output.trackingInitialized": "Agent tracking initialized for profile {profileId}"
 }

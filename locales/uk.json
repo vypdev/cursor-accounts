@@ -54,7 +54,6 @@
   "proxy.output.tailing": "Відстеження файлу журналу: {path}",
   "proxy.output.logDisabled": "Запис трафіку в output вимкнено (cursorAccounts.proxy.logTrafficToOutput).",
   "proxy.output.stopped": "Проксі зупинено",
-
   "agentLiveUsage.statusBar.tokens": "{count} tok",
   "agentLiveUsage.statusBar.inOut": "вхід {input} / вихід {output}",
   "agentLiveUsage.statusBar.estimatedCost": "{cost}",
@@ -403,5 +402,7 @@
   "webview.storage.total": "Загальний обсяг",
   "webview.storage.vacuumDatabase": "Стиснути базу даних (VACUUM)",
   "webview.storage.wal": "Журнал упреджувального запису (WAL)",
-  "webview.storage.workspace": "Сховище workspace"
+  "webview.storage.workspace": "Сховище workspace",
+  "tokenDetector.output.channelName": "Cursor Token Detector",
+  "tokenDetector.output.trackingInitialized": "Agent tracking initialized for profile {profileId}"
 }

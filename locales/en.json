@@ -43,6 +43,9 @@
   "proxy.output.logDisabled": "Traffic logging to output is disabled (cursorAccounts.proxy.logTrafficToOutput).",
   "proxy.output.stopped": "Proxy stopped",
 
+  "tokenDetector.output.channelName": "Cursor Token Detector",
+  "tokenDetector.output.trackingInitialized": "Agent tracking initialized for profile {profileId}",
+
   "agentLiveUsage.statusBar.tokens": "{count} tok",
   "agentLiveUsage.statusBar.inOut": "in {input} / out {output}",
   "agentLiveUsage.statusBar.estimatedCost": "{cost}",

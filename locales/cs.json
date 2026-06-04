@@ -54,7 +54,6 @@
   "proxy.output.tailing": "Sledování log souboru: {path}",
   "proxy.output.logDisabled": "Protokolování provozu do output je zakázáno (cursorAccounts.proxy.logTrafficToOutput).",
   "proxy.output.stopped": "Proxy zastavena",
-
   "agentLiveUsage.statusBar.tokens": "{count} tok",
   "agentLiveUsage.statusBar.inOut": "vstup {input} / výstup {output}",
   "agentLiveUsage.statusBar.estimatedCost": "{cost}",
@@ -403,5 +402,7 @@
   "webview.storage.total": "Celkové úložiště",
   "webview.storage.vacuumDatabase": "Komprimovat databázi (VACUUM)",
   "webview.storage.wal": "Protokol write-ahead (WAL)",
-  "webview.storage.workspace": "Úložiště workspace"
+  "webview.storage.workspace": "Úložiště workspace",
+  "tokenDetector.output.channelName": "Cursor Token Detector",
+  "tokenDetector.output.trackingInitialized": "Agent tracking initialized for profile {profileId}"
 }

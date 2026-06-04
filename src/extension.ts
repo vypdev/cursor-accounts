@@ -11,6 +11,7 @@ import { registerProxyCommands } from './commands/proxyCommands';
 import { ProxyStateFileStore } from './proxy/proxyStateFileStore';
 import { getSharedProxyStorageDir } from './proxy/sharedProxyPaths';
 import { ProxyOutputPresenter } from './proxy/proxyOutputPresenter';
+import { TokenDetectorOutputPresenter } from './proxy/tokenDetectorOutputPresenter';
 import { ProxyManager } from './services/proxyManager';
 import { affectsCursorAccountsConfig } from './config';
 import { initL10n, t } from './l10n';
@@ -47,6 +48,7 @@ let multiProfileQuotaService: MultiProfileQuotaService | undefined;
 let efficiencyService: EfficiencyService | undefined;
 let instanceDetectorRef: InstanceDetector | undefined;
 let proxyOutputPresenterRef: ProxyOutputPresenter | undefined;
+let tokenDetectorPresenterRef: TokenDetectorOutputPresenter | undefined;
 
 export function activate(context: vscode.ExtensionContext): void {
   const activateTimestamp = lifecycleLog.markActivate();
@@ -92,6 +94,8 @@ export function activate(context: vscode.ExtensionContext): void {
   );
   const proxyOutputPresenter = new ProxyOutputPresenter();
   proxyOutputPresenterRef = proxyOutputPresenter;
+  const tokenDetectorPresenter = new TokenDetectorOutputPresenter();
+  tokenDetectorPresenterRef = tokenDetectorPresenter;
   const proxyManager = new ProxyManager(
     proxyStateStore,
     profileManager,
@@ -99,7 +103,8 @@ export function activate(context: vscode.ExtensionContext): void {
     sharedProxyDir,
     proxySettingsService,
     profileSettingsManager,
-    proxyOutputPresenter
+    proxyOutputPresenter,
+    tokenDetectorPresenter
   );
 
   const profileLauncher = new ProfileLauncher(
@@ -360,6 +365,8 @@ export function activate(context: vscode.ExtensionContext): void {
     dispose: () => {
       proxyOutputPresenterRef?.dispose();
       proxyOutputPresenterRef = undefined;
+      tokenDetectorPresenterRef?.dispose();
+      tokenDetectorPresenterRef = undefined;
     },
   });
 

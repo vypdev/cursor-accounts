@@ -7,6 +7,7 @@ import { getProtoRegistry } from './protoRegistry';
 import { RequestLogger } from './requestLogger';
 import type { ProxyTrafficLogger } from './nullLogger';
 import { extractRequestId, toTrafficSummary } from './proxyTrafficFormat';
+import { extractBidiRequestIdFromBody } from './runSseCorrelation';
 import { buildTrafficSummary } from './trafficSummaryBuilder';
 import type { MitmProxyHandlers, ProxyLogEntry, ProxyServerConfig } from './types';
 
@@ -27,6 +28,8 @@ export class MitmProxyServer extends EventEmitter {
     activeConnections: 0,
   };
   private readonly requestStartedAt = new Map<string, number>();
+  /** HTTP requestId → bidi request_id for RunSSE correlation. */
+  private readonly runSSEBidiIds = new Map<string, string>();
 
   constructor(
     private readonly certificateManager: CertificateManager,
@@ -101,7 +104,7 @@ export class MitmProxyServer extends EventEmitter {
         cb(null, chunk);
       });
 
-      ctx.onRequestEnd((_ctx, endCallback) => {
+      ctx.onRequestEnd(async (_ctx, endCallback) => {
         const rawBody = Buffer.concat(bodyChunks);
         this.statistics.bytesTransferred += rawBody.length;
         const contentEncoding = headers['content-encoding'];
@@ -131,6 +134,12 @@ export class MitmProxyServer extends EventEmitter {
           requestId,
         };
         this.requestLogger.log(entry);
+        if (url.includes('RunSSE') && requestId) {
+          const bidiId = await extractBidiRequestIdFromBody(rawBody, contentType);
+          if (bidiId) {
+            this.runSSEBidiIds.set(requestId, bidiId);
+          }
+        }
         this.emitTrafficSummary(entry);
         endCallback();
       });
@@ -201,7 +210,16 @@ export class MitmProxyServer extends EventEmitter {
           requestId,
         };
         this.requestLogger.log(entry);
-        this.emitTrafficSummary(entry, durationMs);
+        const bidiRequestId = requestId
+          ? this.runSSEBidiIds.get(requestId)
+          : undefined;
+        if (requestId && bidiRequestId) {
+          this.runSSEBidiIds.delete(requestId);
+        }
+        this.emitTrafficSummary(entry, durationMs, {
+          bidiRequestId,
+          httpRequestId: requestId,
+        });
         endCallback();
       });
 
@@ -242,6 +260,7 @@ export class MitmProxyServer extends EventEmitter {
     ]);
 
     this.requestStartedAt.clear();
+    this.runSSEBidiIds.clear();
     await this.requestLogger.close();
   }
 
@@ -249,12 +268,16 @@ export class MitmProxyServer extends EventEmitter {
     return { ...this.statistics };
   }
 
-  private emitTrafficSummary(entry: ProxyLogEntry, durationMs?: number): void {
+  private emitTrafficSummary(
+    entry: ProxyLogEntry,
+    durationMs?: number,
+    correlation?: { bidiRequestId?: string; httpRequestId?: string }
+  ): void {
     if (!this.handlers?.onTraffic) {
       return;
     }
 
-    void buildTrafficSummary(entry, durationMs)
+    void buildTrafficSummary(entry, durationMs, correlation)
       .then((summary) => {
         this.handlers?.onTraffic?.(summary);
       })

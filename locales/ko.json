@@ -54,7 +54,6 @@
   "proxy.output.tailing": "로그 파일 추적 중: {path}",
   "proxy.output.logDisabled": "output으로의 트래픽 로깅이 비활성화되어 있습니다 (cursorAccounts.proxy.logTrafficToOutput).",
   "proxy.output.stopped": "프록시가 중지됨",
-
   "agentLiveUsage.statusBar.tokens": "{count} tok",
   "agentLiveUsage.statusBar.inOut": "입력 {input} / 출력 {output}",
   "agentLiveUsage.statusBar.estimatedCost": "{cost}",
@@ -403,5 +402,7 @@
   "webview.storage.total": "총 저장 공간",
   "webview.storage.vacuumDatabase": "데이터베이스 압축 (VACUUM)",
   "webview.storage.wal": "Write-ahead 로그 (WAL)",
-  "webview.storage.workspace": "워크스페이스 저장소"
+  "webview.storage.workspace": "워크스페이스 저장소",
+  "tokenDetector.output.channelName": "Cursor Token Detector",
+  "tokenDetector.output.trackingInitialized": "Agent tracking initialized for profile {profileId}"
 }

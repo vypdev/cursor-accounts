@@ -1,16 +1,25 @@
 import type { Type } from 'protobufjs';
 import {
+  isAgentServerStreamRpc,
+  scanConnectAgentServerStream,
+} from './agentStreamDecode';
+import {
   bidiInnerRoleForRpc,
   decodeBidiAgentPayload,
 } from './bidiAgentDecode';
 import { bodyBufferFromLogEntry } from './bodyFormat';
-import { connectPayloadCandidates, prepareConnectPayload } from './connectDecode';
+import {
+  connectPayloadCandidates,
+  decompressBody,
+  prepareConnectPayload,
+} from './connectDecode';
 import {
   extractAgentInnerInsights,
   extractConversationAndSubagentIds,
   extractInsightsForRpc,
   mergeAgentSessionInfo,
   redactSensitive,
+  type AgentSessionInfo,
   type ProxyInsights,
 } from './proxyInsightExtractor';
 import { getProtoRegistry } from './protoRegistry';
@@ -91,23 +100,101 @@ async function enrichInsightsFromBidi(
     return Object.keys(next).length > 0 ? next : insights;
   }
 
-  next.agent = mergeAgentSessionInfo(next.agent, innerAgent);
-  if (innerAgent.inputTokens != null || innerAgent.outputTokens != null) {
+  return applyAgentSessionInsights(next, innerAgent);
+}
+
+function applyAgentSessionInsights(
+  insights: ProxyInsights | undefined,
+  agent: AgentSessionInfo | undefined
+): ProxyInsights | undefined {
+  if (!agent) {
+    return insights;
+  }
+
+  const next: ProxyInsights = { ...(insights ?? {}) };
+  next.agent = mergeAgentSessionInfo(next.agent, agent);
+
+  if (agent.inputTokens != null || agent.outputTokens != null) {
     next.tokens = {
-      promptTokens: innerAgent.inputTokens,
-      completionTokens: innerAgent.outputTokens,
+      promptTokens: agent.inputTokens,
+      completionTokens: agent.outputTokens,
       totalTokens:
-        innerAgent.inputTokens != null && innerAgent.outputTokens != null
-          ? innerAgent.inputTokens + innerAgent.outputTokens
+        agent.inputTokens != null && agent.outputTokens != null
+          ? agent.inputTokens + agent.outputTokens
           : undefined,
-      cachedTokens: innerAgent.cacheReadTokens,
+      cachedTokens: agent.cacheReadTokens,
     };
-  } else if (innerAgent.streamingTokens != null) {
+  } else if (agent.streamingTokens != null) {
     next.tokens = {
-      totalTokens: innerAgent.streamingTokens,
+      totalTokens: agent.streamingTokens,
     };
   }
 
+  return next;
+}
+
+async function enrichInsightsFromAgentStream(
+  rpcPath: string,
+  direction: 'request' | 'response',
+  rawBody: Buffer,
+  contentEncoding: string | undefined,
+  insights: ProxyInsights | undefined
+): Promise<ProxyInsights | undefined> {
+  if (!isAgentServerStreamRpc(rpcPath, direction)) {
+    return insights;
+  }
+
+  const registry = await getProtoRegistry();
+  const body = decompressBody(rawBody, contentEncoding);
+  const scan = scanConnectAgentServerStream(registry, body);
+  if (scan.messageCount === 0 && Object.keys(scan.relationshipIds).length === 0) {
+    return insights;
+  }
+
+  let next: ProxyInsights = { ...(insights ?? {}) };
+
+  if (Object.keys(scan.relationshipIds).length > 0) {
+    next.agent = mergeAgentSessionInfo(next.agent, scan.relationshipIds);
+    if (scan.relationshipIds.conversationId || scan.relationshipIds.conversationGroupId) {
+      next.context = {
+        ...next.context,
+        conversationId:
+          scan.relationshipIds.conversationId ?? next.context?.conversationId,
+        conversationGroupId:
+          scan.relationshipIds.conversationGroupId ??
+          next.context?.conversationGroupId,
+      };
+    }
+  }
+
+  next = applyAgentSessionInsights(next, scan.mergedAgent ?? undefined) ?? next;
+  if (scan.allTokenFrames.length > 0) {
+    next.allTokenFrames = scan.allTokenFrames;
+  }
+  return Object.keys(next).length > 0 ? next : insights;
+}
+
+async function finalizeInsights(
+  rpcPath: string,
+  direction: ProxyLogEntry['direction'],
+  rawBody: Buffer,
+  contentEncoding: string | undefined,
+  decoded: Record<string, unknown>,
+  insights: ProxyInsights | undefined
+): Promise<ProxyInsights | undefined> {
+  if (direction !== 'request' && direction !== 'response') {
+    return insights;
+  }
+
+  let next = insights;
+  next = await enrichInsightsFromBidi(rpcPath, direction, decoded, next);
+  next = await enrichInsightsFromAgentStream(
+    rpcPath,
+    direction,
+    rawBody,
+    contentEncoding,
+    next
+  );
   return next;
 }
 
@@ -129,6 +216,7 @@ export async function decodeProtoEntry(
   }
 
   const contentType = entry.headers['content-type']?.toLowerCase() ?? '';
+  const contentEncoding = entry.headers['content-encoding'];
 
   if (contentType.includes('json')) {
     try {
@@ -136,15 +224,14 @@ export async function decodeProtoEntry(
         entry.body ?? Buffer.from(rawBody).toString('utf8')
       ) as Record<string, unknown>;
       const redacted = redactSensitive(decoded) as Record<string, unknown>;
-      let insights = extractInsightsForRpc(rpcPath, redacted);
-      if (entry.direction === 'request' || entry.direction === 'response') {
-        insights = await enrichInsightsFromBidi(
-          rpcPath,
-          entry.direction,
-          redacted,
-          insights
-        );
-      }
+      const insights = await finalizeInsights(
+        rpcPath,
+        entry.direction,
+        rawBody,
+        contentEncoding,
+        redacted,
+        extractInsightsForRpc(rpcPath, redacted)
+      );
       return {
         decoded: redacted,
         insights,
@@ -182,7 +269,6 @@ export async function decodeProtoEntry(
       return { error: `Unknown RPC: ${rpcPath}`, rpcPath };
     }
 
-    const contentEncoding = entry.headers['content-encoding'];
     const payloads = entry.bodyDecompressed
       ? connectPayloadCandidates(rawBody)
       : prepareConnectPayload(rawBody, contentEncoding);
@@ -192,15 +278,14 @@ export async function decodeProtoEntry(
       try {
         const decoded = registry.decode(type, payload);
         const redacted = redactSensitive(decoded) as Record<string, unknown>;
-        let insights = extractInsightsForRpc(rpcPath, redacted);
-        if (entry.direction === 'request' || entry.direction === 'response') {
-          insights = await enrichInsightsFromBidi(
-            rpcPath,
-            entry.direction,
-            redacted,
-            insights
-          );
-        }
+        const insights = await finalizeInsights(
+          rpcPath,
+          entry.direction,
+          rawBody,
+          contentEncoding,
+          redacted,
+          extractInsightsForRpc(rpcPath, redacted)
+        );
         return {
           decoded: redacted,
           insights,
@@ -208,6 +293,21 @@ export async function decodeProtoEntry(
         };
       } catch (err) {
         lastError = err instanceof Error ? err.message : String(err);
+      }
+    }
+
+    if (entry.direction === 'request' || entry.direction === 'response') {
+      if (isAgentServerStreamRpc(rpcPath, entry.direction)) {
+        const insights = await enrichInsightsFromAgentStream(
+          rpcPath,
+          entry.direction,
+          rawBody,
+          contentEncoding,
+          undefined
+        );
+        if (insights && (insights.agent || insights.tokens)) {
+          return { insights, rpcPath };
+        }
       }
     }
 

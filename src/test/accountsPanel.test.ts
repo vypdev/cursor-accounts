@@ -120,6 +120,8 @@ function createMockProxyManager(): IProxyManager {
     ensureOutputTailer: async () => undefined,
     ensureTrafficTailer: async () => undefined,
     showOutputChannel: () => undefined,
+    getTokenDetectorPresenter: () => undefined,
+    showTokenDetectorChannel: () => undefined,
   };
 }
 

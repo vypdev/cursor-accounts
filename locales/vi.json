@@ -54,7 +54,6 @@
   "proxy.output.tailing": "Đang theo dõi tệp log: {path}",
   "proxy.output.logDisabled": "Ghi log lưu lượng ra output đã tắt (cursorAccounts.proxy.logTrafficToOutput).",
   "proxy.output.stopped": "Proxy đã dừng",
-
   "agentLiveUsage.statusBar.tokens": "{count} tok",
   "agentLiveUsage.statusBar.inOut": "vào {input} / ra {output}",
   "agentLiveUsage.statusBar.estimatedCost": "{cost}",
@@ -403,5 +402,7 @@
   "webview.storage.total": "Tổng dung lượng",
   "webview.storage.vacuumDatabase": "Nén cơ sở dữ liệu (VACUUM)",
   "webview.storage.wal": "Nhật ký write-ahead (WAL)",
-  "webview.storage.workspace": "Lưu trữ workspace"
+  "webview.storage.workspace": "Lưu trữ workspace",
+  "tokenDetector.output.channelName": "Cursor Token Detector",
+  "tokenDetector.output.trackingInitialized": "Agent tracking initialized for profile {profileId}"
 }

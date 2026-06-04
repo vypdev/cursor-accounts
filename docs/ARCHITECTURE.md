@@ -333,7 +333,26 @@ flowchart LR
 
 Token semantics and billing channels: [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md). JSONL schema: [PROXY-JSONL-SCHEMA.md](PROXY-JSONL-SCHEMA.md). Agent/subagent IDs and parallel workers: [PROXY-AGENT-IDS-AND-SUBAGENTS.md](PROXY-AGENT-IDS-AND-SUBAGENTS.md). User setup: [PROXY-SETUP.md](PROXY-SETUP.md).
 
-The live usage status bar keys sessions by bidi `request_id` and **sums** all active sessions (including parallel subagents, each with its own id). Parent/child subagent linkage exists in protos and in `subagent_result` frames but is **not** extracted into insights today.
+The live usage status bar keys sessions by bidi `request_id` and **sums** all active sessions (including parallel subagents, each with its own id). Parent/child subagent linkage is extracted from nested Agent messages when present (`runRequest`, `subagent_result`, etc.) and persisted via `AgentTrackingService`.
+
+### Token turn detection (domain service)
+
+[`TokenTurnDetectionService`](../src/domain/services/tokenTurnDetectionService.ts) implements the peak/reset heuristic for identifying distinct turns within streaming token counters. This is a **pure domain service** with no infrastructure dependencies.
+
+| Constant | Value | Meaning |
+|----------|-------|---------|
+| `RESET_PEAK_THRESHOLD` | 300 | Prior turn peak must reach this before a reset is considered |
+| `RESET_DROP_THRESHOLD` | 150 | Next value must drop to this or below to start a new turn |
+
+**Clean Architecture flow:**
+
+1. **Infrastructure:** `mitmProxyServer` correlates RunSSE HTTP request/response via `x-request-id`, extracts bidi `request_id` from request body
+2. **Infrastructure:** `agentStreamDecode` scans RunSSE response stream → `allTokenFrames[]`
+3. **Application:** `AgentTrackingService.ingestTraffic()` delegates turn detection to domain service
+4. **Domain:** `TokenTurnDetectionService.detectTurns()` returns peak per turn
+5. **Persistence:** `AgentTrackingDatabase.insertTokenSnapshot()` stores each turn with `turn_index` + `http_request_id`
+
+RunPoll (HTTP/1) uses one snapshot per response; turn detection applies to RunSSE multi-frame streams only. See [DATABASE-SCHEMA.md](DATABASE-SCHEMA.md).
 
 ## Known maintainability notes
 
@@ -348,6 +367,7 @@ The live usage status bar keys sessions by bidi `request_id` and **sums** all ac
 - [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md) — token signals and billing channels
 - [PROXY-JSONL-SCHEMA.md](PROXY-JSONL-SCHEMA.md) — MITM JSONL log format
 - [PROXY-AGENT-IDS-AND-SUBAGENTS.md](PROXY-AGENT-IDS-AND-SUBAGENTS.md) — Agent session IDs and parallel subagents
+- [DATABASE-SCHEMA.md](DATABASE-SCHEMA.md) — agent tracking tables and turn_index
 - [PROXY-SETUP.md](PROXY-SETUP.md) — MITM proxy setup
 - [FEATURE-MULTI-PROFILE.md](FEATURE-MULTI-PROFILE.md) — product flows and terminology
 - [RESEARCH.md](RESEARCH.md) — quota APIs and account-switching limits

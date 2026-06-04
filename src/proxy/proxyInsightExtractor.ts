@@ -64,6 +64,8 @@ export interface ProxyInsights {
   tokens?: TokenUsageInfo;
   context?: ConversationContext;
   agent?: AgentSessionInfo;
+  /** Ordered token_delta frames from RunSSE stream scan (for turn detection). */
+  allTokenFrames?: AgentSessionInfo[];
 }
 
 function asNumber(value: unknown): number | undefined {

@@ -4,6 +4,7 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
 import { AgentTrackingDatabase } from '../persistence/agentTrackingDatabase';
+import { SqliteExecutor } from '../persistence/sqliteExecutor';
 import { AgentTrackingService } from '../services/agentTrackingService';
 import type { ProxyTrafficSummary } from '../proxy/types';
 
@@ -138,5 +139,63 @@ describe('AgentTracking integration', () => {
     assert.equal(tree[0]?.children.length, 2);
     const childIds = tree[0]?.children.map((child) => child.requestId).sort();
     assert.deepEqual(childIds, ['req-sub1', 'req-sub2']);
+  });
+
+  it('persists multiple RunSSE turns with turn_index', async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-integration-'));
+    const dbPath = path.join(tempDir, 'efficiency.db');
+    const repo = new AgentTrackingDatabase(dbPath, extensionPath);
+    const { TokenTurnDetectionService } = await import(
+      '../domain/services/tokenTurnDetectionService'
+    );
+    const service = new AgentTrackingService(
+      repo,
+      'prof-1',
+      new TokenTurnDetectionService()
+    );
+    await service.initialize();
+
+    await service.ingestTraffic({
+      timestamp: new Date(1_000_000).toISOString(),
+      kind: 'response',
+      url: 'https://agent.api5.cursor.sh/agent.v1.AgentService/RunSSE',
+      host: 'agent.api5.cursor.sh',
+      endpoint: '/agent.v1.AgentService/RunSSE',
+      httpRequestId: 'http-req-runsse',
+      insights: {
+        agent: {
+          requestId: 'req-runsse',
+          conversationId: 'conv-runsse',
+        },
+        allTokenFrames: [
+          { streamingTokens: 300, usageEvent: 'token_delta' },
+          { streamingTokens: 120, usageEvent: 'token_delta' },
+          { streamingTokens: 250, usageEvent: 'token_delta' },
+        ],
+      },
+    } satisfies ProxyTrafficSummary);
+
+    const breakdown = await service.getAgentTokens('req-runsse');
+    assert.ok(breakdown);
+    assert.equal(breakdown?.peakStreamingTokens, 300);
+
+    const executor = new SqliteExecutor(dbPath, extensionPath);
+    const rows = executor.queryRows<{
+      turn_index: number | null;
+      streaming_tokens: number | null;
+      http_request_id: string | null;
+    }>(`
+SELECT turn_index, streaming_tokens, http_request_id
+FROM agent_tokens
+WHERE request_id = 'req-runsse'
+ORDER BY turn_index ASC;
+`);
+
+    assert.equal(rows.length, 2);
+    assert.equal(rows[0]?.turn_index, 0);
+    assert.equal(rows[0]?.streaming_tokens, 300);
+    assert.equal(rows[0]?.http_request_id, 'http-req-runsse');
+    assert.equal(rows[1]?.turn_index, 1);
+    assert.equal(rows[1]?.streaming_tokens, 250);
   });
 });

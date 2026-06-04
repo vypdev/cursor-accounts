@@ -54,7 +54,6 @@
   "proxy.output.tailing": "正在跟踪日志文件：{path}",
   "proxy.output.logDisabled": "将流量记录到 output 已禁用 (cursorAccounts.proxy.logTrafficToOutput)。",
   "proxy.output.stopped": "代理已停止",
-
   "agentLiveUsage.statusBar.tokens": "{count} tok",
   "agentLiveUsage.statusBar.inOut": "输入 {input} / 输出 {output}",
   "agentLiveUsage.statusBar.estimatedCost": "{cost}",
@@ -403,5 +402,7 @@
   "webview.storage.total": "总存储",
   "webview.storage.vacuumDatabase": "压缩数据库 (VACUUM)",
   "webview.storage.wal": "预写式日志 (WAL)",
-  "webview.storage.workspace": "工作区存储"
+  "webview.storage.workspace": "工作区存储",
+  "tokenDetector.output.channelName": "Cursor Token Detector",
+  "tokenDetector.output.trackingInitialized": "Agent tracking initialized for profile {profileId}"
 }

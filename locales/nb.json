@@ -54,7 +54,6 @@
   "proxy.output.tailing": "Følger loggfil: {path}",
   "proxy.output.logDisabled": "Trafikklogging til output er deaktivert (cursorAccounts.proxy.logTrafficToOutput).",
   "proxy.output.stopped": "Proxy stoppet",
-
   "agentLiveUsage.statusBar.tokens": "{count} tok",
   "agentLiveUsage.statusBar.inOut": "inn {input} / ut {output}",
   "agentLiveUsage.statusBar.estimatedCost": "{cost}",
@@ -403,5 +402,7 @@
   "webview.storage.total": "Total lagring",
   "webview.storage.vacuumDatabase": "Komprimer database (VACUUM)",
   "webview.storage.wal": "Write-ahead-logg (WAL)",
-  "webview.storage.workspace": "Workspace-lagring"
+  "webview.storage.workspace": "Workspace-lagring",
+  "tokenDetector.output.channelName": "Cursor Token Detector",
+  "tokenDetector.output.trackingInitialized": "Agent tracking initialized for profile {profileId}"
 }
