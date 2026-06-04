@@ -1,6 +1,6 @@
 # Proxy: Agent IDs, Chats, and Parallel Subagents
 
-How identifiers in MITM logs relate to Agent sessions, parent chats, parallel subagents, and token attribution. For token field definitions see [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md). For raw log shape see [PROXY-JSONL-SCHEMA.md](PROXY-JSONL-SCHEMA.md).
+How identifiers in MITM logs relate to Agent sessions, parent chats, parallel subagents, and token attribution. For token field definitions see [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md). For CLI vs extension gaps see [CLI-vs-EXTENSION.md](CLI-vs-EXTENSION.md). For raw log shape see [PROXY-JSONL-SCHEMA.md](PROXY-JSONL-SCHEMA.md).
 
 **Last reviewed:** 2026-06-04 (validated against local `proxy-2026-06-03-*.jsonl` captures)
 
@@ -317,7 +317,7 @@ Example from local logs: chat `a4387fcb-8a88-4981-89ba-bc66962153c6` appeared un
 |-----|--------|
 | No `conversation_id` in proxy insights | Cannot filter live UI or output by chat tab without decode |
 | No extraction of `parent_request_id` ↔ `subagent_request_id` | Cannot build subagent tree from logs alone |
-| No `subagent_result` parsing in extension | Miss agent id + transcript path in live UI |
+| `subagent_result` in live UI | `agent_id` extracted to `subagentRequestId` on decode; transcript path and status bar labels not implemented |
 | Parallel sessions summed in status bar | Inflated “live tokens” vs parent-only view |
 | `turn_ended` rarely on wire | No per-turn billed breakdown in proxy |
 | HTTP/2 / `api5` path | May miss nested `RunPoll` frames; see [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md) |

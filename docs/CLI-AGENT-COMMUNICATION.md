@@ -4,7 +4,7 @@ How `cursor-agent` talks to Cursor’s Agent backend: RPCs, transports, framing,
 
 **Last reviewed:** 2026-06-04
 
-Related: [CLI-vs-IDE-TOKENS.md](CLI-vs-IDE-TOKENS.md), [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md), [PROXY-AGENT-IDS-AND-SUBAGENTS.md](PROXY-AGENT-IDS-AND-SUBAGENTS.md)
+Related: [CLI-vs-EXTENSION.md](CLI-vs-EXTENSION.md), [CLI-vs-IDE-TOKENS.md](CLI-vs-IDE-TOKENS.md), [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md), [PROXY-AGENT-IDS-AND-SUBAGENTS.md](PROXY-AGENT-IDS-AND-SUBAGENTS.md)
 
 ---
 
@@ -213,4 +213,4 @@ If the CLI is run **without** proxy env, the extension will see **IDE-only** tra
 | Live UI | `topStatus` + `Tt.ap(liveTokens)` |
 | Billing-shaped | `turn_ended` / `result.usage` at turn end |
 
-Next: [CLI-vs-IDE-TOKENS.md § Proxy comparison](CLI-vs-IDE-TOKENS.md) — how **cursor-accounts** decode and emit differs from this client behavior.
+Next: [CLI-vs-EXTENSION.md](CLI-vs-EXTENSION.md) — full CLI vs extension matrix and gap backlog; [CLI-vs-IDE-TOKENS.md](CLI-vs-IDE-TOKENS.md) — three-way comparison with native IDE.

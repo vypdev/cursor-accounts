@@ -4,7 +4,7 @@ Canonical reference for **what token and billing signals exist**, where they app
 
 **Last reviewed:** 2026-06-04
 
-For **CLI vs IDE** token UI and proxy gaps, see [CLI-vs-IDE-TOKENS.md](CLI-vs-IDE-TOKENS.md). For the **CLI Agent wire process** (RunSSE, BidiAppend, HTTP/2), see [CLI-AGENT-COMMUNICATION.md](CLI-AGENT-COMMUNICATION.md).
+For **CLI vs extension** implementation gaps and backlog, see [CLI-vs-EXTENSION.md](CLI-vs-EXTENSION.md). For **CLI vs IDE** token UI, see [CLI-vs-IDE-TOKENS.md](CLI-vs-IDE-TOKENS.md). For the **CLI Agent wire process**, see [CLI-AGENT-COMMUNICATION.md](CLI-AGENT-COMMUNICATION.md).
 
 ## Overview
 
@@ -390,7 +390,7 @@ Batch counts from `analyze:proxy-traffic` may under-report checkpoint tokens com
 | `total_cents` in proto | Not mapped to insights |
 | Shallow agent merge | Latest poll overwrites `insights.agent`; no per-turn history in UI |
 | Parallel subagents | Each subagent = separate `request_id` + `token_delta`; UI sums all sessions |
-| No subagent tree in insights | `parent_request_id`, `subagent_result` not extracted |
+| Subagent tree in UI | `parent_request_id` / `subagent_result` partially extracted to DB; status bar does not label parent vs child |
 | Period `totalSpend` | Includes **all** Cursor usage in the interval, not one conversation |
 | Dashboard API | Undocumented; may change without notice |
 | Script decode lag | `bidi-agent-decode.mjs` missing `token_details` / `StreamBidi` |
@@ -401,6 +401,9 @@ Batch counts from `analyze:proxy-traffic` may under-report checkpoint tokens com
 
 | Document | Topic |
 |----------|--------|
+| [CLI-vs-EXTENSION.md](CLI-vs-EXTENSION.md) | CLI vs extension matrix, gap backlog |
+| [CLI-vs-IDE-TOKENS.md](CLI-vs-IDE-TOKENS.md) | CLI vs IDE vs extension tokens |
+| [CLI-AGENT-COMMUNICATION.md](CLI-AGENT-COMMUNICATION.md) | CLI wire process |
 | [PROXY-SETUP.md](PROXY-SETUP.md) | Enable proxy, CA, routing, log paths |
 | [PROXY-JSONL-SCHEMA.md](PROXY-JSONL-SCHEMA.md) | JSONL line fields, body spill, examples |
 | [PROXY-AGENT-IDS-AND-SUBAGENTS.md](PROXY-AGENT-IDS-AND-SUBAGENTS.md) | `request_id`, chat tab `conversation_id`, parallel subagents |

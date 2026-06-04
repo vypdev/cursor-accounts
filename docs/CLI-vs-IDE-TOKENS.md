@@ -4,7 +4,7 @@ How **Cursor CLI** (`cursor-agent`) surfaces token usage during Agent sessions c
 
 **Last reviewed:** 2026-06-04
 
-Related: [CLI-AGENT-COMMUNICATION.md](CLI-AGENT-COMMUNICATION.md) (CLI wire process), [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md), [PROXY-AGENT-IDS-AND-SUBAGENTS.md](PROXY-AGENT-IDS-AND-SUBAGENTS.md)
+Related: [CLI-vs-EXTENSION.md](CLI-vs-EXTENSION.md) (CLI vs extension matrix + backlog), [CLI-AGENT-COMMUNICATION.md](CLI-AGENT-COMMUNICATION.md) (CLI wire process), [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md), [PROXY-AGENT-IDS-AND-SUBAGENTS.md](PROXY-AGENT-IDS-AND-SUBAGENTS.md)
 
 ---
 
@@ -60,7 +60,7 @@ Relevant UI snippet (minified names preserved):
 - Label text: `generating-status` → `"Working"` (or `"Composing"` for composer models).
 - Count source: `unshownTokenEstimate: kt.liveTokens + Dn`.
 
-**Important:** the CLI **sums** each `token_delta.tokens` value. That matches a server that sends **increments** per frame. The extension proxy often treats the same field as a **monotonic counter** per turn (peak + reset heuristic). Both read the same RPC; the **client math** differs.
+**Important:** the CLI **sums** each `token_delta.tokens` value. The extension does the same in live RunSSE decode (`accumulatedTokens += tokens`). Historical batch tools may still report **peak** per turn when using deprecated `TokenTurnDetectionService` on offline logs.
 
 The IDE native client receives the same `token_delta` frames but **does not render** this `topStatus` row.
 
@@ -360,8 +360,9 @@ node scripts/summarize-session-tokens.mjs ~/.cursor-accounts/proxy/logs/<log>.js
 
 ## References in this repo
 
-| File | Role |
-|------|------|
+| Document / file | Role |
+|-----------------|------|
+| [CLI-vs-EXTENSION.md](CLI-vs-EXTENSION.md) | Master CLI vs extension matrix + investigation backlog |
 | [`src/proxy/streamingAgentDecoder.ts`](../src/proxy/streamingAgentDecoder.ts) | Incremental `RunSSE` frame decode |
 | [`src/proxy/proxyInsightExtractor.ts`](../src/proxy/proxyInsightExtractor.ts) | `token_delta`, `turn_ended`, `token_details` extraction |
 | [`src/ui/agentLiveUsageStatusBar.ts`](../src/ui/agentLiveUsageStatusBar.ts) | IDE-side CLI-like status bar |

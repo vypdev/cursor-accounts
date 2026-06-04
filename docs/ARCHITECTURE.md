@@ -365,6 +365,9 @@ RunPoll (HTTP/1) uses one snapshot per response; turn detection applies to RunSS
 
 - [HOW-IT-WORKS.md](HOW-IT-WORKS.md) — user-facing technical overview
 - [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md) — token signals and billing channels
+- [CLI-vs-EXTENSION.md](CLI-vs-EXTENSION.md) — Cursor CLI vs extension matrix and gap backlog
+- [CLI-vs-IDE-TOKENS.md](CLI-vs-IDE-TOKENS.md) — CLI / IDE / extension token UI
+- [CLI-AGENT-COMMUNICATION.md](CLI-AGENT-COMMUNICATION.md) — CLI Agent wire process
 - [PROXY-JSONL-SCHEMA.md](PROXY-JSONL-SCHEMA.md) — MITM JSONL log format
 - [PROXY-AGENT-IDS-AND-SUBAGENTS.md](PROXY-AGENT-IDS-AND-SUBAGENTS.md) — Agent session IDs and parallel subagents
 - [DATABASE-SCHEMA.md](DATABASE-SCHEMA.md) — agent tracking tables and turn_index
