@@ -66,6 +66,13 @@ export interface ProxyInsights {
   agent?: AgentSessionInfo;
   /** Ordered token_delta frames from RunSSE stream scan (for turn detection). */
   allTokenFrames?: AgentSessionInfo[];
+  /** Pre-detected turn from incremental RunSSE decode (persist without re-scanning). */
+  completedTurn?: {
+    streamingTokens: number;
+    turnIndex: number;
+  };
+  /** When true, turn rows were already persisted incrementally during the stream. */
+  streamingTurnsAlreadyPersisted?: boolean;
 }
 
 function asNumber(value: unknown): number | undefined {

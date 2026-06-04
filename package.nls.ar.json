@@ -32,6 +32,7 @@
   "commands.proxy.stop.title": "Cursor Accounts: إيقاف وسيط MITM",
   "commands.proxy.showLogs.title": "Cursor Accounts: فتح سجلات الوسيط",
   "commands.proxy.showOutput.title": "Cursor Accounts: عرض حركة وسيط MITM",
+  "commands.proxy.showTokenDetector.title": "Cursor Accounts: عرض مخرجات كاشف الرموز",
   "commands.proxy.saveCertificate.title": "Cursor Accounts: حفظ شهادة CA للوسيط…",
   "configuration.debug.webviewLifecycle.description": "تسجيل تشخيصات دورة حياة webview في قناة إخراج Cursor Accounts (عطّل بعد استكشاف الأخطاء).",
   "configuration.proxy.enabled.description": "تشغيل وسيط MITM عند تفعيل الامتداد (يراقب حركة شبكة Cursor).",
@@ -45,5 +46,8 @@
   "configuration.proxy.maxBodyLogMB.description": "الحد الأقصى لحجم body الطلب/الاستجابة المخزن inline في كل سطر JSONL. تُحفظ body الأكبر في logs/bodies/ عند تفعيل spill.",
   "configuration.proxy.spillLargeBodies.description": "عندما يتجاوز body الحد inline، احفظ البايتات الخام الكاملة في logs/bodies/ بدلاً من الاقتطاع (موصى به للتحليل).",
   "configuration.proxy.showLiveUsageInStatusBar.description": "إظهار استخدام رموز agent/chat المباشر في شريط الحالة أثناء تشغيل وسيط MITM (يتتبع سجلات الوسيط تلقائياً).",
-  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "USD تقريبية لكل مليون رمز لتقديرات التكلفة المباشرة في شريط الحالة (قد يختلف الفوتر الفعلي)."
+  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "USD تقريبية لكل مليون رمز لتقديرات التكلفة المباشرة في شريط الحالة (قد يختلف الفوتر الفعلي).",
+  "configuration.proxy.developmentMode.description": "كتابة حركة الوسيط إلى ملفات سجل JSONL محلية للتصحيح. اتركه معطّلًا في الاستخدام العادي؛ الامتداد يستقبل الحركة في الوقت الفعلي عبر IPC.",
+  "configuration.proxy.logTokenDetectorToOutput.description": "كتابة أحداث الوكيل/الرمز/المحادثة من IPC الوسيط إلى قناة إخراج Cursor Token Detector.",
+  "configuration.proxy.autoShowTokenDetectorChannel.description": "فتح قناة إخراج Cursor Token Detector تلقائيًا عند وصول أحداث الوكيل أو الرمز."
 }

@@ -73,4 +73,16 @@ describe('TokenTurnDetectionService', () => {
     assert.equal(RESET_PEAK_THRESHOLD, 300);
     assert.equal(RESET_DROP_THRESHOLD, 150);
   });
+
+  it('processFrame detects reset incrementally', () => {
+    const state = { currentPeak: 0, turnIndex: 0 };
+
+    assert.equal(service.processFrame(delta(300), state), null);
+    const completed = service.processFrame(delta(100), state);
+    assert.ok(completed);
+    assert.equal(completed?.streamingTokens, 300);
+    assert.equal(completed?.turnIndex, 0);
+    assert.equal(state.turnIndex, 1);
+    assert.equal(state.currentPeak, 100);
+  });
 });

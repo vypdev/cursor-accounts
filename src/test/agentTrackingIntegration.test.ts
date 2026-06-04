@@ -198,4 +198,80 @@ ORDER BY turn_index ASC;
     assert.equal(rows[1]?.turn_index, 1);
     assert.equal(rows[1]?.streaming_tokens, 250);
   });
+
+  it('persists RunSSE turns incrementally during stream', async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-integration-'));
+    const dbPath = path.join(tempDir, 'efficiency.db');
+    const repo = new AgentTrackingDatabase(dbPath, extensionPath);
+    const service = new AgentTrackingService(repo, 'prof-1');
+    await service.initialize();
+
+    const base = {
+      timestamp: new Date(1_000_000).toISOString(),
+      kind: 'response',
+      url: 'https://agent.api5.cursor.sh/agent.v1.AgentService/RunSSE',
+      host: 'agent.api5.cursor.sh',
+      endpoint: '/agent.v1.AgentService/RunSSE',
+      httpRequestId: 'http-req-runsse',
+    } as const;
+
+    await service.ingestTraffic({
+      ...base,
+      insights: {
+        agent: {
+          requestId: 'req-runsse',
+          conversationId: 'conv-runsse',
+        },
+      },
+    } satisfies ProxyTrafficSummary);
+
+    await service.ingestTraffic({
+      ...base,
+      timestamp: new Date(1_100_000).toISOString(),
+      insights: {
+        agent: {
+          requestId: 'req-runsse',
+          streamingTokens: 300,
+          usageEvent: 'token_delta',
+        },
+        completedTurn: {
+          streamingTokens: 300,
+          turnIndex: 0,
+        },
+      },
+    } satisfies ProxyTrafficSummary);
+
+    await service.ingestTraffic({
+      ...base,
+      timestamp: new Date(1_200_000).toISOString(),
+      insights: {
+        agent: {
+          requestId: 'req-runsse',
+          streamingTokens: 250,
+          usageEvent: 'token_delta',
+        },
+        completedTurn: {
+          streamingTokens: 250,
+          turnIndex: 1,
+        },
+      },
+    } satisfies ProxyTrafficSummary);
+
+    const executor = new SqliteExecutor(dbPath, extensionPath);
+    const rows = executor.queryRows<{
+      turn_index: number | null;
+      streaming_tokens: number | null;
+    }>(`
+SELECT turn_index, streaming_tokens
+FROM agent_tokens
+WHERE request_id = 'req-runsse'
+ORDER BY turn_index ASC;
+`);
+
+    assert.equal(rows.length, 2);
+    assert.equal(rows[0]?.turn_index, 0);
+    assert.equal(rows[0]?.streaming_tokens, 300);
+    assert.equal(rows[1]?.turn_index, 1);
+    assert.equal(rows[1]?.streaming_tokens, 250);
+  });
 });

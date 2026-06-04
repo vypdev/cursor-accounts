@@ -32,6 +32,7 @@
   "commands.proxy.stop.title": "Cursor Accounts: MITM प्रॉक्सी बंद करें",
   "commands.proxy.showLogs.title": "Cursor Accounts: प्रॉक्सी लॉग खोलें",
   "commands.proxy.showOutput.title": "Cursor Accounts: MITM प्रॉक्सी ट्रैफ़िक दिखाएँ",
+  "commands.proxy.showTokenDetector.title": "Cursor Accounts: टोकन डिटेक्टर आउटपुट दिखाएँ",
   "commands.proxy.saveCertificate.title": "Cursor Accounts: प्रॉक्सी CA प्रमाणपत्र सहेजें…",
   "configuration.debug.webviewLifecycle.description": "Webview जीवनचक्र निदान को Cursor Accounts आउटपुट चैनल में लॉग करें (समस्या हल होने के बाद बंद करें)।",
   "configuration.proxy.enabled.description": "एक्सटेंशन सक्रिय होने पर MITM प्रॉक्सी शुरू करें (Cursor नेटवर्क ट्रैफ़िक देखता है)।",
@@ -45,5 +46,8 @@
   "configuration.proxy.maxBodyLogMB.description": "प्रत्येक JSONL पंक्ति में इनलाइन संग्रहीत अनुरोध/प्रतिक्रिया body का अधिकतम आकार। spill सक्षम होने पर बड़े body logs/bodies/ में सहेजे जाते हैं।",
   "configuration.proxy.spillLargeBodies.description": "जब body इनलाइन सीमा से अधिक हो, काटने के बजाय पूर्ण कच्चे बाइट logs/bodies/ में सहेजें (विश्लेषण के लिए अनुशंसित)।",
   "configuration.proxy.showLiveUsageInStatusBar.description": "MITM प्रॉक्सी चलते समय स्टेटस बार में एजेंट/चैट टोकन उपयोग लाइव दिखाएँ (प्रॉक्सी लॉग स्वचालित रूप से टेल करता है)।",
-  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "स्टेटस बार में लाइव लागत अनुमान के लिए प्रति मिलियन टोकन अनुमानित USD (वास्तविक बिलिंग भिन्न हो सकती है)।"
+  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "स्टेटस बार में लाइव लागत अनुमान के लिए प्रति मिलियन टोकन अनुमानित USD (वास्तविक बिलिंग भिन्न हो सकती है)।",
+  "configuration.proxy.developmentMode.description": "डिबगिंग के लिए प्रॉक्सी ट्रैफ़िक को स्थानीय JSONL लॉग फ़ाइलों में लिखें। सामान्य उपयोग के लिए अक्षम रखें; एक्सटेंशन IPC के माध्यम से वास्तविक समय में ट्रैफ़िक प्राप्त करता है।",
+  "configuration.proxy.logTokenDetectorToOutput.description": "प्रॉक्सी IPC से एजेंट/टोकन/बातचीत इवेंट को Cursor Token Detector आउटपुट चैनल में लिखें।",
+  "configuration.proxy.autoShowTokenDetectorChannel.description": "एजेंट या टोकन इवेंट आने पर Cursor Token Detector आउटपुट चैनल स्वचालित रूप से खोलें।"
 }

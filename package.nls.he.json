@@ -32,6 +32,7 @@
   "commands.proxy.stop.title": "Cursor Accounts: עצור פרוקסי MITM",
   "commands.proxy.showLogs.title": "Cursor Accounts: פתח יומני פרוקסי",
   "commands.proxy.showOutput.title": "Cursor Accounts: הצג תעבורת פרוקסי MITM",
+  "commands.proxy.showTokenDetector.title": "Cursor Accounts: הצגת פלט Token Detector",
   "commands.proxy.saveCertificate.title": "Cursor Accounts: שמור אישור CA לפרוקסי…",
   "configuration.debug.webviewLifecycle.description": "רשום אבחון מחזור חיי webview בערוץ הפלט של Cursor Accounts (השבת לאחר פתרון תקלות).",
   "configuration.proxy.enabled.description": "הפעל פרוקסי MITM בהפעלת ההרחבה (צופה בתעבורת הרשת של Cursor).",
@@ -45,5 +46,8 @@
   "configuration.proxy.maxBodyLogMB.description": "גודל מרבי של body בקשה/תגובה המאוחסן inline בכל שורת JSONL. body גדולים יותר נשמרים ב-logs/bodies/ כאשר spill מופעל.",
   "configuration.proxy.spillLargeBodies.description": "כאשר body חורג ממגבלת inline, שמור את הבайטים הגולמיים המלאים ב-logs/bodies/ במקום לקצץ (מומלץ לניתוח).",
   "configuration.proxy.showLiveUsageInStatusBar.description": "הצג שימוש חי בטוקנים של agent/chat בשורת המצב בזמן שפרוקסי MITM פועל (עוקב אחר לוגי הפרוקסי אוטומטית).",
-  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "USD משוערים למיליון טוקנים להערכות עלות חיות בשורת המצב (חיוב בפועל עשוי להיות שונה)."
+  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "USD משוערים למיליון טוקנים להערכות עלות חיות בשורת המצב (חיוב בפועל עשוי להיות שונה).",
+  "configuration.proxy.developmentMode.description": "כתוב תעבורת פרוקסי לקובצי JSONL מקומיים לניפוי שגיאות. השאר כבוי בשימוש רגיל; ההרחבה מקבלת תעבורה בזמן אמת דרך IPC.",
+  "configuration.proxy.logTokenDetectorToOutput.description": "כתוב אירועי סוכן/טוקן/שיחה מ-IPC של הפרוקסי לערוץ הפלט Cursor Token Detector.",
+  "configuration.proxy.autoShowTokenDetectorChannel.description": "פתח אוטומטית את ערוץ הפלט Cursor Token Detector כשמגיעים אירועי סוכן או טוקן."
 }

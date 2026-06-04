@@ -32,6 +32,7 @@
   "commands.proxy.stop.title": "Cursor Accounts : Arrêter le proxy MITM",
   "commands.proxy.showLogs.title": "Cursor Accounts : Ouvrir les journaux du proxy",
   "commands.proxy.showOutput.title": "Cursor Accounts : Afficher le trafic du proxy MITM",
+  "commands.proxy.showTokenDetector.title": "Cursor Accounts : Afficher la sortie du détecteur de jetons",
   "commands.proxy.saveCertificate.title": "Cursor Accounts : Enregistrer le certificat CA du proxy…",
   "configuration.debug.webviewLifecycle.description": "Journaliser les diagnostics du cycle de vie du webview dans le canal de sortie Cursor Accounts (désactiver après dépannage).",
   "configuration.proxy.enabled.description": "Démarrer le proxy MITM à l'activation de l'extension (observe le trafic réseau de Cursor).",
@@ -45,5 +46,8 @@
   "configuration.proxy.maxBodyLogMB.description": "Taille maximale du corps de requête/réponse stocké en ligne dans chaque ligne JSONL. Les corps plus volumineux sont enregistrés sous logs/bodies/ si le déversement est activé.",
   "configuration.proxy.spillLargeBodies.description": "Lorsqu'un corps dépasse la limite inline, enregistrer les octets bruts complets dans logs/bodies/ au lieu de tronquer (recommandé pour l'analyse).",
   "configuration.proxy.showLiveUsageInStatusBar.description": "Afficher l'utilisation en direct des jetons agent/chat dans la barre d'état pendant que le proxy MITM est en cours d'exécution (suit automatiquement les journaux du proxy).",
-  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "USD approximatifs par million de jetons pour les estimations de coût en direct dans la barre d'état (la facturation réelle peut différer)."
+  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "USD approximatifs par million de jetons pour les estimations de coût en direct dans la barre d'état (la facturation réelle peut différer).",
+  "configuration.proxy.developmentMode.description": "Écrire le trafic proxy dans des fichiers journaux JSONL locaux pour le débogage. Laisser désactivé en usage normal ; l'extension reçoit le trafic en temps réel via IPC.",
+  "configuration.proxy.logTokenDetectorToOutput.description": "Écrire les événements agent/jeton/conversation depuis l'IPC du proxy dans le canal de sortie Cursor Token Detector.",
+  "configuration.proxy.autoShowTokenDetectorChannel.description": "Ouvrir automatiquement le canal de sortie Cursor Token Detector lors de l'arrivée d'événements agent ou jeton."
 }

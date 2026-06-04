@@ -32,6 +32,7 @@
   "commands.proxy.stop.title": "Cursor Accounts: Остановить MITM-прокси",
   "commands.proxy.showLogs.title": "Cursor Accounts: Открыть логи прокси",
   "commands.proxy.showOutput.title": "Cursor Accounts: Показать трафик MITM-прокси",
+  "commands.proxy.showTokenDetector.title": "Cursor Accounts: Показать вывод детектора токенов",
   "commands.proxy.saveCertificate.title": "Cursor Accounts: Сохранить CA-сертификат прокси…",
   "configuration.debug.webviewLifecycle.description": "Записывать диагностику жизненного цикла webview в канал вывода Cursor Accounts (отключить после устранения неполадок).",
   "configuration.proxy.enabled.description": "Запускать MITM-прокси при активации расширения (наблюдает сетевой трафик Cursor).",
@@ -45,5 +46,8 @@
   "configuration.proxy.maxBodyLogMB.description": "Максимальный размер тела запроса/ответа, хранимого inline в каждой строке JSONL. Большие тела сохраняются в logs/bodies/, если включён spill.",
   "configuration.proxy.spillLargeBodies.description": "Если тело превышает inline-лимит, сохранять полные сырые байты в logs/bodies/ вместо обрезки (рекомендуется для анализа).",
   "configuration.proxy.showLiveUsageInStatusBar.description": "Показывать использование токенов агента/чата в реальном времени на панели состояния, пока работает MITM-прокси (автоматически отслеживает логи прокси).",
-  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "Примерные USD за миллион токенов для оценки стоимости в реальном времени на панели состояния (фактическое списание может отличаться)."
+  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "Примерные USD за миллион токенов для оценки стоимости в реальном времени на панели состояния (фактическое списание может отличаться).",
+  "configuration.proxy.developmentMode.description": "Записывать трафик прокси в локальные JSONL-файлы журналов для отладки. Оставляйте выключенным при обычном использовании; расширение получает трафик в реальном времени через IPC.",
+  "configuration.proxy.logTokenDetectorToOutput.description": "Записывать события агента/токена/беседы с IPC прокси в канал вывода Cursor Token Detector.",
+  "configuration.proxy.autoShowTokenDetectorChannel.description": "Автоматически открывать канал вывода Cursor Token Detector при поступлении событий агента или токена."
 }

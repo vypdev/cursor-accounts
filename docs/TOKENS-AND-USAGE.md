@@ -253,7 +253,11 @@ Settings: [CONFIGURATION.md](CONFIGURATION.md) (proxy section), [PROXY-SETUP.md]
 
 ## Turn tracking in RunSSE streams (HTTP/2)
 
-**RunSSE:** One HTTP response contains hundreds of `token_delta` frames. The extension scans the full stream, detects turn resets, and persists one row per turn in `agent_tokens`.
+**RunSSE:** One HTTP response contains hundreds of `token_delta` frames. The extension detects turn resets and persists one row per turn in `agent_tokens`.
+
+**Incremental decode (live):** While a RunSSE stream is open, [`StreamingAgentDecoder`](../src/proxy/streamingAgentDecoder.ts) decodes each response chunk as it arrives (via `MitmProxyServer.onResponseData`). When a turn reset is detected (peak ≥ 300, drop ≤ 150), the proxy emits a partial traffic event with `insights.completedTurn` **before** the stream closes. [`AgentTrackingService`](../src/services/agentTrackingService.ts) persists that turn immediately so the DB and live status bar update during generation—not only after the HTTP response ends.
+
+At stream end, the proxy still logs the full response body to JSONL, but sets `streamingTurnsAlreadyPersisted` on the final summary to avoid duplicate turn rows.
 
 **RunPoll (HTTP/1):** Each response is a single frame; one snapshot per response. Turn detection is not applied within a response (documented for future extension).
 
@@ -274,6 +278,8 @@ Ported from [`agentLiveUsageStatusBar.ts`](../src/ui/agentLiveUsageStatusBar.ts)
 1. Track peak streaming counter within current turn
 2. If peak ≥ **300** and next value ≤ **150** → emit previous peak as completed turn, start new turn
 3. After all frames, emit final peak
+
+For RunSSE, the same algorithm runs incrementally in `StreamingAgentDecoder.feedChunk()` via `TokenTurnDetectionService.processFrame()`.
 
 ### Database representation
 

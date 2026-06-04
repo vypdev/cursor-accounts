@@ -32,6 +32,7 @@
   "commands.proxy.stop.title": "Cursor Accounts: MITM-proxy stoppen",
   "commands.proxy.showLogs.title": "Cursor Accounts: Proxy-logboeken openen",
   "commands.proxy.showOutput.title": "Cursor Accounts: MITM-proxyverkeer tonen",
+  "commands.proxy.showTokenDetector.title": "Cursor Accounts: Token Detector-uitvoer weergeven",
   "commands.proxy.saveCertificate.title": "Cursor Accounts: Proxy CA-certificaat opslaan…",
   "configuration.debug.webviewLifecycle.description": "Webview-levenscyclusdiagnostiek loggen naar het Cursor Accounts-uitvoerkanaal (uitschakelen na probleemoplossing).",
   "configuration.proxy.enabled.description": "Start de MITM-proxy bij activering van de extensie (observeert Cursor-netwerkverkeer).",
@@ -45,5 +46,8 @@
   "configuration.proxy.maxBodyLogMB.description": "Maximale grootte van request/response-body opgeslagen inline in elke JSONL-regel. Grotere bodies worden opgeslagen onder logs/bodies/ wanneer spill is ingeschakeld.",
   "configuration.proxy.spillLargeBodies.description": "Wanneer een body de inline-limiet overschrijdt, sla de volledige ruwe bytes op in logs/bodies/ in plaats van af te kappen (aanbevolen voor analyse).",
   "configuration.proxy.showLiveUsageInStatusBar.description": "Toon live agent/chat-tokengebruik in de statusbalk terwijl de MITM-proxy draait (volgt proxylogs automatisch).",
-  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "Grove USD per miljoen tokens voor live-kostenschattingen in de statusbalk (werkelijke facturering kan afwijken)."
+  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "Grove USD per miljoen tokens voor live-kostenschattingen in de statusbalk (werkelijke facturering kan afwijken).",
+  "configuration.proxy.developmentMode.description": "Proxyverkeer naar lokale JSONL-logbestanden schrijven voor foutopsporing. Uitgeschakeld laten bij normaal gebruik; de extensie ontvangt verkeer in realtime via IPC.",
+  "configuration.proxy.logTokenDetectorToOutput.description": "Agent/token/gesprekgebeurtenissen van proxy-IPC naar het Cursor Token Detector-outputkanaal schrijven.",
+  "configuration.proxy.autoShowTokenDetectorChannel.description": "Het Cursor Token Detector-outputkanaal automatisch openen wanneer agent- of tokengebeurtenissen binnenkomen."
 }

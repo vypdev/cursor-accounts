@@ -31,7 +31,7 @@ export function isAgentServerStreamRpc(
   );
 }
 
-function decodeAgentServerPayload(
+export function decodeAgentServerPayload(
   registry: ProtoRegistry,
   payload: Buffer
 ): Record<string, unknown> | null {
@@ -59,7 +59,7 @@ function decodeAgentServerPayload(
   return null;
 }
 
-function tryConnectFrame(
+export function tryConnectFrame(
   body: Buffer,
   offset: number
 ): { payload: Buffer; nextOffset: number } | null {

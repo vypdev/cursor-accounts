@@ -32,6 +32,7 @@
   "commands.proxy.stop.title": "Cursor Accounts: MITM 프록시 중지",
   "commands.proxy.showLogs.title": "Cursor Accounts: 프록시 로그 열기",
   "commands.proxy.showOutput.title": "Cursor Accounts: MITM 프록시 트래픽 표시",
+  "commands.proxy.showTokenDetector.title": "Cursor Accounts: 토큰 감지기 출력 표시",
   "commands.proxy.saveCertificate.title": "Cursor Accounts: 프록시 CA 인증서 저장…",
   "configuration.debug.webviewLifecycle.description": "Webview 수명 주기 진단을 Cursor Accounts 출력 채널에 기록(문제 해결 후 비활성화).",
   "configuration.proxy.enabled.description": "확장 활성화 시 MITM 프록시 시작(Cursor 네트워크 트래픽 관찰).",
@@ -45,5 +46,8 @@
   "configuration.proxy.maxBodyLogMB.description": "각 JSONL 줄에 인라인으로 저장되는 요청/응답 body의 최대 크기. spill이 활성화되면 더 큰 body는 logs/bodies/에 저장됩니다.",
   "configuration.proxy.spillLargeBodies.description": "body가 인라인 한도를 초과하면 잘라내지 않고 logs/bodies/에 전체 원시 바이트를 저장합니다(분석에 권장).",
   "configuration.proxy.showLiveUsageInStatusBar.description": "MITM 프록시 실행 중 상태 표시줄에 에이전트/채팅 토큰 사용량을 실시간으로 표시합니다(프록시 로그를 자동 추적).",
-  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "상태 표시줄의 실시간 비용 추정을 위한 100만 토큰당 대략적인 USD(실제 청구는 다를 수 있음)."
+  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "상태 표시줄의 실시간 비용 추정을 위한 100만 토큰당 대략적인 USD(실제 청구는 다를 수 있음).",
+  "configuration.proxy.developmentMode.description": "디버깅을 위해 프록시 트래픽을 로컬 JSONL 로그 파일에 기록합니다. 일반 사용 시에는 비활성화해 두세요. 확장은 IPC를 통해 실시간으로 트래픽을 수신합니다.",
+  "configuration.proxy.logTokenDetectorToOutput.description": "프록시 IPC의 에이전트/토큰/대화 이벤트를 Cursor Token Detector 출력 채널에 기록합니다.",
+  "configuration.proxy.autoShowTokenDetectorChannel.description": "에이전트 또는 토큰 이벤트가 도착하면 Cursor Token Detector 출력 채널을 자동으로 엽니다."
 }

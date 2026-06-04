@@ -18,6 +18,10 @@ class MockRepository implements IAgentTrackingRepository {
     httpRequestId?: string;
     streamingTokens?: number;
   }> = [];
+  agentsByRequestId = new Map<
+    string,
+    { requestId: string; conversationId: string }
+  >();
 
   async initialize(): Promise<void> {}
 
@@ -34,6 +38,10 @@ class MockRepository implements IAgentTrackingRepository {
     conversationId: string;
   }): Promise<void> {
     this.agents.push({
+      requestId: agent.requestId,
+      conversationId: agent.conversationId,
+    });
+    this.agentsByRequestId.set(agent.requestId, {
       requestId: agent.requestId,
       conversationId: agent.conversationId,
     });
@@ -69,8 +77,22 @@ class MockRepository implements IAgentTrackingRepository {
     };
   }
 
-  async getAgentTokens() {
-    return null;
+  async getAgentTokens(requestId: string) {
+    const agent = this.agentsByRequestId.get(requestId);
+    if (!agent) {
+      return null;
+    }
+    return {
+      requestId: agent.requestId,
+      conversationId: agent.conversationId,
+      startedAt: 0,
+      peakStreamingTokens: 0,
+      finalInputTokens: 0,
+      finalOutputTokens: 0,
+      finalCacheReadTokens: 0,
+      finalCacheWriteTokens: 0,
+      finalTotalTokens: 0,
+    };
   }
 
   async getAgentTree() {
@@ -116,6 +138,45 @@ describe('AgentTrackingService', () => {
     assert.equal(repo.agents[0]?.requestId, 'req-123');
     assert.equal(repo.tokens.length, 1);
     assert.equal(repo.tokens[0]?.tokenType, 'delta');
+  });
+
+  it('resolves conversation_id from existing agent for RunSSE without conversation_id', async () => {
+    const repo = new MockRepository();
+    repo.agentsByRequestId.set('bidi-req-1', {
+      requestId: 'bidi-req-1',
+      conversationId: 'conv-from-db',
+    });
+    const turnDetection: ITokenTurnDetectionService = {
+      detectTurns() {
+        return [{ streamingTokens: 300, turnIndex: 0 }] satisfies DetectedTurn[];
+      },
+    };
+    const service = new AgentTrackingService(repo, 'prof-1', turnDetection);
+    await service.initialize();
+
+    await service.ingestTraffic({
+      timestamp: new Date(1_000_000).toISOString(),
+      kind: 'response',
+      url: 'https://agent.api5.cursor.sh/agent.v1.AgentService/RunSSE',
+      host: 'agent.api5.cursor.sh',
+      endpoint: '/agent.v1.AgentService/RunSSE',
+      httpRequestId: 'http-req-1',
+      insights: {
+        agent: {
+          requestId: 'bidi-req-1',
+        },
+        allTokenFrames: [
+          { streamingTokens: 300, usageEvent: 'token_delta' },
+          { streamingTokens: 100, usageEvent: 'token_delta' },
+        ],
+      },
+    } satisfies ProxyTrafficSummary);
+
+    assert.equal(repo.conversations.length, 1);
+    assert.equal(repo.conversations[0]?.conversationId, 'conv-from-db');
+    assert.equal(repo.tokens.length, 1);
+    assert.equal(repo.tokens[0]?.requestId, 'bidi-req-1');
+    assert.equal(repo.tokens[0]?.turnIndex, 0);
   });
 
   it('skips traffic without conversation_id', async () => {
@@ -241,5 +302,37 @@ describe('AgentTrackingService', () => {
     assert.equal(repo.tokens[0]?.httpRequestId, 'http-req-1');
     assert.equal(repo.tokens[1]?.turnIndex, 1);
     assert.equal(repo.tokens[1]?.streamingTokens, 200);
+  });
+
+  it('persists completedTurn from incremental RunSSE decode', async () => {
+    const repo = new MockRepository();
+    const service = new AgentTrackingService(repo, 'prof-1');
+    await service.initialize();
+
+    await service.ingestTraffic({
+      timestamp: new Date(1_000_000).toISOString(),
+      kind: 'response',
+      url: 'https://agent.api5.cursor.sh/agent.v1.AgentService/RunSSE',
+      host: 'agent.api5.cursor.sh',
+      endpoint: '/agent.v1.AgentService/RunSSE',
+      httpRequestId: 'http-req-1',
+      insights: {
+        agent: {
+          requestId: 'bidi-req-1',
+          conversationId: 'conv-456',
+          streamingTokens: 300,
+          usageEvent: 'token_delta',
+        },
+        completedTurn: {
+          streamingTokens: 300,
+          turnIndex: 0,
+        },
+      },
+    } satisfies ProxyTrafficSummary);
+
+    assert.equal(repo.tokens.length, 1);
+    assert.equal(repo.tokens[0]?.turnIndex, 0);
+    assert.equal(repo.tokens[0]?.streamingTokens, 300);
+    assert.equal(repo.tokens[0]?.httpRequestId, 'http-req-1');
   });
 });

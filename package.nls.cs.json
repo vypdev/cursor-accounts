@@ -32,6 +32,7 @@
   "commands.proxy.stop.title": "Cursor Accounts: Zastavit proxy MITM",
   "commands.proxy.showLogs.title": "Cursor Accounts: Otevřít protokoly proxy",
   "commands.proxy.showOutput.title": "Cursor Accounts: Zobrazit provoz proxy MITM",
+  "commands.proxy.showTokenDetector.title": "Cursor Accounts: Zobrazit výstup detektoru tokenů",
   "commands.proxy.saveCertificate.title": "Cursor Accounts: Uložit certifikát CA proxy…",
   "configuration.debug.webviewLifecycle.description": "Zaznamenávat diagnostiku životního cyklu webview do výstupního kanálu Cursor Accounts (vypněte po řešení problémů).",
   "configuration.proxy.enabled.description": "Spustit proxy MITM při aktivaci rozšíření (sleduje síťový provoz Cursor).",
@@ -45,5 +46,8 @@
   "configuration.proxy.maxBodyLogMB.description": "Maximální velikost těla požadavku/odpovědi uloženého inline v každém řádku JSONL. Větší těla se ukládají do logs/bodies/, pokud je spill povolen.",
   "configuration.proxy.spillLargeBodies.description": "Pokud tělo překročí inline limit, uložit kompletní surové bajty do logs/bodies/ místo ořezání (doporučeno pro analýzu).",
   "configuration.proxy.showLiveUsageInStatusBar.description": "Zobrazovat živé využití tokenů agenta/chatu ve stavovém řádku, zatímco běží proxy MITM (automaticky sleduje logy proxy).",
-  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "Hrubé USD za milion tokenů pro odhady živých nákladů ve stavovém řádku (skutečná fakturace se může lišit)."
+  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "Hrubé USD za milion tokenů pro odhady živých nákladů ve stavovém řádku (skutečná fakturace se může lišit).",
+  "configuration.proxy.developmentMode.description": "Zapisovat provoz proxy do lokálních JSONL log souborů pro ladění. Ponechte vypnuté při běžném použití; rozšíření přijímá provoz v reálném čase přes IPC.",
+  "configuration.proxy.logTokenDetectorToOutput.description": "Zapisovat události agenta/tokenu/konverzace z IPC proxy do výstupního kanálu Cursor Token Detector.",
+  "configuration.proxy.autoShowTokenDetectorChannel.description": "Automaticky otevřít výstupní kanál Cursor Token Detector při příchodu událostí agenta nebo tokenu."
 }

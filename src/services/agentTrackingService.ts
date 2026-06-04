@@ -35,8 +35,20 @@ export class AgentTrackingService {
       }
 
       const timestamp = this.normalizeTimestamp(summary.timestamp);
-      const conversationId =
-        insights.agent?.conversationId ?? insights.context?.conversationId;
+      const agent = insights.agent;
+      if (!agent?.requestId) {
+        return;
+      }
+
+      let conversationId =
+        agent.conversationId ?? insights.context?.conversationId;
+
+      if (!conversationId) {
+        const existingAgent = await this.repository.getAgentTokens(
+          agent.requestId
+        );
+        conversationId = existingAgent?.conversationId;
+      }
 
       if (!conversationId) {
         return;
@@ -48,11 +60,6 @@ export class AgentTrackingService {
         timestamp,
         insights.context?.messageCount
       );
-
-      const agent = insights.agent;
-      if (!agent?.requestId) {
-        return;
-      }
 
       await this.repository.upsertAgent({
         requestId: agent.requestId,
@@ -70,6 +77,24 @@ export class AgentTrackingService {
       const allTokenFrames = insights.allTokenFrames;
       const httpRequestId = summary.httpRequestId;
       const modelName = insights.tokens?.modelName ?? agent.modelName;
+
+      if (insights.completedTurn) {
+        await this.repository.insertTokenSnapshot({
+          requestId: agent.requestId,
+          tokenType: 'delta',
+          streamingTokens: insights.completedTurn.streamingTokens,
+          totalTokens: insights.completedTurn.streamingTokens,
+          recordedAt: timestamp,
+          modelName,
+          turnIndex: insights.completedTurn.turnIndex,
+          httpRequestId,
+        });
+        return;
+      }
+
+      if (insights.streamingTurnsAlreadyPersisted) {
+        return;
+      }
 
       if (
         allTokenFrames &&

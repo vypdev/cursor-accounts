@@ -32,6 +32,7 @@
   "commands.proxy.stop.title": "Cursor Accounts: Stopp MITM-proxy",
   "commands.proxy.showLogs.title": "Cursor Accounts: Åpne proxy-logger",
   "commands.proxy.showOutput.title": "Cursor Accounts: Vis MITM-proxytrafikk",
+  "commands.proxy.showTokenDetector.title": "Cursor Accounts: Vis Token Detector-utdata",
   "commands.proxy.saveCertificate.title": "Cursor Accounts: Lagre proxy CA-sertifikat…",
   "configuration.debug.webviewLifecycle.description": "Logg webview livssyklusdiagnostikk til Cursor Accounts utdatakanal (deaktiver etter feilsøking).",
   "configuration.proxy.enabled.description": "Start MITM-proxy når utvidelsen aktiveres (overvåker Cursor-nettverkstrafikk).",
@@ -45,5 +46,8 @@
   "configuration.proxy.maxBodyLogMB.description": "Maksimal størrelse på request/response-body lagret inline i hver JSONL-linje. Større body lagres under logs/bodies/ når spill er aktivert.",
   "configuration.proxy.spillLargeBodies.description": "Når en body overskrider inline-grensen, lagre fullstendige rå bytes i logs/bodies/ i stedet for å trunkere (anbefales for analyse).",
   "configuration.proxy.showLiveUsageInStatusBar.description": "Vis live agent/chat-tokenbruk i statuslinjen mens MITM-proxyen kjører (følger proxylogger automatisk).",
-  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "Omtrentlige USD per million tokens for live-kostnadsestimater i statuslinjen (faktisk fakturering kan avvike)."
+  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "Omtrentlige USD per million tokens for live-kostnadsestimater i statuslinjen (faktisk fakturering kan avvike).",
+  "configuration.proxy.developmentMode.description": "Skriv proxytrafikk til lokale JSONL-loggfiler for feilsøking. La være deaktivert ved normal bruk; utvidelsen mottar trafikk i sanntid via IPC.",
+  "configuration.proxy.logTokenDetectorToOutput.description": "Skriv agent/token/samtalehendelser fra proxy-IPC til Cursor Token Detector-outputkanalen.",
+  "configuration.proxy.autoShowTokenDetectorChannel.description": "Åpne automatisk Cursor Token Detector-outputkanalen når agent- eller tokenhendelser ankommer."
 }

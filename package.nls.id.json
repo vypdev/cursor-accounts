@@ -32,6 +32,7 @@
   "commands.proxy.stop.title": "Cursor Accounts: Hentikan proxy MITM",
   "commands.proxy.showLogs.title": "Cursor Accounts: Buka log proxy",
   "commands.proxy.showOutput.title": "Cursor Accounts: Tampilkan lalu lintas proxy MITM",
+  "commands.proxy.showTokenDetector.title": "Cursor Accounts: Tampilkan Output Token Detector",
   "commands.proxy.saveCertificate.title": "Cursor Accounts: Simpan sertifikat CA proxy…",
   "configuration.debug.webviewLifecycle.description": "Catat diagnostik siklus hidup webview ke saluran output Cursor Accounts (nonaktifkan setelah pemecahan masalah).",
   "configuration.proxy.enabled.description": "Mulai proxy MITM saat ekstensi diaktifkan (memantau lalu lintas jaringan Cursor).",
@@ -45,5 +46,8 @@
   "configuration.proxy.maxBodyLogMB.description": "Ukuran maksimum body permintaan/respons yang disimpan inline di setiap baris JSONL. Body yang lebih besar disimpan di logs/bodies/ jika spill diaktifkan.",
   "configuration.proxy.spillLargeBodies.description": "Saat body melebihi batas inline, simpan byte mentah lengkap ke logs/bodies/ alih-alih memotong (disarankan untuk analisis).",
   "configuration.proxy.showLiveUsageInStatusBar.description": "Tampilkan penggunaan token agent/chat langsung di bilah status saat proxy MITM berjalan (mengikuti log proxy secara otomatis).",
-  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "Perkiraan USD per juta token untuk estimasi biaya langsung di bilah status (penagihan aktual mungkin berbeda)."
+  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "Perkiraan USD per juta token untuk estimasi biaya langsung di bilah status (penagihan aktual mungkin berbeda).",
+  "configuration.proxy.developmentMode.description": "Tulis lalu lintas proxy ke file log JSONL lokal untuk debugging. Biarkan nonaktif untuk penggunaan normal; ekstensi menerima lalu lintas secara real time via IPC.",
+  "configuration.proxy.logTokenDetectorToOutput.description": "Tulis peristiwa agen/token/percakapan dari IPC proxy ke saluran output Cursor Token Detector.",
+  "configuration.proxy.autoShowTokenDetectorChannel.description": "Buka saluran output Cursor Token Detector secara otomatis saat peristiwa agen atau token tiba."
 }

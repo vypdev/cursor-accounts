@@ -32,6 +32,7 @@
   "commands.proxy.stop.title": "Cursor Accounts: Parar proxy MITM",
   "commands.proxy.showLogs.title": "Cursor Accounts: Abrir logs do proxy",
   "commands.proxy.showOutput.title": "Cursor Accounts: Mostrar tráfego do proxy MITM",
+  "commands.proxy.showTokenDetector.title": "Cursor Accounts: Mostrar saída do detector de tokens",
   "commands.proxy.saveCertificate.title": "Cursor Accounts: Salvar certificado CA do proxy…",
   "configuration.debug.webviewLifecycle.description": "Registrar diagnósticos do ciclo de vida do webview no canal de saída do Cursor Accounts (desative após resolver problemas).",
   "configuration.proxy.enabled.description": "Iniciar o proxy MITM ao ativar a extensão (observa o tráfego de rede do Cursor).",
@@ -45,5 +46,8 @@
   "configuration.proxy.maxBodyLogMB.description": "Tamanho máximo do body de requisição/resposta armazenado inline em cada linha JSONL. Bodies maiores são salvos em logs/bodies/ quando o spill está ativado.",
   "configuration.proxy.spillLargeBodies.description": "Quando um body excede o limite inline, salvar os bytes brutos completos em logs/bodies/ em vez de truncar (recomendado para análise).",
   "configuration.proxy.showLiveUsageInStatusBar.description": "Mostrar o uso ao vivo de tokens do agente/chat na barra de status enquanto o proxy MITM estiver em execução (acompanha automaticamente os logs do proxy).",
-  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "USD aproximados por milhão de tokens para estimativas de custo ao vivo na barra de status (a cobrança real pode diferir)."
+  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "USD aproximados por milhão de tokens para estimativas de custo ao vivo na barra de status (a cobrança real pode diferir).",
+  "configuration.proxy.developmentMode.description": "Gravar o tráfego do proxy em arquivos de log JSONL locais para depuração. Deixe desativado no uso normal; a extensão recebe tráfego em tempo real via IPC.",
+  "configuration.proxy.logTokenDetectorToOutput.description": "Gravar eventos de agente/token/conversa do IPC do proxy no canal de saída Cursor Token Detector.",
+  "configuration.proxy.autoShowTokenDetectorChannel.description": "Abrir automaticamente o canal de saída Cursor Token Detector quando eventos de agente ou token chegarem."
 }

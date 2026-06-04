@@ -6,10 +6,19 @@ import { decompressBodyBuffer } from './bodyFormat';
 import { getProtoRegistry } from './protoRegistry';
 import { RequestLogger } from './requestLogger';
 import type { ProxyTrafficLogger } from './nullLogger';
-import { extractRequestId, toTrafficSummary } from './proxyTrafficFormat';
+import { extractRequestId, formatEndpoint, toTrafficSummary } from './proxyTrafficFormat';
 import { extractBidiRequestIdFromBody } from './runSseCorrelation';
+import {
+  StreamingAgentDecoder,
+  type CompletedTurn,
+} from './streamingAgentDecoder';
 import { buildTrafficSummary } from './trafficSummaryBuilder';
-import type { MitmProxyHandlers, ProxyLogEntry, ProxyServerConfig } from './types';
+import type {
+  MitmProxyHandlers,
+  ProxyLogEntry,
+  ProxyServerConfig,
+  ProxyTrafficSummary,
+} from './types';
 
 export interface MitmProxyServerEvents {
   error: (error: Error) => void;
@@ -30,6 +39,8 @@ export class MitmProxyServer extends EventEmitter {
   private readonly requestStartedAt = new Map<string, number>();
   /** HTTP requestId → bidi request_id for RunSSE correlation. */
   private readonly runSSEBidiIds = new Map<string, string>();
+  /** Active incremental decoders for RunSSE response streams. */
+  private readonly streamingDecoders = new Map<string, StreamingAgentDecoder>();
 
   constructor(
     private readonly certificateManager: CertificateManager,
@@ -170,17 +181,71 @@ export class MitmProxyServer extends EventEmitter {
         this.requestStartedAt.delete(requestId);
       }
 
+      const isRunSSE = url.includes('RunSSE') && Boolean(requestId);
+      let decoderReady: Promise<void> | undefined;
+
+      if (isRunSSE && requestId) {
+        decoderReady = getProtoRegistry().then((registry) => {
+          if (!this.streamingDecoders.has(requestId)) {
+            this.streamingDecoders.set(
+              requestId,
+              new StreamingAgentDecoder(registry)
+            );
+          }
+        });
+      }
+
       const bodyChunks: Buffer[] = [];
       ctx.onResponseData((_ctx, chunk, cb) => {
         bodyChunks.push(chunk);
+        if (isRunSSE && requestId) {
+          void this.processRunSSEChunk(
+            chunk,
+            requestId,
+            decoderReady,
+            {
+              url,
+              host,
+              statusCode,
+              isCursorHost: RequestLogger.isCursorHost(host),
+            }
+          );
+        }
         cb(null, chunk);
       });
 
-      ctx.onResponseEnd((_ctx, endCallback) => {
+      ctx.onResponseEnd(async (_ctx, endCallback) => {
         this.statistics.activeConnections = Math.max(
           0,
           this.statistics.activeConnections - 1
         );
+
+        let incrementalTurnsAlreadyPersisted = false;
+        if (isRunSSE && requestId) {
+          try {
+            await decoderReady;
+            const decoder = this.streamingDecoders.get(requestId);
+            if (decoder) {
+              incrementalTurnsAlreadyPersisted = true;
+              const finalTurn = decoder.finalize();
+              const bidiRequestId = this.runSSEBidiIds.get(requestId);
+              if (finalTurn) {
+                this.emitPartialTurn(finalTurn, {
+                  url,
+                  host,
+                  statusCode,
+                  bidiRequestId,
+                  httpRequestId: requestId,
+                  isCursorHost: RequestLogger.isCursorHost(host),
+                });
+              }
+              this.streamingDecoders.delete(requestId);
+            }
+          } catch {
+            this.streamingDecoders.delete(requestId);
+          }
+        }
+
         const rawBody = Buffer.concat(bodyChunks);
         this.statistics.bytesTransferred += rawBody.length;
         const contentEncoding = headers['content-encoding'];
@@ -219,6 +284,7 @@ export class MitmProxyServer extends EventEmitter {
         this.emitTrafficSummary(entry, durationMs, {
           bidiRequestId,
           httpRequestId: requestId,
+          incrementalTurnsAlreadyPersisted,
         });
         endCallback();
       });
@@ -261,6 +327,7 @@ export class MitmProxyServer extends EventEmitter {
 
     this.requestStartedAt.clear();
     this.runSSEBidiIds.clear();
+    this.streamingDecoders.clear();
     await this.requestLogger.close();
   }
 
@@ -268,10 +335,86 @@ export class MitmProxyServer extends EventEmitter {
     return { ...this.statistics };
   }
 
+  private async processRunSSEChunk(
+    chunk: Buffer,
+    requestId: string,
+    decoderReady: Promise<void> | undefined,
+    context: {
+      url: string;
+      host: string;
+      statusCode?: number;
+      isCursorHost: boolean;
+    }
+  ): Promise<void> {
+    try {
+      await decoderReady;
+      const decoder = this.streamingDecoders.get(requestId);
+      if (!decoder) {
+        return;
+      }
+
+      const turns = decoder.feedChunk(chunk);
+      const bidiRequestId = this.runSSEBidiIds.get(requestId);
+      for (const turn of turns) {
+        this.emitPartialTurn(turn, {
+          ...context,
+          bidiRequestId,
+          httpRequestId: requestId,
+        });
+      }
+    } catch {
+      // Ignore incremental decode errors; batch decode at stream end still logs.
+    }
+  }
+
+  private emitPartialTurn(
+    completed: CompletedTurn,
+    context: {
+      url: string;
+      host: string;
+      statusCode?: number;
+      bidiRequestId?: string;
+      httpRequestId?: string;
+      isCursorHost: boolean;
+    }
+  ): void {
+    if (!this.handlers?.onTraffic) {
+      return;
+    }
+
+    const summary: ProxyTrafficSummary = {
+      timestamp: new Date().toISOString(),
+      kind: 'response',
+      url: context.url,
+      host: context.host,
+      endpoint: formatEndpoint(context.url, context.host),
+      statusCode: context.statusCode,
+      rpcPath: context.url.includes('/')
+        ? context.url.replace(/^https?:\/\/[^/]+/, '')
+        : undefined,
+      insights: {
+        agent: {
+          ...completed.agent,
+          requestId: context.bidiRequestId,
+        },
+        allTokenFrames: completed.allFrames,
+        completedTurn: completed.turn,
+      },
+      httpRequestId: context.httpRequestId,
+      isCursorHost: context.isCursorHost,
+    };
+
+    this.handlers.onTraffic(summary);
+  }
+
   private emitTrafficSummary(
     entry: ProxyLogEntry,
     durationMs?: number,
-    correlation?: { bidiRequestId?: string; httpRequestId?: string }
+    correlation?: {
+      bidiRequestId?: string;
+      httpRequestId?: string;
+      incrementalTurnsAlreadyPersisted?: boolean;
+    }
   ): void {
     if (!this.handlers?.onTraffic) {
       return;
@@ -279,6 +422,15 @@ export class MitmProxyServer extends EventEmitter {
 
     void buildTrafficSummary(entry, durationMs, correlation)
       .then((summary) => {
+        if (correlation?.incrementalTurnsAlreadyPersisted) {
+          summary.insights = {
+            ...summary.insights,
+            streamingTurnsAlreadyPersisted: true,
+          };
+          if (summary.insights?.allTokenFrames) {
+            delete summary.insights.allTokenFrames;
+          }
+        }
         this.handlers?.onTraffic?.(summary);
       })
       .catch(() => {
