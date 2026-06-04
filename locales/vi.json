@@ -247,7 +247,7 @@
   "webview.profileCard.deleteConfirm": "Xóa hồ sơ \"{name}\"?",
   "webview.profileCard.edit": "Sửa",
   "webview.profileCard.efficiencyActive": "Phân tích hiệu suất mô hình đang bật",
-  "webview.profileCard.efficiencyByBranch": "Branches ({count})",
+  "webview.profileCard.efficiencyByBranch": "Nhánh ({count})",
   "webview.profileCard.efficiencyByRepository": "Theo kho ({count})",
   "webview.profileCard.efficiencyEmpty": "Chưa có prompt nào được phân tích",
   "webview.profileCard.efficiencyEnable": "Bật phân tích hiệu suất mô hình",
@@ -404,5 +404,5 @@
   "webview.storage.wal": "Nhật ký write-ahead (WAL)",
   "webview.storage.workspace": "Lưu trữ workspace",
   "tokenDetector.output.channelName": "Cursor Token Detector",
-  "tokenDetector.output.trackingInitialized": "Agent tracking initialized for profile {profileId}"
+  "tokenDetector.output.trackingInitialized": "Theo dõi agent đã khởi tạo cho hồ sơ {profileId}"
 }

@@ -10,7 +10,8 @@ import { extractRequestId, formatEndpoint, toTrafficSummary } from './proxyTraff
 import { extractBidiRequestIdFromBody } from './runSseCorrelation';
 import {
   StreamingAgentDecoder,
-  type CompletedTurn,
+  type LiveTokenUpdate,
+  type TurnEndedEvent,
 } from './streamingAgentDecoder';
 import { buildTrafficSummary } from './trafficSummaryBuilder';
 import type {
@@ -227,17 +228,18 @@ export class MitmProxyServer extends EventEmitter {
             const decoder = this.streamingDecoders.get(requestId);
             if (decoder) {
               incrementalTurnsAlreadyPersisted = true;
-              const finalTurn = decoder.finalize();
+              const finalLive = decoder.finalize();
               const bidiRequestId = this.runSSEBidiIds.get(requestId);
-              if (finalTurn) {
-                this.emitPartialTurn(finalTurn, {
-                  url,
-                  host,
-                  statusCode,
-                  bidiRequestId,
-                  httpRequestId: requestId,
-                  isCursorHost: RequestLogger.isCursorHost(host),
-                });
+              const streamContext = {
+                url,
+                host,
+                statusCode,
+                bidiRequestId,
+                httpRequestId: requestId,
+                isCursorHost: RequestLogger.isCursorHost(host),
+              };
+              if (finalLive) {
+                this.emitLiveTokenUpdate(finalLive, streamContext);
               }
               this.streamingDecoders.delete(requestId);
             }
@@ -353,22 +355,26 @@ export class MitmProxyServer extends EventEmitter {
         return;
       }
 
-      const turns = decoder.feedChunk(chunk);
+      const result = decoder.feedChunk(chunk);
       const bidiRequestId = this.runSSEBidiIds.get(requestId);
-      for (const turn of turns) {
-        this.emitPartialTurn(turn, {
-          ...context,
-          bidiRequestId,
-          httpRequestId: requestId,
-        });
+      const emitContext = {
+        ...context,
+        bidiRequestId,
+        httpRequestId: requestId,
+      };
+      for (const liveUpdate of result.liveUpdates) {
+        this.emitLiveTokenUpdate(liveUpdate, emitContext);
+      }
+      for (const turnEnded of result.turnEndedEvents) {
+        this.emitTurnEnded(turnEnded, emitContext);
       }
     } catch {
       // Ignore incremental decode errors; batch decode at stream end still logs.
     }
   }
 
-  private emitPartialTurn(
-    completed: CompletedTurn,
+  private emitLiveTokenUpdate(
+    update: LiveTokenUpdate,
     context: {
       url: string;
       host: string;
@@ -392,13 +398,56 @@ export class MitmProxyServer extends EventEmitter {
       rpcPath: context.url.includes('/')
         ? context.url.replace(/^https?:\/\/[^/]+/, '')
         : undefined,
+      isLiveTokenUpdate: true,
+      liveTokenData: {
+        accumulatedTokens: update.accumulatedTokens,
+        latestDelta: update.latestDelta,
+      },
       insights: {
         agent: {
-          ...completed.agent,
+          ...update.agent,
           requestId: context.bidiRequestId,
         },
-        allTokenFrames: completed.allFrames,
-        completedTurn: completed.turn,
+      },
+      httpRequestId: context.httpRequestId,
+      isCursorHost: context.isCursorHost,
+    };
+
+    this.handlers.onTraffic(summary);
+  }
+
+  private emitTurnEnded(
+    event: TurnEndedEvent,
+    context: {
+      url: string;
+      host: string;
+      statusCode?: number;
+      bidiRequestId?: string;
+      httpRequestId?: string;
+      isCursorHost: boolean;
+    }
+  ): void {
+    if (!this.handlers?.onTraffic) {
+      return;
+    }
+
+    const summary: ProxyTrafficSummary = {
+      timestamp: new Date().toISOString(),
+      kind: 'response',
+      url: context.url,
+      host: context.host,
+      endpoint: formatEndpoint(context.url, context.host),
+      statusCode: context.statusCode,
+      rpcPath: context.url.includes('/')
+        ? context.url.replace(/^https?:\/\/[^/]+/, '')
+        : undefined,
+      isTurnEnded: true,
+      insights: {
+        agent: {
+          ...event.agent,
+          requestId: context.bidiRequestId,
+        },
+        streamingTurnsAlreadyPersisted: true,
       },
       httpRequestId: context.httpRequestId,
       isCursorHost: context.isCursorHost,

@@ -14,7 +14,7 @@ export interface TurnDetectorState {
 
 /**
  * Detect token counter resets in streaming token_delta sequences.
- * Ported from agentLiveUsageStatusBar turn tracking heuristic.
+ * @deprecated Prefer server `turn_ended` events for turn boundaries; kept for batch offline decode.
  */
 export class TokenTurnDetectionService implements ITokenTurnDetectionService {
   detectTurns(frames: AgentSessionInfo[]): DetectedTurn[] {

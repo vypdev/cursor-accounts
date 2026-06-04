@@ -44,6 +44,10 @@ export interface AgentSessionInfo {
   dataBytes?: number;
   /** Latest streaming counter from InteractionUpdate.token_delta. */
   streamingTokens?: number;
+  /** Context window usage from conversation_checkpoint_update.token_details. */
+  contextUsedTokens?: number;
+  /** Context window size from conversation_checkpoint_update.token_details. */
+  maxTokens?: number;
   /** Final turn usage when InteractionUpdate.turn_ended is present. */
   inputTokens?: number;
   outputTokens?: number;
@@ -434,9 +438,14 @@ export function extractAgentInnerInsights(
   const usedTokens = asNumber(
     tokenDetails?.usedTokens ?? tokenDetails?.used_tokens
   );
+  const maxTokens = asNumber(
+    tokenDetails?.maxTokens ?? tokenDetails?.max_tokens
+  );
   if (usedTokens != null) {
     return {
       streamingTokens: usedTokens,
+      contextUsedTokens: usedTokens,
+      maxTokens: maxTokens ?? undefined,
       usageEvent: 'token_details',
     };
   }

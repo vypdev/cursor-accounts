@@ -247,7 +247,7 @@
   "webview.profileCard.deleteConfirm": "Hapus profil \"{name}\"?",
   "webview.profileCard.edit": "Ubah",
   "webview.profileCard.efficiencyActive": "Analisis efisiensi model aktif",
-  "webview.profileCard.efficiencyByBranch": "Branches ({count})",
+  "webview.profileCard.efficiencyByBranch": "Cabang ({count})",
   "webview.profileCard.efficiencyByRepository": "Per repositori ({count})",
   "webview.profileCard.efficiencyEmpty": "Belum ada prompt yang dianalisis",
   "webview.profileCard.efficiencyEnable": "Aktifkan analisis efisiensi model",
@@ -404,5 +404,5 @@
   "webview.storage.wal": "Log write-ahead (WAL)",
   "webview.storage.workspace": "Penyimpanan workspace",
   "tokenDetector.output.channelName": "Cursor Token Detector",
-  "tokenDetector.output.trackingInitialized": "Agent tracking initialized for profile {profileId}"
+  "tokenDetector.output.trackingInitialized": "Pelacakan agen diinisialisasi untuk profil {profileId}"
 }

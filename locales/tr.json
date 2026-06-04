@@ -376,7 +376,7 @@
   "webview.storage.cleanEfficiencyEventsHint": "90 günden eski verimlilik olaylarını kaldırır ve veritabanını sıkıştırır. Çalıştırmadan önce bu profili kapatın.",
   "webview.storage.cleanExtensionCache": "Uzantı önbelleğini temizle",
   "webview.storage.cleanupInProgress": "Temizlik çalışıyor…",
-  "webview.storage.confirmCleanEfficiencyEvents": "Remove efficiency events older than 90 days and vacuum the database?",
+  "webview.storage.confirmCleanEfficiencyEvents": "90 günden eski verimlilik olaylarını kaldırıp veritabanını sıkıştırmak istiyor musunuz?",
   "webview.storage.confirmDeepClean": "Derin temizlik yerel veritabanından sohbet ve composer geçmişini kaldıracak. Yedek oluşturulacak. Devam edilsin mi?",
   "webview.storage.confirmDeleteOldChats": "{days} günden eski sohbetler silinsin mi?",
   "webview.storage.confirmEditorCache": "Bu profil için düzenleyici önbellek klasörleri kaldırılsın mı?",
@@ -404,5 +404,5 @@
   "webview.storage.wal": "Write-ahead günlüğü (WAL)",
   "webview.storage.workspace": "Workspace depolaması",
   "tokenDetector.output.channelName": "Cursor Token Detector",
-  "tokenDetector.output.trackingInitialized": "Agent tracking initialized for profile {profileId}"
+  "tokenDetector.output.trackingInitialized": "Profil {profileId} için ajan izleme başlatıldı"
 }

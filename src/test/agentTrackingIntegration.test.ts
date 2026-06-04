@@ -199,7 +199,7 @@ ORDER BY turn_index ASC;
     assert.equal(rows[1]?.streaming_tokens, 250);
   });
 
-  it('persists RunSSE turns incrementally during stream', async () => {
+  it('persists turn_ended incrementally and skips live token_delta', async () => {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-integration-'));
     const dbPath = path.join(tempDir, 'efficiency.db');
     const repo = new AgentTrackingDatabase(dbPath, extensionPath);
@@ -225,53 +225,51 @@ ORDER BY turn_index ASC;
       },
     } satisfies ProxyTrafficSummary);
 
-    await service.ingestTraffic({
-      ...base,
-      timestamp: new Date(1_100_000).toISOString(),
-      insights: {
-        agent: {
-          requestId: 'req-runsse',
-          streamingTokens: 300,
-          usageEvent: 'token_delta',
+    for (let i = 0; i < 5; i++) {
+      await service.ingestTraffic({
+        ...base,
+        timestamp: new Date(1_100_000 + i).toISOString(),
+        isLiveTokenUpdate: true,
+        liveTokenData: { accumulatedTokens: (i + 1) * 50, latestDelta: 50 },
+        insights: {
+          agent: {
+            requestId: 'req-runsse',
+            streamingTokens: (i + 1) * 50,
+            usageEvent: 'token_delta',
+          },
         },
-        completedTurn: {
-          streamingTokens: 300,
-          turnIndex: 0,
-        },
-      },
-    } satisfies ProxyTrafficSummary);
+      } satisfies ProxyTrafficSummary);
+    }
 
     await service.ingestTraffic({
       ...base,
       timestamp: new Date(1_200_000).toISOString(),
+      isTurnEnded: true,
       insights: {
         agent: {
           requestId: 'req-runsse',
-          streamingTokens: 250,
-          usageEvent: 'token_delta',
+          inputTokens: 800,
+          outputTokens: 150,
+          usageEvent: 'turn_ended',
         },
-        completedTurn: {
-          streamingTokens: 250,
-          turnIndex: 1,
-        },
+        streamingTurnsAlreadyPersisted: true,
       },
     } satisfies ProxyTrafficSummary);
 
     const executor = new SqliteExecutor(dbPath, extensionPath);
     const rows = executor.queryRows<{
-      turn_index: number | null;
-      streaming_tokens: number | null;
+      token_type: string;
+      input_tokens: number | null;
+      output_tokens: number | null;
     }>(`
-SELECT turn_index, streaming_tokens
+SELECT token_type, input_tokens, output_tokens
 FROM agent_tokens
-WHERE request_id = 'req-runsse'
-ORDER BY turn_index ASC;
+WHERE request_id = 'req-runsse';
 `);
 
-    assert.equal(rows.length, 2);
-    assert.equal(rows[0]?.turn_index, 0);
-    assert.equal(rows[0]?.streaming_tokens, 300);
-    assert.equal(rows[1]?.turn_index, 1);
-    assert.equal(rows[1]?.streaming_tokens, 250);
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0]?.token_type, 'turn_ended');
+    assert.equal(rows[0]?.input_tokens, 800);
+    assert.equal(rows[0]?.output_tokens, 150);
   });
 });

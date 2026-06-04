@@ -247,7 +247,7 @@
   "webview.profileCard.deleteConfirm": "प्रोफ़ाइल \"{name}\" हटाएँ?",
   "webview.profileCard.edit": "संपादित करें",
   "webview.profileCard.efficiencyActive": "मॉडल दक्षता विश्लेषण सक्रिय",
-  "webview.profileCard.efficiencyByBranch": "Branches ({count})",
+  "webview.profileCard.efficiencyByBranch": "शाखाएँ ({count})",
   "webview.profileCard.efficiencyByRepository": "रिपॉज़िटरी के अनुसार ({count})",
   "webview.profileCard.efficiencyEmpty": "अभी तक कोई प्रॉम्प्ट विश्लेषित नहीं",
   "webview.profileCard.efficiencyEnable": "मॉडल दक्षता विश्लेषण सक्षम करें",
@@ -404,5 +404,5 @@
   "webview.storage.wal": "Write-ahead लॉग (WAL)",
   "webview.storage.workspace": "Workspace स्टोरेज",
   "tokenDetector.output.channelName": "Cursor Token Detector",
-  "tokenDetector.output.trackingInitialized": "Agent tracking initialized for profile {profileId}"
+  "tokenDetector.output.trackingInitialized": "प्रोफ़ाइल {profileId} के लिए एजेंट ट्रैकिंग प्रारंभ"
 }

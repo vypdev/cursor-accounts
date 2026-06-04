@@ -20,6 +20,7 @@ import {
   decodeBidiAgentInner,
   extractAgentInnerInsight,
 } from './lib/bidi-agent-decode.mjs';
+import { scanAgentServerStream } from './lib/agent-text-extract.mjs';
 import {
   buildRpcTypeMap,
   parseConnectRpcPath,
@@ -108,11 +109,33 @@ function groupMajorTurnPeaks(peaks) {
   return turns;
 }
 
+function recordAgentInsight(insight, ts, tokenPeaks, turnEndedTotals, counters) {
+  if (!insight) {
+    return;
+  }
+  if (insight.usageEvent === 'turn_ended') {
+    counters.turnEndedCount += 1;
+    turnEndedTotals.input += Number(insight.inputTokens) || 0;
+    turnEndedTotals.output += Number(insight.outputTokens) || 0;
+    turnEndedTotals.cacheRead += Number(insight.cacheReadTokens) || 0;
+    turnEndedTotals.cacheWrite += Number(insight.cacheWriteTokens) || 0;
+  } else if (insight.usageEvent === 'token_delta' && insight.streamingTokens != null) {
+    tokenPeaks.push({
+      ts,
+      seqno: 0,
+      tokens: insight.streamingTokens,
+    });
+  } else if (insight.usageEvent === 'token_details') {
+    counters.tokenDetailsCount += 1;
+  }
+}
+
 async function analyzeFile(filePath, root, rpcMap) {
   const logDir = path.dirname(filePath);
   const billingSnapshots = [];
   const tokenPeaks = [];
   let turnEndedCount = 0;
+  let tokenDetailsCount = 0;
   let turnEndedTotals = {
     input: 0,
     output: 0,
@@ -177,27 +200,41 @@ async function analyzeFile(filePath, root, rpcMap) {
       }
     }
 
+    const agentServerType = root.lookupType('agent.v1.AgentServerMessage');
+    const counters = { turnEndedCount, tokenDetailsCount };
+
+    if (rpcPath.includes('RunSSE') && entry.direction === 'response') {
+      const raw = bodyBufferFromEntry(entry, logDir);
+      if (raw?.length && agentServerType) {
+        for (const msg of scanAgentServerStream(agentServerType, raw)) {
+          recordAgentInsight(
+            extractAgentInnerInsight(msg),
+            ts,
+            tokenPeaks,
+            turnEndedTotals,
+            counters
+          );
+        }
+      }
+      turnEndedCount = counters.turnEndedCount;
+      tokenDetailsCount = counters.tokenDetailsCount;
+      continue;
+    }
+
     if (!rpcPath.includes('RunPoll') || entry.direction !== 'response') {
       continue;
     }
 
     const inner = await decodeBidiAgentInner(obj, rpcPath, entry.direction);
-    const insight = inner ? extractAgentInnerInsight(inner) : null;
-    if (!insight) continue;
-
-    if (insight.usageEvent === 'turn_ended') {
-      turnEndedCount++;
-      turnEndedTotals.input += Number(insight.inputTokens) || 0;
-      turnEndedTotals.output += Number(insight.outputTokens) || 0;
-      turnEndedTotals.cacheRead += Number(insight.cacheReadTokens) || 0;
-      turnEndedTotals.cacheWrite += Number(insight.cacheWriteTokens) || 0;
-    } else if (insight.streamingTokens != null) {
-      tokenPeaks.push({
-        ts,
-        seqno: Number(obj.seqno) || 0,
-        tokens: insight.streamingTokens,
-      });
-    }
+    recordAgentInsight(
+      inner ? extractAgentInnerInsight(inner) : null,
+      ts,
+      tokenPeaks,
+      turnEndedTotals,
+      counters
+    );
+    turnEndedCount = counters.turnEndedCount;
+    tokenDetailsCount = counters.tokenDetailsCount;
   }
 
   const majorTurns = groupMajorTurnPeaks(tokenPeaks);

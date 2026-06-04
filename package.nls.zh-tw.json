@@ -45,5 +45,9 @@
   "configuration.proxy.maxBodyLogMB.description": "每條 JSONL 行內嵌儲存的請求/回應 body 最大大小。啟用 spill 時，較大的 body 會儲存到 logs/bodies/。",
   "configuration.proxy.spillLargeBodies.description": "當 body 超過內嵌限制時，將完整原始位元組儲存到 logs/bodies/ 而非截斷（建議用於分析）。",
   "configuration.proxy.showLiveUsageInStatusBar.description": "MITM 代理執行時，在狀態列顯示 agent/chat 的即時 token 用量（自動追蹤代理記錄）。",
-  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "狀態列即時成本估算的每百萬 token 粗略 USD（實際計費可能不同）。"
+  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "狀態列即時成本估算的每百萬 token 粗略 USD（實際計費可能不同）。",
+  "commands.proxy.showTokenDetector.title": "Cursor Accounts：顯示 Token 偵測器輸出",
+  "configuration.proxy.developmentMode.description": "將代理流量寫入本機 JSONL 記錄檔以供除錯。正常使用時請保持關閉；擴充功能透過 IPC 即時接收流量。",
+  "configuration.proxy.logTokenDetectorToOutput.description": "將代理 IPC 的 agent/token/對話事件寫入 Cursor Token Detector 輸出通道。",
+  "configuration.proxy.autoShowTokenDetectorChannel.description": "當 agent 或 token 事件到達時自動開啟 Cursor Token Detector 輸出通道。"
 }

@@ -247,7 +247,7 @@
   "webview.profileCard.deleteConfirm": "删除配置文件「{name}」？",
   "webview.profileCard.edit": "编辑",
   "webview.profileCard.efficiencyActive": "模型效率分析已启用",
-  "webview.profileCard.efficiencyByBranch": "Branches ({count})",
+  "webview.profileCard.efficiencyByBranch": "分支 ({count})",
   "webview.profileCard.efficiencyByRepository": "按仓库 ({count})",
   "webview.profileCard.efficiencyEmpty": "尚未分析任何提示",
   "webview.profileCard.efficiencyEnable": "启用模型效率分析",
@@ -404,5 +404,5 @@
   "webview.storage.wal": "预写式日志 (WAL)",
   "webview.storage.workspace": "工作区存储",
   "tokenDetector.output.channelName": "Cursor Token Detector",
-  "tokenDetector.output.trackingInitialized": "Agent tracking initialized for profile {profileId}"
+  "tokenDetector.output.trackingInitialized": "已初始化配置文件 {profileId} 的 Agent 跟踪"
 }

@@ -247,7 +247,7 @@
   "webview.profileCard.deleteConfirm": "حذف الملف الشخصي \"{name}\"؟",
   "webview.profileCard.edit": "تعديل",
   "webview.profileCard.efficiencyActive": "تحليل كفاءة النموذج نشط",
-  "webview.profileCard.efficiencyByBranch": "Branches ({count})",
+  "webview.profileCard.efficiencyByBranch": "الفروع ({count})",
   "webview.profileCard.efficiencyByRepository": "حسب المستودع ({count})",
   "webview.profileCard.efficiencyEmpty": "لم تُحلَّل أي مطالبات بعد",
   "webview.profileCard.efficiencyEnable": "تفعيل تحليل كفاءة النموذج",
@@ -404,5 +404,5 @@
   "webview.storage.wal": "سجل الكتابة المسبقة (WAL)",
   "webview.storage.workspace": "تخزين workspace",
   "tokenDetector.output.channelName": "Cursor Token Detector",
-  "tokenDetector.output.trackingInitialized": "Agent tracking initialized for profile {profileId}"
+  "tokenDetector.output.trackingInitialized": "Seguimiento de agentes inicializado para el perfil {profileId}"
 }

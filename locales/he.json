@@ -247,7 +247,7 @@
   "webview.profileCard.deleteConfirm": "למחוק פרופיל \"{name}\"?",
   "webview.profileCard.edit": "ערוך",
   "webview.profileCard.efficiencyActive": "ניתוח יעילות מודל פעיל",
-  "webview.profileCard.efficiencyByBranch": "Branches ({count})",
+  "webview.profileCard.efficiencyByBranch": "ענפים ({count})",
   "webview.profileCard.efficiencyByRepository": "לפי מאגר ({count})",
   "webview.profileCard.efficiencyEmpty": "עדיין לא נותחו פרומפטים",
   "webview.profileCard.efficiencyEnable": "הפעל ניתוח יעילות מודל",
@@ -404,5 +404,5 @@
   "webview.storage.wal": "יומן write-ahead (WAL)",
   "webview.storage.workspace": "אחסון workspace",
   "tokenDetector.output.channelName": "Cursor Token Detector",
-  "tokenDetector.output.trackingInitialized": "Agent tracking initialized for profile {profileId}"
+  "tokenDetector.output.trackingInitialized": "מעקב סוכנים אותחל לפרופיל {profileId}"
 }

@@ -376,7 +376,7 @@
   "webview.storage.cleanEfficiencyEventsHint": "Fjerner effektivitetshendelser eldre enn 90 dager og komprimerer databasen. Lukk denne profilen før du kjører.",
   "webview.storage.cleanExtensionCache": "Rydd utvidelsesbuffer",
   "webview.storage.cleanupInProgress": "Kjører opprydding…",
-  "webview.storage.confirmCleanEfficiencyEvents": "Remove efficiency events older than 90 days and vacuum the database?",
+  "webview.storage.confirmCleanEfficiencyEvents": "Fjern effektivitetshendelser eldre enn 90 dager og komprimer databasen?",
   "webview.storage.confirmDeepClean": "Dyp opprydding fjerner chat- og composer-historikk fra den lokale databasen. Sikkerhetskopi opprettes. Fortsette?",
   "webview.storage.confirmDeleteOldChats": "Slette chatter eldre enn {days} dager?",
   "webview.storage.confirmEditorCache": "Fjerne editorbuffermapper for denne profilen?",
@@ -404,5 +404,5 @@
   "webview.storage.wal": "Write-ahead-logg (WAL)",
   "webview.storage.workspace": "Workspace-lagring",
   "tokenDetector.output.channelName": "Cursor Token Detector",
-  "tokenDetector.output.trackingInitialized": "Agent tracking initialized for profile {profileId}"
+  "tokenDetector.output.trackingInitialized": "Agentsporing initialisert for profil {profileId}"
 }

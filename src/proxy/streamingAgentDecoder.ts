@@ -1,10 +1,3 @@
-import type { DetectedTurn } from '../domain/ports/ITokenTurnDetectionService';
-import {
-  RESET_DROP_THRESHOLD,
-  RESET_PEAK_THRESHOLD,
-  TokenTurnDetectionService,
-  type TurnDetectorState,
-} from '../domain/services/tokenTurnDetectionService';
 import {
   decodeAgentServerPayload,
   tryConnectFrame,
@@ -22,40 +15,51 @@ const MAX_CONNECT_FRAME_BYTES = 5_000_000;
 export interface StreamingDecoderState {
   bufferLength: number;
   messageCount: number;
-  turnIndex: number;
-  currentPeak: number;
+  accumulatedTokens: number;
   relationshipIds: Partial<AgentSessionInfo>;
 }
 
-export interface CompletedTurn {
-  turn: DetectedTurn;
+/** Live progress counter update (CLI-style sum of token_delta). */
+export interface LiveTokenUpdate {
+  accumulatedTokens: number;
+  latestDelta: number;
   agent: AgentSessionInfo;
-  allFrames: AgentSessionInfo[];
+}
+
+/** Billing-grade turn completion from server turn_ended. */
+export interface TurnEndedEvent {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
+  agent: AgentSessionInfo;
+}
+
+export interface FeedChunkResult {
+  liveUpdates: LiveTokenUpdate[];
+  turnEndedEvents: TurnEndedEvent[];
 }
 
 /**
  * Incrementally decodes Connect-framed RunSSE / StreamBidi response chunks.
+ * Emits every token_delta for live UI and server turn_ended for persistence.
  */
 export class StreamingAgentDecoder {
   private buffer = Buffer.alloc(0);
   private messageCount = 0;
+  private accumulatedTokens = 0;
   private relationshipIds: Partial<AgentSessionInfo> = {};
-  private currentTurnFrames: AgentSessionInfo[] = [];
-  private readonly turnState: TurnDetectorState = {
-    currentPeak: 0,
-    turnIndex: 0,
-  };
-  private readonly turnDetection = new TokenTurnDetectionService();
 
   constructor(private readonly registry: ProtoRegistry) {}
 
-  feedChunk(chunk: Buffer): CompletedTurn[] {
+  feedChunk(chunk: Buffer): FeedChunkResult {
     if (chunk.length === 0) {
-      return [];
+      return { liveUpdates: [], turnEndedEvents: [] };
     }
 
     this.buffer = Buffer.concat([this.buffer, chunk]);
-    const completed: CompletedTurn[] = [];
+    const liveUpdates: LiveTokenUpdate[] = [];
+    const turnEndedEvents: TurnEndedEvent[] = [];
 
     let offset = 0;
     while (offset < this.buffer.length) {
@@ -83,73 +87,84 @@ export class StreamingAgentDecoder {
       }
 
       const insight = extractAgentInnerInsights(decoded);
-      if (!insight || insight.usageEvent !== 'token_delta') {
+      if (!insight) {
         continue;
       }
 
-      this.currentTurnFrames.push(insight);
-      const completedTurn = this.turnDetection.processFrame(
-        insight,
-        this.turnState
-      );
-      if (completedTurn) {
-        const turnFrames = this.currentTurnFrames.slice(
-          0,
-          -1
-        );
-        completed.push(
-          this.buildCompletedTurn(completedTurn, turnFrames)
-        );
-        this.currentTurnFrames = [insight];
+      if (insight.usageEvent === 'token_delta' && insight.streamingTokens != null) {
+        const latestDelta = insight.streamingTokens;
+        this.accumulatedTokens += latestDelta;
+        liveUpdates.push({
+          accumulatedTokens: this.accumulatedTokens,
+          latestDelta,
+          agent: this.mergeAgentInsight({
+            streamingTokens: this.accumulatedTokens,
+            usageEvent: 'token_delta',
+          }),
+        });
+        continue;
+      }
+
+      if (insight.usageEvent === 'turn_ended') {
+        const inputTokens = insight.inputTokens ?? 0;
+        const outputTokens = insight.outputTokens ?? 0;
+        turnEndedEvents.push({
+          inputTokens,
+          outputTokens,
+          cacheReadTokens: insight.cacheReadTokens,
+          cacheWriteTokens: insight.cacheWriteTokens,
+          agent: this.mergeAgentInsight({
+            inputTokens: insight.inputTokens,
+            outputTokens: insight.outputTokens,
+            cacheReadTokens: insight.cacheReadTokens,
+            cacheWriteTokens: insight.cacheWriteTokens,
+            usageEvent: 'turn_ended',
+          }),
+        });
+        this.accumulatedTokens = 0;
+        continue;
+      }
+
+      if (insight.usageEvent === 'token_details') {
+        liveUpdates.push({
+          accumulatedTokens: this.accumulatedTokens,
+          latestDelta: 0,
+          agent: this.mergeAgentInsight(insight),
+        });
       }
     }
 
     this.buffer = offset > 0 ? this.buffer.subarray(offset) : this.buffer;
-    return completed;
+    return { liveUpdates, turnEndedEvents };
   }
 
-  finalize(): CompletedTurn | null {
-    if (this.turnState.currentPeak <= 0) {
-      this.reset();
-      return null;
-    }
-
-    const turn: DetectedTurn = {
-      streamingTokens: this.turnState.currentPeak,
-      turnIndex: this.turnState.turnIndex,
-    };
-    const completed = this.buildCompletedTurn(turn, this.currentTurnFrames);
-    this.reset();
-    return completed;
+  /**
+   * Clears decoder state at stream end.
+   * Live totals are already emitted on each token_delta; no duplicate emit here.
+   */
+  finalize(): LiveTokenUpdate | null {
+    this.resetStreamState();
+    return null;
   }
 
   getState(): StreamingDecoderState {
     return {
       bufferLength: this.buffer.length,
       messageCount: this.messageCount,
-      turnIndex: this.turnState.turnIndex,
-      currentPeak: this.turnState.currentPeak,
+      accumulatedTokens: this.accumulatedTokens,
       relationshipIds: { ...this.relationshipIds },
     };
   }
 
-  private buildCompletedTurn(
-    turn: DetectedTurn,
-    frames: AgentSessionInfo[]
-  ): CompletedTurn {
-    const agent = mergeAgentSessionInfo(this.relationshipIds, {
-      streamingTokens: turn.streamingTokens,
-      usageEvent: 'token_delta',
-    }) ?? {
-      streamingTokens: turn.streamingTokens,
-      usageEvent: 'token_delta' as const,
-    };
-
-    return {
-      turn,
-      agent,
-      allFrames: frames.length > 0 ? frames : [{ ...agent }],
-    };
+  private mergeAgentInsight(
+    partial: Partial<AgentSessionInfo>
+  ): AgentSessionInfo {
+    return (
+      mergeAgentSessionInfo(this.relationshipIds, partial) ?? {
+        ...partial,
+        usageEvent: partial.usageEvent ?? 'token_delta',
+      }
+    );
   }
 
   private isIncompleteFrameAt(offset: number): boolean {
@@ -165,17 +180,10 @@ export class StreamingAgentDecoder {
     );
   }
 
-  private reset(): void {
+  private resetStreamState(): void {
     this.buffer = Buffer.alloc(0);
     this.messageCount = 0;
+    this.accumulatedTokens = 0;
     this.relationshipIds = {};
-    this.currentTurnFrames = [];
-    this.turnState.currentPeak = 0;
-    this.turnState.turnIndex = 0;
   }
 }
-
-export {
-  RESET_DROP_THRESHOLD,
-  RESET_PEAK_THRESHOLD,
-};

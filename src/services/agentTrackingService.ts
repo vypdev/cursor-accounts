@@ -29,6 +29,10 @@ export class AgentTrackingService {
 
   async ingestTraffic(summary: ProxyTrafficSummary): Promise<void> {
     try {
+      if (summary.isLiveTokenUpdate) {
+        return;
+      }
+
       const insights = summary.insights;
       if (!insights) {
         return;
@@ -78,21 +82,7 @@ export class AgentTrackingService {
       const httpRequestId = summary.httpRequestId;
       const modelName = insights.tokens?.modelName ?? agent.modelName;
 
-      if (insights.completedTurn) {
-        await this.repository.insertTokenSnapshot({
-          requestId: agent.requestId,
-          tokenType: 'delta',
-          streamingTokens: insights.completedTurn.streamingTokens,
-          totalTokens: insights.completedTurn.streamingTokens,
-          recordedAt: timestamp,
-          modelName,
-          turnIndex: insights.completedTurn.turnIndex,
-          httpRequestId,
-        });
-        return;
-      }
-
-      if (insights.streamingTurnsAlreadyPersisted) {
+      if (insights.streamingTurnsAlreadyPersisted && !summary.isTurnEnded) {
         return;
       }
 

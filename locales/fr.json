@@ -247,7 +247,7 @@
   "webview.profileCard.deleteConfirm": "Supprimer le profil « {name} » ?",
   "webview.profileCard.edit": "Modifier",
   "webview.profileCard.efficiencyActive": "Analyse d'efficacité du modèle active",
-  "webview.profileCard.efficiencyByBranch": "Branches ({count})",
+  "webview.profileCard.efficiencyByBranch": "Branche ({count})",
   "webview.profileCard.efficiencyByRepository": "Par dépôt ({count})",
   "webview.profileCard.efficiencyEmpty": "Aucun prompt analysé pour l'instant",
   "webview.profileCard.efficiencyEnable": "Activer l'analyse d'efficacité du modèle",
@@ -404,5 +404,5 @@
   "webview.storage.wal": "Journal write-ahead (WAL)",
   "webview.storage.workspace": "Stockage workspace",
   "tokenDetector.output.channelName": "Cursor Token Detector",
-  "tokenDetector.output.trackingInitialized": "Agent tracking initialized for profile {profileId}"
+  "tokenDetector.output.trackingInitialized": "Suivi des agents initialisé pour le profil {profileId}"
 }

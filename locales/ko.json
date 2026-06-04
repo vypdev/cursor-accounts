@@ -247,7 +247,7 @@
   "webview.profileCard.deleteConfirm": "프로필 \"{name}\"을(를) 삭제할까요?",
   "webview.profileCard.edit": "편집",
   "webview.profileCard.efficiencyActive": "모델 효율성 분석 활성",
-  "webview.profileCard.efficiencyByBranch": "Branches ({count})",
+  "webview.profileCard.efficiencyByBranch": "브랜치 ({count})",
   "webview.profileCard.efficiencyByRepository": "저장소별 ({count})",
   "webview.profileCard.efficiencyEmpty": "아직 분석된 프롬프트가 없습니다",
   "webview.profileCard.efficiencyEnable": "모델 효율성 분석 활성화",
@@ -404,5 +404,5 @@
   "webview.storage.wal": "Write-ahead 로그 (WAL)",
   "webview.storage.workspace": "워크스페이스 저장소",
   "tokenDetector.output.channelName": "Cursor Token Detector",
-  "tokenDetector.output.trackingInitialized": "Agent tracking initialized for profile {profileId}"
+  "tokenDetector.output.trackingInitialized": "프로필 {profileId}에 대한 에이전트 추적이 초기화됨"
 }

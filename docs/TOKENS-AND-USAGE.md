@@ -4,6 +4,8 @@ Canonical reference for **what token and billing signals exist**, where they app
 
 **Last reviewed:** 2026-06-04
 
+For **CLI vs IDE** token UI and proxy gaps, see [CLI-vs-IDE-TOKENS.md](CLI-vs-IDE-TOKENS.md). For the **CLI Agent wire process** (RunSSE, BidiAppend, HTTP/2), see [CLI-AGENT-COMMUNICATION.md](CLI-AGENT-COMMUNICATION.md).
+
 ## Overview
 
 Cursor Accounts observes usage through **three channels** that measure different things:
@@ -253,13 +255,21 @@ Settings: [CONFIGURATION.md](CONFIGURATION.md) (proxy section), [PROXY-SETUP.md]
 
 ## Turn tracking in RunSSE streams (HTTP/2)
 
-**RunSSE:** One HTTP response contains hundreds of `token_delta` frames. The extension detects turn resets and persists one row per turn in `agent_tokens`.
+**RunSSE:** One HTTP response contains hundreds of `token_delta` frames plus occasional **`turn_ended`** events from the server.
 
-**Incremental decode (live):** While a RunSSE stream is open, [`StreamingAgentDecoder`](../src/proxy/streamingAgentDecoder.ts) decodes each response chunk as it arrives (via `MitmProxyServer.onResponseData`). When a turn reset is detected (peak ≥ 300, drop ≤ 150), the proxy emits a partial traffic event with `insights.completedTurn` **before** the stream closes. [`AgentTrackingService`](../src/services/agentTrackingService.ts) persists that turn immediately so the DB and live status bar update during generation—not only after the HTTP response ends.
+**Incremental decode (live):** While a RunSSE stream is open, [`StreamingAgentDecoder`](../src/proxy/streamingAgentDecoder.ts) decodes each chunk as it arrives:
 
-At stream end, the proxy still logs the full response body to JSONL, but sets `streamingTurnsAlreadyPersisted` on the final summary to avoid duplicate turn rows.
+| Signal | Extension behavior | Persisted? |
+|--------|-------------------|------------|
+| `token_delta` | Sum into `accumulatedTokens`; emit `isLiveTokenUpdate` traffic | **No** (UI only) |
+| `turn_ended` | Emit `isTurnEnded` with input/output/cache | **Yes** (`token_type = turn_ended`) |
+| `token_details` | Context window % on status bar | Optional snapshot |
 
-**RunPoll (HTTP/1):** Each response is a single frame; one snapshot per response. Turn detection is not applied within a response (documented for future extension).
+[`AgentLiveUsageStatusBar`](../src/ui/agentLiveUsageStatusBar.ts) updates on every live event (throttled ~150ms). [`AgentTrackingService`](../src/services/agentTrackingService.ts) skips `isLiveTokenUpdate` and persists only billing-grade `turn_ended`.
+
+At stream end, the proxy logs the full response to JSONL. If `turn_ended` was already persisted incrementally, the final summary sets `streamingTurnsAlreadyPersisted` to avoid duplicate rows.
+
+**RunPoll (HTTP/1):** Each response is a single frame; batch decode at response end. Offline tools may still use [`TokenTurnDetectionService`](../src/domain/services/tokenTurnDetectionService.ts) (deprecated for live RunSSE) on `allTokenFrames`.
 
 ### Correlation model
 
@@ -271,15 +281,11 @@ At stream end, the proxy still logs the full response body to JSONL, but sets `s
 
 Attribution to parent vs subagent uses **bidi `request_id`**, not token counter shape. Each parallel subagent has its own `request_id` and independent turn sequence.
 
-### Turn detection algorithm
+### Turn boundaries (live RunSSE)
 
-Ported from [`agentLiveUsageStatusBar.ts`](../src/ui/agentLiveUsageStatusBar.ts) into domain service [`TokenTurnDetectionService`](../src/domain/services/tokenTurnDetectionService.ts):
+**Primary:** server `InteractionUpdate.turn_ended` (billing-grade). The proxy emits `isTurnEnded` and persists one SQLite row per event.
 
-1. Track peak streaming counter within current turn
-2. If peak ≥ **300** and next value ≤ **150** → emit previous peak as completed turn, start new turn
-3. After all frames, emit final peak
-
-For RunSSE, the same algorithm runs incrementally in `StreamingAgentDecoder.feedChunk()` via `TokenTurnDetectionService.processFrame()`.
+**Legacy (batch / offline only):** [`TokenTurnDetectionService`](../src/domain/services/tokenTurnDetectionService.ts) peak/reset heuristic (peak ≥ 300, drop ≤ 150) for historical log replay when `turn_ended` is missing. Not used in live `StreamingAgentDecoder` anymore.
 
 ### Database representation
 

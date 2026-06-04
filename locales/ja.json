@@ -247,7 +247,7 @@
   "webview.profileCard.deleteConfirm": "プロファイル「{name}」を削除しますか？",
   "webview.profileCard.edit": "編集",
   "webview.profileCard.efficiencyActive": "モデル効率分析がアクティブ",
-  "webview.profileCard.efficiencyByBranch": "Branches ({count})",
+  "webview.profileCard.efficiencyByBranch": "ブランチ ({count})",
   "webview.profileCard.efficiencyByRepository": "リポジトリ別 ({count})",
   "webview.profileCard.efficiencyEmpty": "まだ分析されたプロンプトはありません",
   "webview.profileCard.efficiencyEnable": "モデル効率分析を有効化",
@@ -404,5 +404,5 @@
   "webview.storage.wal": "Write-ahead ログ (WAL)",
   "webview.storage.workspace": "ワークスペース ストレージ",
   "tokenDetector.output.channelName": "Cursor Token Detector",
-  "tokenDetector.output.trackingInitialized": "Agent tracking initialized for profile {profileId}"
+  "tokenDetector.output.trackingInitialized": "プロファイル {profileId} のエージェント追跡を初期化しました"
 }

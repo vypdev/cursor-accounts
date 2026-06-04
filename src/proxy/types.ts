@@ -78,6 +78,14 @@ export interface ProxyTrafficSummary {
   durationMs?: number;
   errorKind?: string;
   errorMessage?: string;
+  /** Frequent token_delta accumulation for live status bar only (not persisted). */
+  isLiveTokenUpdate?: boolean;
+  /** Server turn_ended event (billing-grade; persisted). */
+  isTurnEnded?: boolean;
+  liveTokenData?: {
+    accumulatedTokens: number;
+    latestDelta: number;
+  };
 }
 
 export interface MitmProxyHandlers {

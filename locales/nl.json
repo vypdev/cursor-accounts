@@ -247,7 +247,7 @@
   "webview.profileCard.deleteConfirm": "Profiel \"{name}\" verwijderen?",
   "webview.profileCard.edit": "Bewerken",
   "webview.profileCard.efficiencyActive": "Modelefficiëntie-analyse actief",
-  "webview.profileCard.efficiencyByBranch": "Branches ({count})",
+  "webview.profileCard.efficiencyByBranch": "Takken ({count})",
   "webview.profileCard.efficiencyByRepository": "Per repository ({count})",
   "webview.profileCard.efficiencyEmpty": "Nog geen prompts geanalyseerd",
   "webview.profileCard.efficiencyEnable": "Modelefficiëntie-analyse inschakelen",
@@ -404,5 +404,5 @@
   "webview.storage.wal": "Write-ahead-log (WAL)",
   "webview.storage.workspace": "Workspace-opslag",
   "tokenDetector.output.channelName": "Cursor Token Detector",
-  "tokenDetector.output.trackingInitialized": "Agent tracking initialized for profile {profileId}"
+  "tokenDetector.output.trackingInitialized": "Agenttracking geïnitialiseerd voor profiel {profileId}"
 }

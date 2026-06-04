@@ -45,5 +45,9 @@
   "configuration.proxy.maxBodyLogMB.description": "每条 JSONL 行内联存储的请求/响应 body 的最大大小。启用 spill 时，较大的 body 会保存到 logs/bodies/。",
   "configuration.proxy.spillLargeBodies.description": "当 body 超过内联限制时，将完整原始字节保存到 logs/bodies/ 而不是截断（建议用于分析）。",
   "configuration.proxy.showLiveUsageInStatusBar.description": "MITM 代理运行时，在状态栏显示 agent/chat 的实时 token 用量（自动跟踪代理日志）。",
-  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "状态栏实时成本估算的每百万 token 粗略 USD（实际计费可能不同）。"
+  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "状态栏实时成本估算的每百万 token 粗略 USD（实际计费可能不同）。",
+  "commands.proxy.showTokenDetector.title": "Cursor Accounts：显示 Token 检测器输出",
+  "configuration.proxy.developmentMode.description": "将代理流量写入本地 JSONL 日志文件以供调试。正常使用时请保持关闭；扩展通过 IPC 实时接收流量。",
+  "configuration.proxy.logTokenDetectorToOutput.description": "将代理 IPC 的 agent/token/会话事件写入 Cursor Token Detector 输出通道。",
+  "configuration.proxy.autoShowTokenDetectorChannel.description": "当 agent 或 token 事件到达时自动打开 Cursor Token Detector 输出通道。"
 }

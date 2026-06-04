@@ -45,5 +45,9 @@
   "configuration.proxy.maxBodyLogMB.description": "ขนาดสูงสุดของ body คำขอ/การตอบกลับที่เก็บ inline ในแต่ละบรรทัด JSONL body ที่ใหญ่กว่าจะถูกบันทึกใน logs/bodies/ เมื่อเปิด spill",
   "configuration.proxy.spillLargeBodies.description": "เมื่อ body เกินขีดจำกัด inline ให้บันทึก byte ดิบทั้งหมดใน logs/bodies/ แทนการตัดทอน (แนะนำสำหรับการวิเคราะห์)",
   "configuration.proxy.showLiveUsageInStatusBar.description": "แสดงการใช้โทเค็น agent/chat แบบสดในแถบสถานะขณะพร็อกซี MITM ทำงาน (ติดตามล็อกพร็อกซีอัตโนมัติ)",
-  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "USD โดยประมาณต่อล้านโทเค็นสำหรับประมาณการต้นทุนแบบสดในแถบสถานะ (การเรียกเก็บเงินจริงอาจต่างกัน)"
+  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "USD โดยประมาณต่อล้านโทเค็นสำหรับประมาณการต้นทุนแบบสดในแถบสถานะ (การเรียกเก็บเงินจริงอาจต่างกัน)",
+  "commands.proxy.showTokenDetector.title": "Cursor Accounts: แสดงเอาต์พุตตัวตรวจจับโทเค็น",
+  "configuration.proxy.developmentMode.description": "เขียนทราฟฟิกพร็อกซีลงไฟล์บันทึก JSONL ในเครื่องเพื่อการดีบัก ปิดไว้ในการใช้งานปกติ ส่วนขยายรับทราฟฟิกแบบเรียลไทม์ผ่าน IPC",
+  "configuration.proxy.logTokenDetectorToOutput.description": "เขียนเหตุการณ์ agent/token/การสนทนาจาก IPC ของพร็อกซีไปยังช่องเอาต์พุต Cursor Token Detector",
+  "configuration.proxy.autoShowTokenDetectorChannel.description": "เปิดช่องเอาต์พุต Cursor Token Detector โดยอัตโนมัติเมื่อมีเหตุการณ์ agent หรือ token"
 }

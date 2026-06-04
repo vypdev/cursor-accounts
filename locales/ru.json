@@ -247,7 +247,7 @@
   "webview.profileCard.deleteConfirm": "Удалить профиль \"{name}\"?",
   "webview.profileCard.edit": "Редактировать",
   "webview.profileCard.efficiencyActive": "Анализ эффективности модели активен",
-  "webview.profileCard.efficiencyByBranch": "Branches ({count})",
+  "webview.profileCard.efficiencyByBranch": "Ветки ({count})",
   "webview.profileCard.efficiencyByRepository": "По репозиторию ({count})",
   "webview.profileCard.efficiencyEmpty": "Промпты ещё не анализировались",
   "webview.profileCard.efficiencyEnable": "Включить анализ эффективности модели",
@@ -404,5 +404,5 @@
   "webview.storage.wal": "Журнал упреждающей записи (WAL)",
   "webview.storage.workspace": "Хранилище workspace",
   "tokenDetector.output.channelName": "Cursor Token Detector",
-  "tokenDetector.output.trackingInitialized": "Agent tracking initialized for profile {profileId}"
+  "tokenDetector.output.trackingInitialized": "Отслеживание агента инициализировано для профиля {profileId}"
 }

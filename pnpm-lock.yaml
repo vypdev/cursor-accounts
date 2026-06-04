@@ -17,6 +17,9 @@ importers:
       '@cursor/sdk':
         specifier: ^1.0.15
         version: 1.0.15
+      ai-tokenizer:
+        specifier: ^1.0.6
+        version: 1.0.6
       http-mitm-proxy:
         specifier: ^1.1.0
         version: 1.1.0
@@ -1352,6 +1355,14 @@ packages:
   aggregate-error@3.1.0:
     resolution: {integrity: sha512-4I7Td01quW/RpocfNayFdFVk1qSuoh0E7JrbRJ16nH01HhKFQ88INq9Sd+nd72zqRySlr9BmDA8xlEJ6vJMrYA==}
     engines: {node: '>=8'}
+
+  ai-tokenizer@1.0.6:
+    resolution: {integrity: sha512-GaakQFxen0pRH/HIA4v68ZM40llCH27HUYUSBLK+gVuZ57e53pYJe1xFvSTj4sJJjbWU92m1X6NjPWyeWkFDow==}
+    peerDependencies:
+      ai: ^5.0.0
+    peerDependenciesMeta:
+      ai:
+        optional: true
 
   ajv@6.15.0:
     resolution: {integrity: sha512-fgFx7Hfoq60ytK2c7DhnF8jIvzYgOMxfugjLOSMHjLIPgenqa7S7oaagATUq99mV6IYvN2tRmC0wnTYX6iPbMw==}
@@ -4369,6 +4380,8 @@ snapshots:
       clean-stack: 2.2.0
       indent-string: 4.0.0
     optional: true
+
+  ai-tokenizer@1.0.6: {}
 
   ajv@6.15.0:
     dependencies:

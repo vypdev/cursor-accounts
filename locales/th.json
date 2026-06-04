@@ -404,5 +404,5 @@
   "webview.storage.wal": "บันทึก write-ahead (WAL)",
   "webview.storage.workspace": "พื้นที่จัดเก็บ workspace",
   "tokenDetector.output.channelName": "Cursor Token Detector",
-  "tokenDetector.output.trackingInitialized": "Agent tracking initialized for profile {profileId}"
+  "tokenDetector.output.trackingInitialized": "เริ่มต้นการติดตาม agent สำหรับโปรไฟล์ {profileId}"
 }

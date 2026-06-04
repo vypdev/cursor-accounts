@@ -45,5 +45,9 @@
   "configuration.proxy.maxBodyLogMB.description": "Her JSONL satırında satır içi saklanan istek/yanıt body’sinin maksimum boyutu. Spill etkinse daha büyük body’ler logs/bodies/ altına kaydedilir.",
   "configuration.proxy.spillLargeBodies.description": "Bir body satır içi sınırı aştığında, kısaltmak yerine tam ham baytları logs/bodies/ altına kaydet (analiz için önerilir).",
   "configuration.proxy.showLiveUsageInStatusBar.description": "MITM proxy çalışırken durum çubuğunda agent/sohbet token kullanımını canlı göster (proxy loglarını otomatik izler).",
-  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "Durum çubuğunda canlı maliyet tahminleri için milyon token başına yaklaşık USD (gerçek faturalama farklı olabilir)."
+  "configuration.proxy.estimatedDollarsPerMillionTokens.description": "Durum çubuğunda canlı maliyet tahminleri için milyon token başına yaklaşık USD (gerçek faturalama farklı olabilir).",
+  "commands.proxy.showTokenDetector.title": "Cursor Accounts: Token dedektörü çıktısını göster",
+  "configuration.proxy.developmentMode.description": "Hata ayıklama için proxy trafiğini yerel JSONL günlük dosyalarına yaz. Normal kullanımda devre dışı bırakın; uzantı trafiği IPC ile gerçek zamanlı alır.",
+  "configuration.proxy.logTokenDetectorToOutput.description": "Proxy IPC'sinden gelen agent/token/konuşma olaylarını Cursor Token Detector çıktı kanalına yaz.",
+  "configuration.proxy.autoShowTokenDetectorChannel.description": "Agent veya token olayları geldiğinde Cursor Token Detector çıktı kanalını otomatik aç."
 }

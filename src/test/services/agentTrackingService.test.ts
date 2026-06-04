@@ -17,6 +17,8 @@ class MockRepository implements IAgentTrackingRepository {
     turnIndex?: number;
     httpRequestId?: string;
     streamingTokens?: number;
+    inputTokens?: number;
+    outputTokens?: number;
   }> = [];
   agentsByRequestId = new Map<
     string,
@@ -53,6 +55,8 @@ class MockRepository implements IAgentTrackingRepository {
     turnIndex?: number;
     httpRequestId?: string;
     streamingTokens?: number;
+    inputTokens?: number;
+    outputTokens?: number;
   }): Promise<void> {
     this.tokens.push({
       requestId: tokens.requestId,
@@ -60,6 +64,8 @@ class MockRepository implements IAgentTrackingRepository {
       turnIndex: tokens.turnIndex,
       httpRequestId: tokens.httpRequestId,
       streamingTokens: tokens.streamingTokens,
+      inputTokens: tokens.inputTokens,
+      outputTokens: tokens.outputTokens,
     });
   }
 
@@ -304,7 +310,7 @@ describe('AgentTrackingService', () => {
     assert.equal(repo.tokens[1]?.streamingTokens, 200);
   });
 
-  it('persists completedTurn from incremental RunSSE decode', async () => {
+  it('does not persist isLiveTokenUpdate traffic', async () => {
     const repo = new MockRepository();
     const service = new AgentTrackingService(repo, 'prof-1');
     await service.initialize();
@@ -316,23 +322,51 @@ describe('AgentTrackingService', () => {
       host: 'agent.api5.cursor.sh',
       endpoint: '/agent.v1.AgentService/RunSSE',
       httpRequestId: 'http-req-1',
+      isLiveTokenUpdate: true,
+      liveTokenData: { accumulatedTokens: 326, latestDelta: 12 },
       insights: {
         agent: {
           requestId: 'bidi-req-1',
           conversationId: 'conv-456',
-          streamingTokens: 300,
+          streamingTokens: 326,
           usageEvent: 'token_delta',
-        },
-        completedTurn: {
-          streamingTokens: 300,
-          turnIndex: 0,
         },
       },
     } satisfies ProxyTrafficSummary);
 
+    assert.equal(repo.tokens.length, 0);
+  });
+
+  it('persists turn_ended from incremental RunSSE decode', async () => {
+    const repo = new MockRepository();
+    const service = new AgentTrackingService(repo, 'prof-1');
+    await service.initialize();
+
+    await service.ingestTraffic({
+      timestamp: new Date(1_000_000).toISOString(),
+      kind: 'response',
+      url: 'https://agent.api5.cursor.sh/agent.v1.AgentService/RunSSE',
+      host: 'agent.api5.cursor.sh',
+      endpoint: '/agent.v1.AgentService/RunSSE',
+      httpRequestId: 'http-req-1',
+      isTurnEnded: true,
+      insights: {
+        agent: {
+          requestId: 'bidi-req-1',
+          conversationId: 'conv-456',
+          inputTokens: 1000,
+          outputTokens: 200,
+          cacheReadTokens: 50,
+          usageEvent: 'turn_ended',
+        },
+        streamingTurnsAlreadyPersisted: true,
+      },
+    } satisfies ProxyTrafficSummary);
+
     assert.equal(repo.tokens.length, 1);
-    assert.equal(repo.tokens[0]?.turnIndex, 0);
-    assert.equal(repo.tokens[0]?.streamingTokens, 300);
+    assert.equal(repo.tokens[0]?.tokenType, 'turn_ended');
+    assert.equal(repo.tokens[0]?.inputTokens, 1000);
+    assert.equal(repo.tokens[0]?.outputTokens, 200);
     assert.equal(repo.tokens[0]?.httpRequestId, 'http-req-1');
   });
 });

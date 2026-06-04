@@ -376,7 +376,7 @@
   "webview.storage.cleanEfficiencyEventsHint": "Tar bort effektivitetshändelser äldre än 90 dagar och komprimerar databasen. Stäng den här profilen innan du kör.",
   "webview.storage.cleanExtensionCache": "Rensa tilläggscache",
   "webview.storage.cleanupInProgress": "Kör rensning…",
-  "webview.storage.confirmCleanEfficiencyEvents": "Remove efficiency events older than 90 days and vacuum the database?",
+  "webview.storage.confirmCleanEfficiencyEvents": "Ta bort effektivitetshändelser äldre än 90 dagar och komprimera databasen?",
   "webview.storage.confirmDeepClean": "Djup rensning tar bort chat- och composerhistorik från den lokala databasen. En säkerhetskopia skapas. Fortsätta?",
   "webview.storage.confirmDeleteOldChats": "Ta bort chattar äldre än {days} dagar?",
   "webview.storage.confirmEditorCache": "Ta bort editorcachemappar för denna profil?",
@@ -404,5 +404,5 @@
   "webview.storage.wal": "Write-ahead-logg (WAL)",
   "webview.storage.workspace": "Workspace-lagring",
   "tokenDetector.output.channelName": "Cursor Token Detector",
-  "tokenDetector.output.trackingInitialized": "Agent tracking initialized for profile {profileId}"
+  "tokenDetector.output.trackingInitialized": "Agentspårning initierad för profil {profileId}"
 }
