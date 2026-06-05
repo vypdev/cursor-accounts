@@ -99,6 +99,7 @@ describe('ProfileSettingsManager', () => {
       assert.equal(settings?.['http.proxy'], 'http://127.0.0.1:8080');
       assert.equal(settings?.['http.proxySupport'], 'override');
       assert.equal(settings?.['http.proxyStrictSSL'], false);
+      assert.equal(settings?.['cursor.general.disableHttp2'], true);
       assert.equal(settings?.['http.proxy.backup'], undefined);
     });
 
@@ -127,6 +128,18 @@ describe('ProfileSettingsManager', () => {
       );
       assert.equal(before, after);
     });
+
+    it('adds disableHttp2 when proxy URL already set but flag missing', async () => {
+      const dir = path.join(tempRoot, 'apply-disable-http2-missing');
+      await manager.writeSettings(dir, {
+        'http.proxy': 'http://127.0.0.1:8080',
+        'http.proxySupport': 'override',
+        'http.proxyStrictSSL': false,
+      });
+      await manager.applyProxySettings(dir, 'http://127.0.0.1:8080');
+      const settings = await manager.readSettings(dir);
+      assert.equal(settings?.['cursor.general.disableHttp2'], true);
+    });
   });
 
   describe('restoreProxySettings', () => {
@@ -143,6 +156,7 @@ describe('ProfileSettingsManager', () => {
       assert.equal(settings?.['http.proxy'], 'http://corporate:3128');
       assert.equal(settings?.['http.proxy.backup'], undefined);
       assert.equal(settings?.['http.proxySupport'], undefined);
+      assert.equal(settings?.['cursor.general.disableHttp2'], undefined);
     });
 
     it('clears our proxy keys when no backup exists', async () => {
@@ -152,6 +166,7 @@ describe('ProfileSettingsManager', () => {
       const settings = await manager.readSettings(dir);
       assert.equal(settings?.['http.proxy'], undefined);
       assert.equal(settings?.['http.proxySupport'], undefined);
+      assert.equal(settings?.['cursor.general.disableHttp2'], undefined);
     });
 
     it('is idempotent when no proxy was applied', async () => {

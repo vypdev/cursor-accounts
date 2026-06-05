@@ -56,8 +56,15 @@ Optional localhost proxy to observe Cursor network traffic. Setup: [PROXY-SETUP.
 | `cursorAccounts.proxy.autoShowOutputChannel` | `false` | Open output channel when proxy starts |
 | `cursorAccounts.proxy.outputCursorHostsOnly` | `false` | Filter output to Cursor API hosts |
 | `cursorAccounts.proxy.outputTailFromStart` | `false` | Tail log from beginning when output opens |
-| `cursorAccounts.proxy.showLiveUsageInStatusBar` | `true` | Show live agent token counter + rough cost estimate |
+| `cursorAccounts.proxy.showLiveUsageInStatusBar` | `true` | Show live agent token counter + rough cost estimate (via proxy child IPC, not log tailing) |
 | `cursorAccounts.proxy.estimatedDollarsPerMillionTokens` | `4` | Flat rate for live cost estimate (not real billing) |
+| `cursorAccounts.proxy.developmentMode` | `false` | Write JSONL logs under `~/.cursor-accounts/proxy/logs/`; when off, traffic flows via IPC only |
+| `cursorAccounts.proxy.trafficDiagnostics` | `true` | Periodic `[ProxyDiagnostics]` summaries in MITM output (hosts, RPC counts, bypass hints) |
+| `cursorAccounts.proxy.diagnosticsIntervalMs` | `30000` | Interval between diagnostics summaries (10000–300000 ms) |
+| `cursorAccounts.proxy.logTokenDetectorToOutput` | `true` | Stream agent/token events to **Cursor Token Detector** output channel |
+| `cursorAccounts.proxy.autoShowTokenDetectorChannel` | `false` | Open Token Detector output when agent/token events arrive |
+
+**Runtime modes:** With `developmentMode` off (default), the extension host receives decoded traffic from the proxy child over IPC (`ProxyManager.onTraffic`). JSONL files and log tailing are only used when `developmentMode` is `true` or when you open the output channel with **Proxy: Output Tail From Start** (replays the active log file if one exists).
 
 ## Common scenarios
 

@@ -6,6 +6,8 @@ declare module 'http-mitm-proxy' {
     port?: number;
     host?: string;
     sslCaDir?: string;
+    forceSNI?: boolean;
+    httpsPort?: number;
   }
 
   export interface IContext {

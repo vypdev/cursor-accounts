@@ -31,10 +31,12 @@ describe('Proxy settings integration', () => {
     );
     let settings = await settingsManager.readSettings(profileDir);
     assert.equal(settings?.['http.proxy'], 'http://127.0.0.1:8080');
+    assert.equal(settings?.['cursor.general.disableHttp2'], true);
 
     await settingsManager.restoreProxySettings(profileDir);
     settings = await settingsManager.readSettings(profileDir);
     assert.equal(settings?.['http.proxy'], undefined);
+    assert.equal(settings?.['cursor.general.disableHttp2'], undefined);
   });
 
   it('restores user proxy from backup after temporary override', async () => {
@@ -89,5 +91,6 @@ describe('Proxy settings integration', () => {
 
     const settings = await settingsManager.readSettings(dir);
     assert.equal(settings?.['http.proxy'], undefined);
+    assert.equal(settings?.['cursor.general.disableHttp2'], undefined);
   });
 });

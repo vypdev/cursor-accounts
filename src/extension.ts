@@ -204,7 +204,20 @@ export function activate(context: vscode.ExtensionContext): void {
 
     const currentProfile = await profileDetector.detectCurrentProfile();
 
-    if (currentProfile && isProfileProxyEnabled(currentProfile)) {
+    if (currentProfile === null) {
+      const restoreResult =
+        await proxyManager.restoreAllProfileProxySettings();
+      if (restoreResult.restored > 0) {
+        extensionLog.info(
+          `[Proxy] Restored proxy settings on ${restoreResult.restored} profile(s) (unassigned window)`
+        );
+      }
+      if (restoreResult.errors.length > 0) {
+        extensionLog.warn(
+          `[Proxy] Failed to restore proxy settings on ${restoreResult.errors.length} profile(s)`
+        );
+      }
+    } else if (isProfileProxyEnabled(currentProfile)) {
       const result = await proxyManager.ensureProfileProxy(currentProfile.id);
       if (result.success) {
         extensionLog.info(

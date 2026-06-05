@@ -16,6 +16,7 @@ Structured reference for **how `cursor-agent` behaves** versus **what this exten
 | 4 | [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md) | Billing channels, glossary, limitations |
 | 5 | [PROXY-AGENT-IDS-AND-SUBAGENTS.md](PROXY-AGENT-IDS-AND-SUBAGENTS.md) | `request_id`, chats, parallel workers |
 | 6 | [PROXY-SETUP.md](PROXY-SETUP.md) | Capture CLI/IDE traffic through MITM |
+| 7 | [HTTP2-PROXY-IMPLEMENTATION.md](HTTP2-PROXY-IMPLEMENTATION.md) | HTTP/2 MITM + httpolyglot |
 
 ```mermaid
 flowchart TB
@@ -83,7 +84,7 @@ If you compare **CLI TUI tokens** with **JSONL from an IDE-only session**, you a
 
 | Aspect | CLI | Extension observation |
 |--------|-----|------------------------|
-| HTTP | Often **HTTP/2** through `HTTPS_PROXY` | Decrypted bytes; path still `…/RunSSE` |
+| HTTP | Often **HTTP/2** through `HTTPS_PROXY` | **HTTP/1.0 / 1.1 / 2** via httpolyglot MITM; path still `…/RunSSE` |
 | Primary stream | **`RunSSE`** (`AgentServerMessage` per Connect frame) | Same |
 | Legacy IDE path | May use **`RunPoll`** (one inner message per HTTP response) | Batch decode at response end; **no** incremental `isLiveTokenUpdate` |
 | Inner payload | Same protobuf | Same — not “richer on HTTP/2” |
@@ -234,6 +235,7 @@ Prioritized differences to study or close. Status: **open** unless noted.
 | C1 | Sum every `token_delta` for live UI | 2026-06-04 — `StreamingAgentDecoder` + status bar |
 | C2 | Trust server `turn_ended` for persistence | 2026-06-04 — removed live peak/reset heuristic |
 | C3 | RunSSE-only scripts missing deltas | 2026-06-04 — `summarize-session-tokens.mjs` scans RunSSE |
+| C4 | HTTP/2 MITM (ALPN + httpolyglot) | 2026-06-04 — `PolyglotMitmProxyServer` on TLS leg; profile launch still sets `cursor.general.disableHttp2` for interactive Agent capture over HTTP/1.1 (`api2`) — see [PROXY-SETUP.md](PROXY-SETUP.md) |
 
 ---
 
@@ -280,7 +282,9 @@ Run a Task with parallel subagents; in JSONL count distinct `request_id`s and co
 | File | CLI analogue |
 |------|----------------|
 | [`streamingAgentDecoder.ts`](../src/proxy/streamingAgentDecoder.ts) | Connect stream reader + `tokenDelta` reducer |
-| [`mitmProxyServer.ts`](../src/proxy/mitmProxyServer.ts) | Client transport + event dispatch |
+| [`polyglotMitmProxyServer.ts`](../src/proxy/polyglotMitmProxyServer.ts) | MITM child process (HTTP/2 + HTTP/1.x) |
+| [`mitmProxyServer.ts`](../src/proxy/mitmProxyServer.ts) | Shared hooks + RunSSE incremental decode |
+| [`httpolyglotHttpsPatch.ts`](../src/proxy/httpolyglotHttpsPatch.ts) | ALPN / httpolyglot HTTPS factory |
 | [`proxyInsightExtractor.ts`](../src/proxy/proxyInsightExtractor.ts) | Proto → `AgentSessionInfo` |
 | [`agentLiveUsageStatusBar.ts`](../src/ui/agentLiveUsageStatusBar.ts) | `topStatus` + `tokenPercentLabel` |
 | [`agentTrackingService.ts`](../src/services/agentTrackingService.ts) | Agent store persistence |

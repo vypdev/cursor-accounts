@@ -1,4 +1,4 @@
-import type { AgentSessionInfo } from '../../proxy/proxyInsightExtractor';
+import type { AgentSessionInfo } from '../../application/types/agentTracking';
 
 export interface DetectedTurn {
   streamingTokens: number;

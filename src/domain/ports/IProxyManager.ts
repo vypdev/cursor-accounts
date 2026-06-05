@@ -1,6 +1,4 @@
 import type { ProxyInstallGuide, ProxyStatus } from '@cursor-accounts/types';
-import type { ProxyOutputPresenter } from '../../proxy/proxyOutputPresenter';
-import type { TokenDetectorOutputPresenter } from '../../proxy/tokenDetectorOutputPresenter';
 
 /** Result of restoring proxy settings across all managed profiles. */
 export interface RestoreAllProfilesResult {
@@ -34,11 +32,9 @@ export interface IProxyManager {
   ensureProfileProxy(profileId: string): Promise<ProxyStartResult>;
   restoreAllProfileProxySettings(): Promise<RestoreAllProfilesResult>;
   onStatusChange(callback: () => void): void;
-  getOutputPresenter(): ProxyOutputPresenter | undefined;
-  getTokenDetectorPresenter(): TokenDetectorOutputPresenter | undefined;
   ensureOutputTailer(
     profileId: string,
-    options?: { tailFromStart?: boolean }
+    options?: { tailFromStart?: boolean; forceRestart?: boolean }
   ): Promise<void>;
   ensureTrafficTailer(): Promise<void>;
   showOutputChannel(): void;

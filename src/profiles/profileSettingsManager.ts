@@ -22,6 +22,8 @@ const PROXY_BACKUP_KEY = 'http.proxy.backup';
 const PROXY_KEY = 'http.proxy';
 const PROXY_SUPPORT_KEY = 'http.proxySupport';
 const PROXY_SSL_KEY = 'http.proxyStrictSSL';
+/** Force HTTP/1.1 so Agent streams route through MITM (HTTP/2 often bypasses proxy). */
+export const DISABLE_HTTP2_KEY = 'cursor.general.disableHttp2';
 
 const PROXY_SUPPORT_OVERRIDE = 'override';
 const PROXY_STRICT_SSL_OFF = false;
@@ -86,7 +88,11 @@ export class ProfileSettingsManager implements IProfileSettingsManager {
     const settings = (await this.readSettings(userDataDir)) ?? {};
     const currentProxy = this.asString(settings[PROXY_KEY]);
 
-    if (currentProxy === proxyUrl && !this.hasMeaningfulBackup(settings)) {
+    if (
+      currentProxy === proxyUrl &&
+      !this.hasMeaningfulBackup(settings) &&
+      settings[DISABLE_HTTP2_KEY] === true
+    ) {
       return;
     }
 
@@ -102,6 +108,7 @@ export class ProfileSettingsManager implements IProfileSettingsManager {
     settings[PROXY_KEY] = proxyUrl;
     settings[PROXY_SUPPORT_KEY] = PROXY_SUPPORT_OVERRIDE;
     settings[PROXY_SSL_KEY] = PROXY_STRICT_SSL_OFF;
+    settings[DISABLE_HTTP2_KEY] = true;
 
     const applicationPath = await this.getApplicationSettingsPath(userDataDir);
     await this.writeSettings(userDataDir, settings, applicationPath);
@@ -123,6 +130,7 @@ export class ProfileSettingsManager implements IProfileSettingsManager {
       delete settings[PROXY_BACKUP_KEY];
       delete settings[PROXY_SUPPORT_KEY];
       delete settings[PROXY_SSL_KEY];
+      delete settings[DISABLE_HTTP2_KEY];
       await this.writeSettings(userDataDir, settings, applicationPath);
       return;
     }
@@ -134,6 +142,7 @@ export class ProfileSettingsManager implements IProfileSettingsManager {
     delete settings[PROXY_KEY];
     delete settings[PROXY_SUPPORT_KEY];
     delete settings[PROXY_SSL_KEY];
+    delete settings[DISABLE_HTTP2_KEY];
     await this.writeSettings(userDataDir, settings, applicationPath);
   }
 
@@ -180,7 +189,8 @@ export class ProfileSettingsManager implements IProfileSettingsManager {
     return (
       settings[PROXY_KEY] !== undefined ||
       settings[PROXY_SUPPORT_KEY] === PROXY_SUPPORT_OVERRIDE ||
-      settings[PROXY_SSL_KEY] === PROXY_STRICT_SSL_OFF
+      settings[PROXY_SSL_KEY] === PROXY_STRICT_SSL_OFF ||
+      settings[DISABLE_HTTP2_KEY] === true
     );
   }
 

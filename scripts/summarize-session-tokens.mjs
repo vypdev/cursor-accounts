@@ -203,7 +203,12 @@ async function analyzeFile(filePath, root, rpcMap) {
     const agentServerType = root.lookupType('agent.v1.AgentServerMessage');
     const counters = { turnEndedCount, tokenDetailsCount };
 
-    if (rpcPath.includes('RunSSE') && entry.direction === 'response') {
+    if (
+      entry.direction === 'response' &&
+      (rpcPath.includes('RunSSE') ||
+        rpcPath.includes('StreamBidiSSE') ||
+        (rpcPath.includes('StreamBidi') && !rpcPath.includes('StreamBidiPoll')))
+    ) {
       const raw = bodyBufferFromEntry(entry, logDir);
       if (raw?.length && agentServerType) {
         for (const msg of scanAgentServerStream(agentServerType, raw)) {

@@ -6,7 +6,7 @@
 import * as path from 'path';
 import type { ProxyChildMessage, ProxyParentMessage } from './types';
 import { CertificateManager } from './certificateManager';
-import { MitmProxyServer } from './mitmProxyServer';
+import { PolyglotMitmProxyServer } from './polyglotMitmProxyServer';
 import { RequestLogger } from './requestLogger';
 import { NullLogger } from './nullLogger';
 import type { ProxyTrafficLogger } from './nullLogger';
@@ -37,7 +37,7 @@ async function main(): Promise<void> {
         spillLargeBodies: config.spillLargeBodies,
       })
     : new NullLogger();
-  const server = new MitmProxyServer(certificateManager, requestLogger, {
+  const server = new PolyglotMitmProxyServer(certificateManager, requestLogger, {
     onTraffic: (summary) => {
       send({
         type: 'traffic',
@@ -54,12 +54,26 @@ async function main(): Promise<void> {
   });
 
   let statsInterval: ReturnType<typeof setInterval> | undefined;
+  let diagnosticsInterval: ReturnType<typeof setInterval> | undefined;
+  const diagnosticsIntervalMs = config.diagnosticsIntervalMs ?? 30_000;
+
+  const emitDiagnostics = (): void => {
+    if (!config.trafficDiagnostics) {
+      return;
+    }
+    for (const line of server.formatDiagnosticsLines()) {
+      process.stderr.write(`${line}\n`);
+    }
+  };
 
   process.on('message', (msg: ProxyParentMessage) => {
     if (msg.type === 'shutdown') {
       void (async () => {
         if (statsInterval) {
           clearInterval(statsInterval);
+        }
+        if (diagnosticsInterval) {
+          clearInterval(diagnosticsInterval);
         }
         await server.stop();
         process.exit(0);
@@ -75,6 +89,10 @@ async function main(): Promise<void> {
     statsInterval = setInterval(() => {
       send({ type: 'stats', data: server.getStatistics() });
     }, 5000);
+    if (config.trafficDiagnostics) {
+      emitDiagnostics();
+      diagnosticsInterval = setInterval(emitDiagnostics, diagnosticsIntervalMs);
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     send({ type: 'error', message });

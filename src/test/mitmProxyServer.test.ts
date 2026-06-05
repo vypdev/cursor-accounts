@@ -5,7 +5,7 @@ import * as http from 'http';
 import * as os from 'os';
 import * as path from 'path';
 import { CertificateManager } from '../proxy/certificateManager';
-import { MitmProxyServer } from '../proxy/mitmProxyServer';
+import { PolyglotMitmProxyServer as MitmProxyServer } from '../proxy/polyglotMitmProxyServer';
 import { RequestLogger } from '../proxy/requestLogger';
 import { isPortAvailable } from '../proxy/portUtils';
 
@@ -85,6 +85,8 @@ describe('MitmProxyServer forwarding', () => {
       maxBodyLogBytes: 4 * 1024 * 1024,
       spillLargeBodies: true,
       developmentMode: true,
+      trafficDiagnostics: false,
+      diagnosticsIntervalMs: 30_000,
     });
 
     const responseBody = await new Promise<string>((resolve, reject) => {

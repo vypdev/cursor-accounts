@@ -57,10 +57,9 @@ Stores token usage snapshots for agents, with support for multi-turn tracking wi
 
 ### Turn tracking
 
-For **RunSSE** streams, multiple rows may exist per `request_id` with different `turn_index` values. Each row represents a detected counter reset:
+**Primary (live):** Rows with `token_type = 'turn_ended'` are inserted when the MITM decoder sees server `InteractionUpdate.turn_ended` (`StreamingAgentDecoder`). These rows carry final input/output/cache fields; `turn_index` is often NULL.
 
-- Peak threshold: streaming counter ≥ **300**
-- Reset threshold: next value ≤ **150**
+**Secondary (batch heuristic):** When ingesting a full RunSSE body with multiple `token_delta` frames, `TokenTurnDetectionService` may assign `turn_index` using peak ≥ **300** and reset ≤ **150**. This path is for offline replay, not live status bar billing.
 
 **RunPoll (HTTP/1):** Each `RunPoll` response typically produces one snapshot; `turn_index` is usually NULL.
 

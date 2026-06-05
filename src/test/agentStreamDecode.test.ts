@@ -15,6 +15,13 @@ describe('agentStreamDecode', () => {
       true
     );
     assert.equal(
+      isAgentServerStreamRpc(
+        '/aiserver.v1.HealthService/StreamBidiSSE',
+        'response'
+      ),
+      true
+    );
+    assert.equal(
       isAgentServerStreamRpc('/agent.v1.AgentService/RunSSE', 'request'),
       false
     );
@@ -22,6 +29,30 @@ describe('agentStreamDecode', () => {
       isAgentServerStreamRpc('/agent.v1.AgentService/RunPoll', 'response'),
       false
     );
+  });
+
+  it('decodes token_delta inside HealthResponse.payload (StreamBidiSSE carrier)', async () => {
+    resetProtoRegistryForTests();
+    const registry = await getProtoRegistry();
+    const agentType = registry.lookupMessageType('agent.v1.AgentServerMessage');
+    const healthType = registry.lookupMessageType('aiserver.v1.HealthResponse');
+    assert.ok(agentType);
+    assert.ok(healthType);
+
+    const agentBytes = agentType.encode(
+      agentType.create({
+        interactionUpdate: { tokenDelta: { tokens: 77 } },
+      })
+    ).finish();
+
+    const healthBytes = healthType.encode(
+      healthType.create({ payload: Buffer.from(agentBytes).toString('hex') })
+    ).finish();
+
+    const stream = wrapConnectEnvelope(Buffer.from(healthBytes));
+    const scan = scanConnectAgentServerStream(registry, stream);
+    assert.equal(scan.tokenDeltaCount, 1);
+    assert.equal(scan.mergedAgent?.streamingTokens, 77);
   });
 
   it('merges stream frames preferring turn_ended over token_delta', () => {

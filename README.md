@@ -71,6 +71,7 @@ No additional installation required. See [docs/PLATFORM-SUPPORT.md](docs/PLATFOR
 
 - [How It Works](docs/HOW-IT-WORKS.md)
 - [Architecture](docs/ARCHITECTURE.md)
+- [Clean Architecture principles](docs/CLEAN-ARCHITECTURE-PRINCIPLES.md) — proxy ports, adapters, dependency rule
 - [Building & Packaging](docs/BUILD.md)
 - [API Research](docs/RESEARCH.md)
 - [Tokens and Usage](docs/TOKENS-AND-USAGE.md) — token signals, billing channels, MITM decode
@@ -84,7 +85,7 @@ No additional installation required. See [docs/PLATFORM-SUPPORT.md](docs/PLATFOR
 
 ### Other
 
-- [MITM Proxy Setup](docs/PROXY-SETUP.md) — observe Cursor IDE network traffic (research/debug); see [TOKENS-AND-USAGE.md](docs/TOKENS-AND-USAGE.md) for token/billing semantics, [PROXY-JSONL-SCHEMA.md](docs/PROXY-JSONL-SCHEMA.md) for log format
+- [MITM Proxy Setup](docs/PROXY-SETUP.md) — observe Cursor IDE network traffic (HTTP/1.0, HTTP/1.1, HTTP/2); see [HTTP2-PROXY-IMPLEMENTATION.md](docs/HTTP2-PROXY-IMPLEMENTATION.md), [TOKENS-AND-USAGE.md](docs/TOKENS-AND-USAGE.md), [PROXY-JSONL-SCHEMA.md](docs/PROXY-JSONL-SCHEMA.md)
 - [Privacy & Security](docs/PRIVACY.md)
 - [Contributing](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)

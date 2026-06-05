@@ -48,6 +48,8 @@
   "configuration.proxy.showLiveUsageInStatusBar.description": "Mostrar el uso en vivo de tokens del agente/chat en la barra de estado mientras el proxy MITM está en ejecución (sigue automáticamente los registros del proxy).",
   "configuration.proxy.estimatedDollarsPerMillionTokens.description": "USD aproximados por millón de tokens para estimaciones de coste en vivo en la barra de estado (la facturación real puede diferir).",
   "configuration.proxy.developmentMode.description": "Escribir el tráfico del proxy en archivos de registro JSONL locales para depuración. Dejar desactivado en uso normal; la extensión recibe el tráfico en tiempo real vía IPC.",
+  "configuration.proxy.trafficDiagnostics.description": "Emitir resúmenes periódicos [ProxyDiagnostics] en el canal MITM (hosts CONNECT, RPCs Agent, pistas de bypass). Ayuda a detectar tráfico que no pasa por el proxy.",
+  "configuration.proxy.diagnosticsIntervalMs.description": "Intervalo en milisegundos entre resúmenes [ProxyDiagnostics] en el canal MITM.",
   "configuration.proxy.logTokenDetectorToOutput.description": "Escribir eventos de agente/token/conversación del IPC del proxy en el canal de salida Cursor Token Detector.",
   "configuration.proxy.autoShowTokenDetectorChannel.description": "Abrir automáticamente el canal de salida Cursor Token Detector cuando lleguen eventos de agente o token."
 }

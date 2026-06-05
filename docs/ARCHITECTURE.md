@@ -84,7 +84,8 @@ graph TB
 | Layer | Path | Responsibility |
 |-------|------|----------------|
 | Composition root | `src/extension.ts`, `src/composition/` | `activate`/`deactivate`, DI wiring, storage service factory, migrations from `cursorQuota`, command registration |
-| Domain ports | `src/domain/ports/` | `IQuotaService`, `ITokenProvider`, `IProfileStorage`, `IProfileManager`, `IProfileDetector`, `IProfileLauncher`, `IInstanceDetector`, `IProfileAuthReader`, `IUserService`, `IActivityLeaderboardService`, `IStorageCleanupService`, `IFileSystemService`, `IDatabaseCleanupService`, `ICacheCleanupService`, `IProfileStorageAnalyzer` |
+| Domain ports | `src/domain/ports/` | `IQuotaService`, `ITokenProvider`, `IProfileStorage`, `IProfileManager`, `IProfileDetector`, `IProfileLauncher`, `IInstanceDetector`, `IProfileAuthReader`, `IUserService`, `IActivityLeaderboardService`, `IStorageCleanupService`, `IFileSystemService`, `IDatabaseCleanupService`, `ICacheCleanupService`, `IProfileStorageAnalyzer`, `IProxyManager`, `IProxyServer`, `IProtocolAdapter`, `IAgentTrackingRepository`, `ITokenTurnDetectionService` |
+| Application types | `src/application/types/` | Cross-layer DTOs (`AgentSessionInfo`, `ProxyServerConfig`, agent persistence records) |
 | Shared kernel | `packages/types/` | Entities, quota business rules, webview message contracts |
 | HTTP / adapters | `src/api/` | Quota, usage summary, user, team metadata, leaderboard clients; DTO→domain mappers in `quotaMappers.ts` |
 | Local auth | `src/auth/` | Read `state.vscdb`, OAuth refresh, `ProfileAuthReader`, token providers |
@@ -311,52 +312,67 @@ sequenceDiagram
 
 ## Optional MITM proxy subsystem
 
-When enabled, a **child Node process** runs `http-mitm-proxy` on localhost. The extension host does not terminate TLS itself; it tails JSONL logs and decodes Connect/protobuf for insights.
+When enabled, a **child Node process** runs [`PolyglotMitmProxyServer`](../src/proxy/polyglotMitmProxyServer.ts) (`http-mitm-proxy` + `@httptoolkit/httpolyglot` for HTTP/1.0/1.1/2 ALPN) on localhost. The extension host does not terminate TLS itself; it receives decoded traffic summaries over **IPC** and optionally writes JSONL when `cursorAccounts.proxy.developmentMode` is true. See [HTTP2-PROXY-IMPLEMENTATION.md](HTTP2-PROXY-IMPLEMENTATION.md) and [CLEAN-ARCHITECTURE-PRINCIPLES.md](CLEAN-ARCHITECTURE-PRINCIPLES.md).
 
 ```mermaid
-flowchart LR
-  Cursor[Cursor_profile_window] --> Proxy[proxy_child_process]
-  Proxy --> Logs[proxy_logs_JSONL]
-  Logs --> Tail[traffic_tail_IPC]
-  Tail --> Decode[proxyDecode_bidiAgentDecode]
-  Decode --> Insights[proxyInsightExtractor]
-  Insights --> Out[Output_channel]
-  Insights --> LiveBar[agentLiveUsageStatusBar]
+flowchart TB
+  subgraph Application
+    PM[ProxyManager_facade]
+    PP[NodeProxyProcess]
+    CB[ProxyCertificateService]
+    TB[ProxyTrafficBus]
+    TI[ProxyTrafficIngress]
+  end
+  subgraph Child
+    MITM[PolyglotMitmProxyServer]
+    RSSE[RunSseStreamHandler]
+    LOG[RequestLogger_or_NullLogger]
+  end
+  subgraph UI
+    OUT[ProxyOutputPresenter]
+    BAR[AgentLiveUsageStatusBar]
+    AT[AgentTrackingService]
+  end
+  PM --> PP
+  PP --> MITM
+  MITM --> RSSE
+  MITM --> LOG
+  MITM --> IPC[IPC_traffic]
+  IPC --> TB
+  LOG -.->|developmentMode| TI
+  TI --> TB
+  TB --> AT
+  TB --> OUT
+  TB --> BAR
 ```
 
 | Component | Path | Role |
 |-----------|------|------|
-| Lifecycle | `src/services/proxyManager.ts` | Start/stop child, CA trust, profile `http.proxy`, IPC `traffic` events |
-| Logging | `src/proxy/requestLogger.ts`, `proxyServer.ts` | JSONL + optional body spill under `~/.cursor-accounts/proxy/logs/` |
-| Decode | `src/proxy/proxyDecode.ts`, `bidiAgentDecode.ts`, `proxyInsightExtractor.ts` | Map RPC bodies → `ProxyTrafficInsights` |
-| Presentation | `src/proxy/proxyTrafficFormat.ts`, `src/ui/agentLiveUsageStatusBar.ts` | Output hints and live token status bar (separate from quota bar) |
+| Facade | `src/services/proxyManager.ts` | Coordinates process, certs, settings, traffic bus |
+| Process | `src/proxy/nodeProxyProcess.ts` (`IProxyProcess`) | Fork child, IPC, ready/stop protocol |
+| Certificates | `src/services/proxyCertificateService.ts` | CA trust and install guide |
+| Traffic bus | `src/application/services/proxyTrafficBus.ts` | Pub/sub for `ProxyTrafficSummary` |
+| Traffic ingress | `src/application/services/proxyTrafficIngress.ts` | Optional JSONL tail (dev / replay) |
+| MITM | `src/proxy/polyglotMitmProxyServer.ts` | HTTP/1.x + HTTP/2 capture (`IProxyServer`) |
+| RunSSE | `src/proxy/capture/runSseStreamHandler.ts` | Live `token_delta` / `turn_ended` summaries |
+| Logging | `src/proxy/requestLogger.ts` | JSONL when `developmentMode` is true |
+| Presentation | `src/ui/presentation/`, `src/ui/agentLiveUsageStatusBar.ts` | Output channels and status bar |
 
 Token semantics and billing channels: [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md). JSONL schema: [PROXY-JSONL-SCHEMA.md](PROXY-JSONL-SCHEMA.md). Agent/subagent IDs and parallel workers: [PROXY-AGENT-IDS-AND-SUBAGENTS.md](PROXY-AGENT-IDS-AND-SUBAGENTS.md). User setup: [PROXY-SETUP.md](PROXY-SETUP.md).
 
 The live usage status bar keys sessions by bidi `request_id` and **sums** all active sessions (including parallel subagents, each with its own id). Parent/child subagent linkage is extracted from nested Agent messages when present (`runRequest`, `subagent_result`, etc.) and persisted via `AgentTrackingService`.
 
-### Token turn detection (domain service)
+### Live agent tokens and turn persistence
 
-[`TokenTurnDetectionService`](../src/domain/services/tokenTurnDetectionService.ts) implements the peak/reset heuristic for identifying distinct turns within streaming token counters. This is a **pure domain service** with no infrastructure dependencies.
+**Live UI (primary):** [`StreamingAgentDecoder`](../src/proxy/streamingAgentDecoder.ts) in `mitmProxyServer` emits incremental `token_delta` summaries (`isLiveTokenUpdate`) and billing-grade `turn_ended` rows (`isTurnEnded`) over IPC. [`AgentLiveUsageStatusBar`](../src/ui/agentLiveUsageStatusBar.ts) sums active sessions; [`AgentTrackingService`](../src/services/agentTrackingService.ts) persists `turn_ended` snapshots without requiring `turn_index`.
 
-| Constant | Value | Meaning |
-|----------|-------|---------|
-| `RESET_PEAK_THRESHOLD` | 300 | Prior turn peak must reach this before a reset is considered |
-| `RESET_DROP_THRESHOLD` | 150 | Next value must drop to this or below to start a new turn |
+**Batch / offline heuristic (secondary):** [`TokenTurnDetectionService`](../src/domain/services/tokenTurnDetectionService.ts) applies peak/reset thresholds (≥300 / ≤150) only when `AgentTrackingService` ingests traffic with `allTokenFrames[]` (e.g. full RunSSE body replay). It is **not** used for live status bar updates.
 
-**Clean Architecture flow:**
-
-1. **Infrastructure:** `mitmProxyServer` correlates RunSSE HTTP request/response via `x-request-id`, extracts bidi `request_id` from request body
-2. **Infrastructure:** `agentStreamDecode` scans RunSSE response stream → `allTokenFrames[]`
-3. **Application:** `AgentTrackingService.ingestTraffic()` delegates turn detection to domain service
-4. **Domain:** `TokenTurnDetectionService.detectTurns()` returns peak per turn
-5. **Persistence:** `AgentTrackingDatabase.insertTokenSnapshot()` stores each turn with `turn_index` + `http_request_id`
-
-RunPoll (HTTP/1) uses one snapshot per response; turn detection applies to RunSSE multi-frame streams only. See [DATABASE-SCHEMA.md](DATABASE-SCHEMA.md).
+See [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md) and [DATABASE-SCHEMA.md](DATABASE-SCHEMA.md).
 
 ## Known maintainability notes
 
-- `extension.ts` concentrates wiring and migrations (~270 lines)
+- `extension.ts` concentrates wiring and migrations (~400 lines)
 - `accountsPanel.ts` delegates webview user actions to `accountsPanelHandlers.ts`; `instanceDetector.ts` remains a large orchestration file (candidate for further extraction)
 - HTTP clients in `src/api/` share similar fetch/error patterns (candidate for a small internal helper)
 - `RefreshService` creates an `AbortController` that is not wired to in-flight fetch cancellation today

@@ -41,14 +41,15 @@ After removal, the badge should show **CA not trusted** when you focus the panel
 
 When the proxy is **running**, launching a profile from the Accounts panel:
 
-- Writes `http.proxy` to that profile's `User/settings.json` (with `http.proxySupport: "override"`)
+- Writes `http.proxy` to that profile's application `settings.json` (with `http.proxySupport: "override"`)
+- Sets **`cursor.general.disableHttp2: true`** so Agent traffic uses HTTP/1.1 (`BidiAppend` / `RunPoll`) through the MITM proxy (HTTP/2 Agent streams often bypass Chromium/VS Code proxy settings)
 - Backs up any existing `http.proxy` to `http.proxy.backup` (restored later)
 - Passes **`--proxy-server=http://127.0.0.1:<port>`** to Cursor (Chromium/Electron), using that profile's assigned MITM port (not always 8080 — see per-profile ports below)
 - Sets `NODE_EXTRA_CA_CERTS` in the environment when spawning Cursor (for Node/Electron)
 
 Each profile's proxy port is chosen from `8080`, `8081`, `8082`, or `8888` (first free port not used by another running profile proxy). The same port is used in `settings.json`, `--proxy-server`, and the proxy process listen address.
 
-When you **stop the proxy** or open the **default Cursor window** (no managed profile), the extension restores the original proxy settings in **all** stored profiles.
+When you **stop the proxy** or open the **default Cursor window** (no managed profile), the extension restores the original proxy settings in **all** stored profiles (`http.proxy`, `http.proxySupport`, `http.proxyStrictSSL`, and `cursor.general.disableHttp2`).
 
 When the proxy **starts**, temporary proxy overrides are cleared from every profile so none use the proxy until you launch a profile again.
 
@@ -72,9 +73,15 @@ If the field is empty after starting the proxy:
 
 The Accounts panel shows a **Temporary proxy** badge on profiles whose `settings.json` was modified and will be restored automatically.
 
+## Traffic to the extension (IPC vs JSONL)
+
+By default (**Proxy: Development Mode** = `false`), the proxy child sends redacted traffic summaries to the extension host over IPC. The live usage status bar, Token Detector channel, and agent tracking DB use this path — no log files are required.
+
+Enable **`cursorAccounts.proxy.developmentMode`** to also write JSON Lines under `~/.cursor-accounts/proxy/logs/` (needed for `pnpm run verify:proto-jsonl`, `scan:proxy-interactive`, and offline analysis). See [CONFIGURATION.md](CONFIGURATION.md#mitm-proxy-research--debugging).
+
 ## View logs
 
-Logs are JSON Lines files under shared proxy storage:
+When **development mode** is on, logs are JSON Lines files under shared proxy storage:
 
 `~/.cursor-accounts/proxy/logs/proxy-YYYY-MM-DD-*.jsonl`
 
@@ -109,12 +116,24 @@ Cursor uses **several API hosts**. A log can look “healthy” (billing, agent 
 
 If you only see `api2` + `ReportAgentSnapshot` but **no** interactive RPCs, the proxy did not capture a chat turn.
 
+**Multi-protocol MITM:** The proxy terminates **HTTP/1.0**, **HTTP/1.1**, and **HTTP/2** (ALPN) on the TLS leg via `@httptoolkit/httpolyglot`. For **interactive Agent capture**, the extension sets `cursor.general.disableHttp2: true` on profile launch so Cursor uses HTTP/1.1 (`RunPoll` / `BidiAppend` on `api2`). HTTP/2 remains supported on the MITM leg for other traffic when the client negotiates `h2`. Details: [HTTP2-PROXY-IMPLEMENTATION.md](HTTP2-PROXY-IMPLEMENTATION.md).
+
+### Traffic diagnostics (bypass detection)
+
+With **`cursorAccounts.proxy.trafficDiagnostics`** (default **on**), the MITM output channel prints a **`[ProxyDiagnostics]`** block every ~30s:
+
+- **CONNECT tunnels** — TLS destinations the proxy actually intercepted (if Agent uses `agent.api5` but you only see `api2`, likely bypass).
+- **HTTP hosts** and **top RPC paths** — what reached the MITM.
+- **Agent signals** — counts for `BidiAppend`, `RunSSE`, `StreamBidiSSE`, `RunPoll`, live `token_delta`.
+- **Bypass hints** — heuristic messages (e.g. background `api2` without interactive Agent RPCs).
+
+Traffic that never uses `--proxy-server` or `HTTPS_PROXY` **will not appear** in diagnostics (that is the main bypass case).
+
 **Checklist for chat capture:**
 
 1. Proxy **running**, CA **trusted** (panel CA must match proxy signing CA — see note above on `NodeMITMProxyCA`), profile **relaunched** from Accounts.
-2. With MITM, prefer **HTTP/1** (`cursor.general.disableHttp2: true`) so Agent uses `RunPoll` on `api2`.
-3. Send a **new Agent message** while logging.
-4. Run `pnpm run scan:proxy-interactive` — expect `RunPoll` / `BidiAppend` on api2, or `api5` / `StreamComposer` depending on HTTP mode.
+2. Send a **new Agent message** while logging.
+3. Run `pnpm run scan:proxy-interactive` — expect `RunSSE` on `api2` or `agent.api5`, or legacy `RunPoll` / `BidiAppend` on `api2`.
 5. Run `pnpm run analyze:proxy-traffic` — decoded `BidiAppend` / `RunPoll` include nested agent frames (`token_delta`, `turn_ended` when present).
 6. With the extension proxy + `cursorAccounts.proxy.showLiveUsageInStatusBar`, live token counts and a rough cost estimate appear in a **separate status bar item** during agent/chat (click opens MITM Proxy output). This is not the same as the quota status bar.
 
@@ -138,7 +157,8 @@ Tune live cost estimates with `cursorAccounts.proxy.estimatedDollarsPerMillionTo
 | Panel shows proxy running but this window does not use it | Launch the profile again after starting the proxy, or reload the window. |
 | Empty proxy logs | Ensure the profile window was launched after the proxy started; confirm `http.proxy` in that profile's settings. |
 | Logs have billing/snapshots but no chat | Agent may use **`api2` + `RunPoll`/`BidiAppend` (HTTP/1)** or **`agent.api5` + `Run`/`RunSSE` (HTTP/2)** — not legacy `StreamComposer` alone. Relaunch profile, send a test prompt, run `scan:proxy-interactive`. Many `HTTPS_CLIENT_ERROR` lines mean the CA is not trusted — reinstall CA and relaunch. See [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md#traffic-matrix-which-rpcs-carry-tokens). |
-| Network Diagnostics: API/Chat/Agent fail, SSL warns `Node MITM Proxy CA` | Proxy leaf certs signed by wrong CA; stop proxy, restart extension/proxy (regenerates `certs/ca.pem`), confirm diagnostics mention `Cursor Accounts MITM Proxy CA` or no warning after trusting panel CA. Try `cursor.general.disableHttp2` only after CA matches. |
+| Network Diagnostics: API/Chat/Agent fail, SSL warns `Node MITM Proxy CA` | Proxy leaf certs signed by wrong CA; stop proxy, restart extension/proxy (regenerates `certs/ca.pem`), confirm diagnostics mention `Cursor Accounts MITM Proxy CA` or no warning after trusting panel CA. |
+| Composer works without proxy but fails with proxy | Reinstall panel CA; check JSONL for `protocolVersion: HTTP/2` and `HTTPS_CLIENT_ERROR`. See [HTTP2-PROXY-IMPLEMENTATION.md § Troubleshooting](HTTP2-PROXY-IMPLEMENTATION.md#troubleshooting). |
 | Profile shows **Temporary proxy** badge | Normal while the proxy is active; settings revert when the proxy stops or the default window opens. |
 | Stale “running” status | The proxy process may have crashed; click **Stop Proxy** then **Start Proxy**. |
 

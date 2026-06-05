@@ -121,7 +121,7 @@ Requires [PROXY-SETUP.md](PROXY-SETUP.md). Logs live under `~/.cursor-accounts/p
 | **Composer / legacy chat** | `api2.cursor.sh` | `aiserver.v1.AiService/StreamComposer`, `StreamChat`, … | `metadata.token_usage`, `usage_uuid` |
 | Agent snapshots | `api2.cursor.sh` | `OnlineMetricsService/ReportAgentSnapshot` | Metrics only, not chat token deltas |
 
-Prefer **HTTP/1** (`cursor.general.disableHttp2: true`) when capturing Agent on `api2` via `RunPoll` / `BidiAppend`.
+The MITM proxy intercepts **HTTP/1.0, HTTP/1.1, and HTTP/2** (see [HTTP2-PROXY-IMPLEMENTATION.md](HTTP2-PROXY-IMPLEMENTATION.md)). JSONL entries may include `protocolVersion`. Legacy `RunPoll` (HTTP/1.0) is still decoded at response end; `RunSSE` supports incremental live tokens on HTTP/1.1 and HTTP/2.
 
 ### RPC → extracted insights
 
@@ -383,7 +383,7 @@ Batch counts from `analyze:proxy-traffic` may under-report checkpoint tokens com
 | Limitation | Impact |
 |------------|--------|
 | MITM sees **network only** | Composer metadata in `state.vscdb` is invisible |
-| HTTP/2 / `api5` | May lack decodable `RunPoll`/`Bidi` nested frames; live counters may be sparse |
+| `RunPoll` batch path | No incremental live updates until response completes (HTTP/1.0 poll loop) |
 | No auto `GetTokenUsage` | `usage_uuid` logged but not resolved unless RPC appears in traffic |
 | `turn_ended` often absent | No per-turn billed breakdown in many real logs |
 | `token_delta` ≠ billing | Live status bar can under-estimate vs real spend by 100×+ |

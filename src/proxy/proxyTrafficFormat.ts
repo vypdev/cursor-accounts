@@ -105,6 +105,7 @@ export function toTrafficSummary(
     requestId: extractRequestId(entry.headers),
     isCursorHost: entry.isCursorHost,
     durationMs,
+    protocolVersion: entry.protocolVersion,
   };
 }
 

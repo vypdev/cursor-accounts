@@ -4,6 +4,8 @@ Reference for every field written by the MITM proxy to `~/.cursor-accounts/proxy
 
 **Last reviewed:** 2026-06-04
 
+**Prerequisite:** JSONL files are written only when **`cursorAccounts.proxy.developmentMode`** is `true` (default `false`). Normal extension use receives traffic via IPC from the proxy child; see [PROXY-SETUP.md](PROXY-SETUP.md#traffic-to-the-extension-ipc-vs-jsonl).
+
 ## Storage layout
 
 | Path | Contents |
@@ -62,6 +64,7 @@ Spill key pattern: `{x-request-id}-{request|response}` when `x-request-id` / `tr
 | `isConnectRpc` | boolean | `content-type` looks like Connect/gRPC/proto |
 | `isCursorHost` | boolean | Host matches `*.cursor.sh`, `*.cursor.com`, `*.cursorapi.com` |
 | `requestId` | string | From `x-request-id` or W3C `traceparent` (trace id segment) |
+| `protocolVersion` | `"HTTP/1.0"` \| `"HTTP/1.1"` \| `"HTTP/2"` | Client↔proxy leg (ALPN / `httpVersion`); see [HTTP2-PROXY-IMPLEMENTATION.md](HTTP2-PROXY-IMPLEMENTATION.md) |
 
 `isCursorHost` is informational for statistics; **all** hosts are logged, not only Cursor.
 

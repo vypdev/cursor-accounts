@@ -1,6 +1,7 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as forge from 'node-forge';
+import { DEFAULT_ALPN_PROTOCOLS } from '../domain/types/httpProtocol';
 
 export const CA_CERT_FILE = 'ca-cert.pem';
 export const CA_KEY_FILE = 'ca-key.pem';
@@ -21,6 +22,14 @@ export class CertificateManager {
 
   getKeyPath(): string {
     return path.join(this.storageDir, CA_KEY_FILE);
+  }
+
+  /**
+   * ALPN identifiers negotiated on MITM TLS (HTTP/2 + HTTP/1.x).
+   * Applied by {@link applyHttpolyglotHttpsPatch} on each HTTPS server.
+   */
+  getAlpnProtocols(): readonly string[] {
+    return DEFAULT_ALPN_PROTOCOLS;
   }
 
   /**

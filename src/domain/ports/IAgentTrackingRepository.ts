@@ -3,7 +3,7 @@ import type {
   AgentTreeNode,
   ConversationTokenTotals,
   TokenSnapshotRecord,
-} from '../../persistence/types';
+} from '../../application/types/agentPersistence';
 
 /**
  * Repository interface for agent tracking persistence.

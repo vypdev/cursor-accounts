@@ -1,4 +1,5 @@
 import { gunzipSync } from 'node:zlib';
+import { bidiDataToBuffer } from './bidiAgentDecode';
 import { connectPayloadCandidates } from './connectDecode';
 import type { ProtoRegistry } from './protoRegistry';
 import {
@@ -27,22 +28,24 @@ export function isAgentServerStreamRpc(
 ): boolean {
   return (
     direction === 'response' &&
-    (rpcPath.includes('RunSSE') || rpcPath.includes('StreamBidi'))
+    (rpcPath.includes('RunSSE') ||
+      rpcPath.includes('StreamBidiSSE') ||
+      (rpcPath.includes('StreamBidi') && !rpcPath.includes('StreamBidiPoll')))
   );
 }
 
-export function decodeAgentServerPayload(
+function decodeAgentMessageBytes(
   registry: ProtoRegistry,
-  payload: Buffer
+  raw: Buffer
 ): Record<string, unknown> | null {
   const type = registry.lookupMessageType('agent.v1.AgentServerMessage');
   if (!type) {
     return null;
   }
 
-  const candidates: Buffer[] = [payload];
+  const candidates: Buffer[] = [raw];
   try {
-    candidates.push(gunzipSync(payload));
+    candidates.push(gunzipSync(raw));
   } catch {
     // not gzip
   }
@@ -57,6 +60,56 @@ export function decodeAgentServerPayload(
   }
 
   return null;
+}
+
+function decodeHealthWrappedAgentPayload(
+  registry: ProtoRegistry,
+  payload: Buffer
+): Record<string, unknown> | null {
+  const healthType = registry.lookupMessageType('aiserver.v1.HealthResponse');
+  if (!healthType) {
+    return null;
+  }
+
+  const candidates: Buffer[] = [payload];
+  try {
+    candidates.push(gunzipSync(payload));
+  } catch {
+    // not gzip
+  }
+
+  for (const candidate of candidates) {
+    for (const framed of connectPayloadCandidates(candidate)) {
+      try {
+        const health = registry.decode(healthType, framed) as {
+          payload?: unknown;
+        };
+        const inner = bidiDataToBuffer(health.payload);
+        if (!inner?.length) {
+          continue;
+        }
+        const agent = decodeAgentMessageBytes(registry, inner);
+        if (agent) {
+          return agent;
+        }
+      } catch {
+        // try next candidate
+      }
+    }
+  }
+
+  return null;
+}
+
+/** Decode one Connect frame payload as AgentServerMessage (direct or HealthResponse-wrapped). */
+export function decodeAgentServerPayload(
+  registry: ProtoRegistry,
+  payload: Buffer
+): Record<string, unknown> | null {
+  return (
+    decodeAgentMessageBytes(registry, payload) ??
+    decodeHealthWrappedAgentPayload(registry, payload)
+  );
 }
 
 export function tryConnectFrame(

@@ -50,7 +50,7 @@ interface SessionState {
 }
 
 /**
- * Live agent/chat token usage in the status bar (requires MITM proxy + traffic tail).
+ * Live agent/chat token usage in the status bar (requires MITM proxy + IPC traffic).
  */
 export class AgentLiveUsageStatusBar {
   private readonly item: vscode.StatusBarItem;

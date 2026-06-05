@@ -1,4 +1,3 @@
-import { fork, type ChildProcess } from 'child_process';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as vscode from 'vscode';
@@ -9,22 +8,30 @@ import type {
 } from '../domain/ports/IProxyManager';
 import type { IProfileManager } from '../domain/ports/IProfileManager';
 import type { IProfileSettingsManager } from '../domain/ports/IProfileSettingsManager';
-import type { ProxySettingsService } from './proxySettingsService';
+import type { IProxyCertificateService } from '../domain/ports/IProxyCertificateService';
+import type { IProxyProcess } from '../domain/ports/IProxyProcess';
+import type { IProxyTrafficBus, TrafficListener } from '../domain/ports/IProxyTrafficBus';
+import type { IProxyTrafficIngress } from '../domain/ports/IProxyTrafficIngress';
 import type { IProxyStateStore } from '../domain/ports/IProxyStateStore';
 import type {
   ProxyInstallGuide,
   ProxyStateFile,
   ProxyStatus,
+  ProxyTrafficDiagnostics,
 } from '@cursor-accounts/types';
-import { buildProxyInstallGuide } from '../proxy/buildProxyInstallGuide';
-import { verifyCaCertificateInstalled } from '../proxy/installCaCertificate';
+import type { ProxyServerConfig } from '../application/types/proxyConfig';
+import type { ProxyChildMessage } from '../application/types/proxyTraffic';
+import { createProxyCostEnricher } from '../application/services/proxyCostEnricher';
+import { ProxyTrafficBus } from '../application/services/proxyTrafficBus';
+import { ProxyTrafficIngress } from '../application/services/proxyTrafficIngress';
+import { formatDiagnosticsSummaryLines } from '../proxy/proxyTrafficDiagnostics';
+import { getProxyOutputConfig } from '../proxy/proxyOutputPresenter';
+import type { ProxyOutputPresenter } from '../proxy/proxyOutputPresenter';
+import type { TokenDetectorOutputPresenter } from '../proxy/tokenDetectorOutputPresenter';
 import * as extensionLog from '../logging/extensionLog';
 import { CertificateManager } from '../proxy/certificateManager';
 import { getSharedProxyStorageDir } from '../proxy/sharedProxyPaths';
-import { ProxyOutputPresenter, getProxyOutputConfig } from '../proxy/proxyOutputPresenter';
-import { TokenDetectorOutputPresenter } from '../proxy/tokenDetectorOutputPresenter';
-import { estimateTokenCostUsd } from '../proxy/proxyInsightExtractor';
-import { ProxyLogTailer } from '../proxy/proxyLogTailer';
+import { NodeProxyProcess } from '../proxy/nodeProxyProcess';
 import { isPortAvailable, isProcessAlive } from '../proxy/portUtils';
 import {
   getAllUsedProxyPorts,
@@ -33,41 +40,95 @@ import {
 import {
   PROXY_STATE_SCHEMA_VERSION,
   PROXY_STATE_FILE_NAME,
-  type ProxyChildMessage,
-  type ProxyParentMessage,
-  type ProxyServerConfig,
-  type ProxyTrafficSummary,
 } from '../proxy/types';
 import { AgentTrackingDatabase } from '../persistence/agentTrackingDatabase';
 import { getEfficiencyDbPath } from '../persistence/efficiencyDatabase';
 import { TokenTurnDetectionService } from '../domain/services/tokenTurnDetectionService';
 import { AgentTrackingService } from './agentTrackingService';
+import { ProxyCertificateService } from './proxyCertificateService';
+import type { ProxySettingsService } from './proxySettingsService';
 
-export type ProxyTrafficListener = (summary: ProxyTrafficSummary) => void;
+export type ProxyTrafficListener = TrafficListener;
 
 const PROXY_START_TIMEOUT_MS = 15_000;
 const PROXY_STOP_TIMEOUT_MS = 5_000;
 
 interface ProfileProxyRuntime {
-  childProcess: ChildProcess;
+  process: IProxyProcess;
   port: number;
   userDataDir: string;
 }
 
+export interface ProxyManagerDependencies {
+  certService: IProxyCertificateService;
+  trafficBus: IProxyTrafficBus;
+  trafficIngress: IProxyTrafficIngress;
+  createProcess: () => IProxyProcess;
+}
+
+function defaultDependencies(
+  storageDir: string,
+  logDir: string,
+  stateStore: IProxyStateStore,
+  profileManager: IProfileManager,
+  extensionPath: string,
+  outputPresenter?: ProxyOutputPresenter,
+  _tokenDetectorPresenter?: TokenDetectorOutputPresenter
+): ProxyManagerDependencies {
+  const certManager = new CertificateManager(path.join(storageDir, 'certs'));
+  const trafficBus = new ProxyTrafficBus(
+    createProxyCostEnricher(() =>
+      vscode.workspace
+        .getConfiguration('cursorAccounts.proxy')
+        .get<number>('estimatedDollarsPerMillionTokens', 4)
+    )
+  );
+
+  const trafficIngress = new ProxyTrafficIngress(
+    logDir,
+    trafficBus,
+    () =>
+      vscode.workspace
+        .getConfiguration('cursorAccounts.proxy')
+        .get<boolean>('outputTailFromStart', false),
+    {
+      onLogFileResolved: (filePath) => {
+        if (filePath) {
+          outputPresenter?.appendTailing(filePath);
+        }
+      },
+      onTailerError: (profileId, summary) => {
+        extensionLog.warn(
+          `[Proxy:${profileId}] ${summary.errorKind ?? 'PROXY_ERROR'}: ${summary.errorMessage ?? 'unknown error'}`
+        );
+      },
+    }
+  );
+
+  const scriptPath = path.join(extensionPath, 'out', 'proxy', 'proxyServer.js');
+
+  return {
+    certService: new ProxyCertificateService(
+      certManager,
+      stateStore,
+      profileManager
+    ),
+    trafficBus,
+    trafficIngress,
+    createProcess: () => new NodeProxyProcess(scriptPath, extensionPath),
+  };
+}
+
 /**
- * Orchestrates per-profile MITM proxy child processes and profile-local state files.
+ * Facade for per-profile MITM proxy lifecycle, certificates, and traffic distribution.
  */
 export class ProxyManager implements IProxyManager {
-  private readonly childProcesses = new Map<string, ProfileProxyRuntime>();
+  private readonly runtimes = new Map<string, ProfileProxyRuntime>();
   private readonly statusCallbacks: Array<() => void> = [];
-  private readonly trafficListeners: ProxyTrafficListener[] = [];
-  private cachedCertificateInstalled: boolean | undefined;
-  private logTailer: ProxyLogTailer | null = null;
-  private logTailerStartedForPort: number | null = null;
   private readonly agentTrackingServices = new Map<string, AgentTrackingService>();
   private readonly storageDir: string;
   private readonly logDir: string;
-  private readonly certManager: CertificateManager;
+  private lastDiagnosticsOutputAt = 0;
 
   constructor(
     private readonly stateStore: IProxyStateStore,
@@ -77,11 +138,29 @@ export class ProxyManager implements IProxyManager {
     private readonly proxySettingsService?: ProxySettingsService,
     private readonly profileSettingsManager?: IProfileSettingsManager,
     private readonly outputPresenter?: ProxyOutputPresenter,
-    private readonly tokenDetectorPresenter?: TokenDetectorOutputPresenter
+    private readonly tokenDetectorPresenter?: TokenDetectorOutputPresenter,
+    private readonly deps: ProxyManagerDependencies = defaultDependencies(
+      storageDir,
+      path.join(storageDir, 'logs'),
+      stateStore,
+      profileManager,
+      context.extensionPath,
+      outputPresenter,
+      tokenDetectorPresenter
+    )
   ) {
     this.storageDir = storageDir;
     this.logDir = path.join(this.storageDir, 'logs');
-    this.certManager = new CertificateManager(path.join(this.storageDir, 'certs'));
+
+    this.deps.trafficBus.subscribe((summary, profileId) => {
+      if (profileId) {
+        void this.agentTrackingServices.get(profileId)?.ingestTraffic(summary);
+      }
+      this.tokenDetectorPresenter?.appendTraffic(summary, profileId);
+      if (getProxyOutputConfig().logTrafficToOutput) {
+        this.outputPresenter?.appendTraffic(summary);
+      }
+    });
   }
 
   onStatusChange(callback: () => void): void {
@@ -89,65 +168,13 @@ export class ProxyManager implements IProxyManager {
   }
 
   onTraffic(listener: ProxyTrafficListener): void {
-    this.trafficListeners.push(listener);
-  }
-
-  private enrichTrafficSummary(summary: ProxyTrafficSummary): ProxyTrafficSummary {
-    const agent = summary.insights?.agent;
-    if (!agent) {
-      return summary;
-    }
-    const rate = vscode.workspace
-      .getConfiguration('cursorAccounts.proxy')
-      .get<number>('estimatedDollarsPerMillionTokens', 4);
-    const cost = estimateTokenCostUsd(agent, rate);
-    if (cost == null) {
-      return summary;
-    }
-    return {
-      ...summary,
-      insights: {
-        ...summary.insights,
-        agent: { ...agent, estimatedCostUsd: cost },
-      },
-    };
-  }
-
-  private emitTraffic(summary: ProxyTrafficSummary, profileId?: string): void {
-    const enriched = this.enrichTrafficSummary(summary);
-    if (profileId) {
-      void this.agentTrackingServices.get(profileId)?.ingestTraffic(enriched);
-    }
-    this.tokenDetectorPresenter?.appendTraffic(enriched, profileId);
-    if (getProxyOutputConfig().logTrafficToOutput) {
-      this.outputPresenter?.appendTraffic(enriched);
-    }
-    for (const listener of this.trafficListeners) {
-      try {
-        listener(enriched);
-      } catch (error) {
-        extensionLog.debug(
-          `[Proxy] traffic listener error: ${error instanceof Error ? error.message : String(error)}`
-        );
-      }
-    }
+    this.deps.trafficBus.subscribe(listener);
   }
 
   private isProxyDevelopmentMode(): boolean {
     return vscode.workspace
       .getConfiguration('cursorAccounts.proxy')
       .get<boolean>('developmentMode', false);
-  }
-
-  private emitTrafficError(summary: ProxyTrafficSummary): void {
-    this.outputPresenter?.appendError(summary);
-    for (const listener of this.trafficListeners) {
-      try {
-        listener(summary);
-      } catch {
-        // ignore listener errors on errors
-      }
-    }
   }
 
   async start(profileId: string): Promise<ProxyStartResult> {
@@ -160,10 +187,8 @@ export class ProxyManager implements IProxyManager {
       const existing = await this.getStatus(profileId);
       if (existing?.running && existing.port != null) {
         await this.ensureAgentTracking(profileId, profile.userDataDir);
-        if (this.isProxyDevelopmentMode()) {
-          await this.ensureLogTailer(profileId, existing.port, { attached: true });
-        }
         await this.applyProxySettingsForProfile(profile.userDataDir, existing.port);
+        await this.ensureOutputTailer(profileId, { forceRestart: true });
         return { success: true, port: existing.port };
       }
 
@@ -182,86 +207,50 @@ export class ProxyManager implements IProxyManager {
       await fs.mkdir(this.storageDir, { recursive: true });
       await fs.mkdir(this.logDir, { recursive: true });
 
-      const caPath = await this.certManager.ensureCaCertificate();
+      const caPath = await this.deps.certService.ensureCaCertificate();
+      const serverConfig = this.buildServerConfig(port);
 
-      const config = vscode.workspace.getConfiguration('cursorAccounts.proxy');
-      const maxLogSizeMb = config.get<number>('maxLogSizeMB', 500);
-      const maxBodyLogMb = config.get<number>('maxBodyLogMB', 4);
-      const spillLargeBodies = config.get<boolean>('spillLargeBodies', true);
-      const developmentMode = config.get<boolean>('developmentMode', false);
-
-      const serverConfig: ProxyServerConfig = {
-        port,
-        storageDir: this.storageDir,
-        logDir: this.logDir,
-        maxLogSizeMb,
-        maxBodyLogBytes: Math.max(1, Math.floor(maxBodyLogMb * 1024 * 1024)),
-        spillLargeBodies,
-        developmentMode,
-      };
-
-      const scriptPath = path.join(
-        this.context.extensionPath,
-        'out',
-        'proxy',
-        'proxyServer.js'
-      );
-
-      try {
-        await fs.access(scriptPath);
-      } catch {
-        return {
-          success: false,
-          error: `Proxy server script not found at ${scriptPath}. Rebuild the extension.`,
-        };
-      }
-
-      const child = fork(scriptPath, [], {
-        cwd: this.context.extensionPath,
-        env: {
-          ...process.env,
-          CURSOR_ACCOUNTS_PROXY_CONFIG: JSON.stringify(serverConfig),
-        },
-        stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
-        detached: false,
+      const proxyProcess = this.deps.createProcess();
+      proxyProcess.onStderr((line) => {
+        extensionLog.debug(`[Proxy:${profileId}] ${line}`);
       });
 
-      this.childProcesses.set(profileId, {
-        childProcess: child,
-        port,
-        userDataDir: profile.userDataDir,
-      });
-
-      child.stderr?.on('data', (chunk: Buffer) => {
-        extensionLog.debug(`[Proxy:${profileId}] ${chunk.toString().trim()}`);
-      });
-
-      child.on('message', (msg: ProxyChildMessage) => {
+      proxyProcess.onMessage((msg: ProxyChildMessage) => {
         this.handleChildMessage(profileId, msg);
       });
 
-      child.on('exit', (code) => {
+      proxyProcess.onExit((code) => {
         extensionLog.warn(
           `[Proxy:${profileId}] Child process exited with code ${code ?? 'unknown'}`
         );
-        this.childProcesses.delete(profileId);
+        this.runtimes.delete(profileId);
         void this.stateStore.clear(profile.userDataDir);
-        this.stopLogTailerIfUnused();
+        this.deps.trafficIngress.stopAll();
         this.notifyStatusChange();
       });
 
-      const ready = await this.waitForReady(child, port);
+      const runtime = await proxyProcess.start(serverConfig);
+      const ready = await proxyProcess.waitForReady(port, PROXY_START_TIMEOUT_MS);
       if (!ready.success) {
-        await this.forceStopChild(profileId);
+        await proxyProcess.stop(runtime.pid);
+        if (proxyProcess instanceof NodeProxyProcess) {
+          proxyProcess.detach();
+        }
         return ready;
       }
+
+      this.runtimes.set(profileId, {
+        process: proxyProcess,
+        port,
+        userDataDir: profile.userDataDir,
+      });
 
       const state: ProxyStateFile = {
         version: PROXY_STATE_SCHEMA_VERSION,
         profileId,
         running: true,
         port,
-        pid: child.pid,
+        pid: runtime.pid,
         startedAt: new Date().toISOString(),
         caCertificatePath: caPath,
         lastUpdatedAt: new Date().toISOString(),
@@ -269,19 +258,23 @@ export class ProxyManager implements IProxyManager {
       await this.stateStore.write(profile.userDataDir, state);
 
       extensionLog.info(
-        `[Proxy:${profileId}] Started on 127.0.0.1:${port} (pid ${child.pid})`
+        `[Proxy:${profileId}] Started on 127.0.0.1:${port} (pid ${runtime.pid})`
       );
       this.outputPresenter?.appendStarted(port);
       await this.ensureAgentTracking(profileId, profile.userDataDir);
-      if (developmentMode) {
-        await this.ensureLogTailer(profileId, port, { attached: false });
+
+      if (serverConfig.developmentMode) {
+        await this.deps.trafficIngress.start(profileId, port, {
+          ipc: true,
+          jsonlTail: true,
+        });
       }
+
       if (getProxyOutputConfig().autoShowOutputChannel) {
         this.outputPresenter?.show();
       }
 
       await this.applyProxySettingsForProfile(profile.userDataDir, port);
-
       this.notifyStatusChange();
 
       return { success: true, port };
@@ -299,23 +292,16 @@ export class ProxyManager implements IProxyManager {
         return;
       }
 
-      const runtime = this.childProcesses.get(profileId);
-      if (runtime?.childProcess.connected) {
-        runtime.childProcess.send({ type: 'shutdown' } satisfies ProxyParentMessage);
-        await this.waitForExit(runtime.childProcess, PROXY_STOP_TIMEOUT_MS);
+      const runtime = this.runtimes.get(profileId);
+      if (runtime?.process.isConnected()) {
+        await runtime.process.sendShutdown(PROXY_STOP_TIMEOUT_MS);
       } else {
         const state = await this.stateStore.read(profile.userDataDir);
-        if (state?.pid != null) {
-          try {
-            process.kill(state.pid, 'SIGTERM');
-            await new Promise((resolve) => setTimeout(resolve, 500));
-          } catch {
-            // process may already be gone
-          }
-        }
+        await runtime?.process.stop(state?.pid, 'SIGTERM');
       }
 
       await this.forceStopChild(profileId);
+      this.deps.trafficIngress.stop(profileId);
 
       if (this.profileSettingsManager) {
         try {
@@ -331,7 +317,6 @@ export class ProxyManager implements IProxyManager {
 
       await this.stateStore.clear(profile.userDataDir);
       extensionLog.info(`[Proxy:${profileId}] Stopped`);
-      this.stopLogTailerIfUnused();
       this.outputPresenter?.appendStopped();
       this.notifyStatusChange();
     } catch (error) {
@@ -348,11 +333,18 @@ export class ProxyManager implements IProxyManager {
     }
 
     const state = await this.stateStore.read(profile.userDataDir);
-    const runtime = this.childProcesses.get(profileId);
+    const runtime = this.runtimes.get(profileId);
 
     if (!state) {
       if (runtime) {
-        return this.buildStatusFromChild(runtime.port, runtime.childProcess);
+        return {
+          running: true,
+          port: runtime.port,
+          pid: runtime.process instanceof NodeProxyProcess
+            ? runtime.process.getChild()?.pid
+            : undefined,
+          logDirectory: this.logDir,
+        };
       }
       return { running: false, logDirectory: this.logDir };
     }
@@ -410,36 +402,11 @@ export class ProxyManager implements IProxyManager {
   }
 
   async getCertificatePath(): Promise<string | null> {
-    const profiles = await this.profileManager.getProfiles();
-    for (const profile of profiles) {
-      const state = await this.stateStore.read(profile.userDataDir);
-      if (state?.caCertificatePath) {
-        try {
-          await fs.access(state.caCertificatePath);
-          return state.caCertificatePath;
-        } catch {
-          // fall through
-        }
-      }
-    }
-
-    try {
-      return await this.certManager.ensureCaCertificate();
-    } catch {
-      return null;
-    }
+    return this.deps.certService.getCertificatePath();
   }
 
   getLogDirectory(): string {
     return this.logDir;
-  }
-
-  getOutputPresenter(): ProxyOutputPresenter | undefined {
-    return this.outputPresenter;
-  }
-
-  getTokenDetectorPresenter(): TokenDetectorOutputPresenter | undefined {
-    return this.tokenDetectorPresenter;
   }
 
   showTokenDetectorChannel(): void {
@@ -448,28 +415,40 @@ export class ProxyManager implements IProxyManager {
 
   async ensureOutputTailer(
     profileId: string,
-    options?: { tailFromStart?: boolean }
+    options?: { tailFromStart?: boolean; forceRestart?: boolean }
   ): Promise<void> {
     const status = await this.getStatus(profileId);
     if (!status?.running || status.port == null) {
       return;
     }
-    await this.ensureLogTailer(profileId, status.port, {
-      attached: !this.childProcesses.has(profileId),
-      tailFromStart: options?.tailFromStart,
-      forceRestart: options?.tailFromStart === true,
-    });
+
+    const attached = !this.runtimes.has(profileId) || options?.forceRestart === true;
+    if (attached && getProxyOutputConfig().logTrafficToOutput) {
+      this.outputPresenter?.appendAttached(status.port);
+    }
+
+    await this.deps.trafficIngress.start(
+      profileId,
+      status.port,
+      { ipc: true, jsonlTail: true },
+      {
+        attached,
+        tailFromStart: options?.tailFromStart,
+        forceRestart: options?.forceRestart,
+      }
+    );
   }
 
-  /**
-   * Start tailing JSONL logs for cross-window traffic (development mode only).
-   */
   async ensureTrafficTailer(): Promise<void> {
     if (!this.isProxyDevelopmentMode()) {
       return;
     }
-    for (const [profileId, runtime] of this.childProcesses) {
-      await this.ensureLogTailer(profileId, runtime.port, { attached: false });
+
+    for (const [profileId, runtime] of this.runtimes) {
+      await this.deps.trafficIngress.start(profileId, runtime.port, {
+        ipc: true,
+        jsonlTail: true,
+      });
       return;
     }
 
@@ -480,7 +459,10 @@ export class ProxyManager implements IProxyManager {
       }
       const status = await this.getStatus(profile.id);
       if (status?.port != null) {
-        await this.ensureLogTailer(profile.id, status.port, { attached: false });
+        await this.deps.trafficIngress.start(profile.id, status.port, {
+          ipc: true,
+          jsonlTail: true,
+        });
         return;
       }
     }
@@ -495,65 +477,23 @@ export class ProxyManager implements IProxyManager {
   }
 
   async getProxyInstallGuide(): Promise<ProxyInstallGuide> {
-    const certPath = await this.getCertificatePath();
-    return buildProxyInstallGuide({ certPath });
+    return this.deps.certService.getInstallGuide();
   }
 
   async checkCertificateInstalled(): Promise<boolean> {
-    const installed = await verifyCaCertificateInstalled();
-    this.cachedCertificateInstalled = installed;
-    return installed;
+    return this.deps.certService.checkInstalled();
   }
 
   getCachedCertificateInstalled(): boolean | undefined {
-    return this.cachedCertificateInstalled;
+    return this.deps.certService.getCachedInstalled();
   }
 
   async installCertificate(): Promise<{ success: boolean; error?: string }> {
-    try {
-      const certPath = await this.getCertificatePath();
-      if (!certPath) {
-        return {
-          success: false,
-          error: 'CA certificate is not available. Start the proxy once to generate it.',
-        };
-      }
-      const alreadyInstalled = await this.checkCertificateInstalled();
-      if (alreadyInstalled) {
-        return { success: true };
-      }
-      const result = await this.certManager.installCertificateWithElevation();
-      if (result.success) {
-        this.cachedCertificateInstalled = true;
-      } else {
-        const verified = await this.checkCertificateInstalled();
-        if (verified) {
-          return { success: true };
-        }
-      }
-      return result;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return { success: false, error: message };
-    }
+    return this.deps.certService.install();
   }
 
   async uninstallCertificate(): Promise<{ success: boolean; error?: string }> {
-    try {
-      const result = await this.certManager.uninstallCertificate();
-      if (result.success) {
-        this.cachedCertificateInstalled = false;
-      } else {
-        const stillInstalled = await this.checkCertificateInstalled();
-        if (!stillInstalled) {
-          return { success: true };
-        }
-      }
-      return result;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return { success: false, error: message };
-    }
+    return this.deps.certService.uninstall();
   }
 
   async getProxyServerUrl(profileId: string): Promise<string | null> {
@@ -579,10 +519,6 @@ export class ProxyManager implements IProxyManager {
     return await this.proxySettingsService.restoreAllProfiles();
   }
 
-  /**
-   * Ensure the current profile's proxy is running and settings are applied.
-   * Called when a profile-assigned window activates.
-   */
   async ensureProfileProxy(profileId: string): Promise<ProxyStartResult> {
     const running = await this.isRunning(profileId);
     if (running) {
@@ -593,32 +529,61 @@ export class ProxyManager implements IProxyManager {
           await this.ensureAgentTracking(profileId, profile.userDataDir);
           await this.applyProxySettingsForProfile(profile.userDataDir, status.port);
         }
-        await this.ensureOutputTailer(profileId);
+        await this.ensureOutputTailer(profileId, { forceRestart: true });
       }
       return { success: true, port: status?.port };
     }
     return await this.start(profileId);
   }
 
-  private buildStatusFromChild(
-    port: number,
-    child: ChildProcess
-  ): ProxyStatus {
+  private buildServerConfig(port: number): ProxyServerConfig {
+    const config = vscode.workspace.getConfiguration('cursorAccounts.proxy');
+    const maxLogSizeMb = config.get<number>('maxLogSizeMB', 500);
+    const maxBodyLogMb = config.get<number>('maxBodyLogMB', 4);
     return {
-      running: true,
       port,
-      pid: child.pid,
-      logDirectory: this.logDir,
+      storageDir: this.storageDir,
+      logDir: this.logDir,
+      maxLogSizeMb,
+      maxBodyLogBytes: Math.max(1, Math.floor(maxBodyLogMb * 1024 * 1024)),
+      spillLargeBodies: config.get<boolean>('spillLargeBodies', true),
+      developmentMode: config.get<boolean>('developmentMode', false),
+      trafficDiagnostics: config.get<boolean>('trafficDiagnostics', true),
+      diagnosticsIntervalMs: config.get<number>('diagnosticsIntervalMs', 30_000),
     };
   }
 
   private handleChildMessage(profileId: string, msg: ProxyChildMessage): void {
     if (msg.type === 'stats') {
+      this.maybeEmitDiagnosticsSummary(msg.data.diagnostics);
       return;
     }
     if (msg.type === 'traffic') {
-      this.emitTraffic(msg.summary, profileId);
+      this.deps.trafficBus.publish(msg.summary, profileId);
     }
+  }
+
+  private maybeEmitDiagnosticsSummary(
+    diagnostics: ProxyTrafficDiagnostics | undefined
+  ): void {
+    if (!diagnostics) {
+      return;
+    }
+
+    const config = vscode.workspace.getConfiguration('cursorAccounts.proxy');
+    if (!config.get<boolean>('trafficDiagnostics', true)) {
+      return;
+    }
+
+    const intervalMs = config.get<number>('diagnosticsIntervalMs', 30_000);
+    const now = Date.now();
+    if (now - this.lastDiagnosticsOutputAt < intervalMs - 2_000) {
+      return;
+    }
+    this.lastDiagnosticsOutputAt = now;
+
+    const lines = formatDiagnosticsSummaryLines(diagnostics);
+    this.outputPresenter?.appendDiagnostics(lines);
   }
 
   private async ensureAgentTracking(
@@ -651,20 +616,6 @@ export class ProxyManager implements IProxyManager {
     }
   }
 
-  private resolveProfileIdForTailerTraffic(): string | undefined {
-    if (this.logTailerStartedForPort != null) {
-      for (const [profileId, runtime] of this.childProcesses) {
-        if (runtime.port === this.logTailerStartedForPort) {
-          return profileId;
-        }
-      }
-    }
-    if (this.childProcesses.size === 1) {
-      return this.childProcesses.keys().next().value;
-    }
-    return undefined;
-  }
-
   private async applyProxySettingsForProfile(
     userDataDir: string,
     port: number
@@ -684,147 +635,39 @@ export class ProxyManager implements IProxyManager {
     }
   }
 
-  private async ensureLogTailer(
-    profileId: string,
-    port: number,
-    options: { attached: boolean; tailFromStart?: boolean; forceRestart?: boolean }
-  ): Promise<void> {
-    if (
-      this.logTailer?.isRunning() &&
-      this.logTailerStartedForPort === port &&
-      !options.forceRestart
-    ) {
-      return;
-    }
-
-    this.stopLogTailer();
-
-    const outputSettings = getProxyOutputConfig();
-    if (options.attached && outputSettings.logTrafficToOutput) {
-      this.outputPresenter?.appendAttached(port);
-    }
-
-    const tailFromStart =
-      options.tailFromStart ??
-      vscode.workspace
-        .getConfiguration('cursorAccounts.proxy')
-        .get<boolean>('outputTailFromStart', false);
-
-    this.logTailer = new ProxyLogTailer(
-      this.logDir,
-      {
-        onTraffic: (summary) => {
-          const profileId = this.resolveProfileIdForTailerTraffic();
-          this.emitTraffic(summary, profileId);
-        },
-        onError: (summary) => {
-          this.emitTrafficError(summary);
-          extensionLog.warn(
-            `[Proxy:${profileId}] ${summary.errorKind ?? 'PROXY_ERROR'}: ${summary.errorMessage ?? 'unknown error'}`
-          );
-        },
-        onLogFileResolved: (filePath) => {
-          if (filePath) {
-            this.outputPresenter?.appendTailing(filePath);
-          }
-        },
-      },
-      { tailFromStart }
-    );
-
-    this.logTailerStartedForPort = port;
-    await this.logTailer.start();
-  }
-
-  private stopLogTailer(): void {
-    if (this.logTailer) {
-      this.logTailer.stop();
-      this.logTailer = null;
-    }
-    this.logTailerStartedForPort = null;
-  }
-
-  private stopLogTailerIfUnused(): void {
-    if (this.childProcesses.size === 0) {
-      this.stopLogTailer();
-    }
-  }
-
   private notifyStatusChange(): void {
     for (const cb of this.statusCallbacks) {
       try {
         cb();
       } catch (error) {
         extensionLog.debug(
-          `[Proxy] status callback error: ${error instanceof Error ? error.message : String(error)}`
+          `[Proxy] status callback error: ${
+            error instanceof Error ? error.message : String(error)
+          }`
         );
       }
     }
   }
 
-  private waitForReady(
-    child: ChildProcess,
-    port: number
-  ): Promise<ProxyStartResult> {
-    return new Promise((resolve) => {
-      const timeout = setTimeout(() => {
-        resolve({
-          success: false,
-          error: `Proxy did not become ready within ${PROXY_START_TIMEOUT_MS}ms`,
-        });
-      }, PROXY_START_TIMEOUT_MS);
-
-      const onMessage = (msg: ProxyChildMessage) => {
-        if (msg.type === 'ready') {
-          clearTimeout(timeout);
-          child.off('message', onMessage);
-          resolve({ success: true, port: msg.port ?? port });
-        } else if (msg.type === 'error') {
-          clearTimeout(timeout);
-          child.off('message', onMessage);
-          resolve({ success: false, error: msg.message });
-        }
-      };
-
-      child.on('message', onMessage);
-    });
-  }
-
-  private waitForExit(child: ChildProcess, timeoutMs: number): Promise<void> {
-    return new Promise((resolve) => {
-      if (child.exitCode != null || child.killed) {
-        resolve();
-        return;
-      }
-
-      const timer = setTimeout(() => {
-        resolve();
-      }, timeoutMs);
-
-      child.once('exit', () => {
-        clearTimeout(timer);
-        resolve();
-      });
-    });
-  }
-
   private async forceStopChild(profileId: string): Promise<void> {
-    const runtime = this.childProcesses.get(profileId);
-    this.childProcesses.delete(profileId);
+    const runtime = this.runtimes.get(profileId);
+    this.runtimes.delete(profileId);
     this.agentTrackingServices.delete(profileId);
 
     if (!runtime) {
       return;
     }
 
-    const child = runtime.childProcess;
-    if (!child.killed && child.pid != null) {
-      try {
-        child.kill('SIGTERM');
-      } catch {
-        // already dead
-      }
-    }
+    const nodeProcess =
+      runtime.process instanceof NodeProxyProcess
+        ? runtime.process
+        : null;
+    const pid =
+      nodeProcess?.getChild()?.pid ??
+      (await this.stateStore.read(runtime.userDataDir))?.pid;
+
+    await runtime.process.stop(pid);
+    nodeProcess?.detach();
   }
 }
 

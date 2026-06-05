@@ -1,83 +1,19 @@
-export interface TokenUsageInfo {
-  modelName?: string;
-  promptTokens?: number;
-  completionTokens?: number;
-  totalTokens?: number;
-  cachedTokens?: number;
-}
+import type { AgentSessionInfo } from '../application/types/agentTracking';
 
-export interface BillingInfo {
-  billingCycleStart?: string;
-  billingCycleEnd?: string;
-  planUsage?: {
-    slowRequests?: number;
-    fastRequests?: number;
-    limit?: number;
-  };
-  spendLimit?: {
-    currentSpendUsd?: number;
-    limitUsd?: number;
-  };
-}
+export type { AgentSessionInfo } from '../application/types/agentTracking';
+import type {
+  BillingInfo,
+  ConversationContext,
+  ProxyInsights,
+  TokenUsageInfo,
+} from '../application/types/proxyInsights';
 
-export interface ConversationContext {
-  conversationId?: string;
-  conversationGroupId?: string;
-  messageCount?: number;
-  totalContextTokens?: number;
-  includedFiles?: string[];
-}
-
-/** Bidi/Agent poll session metadata (HTTP/1 api2 path). */
-export interface AgentSessionInfo {
-  requestId?: string;
-  conversationId?: string;
-  conversationGroupId?: string;
-  parentRequestId?: string;
-  subagentRequestId?: string;
-  appendSeqno?: number;
-  pollSeqno?: number;
-  eof?: boolean;
-  /** Truncated `data` string from BidiAppend / BidiPoll when present. */
-  dataPreview?: string;
-  /** Length of `data_binary` on BidiAppend when present. */
-  dataBytes?: number;
-  /** Latest streaming counter from InteractionUpdate.token_delta. */
-  streamingTokens?: number;
-  /** Context window usage from conversation_checkpoint_update.token_details. */
-  contextUsedTokens?: number;
-  /** Context window size from conversation_checkpoint_update.token_details. */
-  maxTokens?: number;
-  /** Final turn usage when InteractionUpdate.turn_ended is present. */
-  inputTokens?: number;
-  outputTokens?: number;
-  cacheReadTokens?: number;
-  cacheWriteTokens?: number;
-  /** Billing correlation id from stream chunks (StreamChat / unified). */
-  usageUuid?: string;
-  /** Rough USD estimate from token counts (configurable rate). */
-  estimatedCostUsd?: number;
-  /** Model name observed on this agent session. */
-  modelName?: string;
-  /** What triggered the latest agent usage fields. */
-  usageEvent?: 'token_delta' | 'turn_ended' | 'token_details' | 'usage_uuid';
-}
-
-export interface ProxyInsights {
-  billing?: BillingInfo;
-  tokens?: TokenUsageInfo;
-  context?: ConversationContext;
-  agent?: AgentSessionInfo;
-  /** Ordered token_delta frames from RunSSE stream scan (for turn detection). */
-  allTokenFrames?: AgentSessionInfo[];
-  /** Pre-detected turn from incremental RunSSE decode (persist without re-scanning). */
-  completedTurn?: {
-    streamingTokens: number;
-    turnIndex: number;
-  };
-  /** When true, turn rows were already persisted incrementally during the stream. */
-  streamingTurnsAlreadyPersisted?: boolean;
-}
+export type {
+  BillingInfo,
+  ConversationContext,
+  ProxyInsights,
+  TokenUsageInfo,
+} from '../application/types/proxyInsights';
 
 function asNumber(value: unknown): number | undefined {
   if (value == null) {

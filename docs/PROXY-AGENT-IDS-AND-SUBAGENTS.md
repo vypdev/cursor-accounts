@@ -320,7 +320,7 @@ Example from local logs: chat `a4387fcb-8a88-4981-89ba-bc66962153c6` appeared un
 | `subagent_result` in live UI | `agent_id` extracted to `subagentRequestId` on decode; transcript path and status bar labels not implemented |
 | Parallel sessions summed in status bar | Inflated “live tokens” vs parent-only view |
 | `turn_ended` rarely on wire | No per-turn billed breakdown in proxy |
-| HTTP/2 / `api5` path | May miss nested `RunPoll` frames; see [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md) |
+| `RunPoll` (HTTP/1.0) | Batch decode only; no incremental live counter during poll loop |
 
 ---
 

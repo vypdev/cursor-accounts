@@ -1,24 +1,35 @@
 import { EventEmitter } from 'events';
+import type { IncomingMessage } from 'http';
 import { Proxy } from 'http-mitm-proxy';
 import type { ProxyStatistics } from '@cursor-accounts/types';
+import type { IProxyServer } from '../domain/ports/IProxyServer';
+import type { HttpProtocolVersion } from '../domain/types/httpProtocol';
 import type { CertificateManager } from './certificateManager';
+import { detectHttpProtocolVersion } from './protocolDetection';
+import { shouldLogMitmClientError } from './mitmClientErrorFilter';
+import type { MitmListenOptions } from './types';
 import { decompressBodyBuffer } from './bodyFormat';
 import { getProtoRegistry } from './protoRegistry';
-import { RequestLogger } from './requestLogger';
-import type { ProxyTrafficLogger } from './nullLogger';
-import { extractRequestId, formatEndpoint, toTrafficSummary } from './proxyTrafficFormat';
-import { extractBidiRequestIdFromBody } from './runSseCorrelation';
 import {
-  StreamingAgentDecoder,
-  type LiveTokenUpdate,
-  type TurnEndedEvent,
-} from './streamingAgentDecoder';
+  isConnectRpcContentType,
+  isCursorHost,
+  normalizeHeaders,
+} from './utils/proxyRequestMetadata';
+import type { ProxyTrafficLogger } from './nullLogger';
+import { isAgentIncrementalStreamUrl } from './agentStreamUrls';
+import {
+  parseConnectTunnelHost,
+  ProxyTrafficDiagnosticsCollector,
+} from './proxyTrafficDiagnostics';
+import { extractRequestId, toTrafficSummary } from './proxyTrafficFormat';
+import { extractBidiRequestIdFromBody } from './runSseCorrelation';
+import { StreamingAgentDecoder } from './streamingAgentDecoder';
 import { buildTrafficSummary } from './trafficSummaryBuilder';
+import { RunSseStreamHandler } from './capture/runSseStreamHandler';
 import type {
   MitmProxyHandlers,
   ProxyLogEntry,
   ProxyServerConfig,
-  ProxyTrafficSummary,
 } from './types';
 
 export interface MitmProxyServerEvents {
@@ -29,7 +40,7 @@ export interface MitmProxyServerEvents {
  * HTTP/HTTPS MITM proxy using http-mitm-proxy.
  * Emits traffic through RequestLogger and optional handlers.
  */
-export class MitmProxyServer extends EventEmitter {
+export class MitmProxyServer extends EventEmitter implements IProxyServer {
   private proxy: Proxy | null = null;
   private statistics: ProxyStatistics = {
     totalRequests: 0,
@@ -42,6 +53,8 @@ export class MitmProxyServer extends EventEmitter {
   private readonly runSSEBidiIds = new Map<string, string>();
   /** Active incremental decoders for RunSSE response streams. */
   private readonly streamingDecoders = new Map<string, StreamingAgentDecoder>();
+  private diagnostics: ProxyTrafficDiagnosticsCollector | null = null;
+  private readonly runSseHandler: RunSseStreamHandler;
 
   constructor(
     private readonly certificateManager: CertificateManager,
@@ -49,6 +62,9 @@ export class MitmProxyServer extends EventEmitter {
     private readonly handlers?: MitmProxyHandlers
   ) {
     super();
+    this.runSseHandler = new RunSseStreamHandler((summary) => {
+      this.handlers?.onTraffic?.(summary);
+    });
   }
 
   /**
@@ -69,13 +85,20 @@ export class MitmProxyServer extends EventEmitter {
       process.stderr.write(`[proxy] proto registry init failed: ${message}\n`);
     }
 
-    const proxy = new Proxy();
+    const proxy = this.createMitmProxy();
     this.proxy = proxy;
+    this.diagnostics = config.trafficDiagnostics
+      ? new ProxyTrafficDiagnosticsCollector()
+      : null;
 
     proxy.onError((ctx, err, errorKind) => {
       const host = ctx?.clientToProxyRequest?.headers?.host ?? '';
       const url = ctx ? this.buildRequestUrl(ctx) : '';
       const message = err instanceof Error ? err.message : String(err);
+      if (!shouldLogMitmClientError(errorKind, message)) {
+        return;
+      }
+      this.diagnostics?.recordTlsError();
       const errorEntry: ProxyLogEntry = {
         timestamp: new Date().toISOString(),
         direction: 'error',
@@ -84,7 +107,7 @@ export class MitmProxyServer extends EventEmitter {
         headers: {},
         errorKind: errorKind ?? 'PROXY_ERROR',
         errorMessage: message,
-        isCursorHost: host ? RequestLogger.isCursorHost(host) : undefined,
+        isCursorHost: host ? isCursorHost(host) : undefined,
       };
       this.requestLogger.log(errorEntry);
       this.handlers?.onProxyError?.(toTrafficSummary(errorEntry));
@@ -96,15 +119,24 @@ export class MitmProxyServer extends EventEmitter {
       this.statistics.activeConnections += 1;
 
       const host = ctx.clientToProxyRequest.headers.host ?? '';
-      if (RequestLogger.isCursorHost(host)) {
+      const url = this.buildRequestUrl(ctx);
+      const method = ctx.clientToProxyRequest.method;
+
+      if (this.diagnostics) {
+        const connectTarget = parseConnectTunnelHost(method, url, host);
+        if (connectTarget) {
+          this.diagnostics.recordConnect(connectTarget);
+        }
+      }
+
+      if (isCursorHost(host)) {
         this.statistics.cursorRequests += 1;
       }
 
-      const headers = RequestLogger.normalizeHeaders(
+      const headers = normalizeHeaders(
         ctx.clientToProxyRequest.headers as Record<string, string | string[] | undefined>
       );
       const contentType = headers['content-type'];
-      const url = this.buildRequestUrl(ctx);
       const requestId = extractRequestId(headers);
       if (requestId) {
         this.requestStartedAt.set(requestId, Date.now());
@@ -141,12 +173,20 @@ export class MitmProxyServer extends EventEmitter {
           headers,
           ...formatted,
           bodyDecompressed: decompressed || undefined,
-          isConnectRpc: RequestLogger.isConnectRpcContentType(contentType),
-          isCursorHost: RequestLogger.isCursorHost(host),
+          isConnectRpc: isConnectRpcContentType(contentType),
+          isCursorHost: isCursorHost(host),
           requestId,
+          protocolVersion: this.protocolVersionFor(ctx.clientToProxyRequest),
         };
         this.requestLogger.log(entry);
-        if (url.includes('RunSSE') && requestId) {
+        this.recordDiagnostics({
+          method,
+          url,
+          host,
+          direction: 'request',
+          protocolVersion: entry.protocolVersion,
+        });
+        if (isAgentIncrementalStreamUrl(url) && requestId) {
           const bidiId = await extractBidiRequestIdFromBody(rawBody, contentType);
           if (bidiId) {
             this.runSSEBidiIds.set(requestId, bidiId);
@@ -161,7 +201,7 @@ export class MitmProxyServer extends EventEmitter {
 
     proxy.onResponse((ctx, callback) => {
       const host = ctx.clientToProxyRequest.headers.host ?? '';
-      const headers = RequestLogger.normalizeHeaders(
+      const headers = normalizeHeaders(
         ctx.serverToProxyResponse?.headers as
           | Record<string, string | string[] | undefined>
           | undefined ?? {}
@@ -169,7 +209,7 @@ export class MitmProxyServer extends EventEmitter {
       const contentType = headers['content-type'];
       const url = this.buildRequestUrl(ctx);
       const statusCode = ctx.serverToProxyResponse?.statusCode;
-      const requestHeaders = RequestLogger.normalizeHeaders(
+      const requestHeaders = normalizeHeaders(
         ctx.clientToProxyRequest.headers as Record<string, string | string[] | undefined>
       );
       const requestId = extractRequestId(requestHeaders);
@@ -182,7 +222,7 @@ export class MitmProxyServer extends EventEmitter {
         this.requestStartedAt.delete(requestId);
       }
 
-      const isRunSSE = url.includes('RunSSE') && Boolean(requestId);
+      const isRunSSE = isAgentIncrementalStreamUrl(url) && Boolean(requestId);
       let decoderReady: Promise<void> | undefined;
 
       if (isRunSSE && requestId) {
@@ -208,7 +248,7 @@ export class MitmProxyServer extends EventEmitter {
               url,
               host,
               statusCode,
-              isCursorHost: RequestLogger.isCursorHost(host),
+              isCursorHost: isCursorHost(host),
             }
           );
         }
@@ -236,10 +276,10 @@ export class MitmProxyServer extends EventEmitter {
                 statusCode,
                 bidiRequestId,
                 httpRequestId: requestId,
-                isCursorHost: RequestLogger.isCursorHost(host),
+                isCursorHost: isCursorHost(host),
               };
               if (finalLive) {
-                this.emitLiveTokenUpdate(finalLive, streamContext);
+                this.runSseHandler.emitLiveTokenUpdate(finalLive, streamContext);
               }
               this.streamingDecoders.delete(requestId);
             }
@@ -272,11 +312,19 @@ export class MitmProxyServer extends EventEmitter {
           headers,
           ...formatted,
           bodyDecompressed: decompressed || undefined,
-          isConnectRpc: RequestLogger.isConnectRpcContentType(contentType),
-          isCursorHost: RequestLogger.isCursorHost(host),
+          isConnectRpc: isConnectRpcContentType(contentType),
+          isCursorHost: isCursorHost(host),
           requestId,
+          protocolVersion: this.protocolVersionFor(ctx.clientToProxyRequest),
         };
         this.requestLogger.log(entry);
+        this.recordDiagnostics({
+          method: ctx.clientToProxyRequest.method,
+          url,
+          host,
+          direction: 'response',
+          protocolVersion: entry.protocolVersion,
+        });
         const bidiRequestId = requestId
           ? this.runSSEBidiIds.get(requestId)
           : undefined;
@@ -294,10 +342,10 @@ export class MitmProxyServer extends EventEmitter {
       callback();
     });
 
+    const listenOptions = this.getMitmListenOptions(sslCaDir, config.port);
+
     await new Promise<void>((resolve, reject) => {
-      proxy.listen(
-        { port: config.port, host: '127.0.0.1', sslCaDir },
-        (err?: Error) => {
+      proxy.listen(listenOptions, (err?: Error) => {
           if (err) {
             reject(err);
           } else {
@@ -330,11 +378,30 @@ export class MitmProxyServer extends EventEmitter {
     this.requestStartedAt.clear();
     this.runSSEBidiIds.clear();
     this.streamingDecoders.clear();
+    this.diagnostics = null;
     await this.requestLogger.close();
   }
 
   getStatistics(): ProxyStatistics {
-    return { ...this.statistics };
+    const stats: ProxyStatistics = { ...this.statistics };
+    if (this.diagnostics) {
+      stats.diagnostics = this.diagnostics.getSnapshot();
+    }
+    return stats;
+  }
+
+  formatDiagnosticsLines(): string[] {
+    return this.diagnostics?.formatSummaryLines() ?? [];
+  }
+
+  private recordDiagnostics(input: {
+    method?: string;
+    url: string;
+    host: string;
+    direction: 'request' | 'response';
+    protocolVersion?: HttpProtocolVersion;
+  }): void {
+    this.diagnostics?.recordRequest(input);
   }
 
   private async processRunSSEChunk(
@@ -363,97 +430,15 @@ export class MitmProxyServer extends EventEmitter {
         httpRequestId: requestId,
       };
       for (const liveUpdate of result.liveUpdates) {
-        this.emitLiveTokenUpdate(liveUpdate, emitContext);
+        this.diagnostics?.recordLiveTokenUpdate();
+        this.runSseHandler.emitLiveTokenUpdate(liveUpdate, emitContext);
       }
       for (const turnEnded of result.turnEndedEvents) {
-        this.emitTurnEnded(turnEnded, emitContext);
+        this.runSseHandler.emitTurnEnded(turnEnded, emitContext);
       }
     } catch {
       // Ignore incremental decode errors; batch decode at stream end still logs.
     }
-  }
-
-  private emitLiveTokenUpdate(
-    update: LiveTokenUpdate,
-    context: {
-      url: string;
-      host: string;
-      statusCode?: number;
-      bidiRequestId?: string;
-      httpRequestId?: string;
-      isCursorHost: boolean;
-    }
-  ): void {
-    if (!this.handlers?.onTraffic) {
-      return;
-    }
-
-    const summary: ProxyTrafficSummary = {
-      timestamp: new Date().toISOString(),
-      kind: 'response',
-      url: context.url,
-      host: context.host,
-      endpoint: formatEndpoint(context.url, context.host),
-      statusCode: context.statusCode,
-      rpcPath: context.url.includes('/')
-        ? context.url.replace(/^https?:\/\/[^/]+/, '')
-        : undefined,
-      isLiveTokenUpdate: true,
-      liveTokenData: {
-        accumulatedTokens: update.accumulatedTokens,
-        latestDelta: update.latestDelta,
-      },
-      insights: {
-        agent: {
-          ...update.agent,
-          requestId: context.bidiRequestId,
-        },
-      },
-      httpRequestId: context.httpRequestId,
-      isCursorHost: context.isCursorHost,
-    };
-
-    this.handlers.onTraffic(summary);
-  }
-
-  private emitTurnEnded(
-    event: TurnEndedEvent,
-    context: {
-      url: string;
-      host: string;
-      statusCode?: number;
-      bidiRequestId?: string;
-      httpRequestId?: string;
-      isCursorHost: boolean;
-    }
-  ): void {
-    if (!this.handlers?.onTraffic) {
-      return;
-    }
-
-    const summary: ProxyTrafficSummary = {
-      timestamp: new Date().toISOString(),
-      kind: 'response',
-      url: context.url,
-      host: context.host,
-      endpoint: formatEndpoint(context.url, context.host),
-      statusCode: context.statusCode,
-      rpcPath: context.url.includes('/')
-        ? context.url.replace(/^https?:\/\/[^/]+/, '')
-        : undefined,
-      isTurnEnded: true,
-      insights: {
-        agent: {
-          ...event.agent,
-          requestId: context.bidiRequestId,
-        },
-        streamingTurnsAlreadyPersisted: true,
-      },
-      httpRequestId: context.httpRequestId,
-      isCursorHost: context.isCursorHost,
-    };
-
-    this.handlers.onTraffic(summary);
   }
 
   private emitTrafficSummary(
@@ -485,6 +470,26 @@ export class MitmProxyServer extends EventEmitter {
       .catch(() => {
         this.handlers?.onTraffic?.(toTrafficSummary(entry, durationMs));
       });
+  }
+
+  /**
+   * Factory for the underlying http-mitm-proxy instance (override in {@link PolyglotMitmProxyServer}).
+   */
+  protected createMitmProxy(): Proxy {
+    return new Proxy();
+  }
+
+  /** Listen options passed to http-mitm-proxy (override for HTTP/2 / forceSNI). */
+  protected getMitmListenOptions(sslCaDir: string, port: number): MitmListenOptions {
+    return { port, host: '127.0.0.1', sslCaDir };
+  }
+
+  private protocolVersionFor(req: IncomingMessage) {
+    try {
+      return detectHttpProtocolVersion(req);
+    } catch {
+      return undefined;
+    }
   }
 
   private buildRequestUrl(ctx: {
