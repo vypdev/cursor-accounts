@@ -6,6 +6,8 @@ export interface TokenUsageInfo {
   completionTokens?: number;
   totalTokens?: number;
   cachedTokens?: number;
+  /** Server-reported model cost in USD cents. */
+  totalCents?: number;
 }
 
 export interface BillingInfo {

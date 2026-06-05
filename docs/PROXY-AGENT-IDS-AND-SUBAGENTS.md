@@ -239,6 +239,8 @@ Subagent **configuration** on session start (not execution):
 - `runRequest.canCreateCloudSubagents`
 - `runRequest.customSubagents` / `customSubagentsInfoComplete` (in nested `requestContext`)
 
+For **model detection** from `runRequest` (main model, subagent models), see [PROXY-MODEL-DETECTION.md](PROXY-MODEL-DETECTION.md).
+
 ---
 
 ## Extension behavior today

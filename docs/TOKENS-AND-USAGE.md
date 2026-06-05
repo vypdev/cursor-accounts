@@ -107,7 +107,7 @@ Use Channel B to validate Channel A/C: filter `startDate` / `endDate` to your MI
 
 ## Channel C — MITM proxy (network observation)
 
-Requires [PROXY-SETUP.md](PROXY-SETUP.md). Logs live under `~/.cursor-accounts/proxy/logs/`. JSONL field reference: [PROXY-JSONL-SCHEMA.md](PROXY-JSONL-SCHEMA.md). Agent/subagent IDs: [PROXY-AGENT-IDS-AND-SUBAGENTS.md](PROXY-AGENT-IDS-AND-SUBAGENTS.md).
+Requires [PROXY-SETUP.md](PROXY-SETUP.md). Logs live under `~/.cursor-accounts/proxy/logs/`. JSONL field reference: [PROXY-JSONL-SCHEMA.md](PROXY-JSONL-SCHEMA.md). Agent/subagent IDs: [PROXY-AGENT-IDS-AND-SUBAGENTS.md](PROXY-AGENT-IDS-AND-SUBAGENTS.md). Model detection: [PROXY-MODEL-DETECTION.md](PROXY-MODEL-DETECTION.md).
 
 ### Traffic matrix (which RPCs carry tokens)
 
@@ -233,21 +233,32 @@ message TokenUsage {
 }
 ```
 
-`extractTokenUsage` maps in/out (and cache via nested `usage`) into `TokenUsageInfo`. **`total_cents` is not exposed** in `ProxyTrafficInsights` today.
+`extractTokenUsage` maps in/out (and cache via nested `usage`) into `TokenUsageInfo`, including **`total_cents`** when present (legacy `metadata.token_usage` / StreamComposer paths).
+
+Agent `turn_ended` (`agent.v1.TurnEndedUpdate`) does **not** define `total_cents` in the checked proto; the extension still maps `total_cents` / `totalCents` when it appears on the wire. Prefer legacy `TokenUsage.total_cents` or dashboard `chargedCents` for billing truth.
 
 ---
 
 ## Live cost estimate (extension UI)
 
-When the proxy is running and `cursorAccounts.proxy.showLiveUsageInStatusBar` is true, a **separate** status bar item shows the latest agent token signal and a rough USD estimate.
+When the proxy is running and `cursorAccounts.proxy.showLiveUsageInStatusBar` is true, a **separate** status bar item shows accumulated tokens and a USD cost estimate.
 
-Formula ([`estimateTokenCostUsd`](../src/proxy/proxyInsightExtractor.ts)):
+### During streaming (`token_delta`)
 
-1. If `inputTokens` + `outputTokens` + cache fields > 0: sum those (billed-style).
-2. Else use `streamingTokens` from `token_delta` or `token_details`.
-3. `costUsd = totalTokens / 1_000_000 * estimatedDollarsPerMillionTokens` (default **4**).
+1. Model id is taken from the `BidiAppend` `runRequest` for the session (`requestedModelId`), correlated by `request_id`.
+2. Each `token_delta` adds tokens to `liveAccumulated` and cost to `liveAccumulatedCostCents` via [`ProxyLiveCostCalculator`](../src/domain/services/ProxyLiveCostCalculator.ts).
+3. Per-delta cost uses a **blended** rate: `(inputPer1M + outputPer1M) / 2` from [`CursorModelPricingProvider`](../src/modelEfficiency/cursorModelPricingProvider.ts) (see [MODEL-PRICING.md](MODEL-PRICING.md)).
+4. Unknown models fall back to `cursorAccounts.proxy.estimatedDollarsPerMillionTokens` (default **4**).
 
-This is **indicative only**. Real billing uses included/bonus pools, per-model pricing, and dashboard `chargedCents`—not the flat $/M setting.
+Display shows `~$X.XX` while streaming (estimated).
+
+### At turn end (`turn_ended`)
+
+1. Live accumulators reset; billed in/out/cache tokens are shown.
+2. If **`total_cents`** is present (server or legacy `TokenUsage`), display uses that value as **`$X.XX`** (no tilde — authoritative when from server).
+3. Otherwise cost is calculated from in/out/cache × per-model rates via `ProxyLiveCostCalculator.calculateTurnCost()` (`~$X.XX`).
+
+This is **indicative only** during streaming. Real billing uses included/bonus pools, plan discounts, and dashboard `chargedCents`.
 
 Settings: [CONFIGURATION.md](CONFIGURATION.md) (proxy section), [PROXY-SETUP.md](PROXY-SETUP.md).
 
@@ -387,7 +398,7 @@ Batch counts from `analyze:proxy-traffic` may under-report checkpoint tokens com
 | No auto `GetTokenUsage` | `usage_uuid` logged but not resolved unless RPC appears in traffic |
 | `turn_ended` often absent | No per-turn billed breakdown in many real logs |
 | `token_delta` ≠ billing | Live status bar can under-estimate vs real spend by 100×+ |
-| `total_cents` in proto | Not mapped to insights |
+| `total_cents` in proto | Mapped when present (`TokenUsage`, optional on `turn_ended` wire) |
 | Shallow agent merge | Latest poll overwrites `insights.agent`; no per-turn history in UI |
 | Parallel subagents | Each subagent = separate `request_id` + `token_delta`; UI sums all sessions |
 | Subagent tree in UI | `parent_request_id` / `subagent_result` partially extracted to DB; status bar does not label parent vs child |
@@ -404,6 +415,7 @@ Batch counts from `analyze:proxy-traffic` may under-report checkpoint tokens com
 | [CLI-vs-EXTENSION.md](CLI-vs-EXTENSION.md) | CLI vs extension matrix, gap backlog |
 | [CLI-vs-IDE-TOKENS.md](CLI-vs-IDE-TOKENS.md) | CLI vs IDE vs extension tokens |
 | [CLI-AGENT-COMMUNICATION.md](CLI-AGENT-COMMUNICATION.md) | CLI wire process |
+| [MODEL-PRICING.md](MODEL-PRICING.md) | Per-model pricing ($/1M tokens), used for accurate cost calculations |
 | [PROXY-SETUP.md](PROXY-SETUP.md) | Enable proxy, CA, routing, log paths |
 | [PROXY-JSONL-SCHEMA.md](PROXY-JSONL-SCHEMA.md) | JSONL line fields, body spill, examples |
 | [PROXY-AGENT-IDS-AND-SUBAGENTS.md](PROXY-AGENT-IDS-AND-SUBAGENTS.md) | `request_id`, chat tab `conversation_id`, parallel subagents |

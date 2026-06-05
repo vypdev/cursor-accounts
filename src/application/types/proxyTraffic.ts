@@ -33,6 +33,10 @@ export interface ProxyTrafficSummary {
   liveTokenData?: {
     accumulatedTokens: number;
     latestDelta: number;
+    /** Model id active for this stream (from BidiAppend runRequest). */
+    modelId?: string;
+    /** Incremental cost of latestDelta in USD cents. */
+    deltaCostCents?: number;
   };
 }
 

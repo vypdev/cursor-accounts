@@ -15,6 +15,7 @@ import type {
 } from '../entities/StorageInfo';
 import type { ProxyStatus } from '../entities/ProxyStatus';
 import type { ProxyInstallGuide } from '../entities/ProxyInstallGuide';
+import type { ModelPricingDisplayData } from './modelPricingMessages';
 
 /** Quota information for a specific profile. */
 export interface ProfileQuota {
@@ -102,7 +103,9 @@ export type ToWebviewMessage =
   | { type: 'currentWindowProxyUsage'; usesProxy: boolean }
   | { type: 'proxyInstallGuide'; data: ProxyInstallGuide }
   | { type: 'certificateInstallResult'; success: boolean; error?: string }
-  | { type: 'certificateUninstallResult'; success: boolean; error?: string };
+  | { type: 'certificateUninstallResult'; success: boolean; error?: string }
+  | { type: 'modelPricing'; data: ModelPricingDisplayData[]; enabledModels?: ModelPricingDisplayData[] }
+  | { type: 'modelPricingError'; error: string };
 
 /** Messages sent from webview to extension. */
 export type FromWebviewMessage =
@@ -143,4 +146,5 @@ export type FromWebviewMessage =
   | { type: 'installProxyCertificate' }
   | { type: 'uninstallProxyCertificate' }
   | { type: 'saveProxyCertificate' }
-  | { type: 'refreshProxyStatus' };
+  | { type: 'refreshProxyStatus' }
+  | { type: 'requestModelPricing' };

@@ -95,7 +95,8 @@ graph TB
 | Scheduling | `src/services/` | Interval refresh for status bar and all-profile quotas; storage cleanup orchestration |
 | Storage adapters | `src/storage/` | Filesystem, SQLite maintenance, VS Code cache/command cleanup, profile storage analysis |
 | UI (host) | `src/ui/` | Status bar items, webview provider and message routing |
-| Efficiency | `src/modelEfficiency/` | Composer DB poll, SDK classify, output channel |
+| Efficiency | `src/modelEfficiency/` | Composer DB poll, SDK classify, output channel, model catalog + pricing adapters |
+| Pricing (display) | `src/services/modelPricingService.ts` | Combine catalog + official per-model pricing for Accounts panel modal |
 | Proxy (optional) | `src/proxy/`, `src/services/proxyManager.ts` | MITM child process, decode, traffic tail, live usage status bar |
 | Webview | `webview/src/` | React Accounts panel (profiles, quotas, actions) |
 
@@ -214,6 +215,7 @@ Scoped submodule under `src/modelEfficiency/`:
 - `ComposerDbPoller` — polls active profile `state.vscdb` for new user bubbles
 - `EfficiencyAnalyzer` / `SdkClassifier` — `@cursor/sdk`
 - `OutputPresenter` — VS Code output channel
+- `CursorModelPricingProvider` / `StateDbModelCatalogRepository` — official model pricing + catalog for Accounts **Prices** modal
 
 Enabled only for the **active window’s profile**; secrets live in that window’s extension host.
 
@@ -309,6 +311,7 @@ sequenceDiagram
 - **Canonical quota rule tests:** `src/test/domain/quotaRules.test.ts` (imports `@cursor-accounts/types` directly)
 - **Webview protocol tests:** `src/test/accountsPanel.test.ts` (extension-side webview messaging and HTML setup)
 - **Storage tests:** `src/test/storageSize.test.ts`, `src/test/storageCleanupService.test.ts`, `src/test/storageCleanupService.full.test.ts`, `src/test/accountsPanelHandlers.storage.test.ts`, `src/test/fileSystemErrors.test.ts`
+- **Model pricing tests:** `src/test/modelEfficiency/cursorModelPricingProvider.test.ts`, `src/test/services/modelPricingService.test.ts`, `src/test/modelPricingIntegration.test.ts`
 
 ## Optional MITM proxy subsystem
 

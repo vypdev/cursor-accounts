@@ -26,10 +26,13 @@ import { extractBidiRequestIdFromBody } from './runSseCorrelation';
 import { StreamingAgentDecoder } from './streamingAgentDecoder';
 import { buildTrafficSummary } from './trafficSummaryBuilder';
 import { RunSseStreamHandler } from './capture/runSseStreamHandler';
+import { CursorModelPricingProvider } from '../modelEfficiency/cursorModelPricingProvider';
+import { ProxyLiveCostCalculator } from '../domain/services/ProxyLiveCostCalculator';
 import type {
   MitmProxyHandlers,
   ProxyLogEntry,
   ProxyServerConfig,
+  ProxyTrafficSummary,
 } from './types';
 
 export interface MitmProxyServerEvents {
@@ -51,10 +54,15 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
   private readonly requestStartedAt = new Map<string, number>();
   /** HTTP requestId → bidi request_id for RunSSE correlation. */
   private readonly runSSEBidiIds = new Map<string, string>();
+  /** Bidi request_id → model id from runRequest (BidiAppend). */
+  private readonly sessionModelIds = new Map<string, string>();
   /** Active incremental decoders for RunSSE response streams. */
   private readonly streamingDecoders = new Map<string, StreamingAgentDecoder>();
   private diagnostics: ProxyTrafficDiagnosticsCollector | null = null;
   private readonly runSseHandler: RunSseStreamHandler;
+  private readonly liveCostCalculator = new ProxyLiveCostCalculator(
+    new CursorModelPricingProvider()
+  );
 
   constructor(
     private readonly certificateManager: CertificateManager,
@@ -62,9 +70,16 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
     private readonly handlers?: MitmProxyHandlers
   ) {
     super();
-    this.runSseHandler = new RunSseStreamHandler((summary) => {
-      this.handlers?.onTraffic?.(summary);
-    });
+    this.runSseHandler = new RunSseStreamHandler(
+      (summary) => {
+        this.handlers?.onTraffic?.(summary);
+      },
+      {
+        costCalculator: this.liveCostCalculator,
+        resolveModelId: (bidiRequestId) =>
+          bidiRequestId ? this.sessionModelIds.get(bidiRequestId) : undefined,
+      }
+    );
   }
 
   /**
@@ -377,6 +392,7 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
 
     this.requestStartedAt.clear();
     this.runSSEBidiIds.clear();
+    this.sessionModelIds.clear();
     this.streamingDecoders.clear();
     this.diagnostics = null;
     await this.requestLogger.close();
@@ -441,6 +457,15 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
     }
   }
 
+  private trackSessionModel(summary: ProxyTrafficSummary): void {
+    const agent = summary.insights?.agent;
+    const modelId = agent?.requestedModelId ?? agent?.modelName;
+    const sessionId = agent?.requestId;
+    if (modelId && sessionId) {
+      this.sessionModelIds.set(sessionId, modelId);
+    }
+  }
+
   private emitTrafficSummary(
     entry: ProxyLogEntry,
     durationMs?: number,
@@ -465,6 +490,7 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
             delete summary.insights.allTokenFrames;
           }
         }
+        this.trackSessionModel(summary);
         this.handlers?.onTraffic?.(summary);
       })
       .catch(() => {

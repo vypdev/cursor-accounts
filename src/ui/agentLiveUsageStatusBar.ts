@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
+import { ProxyLiveCostCalculator } from '../domain/services/ProxyLiveCostCalculator';
+import { CursorModelPricingProvider } from '../modelEfficiency/cursorModelPricingProvider';
 import {
-  estimateTokenCostUsd,
   mergeAgentSessionInfo,
   type AgentSessionInfo,
 } from '../proxy/proxyInsightExtractor';
@@ -40,12 +41,29 @@ function billedTokenTotal(agent: AgentSessionInfo): number {
   );
 }
 
+function formatCostUsd(costCents: number, authoritative: boolean): string {
+  const costUsd = costCents / 100;
+  if (costUsd < 0.01) {
+    return '<$0.01';
+  }
+  const label = `$${costUsd.toFixed(2)}`;
+  return authoritative ? label : `~${label}`;
+}
+
 interface SessionState {
   agent: AgentSessionInfo;
   /** CLI-style sum of token_delta during current turn (UI only). */
   liveAccumulated: number;
+  /** Sum of per-delta model-aware costs during current turn (USD cents). */
+  liveAccumulatedCostCents: number;
   /** Billing-grade total from server turn_ended. */
   billedTokens: number;
+  /** Turn cost in USD cents (server or calculated). */
+  turnTotalCents?: number;
+  /** True when turnTotalCents came from server total_cents. */
+  turnCostFromServer?: boolean;
+  /** Active model id for this session. */
+  modelId?: string;
   lastActivity: number;
   /** True when billing-grade turn_ended came from IPC live decode. */
   turnEndedFromIpc?: boolean;
@@ -57,11 +75,20 @@ interface SessionState {
 export class AgentLiveUsageStatusBar {
   private readonly item: vscode.StatusBarItem;
   private readonly sessions = new Map<string, SessionState>();
+  private readonly costCalculator: ProxyLiveCostCalculator;
   private activeSessionId: string | undefined;
   private idleTimer: ReturnType<typeof setTimeout> | undefined;
   private refreshThrottleTimer: ReturnType<typeof setTimeout> | undefined;
 
   constructor(context: vscode.ExtensionContext) {
+    this.costCalculator = new ProxyLiveCostCalculator(
+      new CursorModelPricingProvider(),
+      () =>
+        vscode.workspace
+          .getConfiguration('cursorAccounts.proxy')
+          .get<number>('estimatedDollarsPerMillionTokens', 4)
+    );
+
     this.item = vscode.window.createStatusBarItem(
       vscode.StatusBarAlignment.Right,
       STATUS_PRIORITY
@@ -99,6 +126,8 @@ export class AgentLiveUsageStatusBar {
       inputTokens: tokens?.promptTokens ?? agent?.inputTokens,
       outputTokens: tokens?.completionTokens ?? agent?.outputTokens,
       cacheReadTokens: tokens?.cachedTokens ?? agent?.cacheReadTokens,
+      totalCents: tokens?.totalCents ?? agent?.totalCents,
+      requestedModelId: agent?.requestedModelId ?? agent?.modelName,
       streamingTokens:
         agent?.streamingTokens ??
         (tokens?.totalTokens != null &&
@@ -131,10 +160,6 @@ export class AgentLiveUsageStatusBar {
       return;
     }
 
-    const dollarsPerM = vscode.workspace
-      .getConfiguration('cursorAccounts.proxy')
-      .get<number>('estimatedDollarsPerMillionTokens', 4);
-
     const prev = this.sessions.get(sessionId);
 
     if (
@@ -146,8 +171,18 @@ export class AgentLiveUsageStatusBar {
       return;
     }
 
+    const modelId =
+      summary.liveTokenData?.modelId ??
+      mergedAgent.requestedModelId ??
+      mergedAgent.modelName ??
+      prev?.modelId;
+
     let liveAccumulated = prev?.liveAccumulated ?? 0;
+    let liveAccumulatedCostCents = prev?.liveAccumulatedCostCents ?? 0;
     let billedTokens = prev?.billedTokens ?? 0;
+    let turnTotalCents = prev?.turnTotalCents;
+    let turnCostFromServer = prev?.turnCostFromServer;
+
     const isTurnEndedEvent =
       summary.isTurnEnded === true || mergedAgent.usageEvent === 'turn_ended';
     const acceptTurnEnded =
@@ -155,12 +190,42 @@ export class AgentLiveUsageStatusBar {
 
     if (summary.isLiveTokenUpdate && summary.liveTokenData) {
       liveAccumulated = summary.liveTokenData.accumulatedTokens;
+      if (summary.liveTokenData.latestDelta > 0) {
+        const deltaCost =
+          summary.liveTokenData.deltaCostCents ??
+          this.costCalculator.calculateDeltaCost(
+            summary.liveTokenData.latestDelta,
+            modelId
+          );
+        liveAccumulatedCostCents += deltaCost;
+      }
     } else if (acceptTurnEnded) {
       const billed = billedTokenTotal(mergedAgent);
       if (billed > 0) {
         billedTokens = billed;
       }
       liveAccumulated = 0;
+      liveAccumulatedCostCents = 0;
+
+      const serverCents = tokens?.totalCents;
+      if (serverCents != null && serverCents > 0) {
+        turnTotalCents = serverCents;
+        turnCostFromServer = true;
+      } else if (mergedAgent.totalCents != null && mergedAgent.totalCents > 0) {
+        turnTotalCents = mergedAgent.totalCents;
+        turnCostFromServer = false;
+      } else {
+        turnTotalCents = this.costCalculator.calculateTurnCost(
+          {
+            inputTokens: mergedAgent.inputTokens ?? 0,
+            outputTokens: mergedAgent.outputTokens ?? 0,
+            cacheReadTokens: mergedAgent.cacheReadTokens,
+            cacheWriteTokens: mergedAgent.cacheWriteTokens,
+          },
+          modelId
+        );
+        turnCostFromServer = false;
+      }
     } else if (mergedAgent.streamingTokens != null) {
       liveAccumulated = Math.max(
         liveAccumulated,
@@ -168,17 +233,23 @@ export class AgentLiveUsageStatusBar {
       );
     }
 
-    const finalAgent = mergeAgentSessionInfo(prev?.agent, {
-      ...mergedAgent,
-      estimatedCostUsd:
-        estimateTokenCostUsd(mergedAgent, dollarsPerM) ??
-        mergedAgent.estimatedCostUsd,
-    }) ?? mergedAgent;
+    if (modelId) {
+      mergedAgent = mergeAgentSessionInfo(mergedAgent, {
+        requestedModelId: modelId,
+      }) ?? mergedAgent;
+    }
+
+    const finalAgent =
+      mergeAgentSessionInfo(prev?.agent, mergedAgent) ?? mergedAgent;
 
     this.sessions.set(sessionId, {
       agent: finalAgent,
       liveAccumulated,
+      liveAccumulatedCostCents,
       billedTokens,
+      turnTotalCents,
+      turnCostFromServer,
+      modelId,
       lastActivity: Date.now(),
       turnEndedFromIpc:
         summary.isTurnEnded === true || prev?.turnEndedFromIpc === true,
@@ -233,7 +304,11 @@ export class AgentLiveUsageStatusBar {
 
     let totalStreamingTokens = 0;
     let totalBilled = 0;
-    let totalCost = 0;
+    let totalInput = 0;
+    let totalOutput = 0;
+    let totalLiveCostCents = 0;
+    let totalTurnCostCents = 0;
+    let hasAuthoritativeTurnCost = false;
     let sessionCount = 0;
     let bestContextPercent: string | undefined;
 
@@ -259,16 +334,23 @@ export class AgentLiveUsageStatusBar {
       const sessionBilled = sessionState.billedTokens;
       totalStreamingTokens += sessionLive > 0 ? sessionLive : sessionBilled;
       totalBilled += sessionBilled > 0 ? sessionBilled : billedTokenTotal(agent);
+      totalInput += agent.inputTokens ?? 0;
+      totalOutput += agent.outputTokens ?? 0;
 
-      if (agent.estimatedCostUsd != null) {
-        totalCost += agent.estimatedCostUsd;
+      if (sessionState.turnTotalCents != null && sessionState.turnTotalCents > 0) {
+        totalTurnCostCents += sessionState.turnTotalCents;
+        if (sessionState.turnCostFromServer) {
+          hasAuthoritativeTurnCost = true;
+        }
+      } else {
+        totalLiveCostCents += sessionState.liveAccumulatedCostCents;
       }
     }
 
     const total =
       totalBilled > 0 ? totalBilled : totalStreamingTokens;
 
-    if (total <= 0 && !bestContextPercent) {
+    if (total <= 0 && !bestContextPercent && totalLiveCostCents <= 0 && totalTurnCostCents <= 0) {
       this.item.hide();
       return;
     }
@@ -282,47 +364,24 @@ export class AgentLiveUsageStatusBar {
       parts.push(t('agentLiveUsage.statusBar.tokens', { count: tokenLabel }));
     }
 
-    if (totalBilled > 0) {
-      const totalInput = Array.from(this.sessions.values()).reduce(
-        (sum, s) => sum + (s.agent.inputTokens ?? 0),
-        0
+    if (totalBilled > 0 && (totalInput > 0 || totalOutput > 0)) {
+      parts.push(
+        t('agentLiveUsage.statusBar.inOut', {
+          input: formatTokenCount(totalInput),
+          output: formatTokenCount(totalOutput),
+        })
       );
-      const totalOutput = Array.from(this.sessions.values()).reduce(
-        (sum, s) => sum + (s.agent.outputTokens ?? 0),
-        0
-      );
-
-      if (totalInput > 0 || totalOutput > 0) {
-        parts.push(
-          t('agentLiveUsage.statusBar.inOut', {
-            input: formatTokenCount(totalInput),
-            output: formatTokenCount(totalOutput),
-          })
-        );
-      }
     }
 
-    const dollarsPerM = vscode.workspace
-      .getConfiguration('cursorAccounts.proxy')
-      .get<number>('estimatedDollarsPerMillionTokens', 4);
+    const displayCostCents =
+      totalTurnCostCents > 0 ? totalTurnCostCents : totalLiveCostCents;
+    const costAuthoritative =
+      totalTurnCostCents > 0 && hasAuthoritativeTurnCost;
 
-    const cost =
-      totalCost > 0
-        ? totalCost
-        : estimateTokenCostUsd(
-            {
-              inputTokens: totalBilled > 0 ? totalBilled / 2 : undefined,
-              outputTokens: totalBilled > 0 ? totalBilled / 2 : undefined,
-              streamingTokens:
-                totalBilled > 0 ? undefined : totalStreamingTokens,
-            },
-            dollarsPerM
-          );
-
-    if (cost != null && cost > 0) {
+    if (displayCostCents > 0) {
       parts.push(
         t('agentLiveUsage.statusBar.estimatedCost', {
-          cost: cost < 0.01 ? '<$0.01' : `~$${cost.toFixed(2)}`,
+          cost: formatCostUsd(displayCostCents, costAuthoritative),
         })
       );
     } else if (total >= 100) {
@@ -335,14 +394,20 @@ export class AgentLiveUsageStatusBar {
     this.item.backgroundColor = new vscode.ThemeColor(
       'statusBarItem.warningBackground'
     );
-    this.item.tooltip = this.buildTooltip(total, cost, sessionCount);
+    this.item.tooltip = this.buildTooltip(
+      total,
+      displayCostCents > 0 ? displayCostCents / 100 : undefined,
+      sessionCount,
+      costAuthoritative
+    );
     this.item.show();
   }
 
   private buildTooltip(
     total: number,
-    cost: number | undefined,
-    sessionCount: number
+    costUsd: number | undefined,
+    sessionCount: number,
+    costAuthoritative: boolean
   ): string {
     const lines = [
       t('agentLiveUsage.tooltip.title'),
@@ -364,6 +429,25 @@ export class AgentLiveUsageStatusBar {
       lines.push(
         `Session ${sessionId.slice(0, 8)}: ${sessionTotal} tokens (live: ${sessionState.liveAccumulated}, billed: ${sessionState.billedTokens})`
       );
+
+      if (sessionState.modelId) {
+        lines.push(`  Model: ${sessionState.modelId}`);
+      }
+
+      if (sessionState.liveAccumulatedCostCents > 0) {
+        lines.push(
+          `  Live cost: ${formatCostUsd(sessionState.liveAccumulatedCostCents, false)}`
+        );
+      }
+
+      if (sessionState.turnTotalCents != null && sessionState.turnTotalCents > 0) {
+        lines.push(
+          `  Turn cost: ${formatCostUsd(
+            sessionState.turnTotalCents,
+            sessionState.turnCostFromServer === true
+          )}`
+        );
+      }
 
       if (agent.inputTokens != null || agent.outputTokens != null) {
         lines.push(
@@ -396,9 +480,13 @@ export class AgentLiveUsageStatusBar {
       }
     }
 
-    if (cost != null) {
+    if (costUsd != null) {
       lines.push('');
-      lines.push(t('agentLiveUsage.tooltip.estimatedCost'));
+      lines.push(
+        costAuthoritative
+          ? 'Turn cost from server (total_cents).'
+          : t('agentLiveUsage.tooltip.estimatedCost')
+      );
     }
 
     lines.push('');

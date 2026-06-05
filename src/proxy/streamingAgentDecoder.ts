@@ -23,6 +23,8 @@ export interface StreamingDecoderState {
 export interface LiveTokenUpdate {
   accumulatedTokens: number;
   latestDelta: number;
+  modelId?: string;
+  deltaCostCents?: number;
   agent: AgentSessionInfo;
 }
 
@@ -32,6 +34,9 @@ export interface TurnEndedEvent {
   outputTokens: number;
   cacheReadTokens?: number;
   cacheWriteTokens?: number;
+  totalCents?: number;
+  modelId?: string;
+  calculatedCostCents?: number;
   agent: AgentSessionInfo;
 }
 
@@ -113,11 +118,13 @@ export class StreamingAgentDecoder {
           outputTokens,
           cacheReadTokens: insight.cacheReadTokens,
           cacheWriteTokens: insight.cacheWriteTokens,
+          totalCents: insight.totalCents,
           agent: this.mergeAgentInsight({
             inputTokens: insight.inputTokens,
             outputTokens: insight.outputTokens,
             cacheReadTokens: insight.cacheReadTokens,
             cacheWriteTokens: insight.cacheWriteTokens,
+            totalCents: insight.totalCents,
             usageEvent: 'turn_ended',
           }),
         });

@@ -3,22 +3,12 @@ import type {
   ModelParameter,
   ResolvedModel,
 } from './types';
+import type {
+  ModelCatalogEntry,
+  ModelCatalogVariant,
+} from '@cursor-accounts/types';
 
-export interface ModelCatalogVariant {
-  parameterValues?: ModelParameter[];
-  legacySlug?: string;
-  variantStringRepresentation?: string;
-  isMaxMode?: boolean;
-  displayName?: string;
-}
-
-export interface ModelCatalogEntry {
-  name?: string;
-  serverModelName?: string;
-  legacySlugs?: string[];
-  idAliases?: string[];
-  variants?: ModelCatalogVariant[];
-}
+export type { ModelCatalogEntry, ModelCatalogVariant };
 
 function stripHtml(value: string): string {
   return value.replace(/<[^>]+>/g, '').trim();
@@ -91,6 +81,50 @@ function findMatchingVariant(
     (variant) =>
       (variant.isMaxMode ?? false) === maxMode &&
       parametersMatch(variant.parameterValues ?? [], parameters)
+  );
+}
+
+export interface ModelToggleState {
+  enabledOverrides: Set<string>;
+  disabledOverrides: Set<string>;
+}
+
+export function parseModelToggleState(raw: string | null): ModelToggleState {
+  if (!raw?.trim()) {
+    return { enabledOverrides: new Set(), disabledOverrides: new Set() };
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as {
+      aiSettings?: {
+        modelOverrideEnabled?: string[];
+        modelOverrideDisabled?: string[];
+      };
+    };
+
+    return {
+      enabledOverrides: new Set(parsed.aiSettings?.modelOverrideEnabled ?? []),
+      disabledOverrides: new Set(parsed.aiSettings?.modelOverrideDisabled ?? []),
+    };
+  } catch {
+    return { enabledOverrides: new Set(), disabledOverrides: new Set() };
+  }
+}
+
+export function isModelEnabled(
+  modelName: string | undefined,
+  entry: ModelCatalogEntry,
+  toggles: ModelToggleState
+): boolean {
+  const name = modelName ?? entry.name;
+  if (!name) {
+    return false;
+  }
+
+  const defaultOn = entry.defaultOn ?? false;
+  return (
+    (defaultOn || toggles.enabledOverrides.has(name)) &&
+    !toggles.disabledOverrides.has(name)
   );
 }
 

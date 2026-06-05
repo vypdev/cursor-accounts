@@ -9,6 +9,7 @@ import { CaCertificateInstallModal } from './components/CaCertificateInstallModa
 import { CaCertificateUninstallModal } from './components/CaCertificateUninstallModal';
 import { ProxyStatusCard } from './components/ProxyStatusCard';
 import { StorageManagementModal } from './components/StorageManagementModal';
+import { PricesModal } from './components/PricesModal';
 import { L10nProvider, useL10n } from './l10n/context';
 import type {
   ImportOptions,
@@ -27,6 +28,7 @@ import type {
   EfficiencyStatsMap,
   ProxyStatus,
   ProxyInstallGuide,
+  ModelPricingDisplayData,
 } from './types';
 import { isProfileProxyEnabled } from './types';
 import './App.css';
@@ -91,6 +93,14 @@ const AppContent: React.FC = () => {
   const [lastCleanupResult, setLastCleanupResult] = useState<
     StorageCleanupResult | undefined
   >();
+  const [showPricesModal, setShowPricesModal] = useState(false);
+  const [modelPricingData, setModelPricingData] = useState<
+    ModelPricingDisplayData[]
+  >([]);
+  const [enabledModelPricingData, setEnabledModelPricingData] = useState<
+    ModelPricingDisplayData[]
+  >([]);
+  const [pricingLoading, setPricingLoading] = useState(false);
   const initReceivedRef = useRef(false);
 
   const persistUiState = useCallback(
@@ -272,6 +282,20 @@ const AppContent: React.FC = () => {
               setTimeout(() => setError(null), 5000);
             }
           }
+          break;
+
+        case 'modelPricing':
+          setModelPricingData(message.data);
+          setEnabledModelPricingData(message.enabledModels ?? []);
+          setPricingLoading(false);
+          setShowPricesModal(true);
+          break;
+
+        case 'modelPricingError':
+          setPricingLoading(false);
+          setShowPricesModal(false);
+          setError(message.error);
+          setTimeout(() => setError(null), 5000);
           break;
       }
     });
@@ -509,6 +533,18 @@ const AppContent: React.FC = () => {
     vscodeApi.clearGithubToken(profileId);
   }, []);
 
+  const handleOpenPrices = useCallback(() => {
+    setPricingLoading(true);
+    setShowPricesModal(true);
+    setModelPricingData([]);
+    vscodeApi.requestModelPricing();
+  }, []);
+
+  const handleClosePricesModal = useCallback(() => {
+    setShowPricesModal(false);
+    setPricingLoading(false);
+  }, []);
+
   const editingProfile = editingProfileId
     ? profiles.find((p) => p.id === editingProfileId)
     : undefined;
@@ -555,6 +591,14 @@ const AppContent: React.FC = () => {
               title={t('app.importTitle')}
             >
               {t('app.import')}
+            </button>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={handleOpenPrices}
+              title="View model pricing"
+            >
+              Prices
             </button>
             <button
               type="button"
@@ -704,6 +748,15 @@ const AppContent: React.FC = () => {
           onRequestStorageInfo={handleRequestStorageInfo}
           onCleanStorage={handleCleanStorage}
           onClose={handleCloseStorageModal}
+        />
+      )}
+
+      {showPricesModal && (
+        <PricesModal
+          models={modelPricingData}
+          enabledModels={enabledModelPricingData}
+          loading={pricingLoading}
+          onClose={handleClosePricesModal}
         />
       )}
     </div>

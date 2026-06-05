@@ -54,3 +54,6 @@ See [CONFIGURATION.md](CONFIGURATION.md) for all settings.
 - [FEATURES.md](FEATURES.md) — feature overview
 - [CONFIGURATION.md](CONFIGURATION.md) — all settings
 - [ARCHITECTURE.md](ARCHITECTURE.md) — implementation details (`src/modelEfficiency/`)
+- [MODEL-PRICING.md](MODEL-PRICING.md) — pricing system (future: combine with efficiency for cost recommendations)
+- [PROXY-MODEL-DETECTION.md](PROXY-MODEL-DETECTION.md) — detecting models from network traffic (future: extend efficiency tracking to Agent sessions)
+- [ENABLED-MODELS-DETECTION.md](ENABLED-MODELS-DETECTION.md) — how Cursor stores enabled/disabled model toggles in `state.vscdb`

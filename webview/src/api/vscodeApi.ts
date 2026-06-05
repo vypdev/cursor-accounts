@@ -100,6 +100,10 @@ class VSCodeAPI {
     this.sendMessage({ type: 'refresh' });
   }
 
+  requestModelPricing(): void {
+    this.sendMessage({ type: 'requestModelPricing' });
+  }
+
   launch(profileId: string, projectPath?: string): void {
     this.sendMessage({ type: 'launch', profileId, projectPath });
   }

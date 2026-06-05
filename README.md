@@ -75,11 +75,14 @@ No additional installation required. See [docs/PLATFORM-SUPPORT.md](docs/PLATFOR
 - [Building & Packaging](docs/BUILD.md)
 - [API Research](docs/RESEARCH.md)
 - [Tokens and Usage](docs/TOKENS-AND-USAGE.md) — token signals, billing channels, MITM decode
+- [Model Pricing](docs/MODEL-PRICING.md) — how pricing data works (hardcoded table, catalog matching, maintenance)
+- [Enabled Models Detection](docs/ENABLED-MODELS-DETECTION.md) — extracting user's enabled/disabled model toggles from `state.vscdb`
 - [CLI vs Extension](docs/CLI-vs-EXTENSION.md) — Cursor CLI comparison hub, gap backlog
 - [CLI vs IDE Tokens](docs/CLI-vs-IDE-TOKENS.md) — live token UI and wire protocol
 - [CLI Agent Communication](docs/CLI-AGENT-COMMUNICATION.md) — `RunSSE`, `BidiAppend`, framing
 - [Proxy JSONL Schema](docs/PROXY-JSONL-SCHEMA.md) — MITM log format and body spill
 - [Agent IDs & Subagents](docs/PROXY-AGENT-IDS-AND-SUBAGENTS.md) — bidi sessions, **chat tab ids**, parallel subagents
+- [Proxy Model Detection](docs/PROXY-MODEL-DETECTION.md) — extracting AI models from JSONL logs (`runRequest`, `modelDetails`)
 - [Dashboard Usage Events API](docs/USAGE-EVENTS-API.md)
 - [Platform Support](docs/PLATFORM-SUPPORT.md)
 

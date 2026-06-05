@@ -143,6 +143,9 @@ export function extractTokenUsage(decoded: Record<string, unknown> | null | unde
         directInput != null && directOutput != null
           ? directInput + directOutput
           : undefined,
+      totalCents: asNumber(
+        decoded.total_cents ?? decoded.totalCents
+      ),
     };
   }
 
@@ -167,6 +170,7 @@ export function extractTokenUsage(decoded: Record<string, unknown> | null | unde
     ),
     totalTokens: asNumber(usage.total_tokens ?? usage.totalTokens),
     cachedTokens: asNumber(usage.cached_tokens ?? usage.cachedTokens),
+    totalCents: asNumber(usage.total_cents ?? usage.totalCents),
   };
 }
 
@@ -311,6 +315,7 @@ function pickTurnEnded(value: unknown): {
   outputTokens?: number;
   cacheReadTokens?: number;
   cacheWriteTokens?: number;
+  totalCents?: number;
 } | null {
   if (!value || typeof value !== 'object') {
     return null;
@@ -324,6 +329,7 @@ function pickTurnEnded(value: unknown): {
   const cacheWriteTokens = asNumber(
     record.cacheWriteTokens ?? record.cache_write_tokens
   );
+  const totalCents = asNumber(record.totalCents ?? record.total_cents);
   if (inputTokens != null && inputTokens > MAX_SANE_TURN_TOKENS) {
     return null;
   }
@@ -340,11 +346,18 @@ function pickTurnEnded(value: unknown): {
     inputTokens == null &&
     outputTokens == null &&
     cacheReadTokens == null &&
-    cacheWriteTokens == null
+    cacheWriteTokens == null &&
+    totalCents == null
   ) {
     return null;
   }
-  return { inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens };
+  return {
+    inputTokens,
+    outputTokens,
+    cacheReadTokens,
+    cacheWriteTokens,
+    totalCents,
+  };
 }
 
 /**
@@ -376,6 +389,7 @@ export function extractAgentInnerInsights(
         outputTokens: turn.outputTokens,
         cacheReadTokens: turn.cacheReadTokens,
         cacheWriteTokens: turn.cacheWriteTokens,
+        totalCents: turn.totalCents,
         usageEvent: 'turn_ended',
       };
     }
@@ -410,6 +424,63 @@ function pickStringField(
 ): string | undefined {
   const value = pickField(decoded, snake, camel);
   return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
+/**
+ * Extract model and session fields from AgentClientMessage.runRequest.
+ */
+export function extractAgentRunRequestInfo(
+  decoded: Record<string, unknown>
+): Partial<AgentSessionInfo> | null {
+  const runRequest = pickField(decoded, 'run_request', 'runRequest');
+  if (!runRequest || typeof runRequest !== 'object') {
+    return null;
+  }
+
+  const req = runRequest as Record<string, unknown>;
+  const requestedModel = (req.requestedModel ?? req.requested_model) as
+    | Record<string, unknown>
+    | undefined;
+  const modelDetails = (req.modelDetails ?? req.model_details) as
+    | Record<string, unknown>
+    | undefined;
+
+  const requestedModelId =
+    pickStringField(requestedModel ?? {}, 'model_id', 'modelId') ??
+    pickStringField(modelDetails ?? {}, 'model_id', 'modelId');
+
+  const modelDisplayName = pickStringField(
+    modelDetails ?? {},
+    'display_name',
+    'displayName'
+  );
+
+  const subagentTypeName = pickStringField(
+    req,
+    'subagent_type_name',
+    'subagentTypeName'
+  );
+
+  const requestId =
+    pickRequestId(req.requestId ?? req.request_id) ??
+    pickStringField(req, 'request_id', 'requestId');
+
+  if (
+    !requestedModelId &&
+    !modelDisplayName &&
+    !subagentTypeName &&
+    !requestId
+  ) {
+    return null;
+  }
+
+  return {
+    requestId,
+    requestedModelId,
+    modelDisplayName,
+    subagentTypeName,
+    modelName: requestedModelId ?? modelDisplayName,
+  };
 }
 
 /**

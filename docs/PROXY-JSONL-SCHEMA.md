@@ -187,6 +187,7 @@ Duration in live UI: [`extractRequestId`](../src/proxy/proxyTrafficFormat.ts) + 
 
 | Data | Where it lives |
 |------|----------------|
+| **AI model names** | Embedded in decoded protobuf payloads; see [PROXY-MODEL-DETECTION.md](PROXY-MODEL-DETECTION.md) |
 | Composer UI metadata, conversation titles | Cursor `state.vscdb` (local) |
 | Agent chat transcripts (IDE) | `~/.cursor/projects/<project>/agent-transcripts/` |
 | Decoded insights | Computed at tail time — not persisted as separate fields in JSONL |

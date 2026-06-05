@@ -121,6 +121,23 @@ Auth: `WorkosCursorSessionToken` cookie (same as usage-summary). Response includ
 
 The Accounts panel fetches this for enterprise profiles (30-day window) and shows the top 10 under each profile card.
 
+## 4b. Model pricing catalog (Accounts panel)
+
+There is **no public API** that returns a full per-model pricing table. Cursor documents rates at [Models & Pricing](https://cursor.com/docs/models-and-pricing). Protobuf defines `CheckUsageBasedPrice` (per-request) and `GetPricingHistory` messages, but no catalog RPC is exposed in the extension's proto snapshot.
+
+The Accounts **Prices** modal therefore uses:
+
+| Source | Role |
+|--------|------|
+| `state.vscdb` → `availableDefaultModels2` | Model list + variants (fast, thinking, etc.) |
+| Hardcoded table in `CursorModelPricingProvider` | Input/output/cache $/1M from official docs (review quarterly) |
+
+Future: swap `IModelPricingProvider` for an HTTP adapter if Cursor publishes a catalog endpoint.
+
+**Detailed documentation:**
+- [MODEL-PRICING.md](MODEL-PRICING.md) — complete pricing system reference (architecture, maintenance, provider-specific rules)
+- [ENABLED-MODELS-DETECTION.md](ENABLED-MODELS-DETECTION.md) — how Cursor stores which models the user has enabled/disabled in the picker (`modelOverrideEnabled` / `modelOverrideDisabled`)
+
 ## 5. GitHub repository metadata (Accounts panel)
 
 ### Flow

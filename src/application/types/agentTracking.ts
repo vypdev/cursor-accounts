@@ -29,6 +29,14 @@ export interface AgentSessionInfo {
   estimatedCostUsd?: number;
   /** Model name observed on this agent session. */
   modelName?: string;
+  /** User-selected model id from Agent runRequest (BidiAppend). */
+  requestedModelId?: string;
+  /** Display name from runRequest.modelDetails. */
+  modelDisplayName?: string;
+  /** Subagent type when runRequest launches a subagent. */
+  subagentTypeName?: string;
+  /** Server-reported model cost in USD cents (turn_ended / TokenUsage). */
+  totalCents?: number;
   /** What triggered the latest agent usage fields. */
   usageEvent?: 'token_delta' | 'turn_ended' | 'token_details' | 'usage_uuid';
 }

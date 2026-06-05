@@ -38,6 +38,21 @@ Optional per-profile analysis that scores Composer prompts and recommends lighte
 
 **Detailed guide:** [MODEL-EFFICIENCY.md](MODEL-EFFICIENCY.md)
 
+## Model pricing reference (Accounts panel)
+
+The **Accounts** panel includes a **Prices** button that opens a modal with per-model API pricing (input, output, and cache rates per 1M tokens).
+
+- Loads the active window's model catalog from `state.vscdb` (`availableDefaultModels2`)
+- Matches catalog entries and variants (e.g. fast, thinking) to official pricing data
+- Pricing source: [cursor.com/docs/models-and-pricing](https://cursor.com/docs/models-and-pricing) (hardcoded; no public pricing catalog API)
+- Display-only in this release — foundation for future cost calculations
+
+**Implementation:** `ModelPricingService`, `CursorModelPricingProvider`, `PricesModal`
+
+**Detailed guides:**
+- [MODEL-PRICING.md](MODEL-PRICING.md) — complete pricing system documentation (data sources, matching logic, maintenance)
+- [ENABLED-MODELS-DETECTION.md](ENABLED-MODELS-DETECTION.md) — how Cursor stores user's enabled/disabled model toggles
+
 ## How data is fetched
 
 The extension reads your local Cursor session and calls Cursor's quota APIs. No third-party servers are involved.

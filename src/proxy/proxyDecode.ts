@@ -15,6 +15,7 @@ import {
 } from './connectDecode';
 import {
   extractAgentInnerInsights,
+  extractAgentRunRequestInfo,
   extractConversationAndSubagentIds,
   extractInsightsForRpc,
   mergeAgentSessionInfo,
@@ -82,15 +83,20 @@ async function enrichInsightsFromBidi(
 
   const next: ProxyInsights = { ...(insights ?? {}) };
   const relationshipIds = extractConversationAndSubagentIds(inner);
-  if (Object.keys(relationshipIds).length > 0) {
-    next.agent = mergeAgentSessionInfo(next.agent, relationshipIds);
-    if (relationshipIds.conversationId || relationshipIds.conversationGroupId) {
+  const runRequestInfo = extractAgentRunRequestInfo(inner);
+  const mergedIds = mergeAgentSessionInfo(
+    relationshipIds,
+    runRequestInfo ?? undefined
+  );
+  if (mergedIds && Object.keys(mergedIds).length > 0) {
+    next.agent = mergeAgentSessionInfo(next.agent, mergedIds);
+    if (mergedIds.conversationId || mergedIds.conversationGroupId) {
       next.context = {
         ...next.context,
         conversationId:
-          relationshipIds.conversationId ?? next.context?.conversationId,
+          mergedIds.conversationId ?? next.context?.conversationId,
         conversationGroupId:
-          relationshipIds.conversationGroupId ?? next.context?.conversationGroupId,
+          mergedIds.conversationGroupId ?? next.context?.conversationGroupId,
       };
     }
   }
@@ -123,6 +129,7 @@ function applyAgentSessionInsights(
           ? agent.inputTokens + agent.outputTokens
           : undefined,
       cachedTokens: agent.cacheReadTokens,
+      totalCents: agent.totalCents,
     };
   } else if (agent.streamingTokens != null) {
     next.tokens = {

@@ -41,6 +41,14 @@ import type { ProxyStatus } from '@cursor-accounts/types';
 import { isProfileProxyEnabled } from '@cursor-accounts/types';
 import type { IProfileSettingsManager } from '../domain/ports/IProfileSettingsManager';
 import { AccountsPanelHandlers } from './accountsPanelHandlers';
+import { ModelPricingService } from '../services/modelPricingService';
+import { CursorModelPricingProvider } from '../modelEfficiency/cursorModelPricingProvider';
+import { StateDbModelCatalogRepository } from '../modelEfficiency/stateDbModelCatalogRepository';
+import { getProfileStateDbPath } from '../auth/cursorPaths';
+import type {
+  ModelPricingDisplayData,
+  ModelWithPricing,
+} from '@cursor-accounts/types';
 
 /** Webview panel view type id. */
 export const ACCOUNTS_PANEL_VIEW_ID = 'cursorAccounts.accountsPanel';
@@ -55,6 +63,7 @@ export class AccountsPanelProvider {
   private readonly handlers: AccountsPanelHandlers;
   private readonly githubEnrichment = new ProfileGitHubEnrichmentService();
   private readonly efficiencyService: EfficiencyService;
+  private readonly modelPricingService: ModelPricingService;
 
   public hasResolvedView(): boolean {
     return this.panel !== undefined;
@@ -82,6 +91,13 @@ export class AccountsPanelProvider {
     profileSettingsManager?: IProfileSettingsManager
   ) {
     this.efficiencyService = efficiencyService;
+
+    const pricingProvider = new CursorModelPricingProvider();
+    const catalogRepository = new StateDbModelCatalogRepository();
+    this.modelPricingService = new ModelPricingService(
+      catalogRepository,
+      pricingProvider
+    );
 
     this.handlers = new AccountsPanelHandlers(
       {
@@ -585,6 +601,10 @@ export class AccountsPanelProvider {
           lifecycleLog.fromWebview(message.level, message.message, message.phase);
           break;
 
+        case 'requestModelPricing':
+          await this.handleRequestModelPricing();
+          break;
+
         default:
           if (this.isActionMessage(message)) {
             await this.handlers.handle(message);
@@ -617,13 +637,69 @@ export class AccountsPanelProvider {
     | { type: 'requestInit' }
     | { type: 'refresh' }
     | { type: 'webviewLog' }
+    | { type: 'requestModelPricing' }
   > {
     return (
       message.type !== 'ready' &&
       message.type !== 'requestInit' &&
       message.type !== 'refresh' &&
-      message.type !== 'webviewLog'
+      message.type !== 'webviewLog' &&
+      message.type !== 'requestModelPricing'
     );
+  }
+
+  private toModelPricingDisplayData(
+    models: ModelWithPricing[]
+  ): ModelPricingDisplayData[] {
+    return models
+      .filter((model) => model.pricing !== null)
+      .map((model) => {
+        const pricing = model.pricing!;
+        return {
+          modelId: pricing.modelId,
+          displayName: model.displayName,
+          provider: pricing.provider,
+          inputPer1M: pricing.inputPer1M,
+          outputPer1M: pricing.outputPer1M,
+          cacheReadPer1M: pricing.cacheReadPer1M,
+          cacheWritePer1M: pricing.cacheWritePer1M,
+          notes: pricing.notes,
+          variantName: model.variantName,
+          parameters: model.parameters?.map((parameter) => ({
+            id: parameter.id,
+            value: parameter.value,
+          })),
+        };
+      });
+  }
+
+  private async handleRequestModelPricing(): Promise<void> {
+    try {
+      const userDataDir = this.profileDetector.getCurrentUserDataDir();
+      const stateDbPath = getProfileStateDbPath(userDataDir);
+      const [allModels, enabledModels] = await Promise.all([
+        this.modelPricingService.getModelsWithPricing(
+          stateDbPath,
+          this.context.extensionPath
+        ),
+        this.modelPricingService.getEnabledModelsWithPricing(
+          stateDbPath,
+          this.context.extensionPath
+        ),
+      ]);
+
+      await this.postMessage({
+        type: 'modelPricing',
+        data: this.toModelPricingDisplayData(allModels),
+        enabledModels: this.toModelPricingDisplayData(enabledModels),
+      });
+    } catch (error) {
+      await this.postMessage({
+        type: 'modelPricingError',
+        error:
+          error instanceof Error ? error.message : 'Failed to load model pricing',
+      });
+    }
   }
 
   private async postMessage(message: ToWebviewMessage): Promise<void> {

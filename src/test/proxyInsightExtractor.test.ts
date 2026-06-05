@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   extractBillingInfo,
+  extractAgentInnerInsights,
+  extractAgentRunRequestInfo,
   extractConversationAndSubagentIds,
   extractConversationContext,
   extractInsightsForRpc,
@@ -56,6 +58,53 @@ describe('proxyInsightExtractor', () => {
 
     assert.equal(tokens?.modelName, 'gpt-4');
     assert.equal(tokens?.totalTokens, 30);
+  });
+
+  it('extracts token usage totalCents from metadata', () => {
+    const tokens = extractTokenUsage({
+      metadata: {
+        model_name: 'gpt-4',
+        token_usage: {
+          prompt_tokens: 10,
+          completion_tokens: 20,
+          total_cents: 45.5,
+        },
+      },
+    });
+
+    assert.equal(tokens?.totalCents, 45.5);
+  });
+
+  it('extracts model from runRequest via extractAgentRunRequestInfo', () => {
+    const info = extractAgentRunRequestInfo({
+      runRequest: {
+        requestId: 'req-model-1',
+        requestedModel: { modelId: 'composer-2.5' },
+        modelDetails: { displayName: 'Composer 2.5' },
+        subagentTypeName: 'explore',
+      },
+    });
+
+    assert.equal(info?.requestId, 'req-model-1');
+    assert.equal(info?.requestedModelId, 'composer-2.5');
+    assert.equal(info?.modelDisplayName, 'Composer 2.5');
+    assert.equal(info?.subagentTypeName, 'explore');
+  });
+
+  it('maps total_cents from agent turn_ended when present on wire', () => {
+    const insight = extractAgentInnerInsights({
+      interactionUpdate: {
+        turnEnded: {
+          inputTokens: 1200,
+          outputTokens: 300,
+          total_cents: 102,
+        },
+      },
+    });
+
+    assert.equal(insight?.usageEvent, 'turn_ended');
+    assert.equal(insight?.inputTokens, 1200);
+    assert.equal(insight?.totalCents, 102);
   });
 
   it('extracts conversation context', () => {
