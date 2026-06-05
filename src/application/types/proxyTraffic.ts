@@ -28,7 +28,7 @@ export interface ProxyTrafficSummary {
   protocolVersion?: HttpProtocolVersion;
   /** Frequent token_delta accumulation for live status bar only (not persisted). */
   isLiveTokenUpdate?: boolean;
-  /** Server turn_ended event (billing-grade; persisted). */
+  /** Server turn_ended from IPC live decode (billing-grade; persisted). */
   isTurnEnded?: boolean;
   liveTokenData?: {
     accumulatedTokens: number;

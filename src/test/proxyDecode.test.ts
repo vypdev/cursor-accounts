@@ -83,6 +83,18 @@ describe('extractAgentSessionInfo', () => {
     assert.equal(info?.usageEvent, 'turn_ended');
   });
 
+  it('rejects turn_ended values above MAX_SANE_TURN_TOKENS', () => {
+    const info = extractAgentInnerInsights({
+      interactionUpdate: {
+        turnEnded: {
+          inputTokens: 314_202_530_873_276,
+          outputTokens: 200,
+        },
+      },
+    });
+    assert.equal(info, null);
+  });
+
   it('includes agent insights for BidiAppend rpc path', () => {
     const insights = extractInsightsForRpc(
       '/aiserver.v1.BidiService/BidiAppend',

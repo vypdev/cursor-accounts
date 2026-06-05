@@ -43,4 +43,20 @@ describe('bodyCapture', () => {
     assert.ok(formatted.bodyBase64);
     assert.equal(formatted.bodyFile, undefined);
   });
+
+  it('stores text/event-stream bodies as base64 to preserve Connect frames', () => {
+    const raw = Buffer.from([0x00, 0x00, 0x00, 0x04, 0xff, 0xfe, 0xfd]);
+    const formatted = captureBodyForLog(raw, 'text/event-stream', {
+      maxInlineBytes: 4096,
+      spillLargeBodies: true,
+      logDir: tempDir,
+    });
+
+    assert.ok(formatted.bodyBase64);
+    assert.equal(formatted.bodyEncoding, 'base64');
+    assert.equal(formatted.body, undefined);
+
+    const restored = bodyBufferFromLogEntry(formatted, tempDir);
+    assert.ok(restored?.equals(raw));
+  });
 });

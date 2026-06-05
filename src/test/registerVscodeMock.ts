@@ -119,6 +119,9 @@ const vscodeMock = {
     Workspace: 2,
     WorkspaceFolder: 3,
   },
+  ThemeColor: class ThemeColor {
+    constructor(public readonly id: string) {}
+  },
   ViewColumn: {
     Active: -1,
     Beside: -2,

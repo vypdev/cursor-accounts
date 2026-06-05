@@ -47,6 +47,8 @@ interface SessionState {
   /** Billing-grade total from server turn_ended. */
   billedTokens: number;
   lastActivity: number;
+  /** True when billing-grade turn_ended came from IPC live decode. */
+  turnEndedFromIpc?: boolean;
 }
 
 /**
@@ -134,12 +136,26 @@ export class AgentLiveUsageStatusBar {
       .get<number>('estimatedDollarsPerMillionTokens', 4);
 
     const prev = this.sessions.get(sessionId);
+
+    if (
+      prev?.turnEndedFromIpc &&
+      !summary.isTurnEnded &&
+      !summary.isLiveTokenUpdate &&
+      mergedAgent.usageEvent === 'turn_ended'
+    ) {
+      return;
+    }
+
     let liveAccumulated = prev?.liveAccumulated ?? 0;
     let billedTokens = prev?.billedTokens ?? 0;
+    const isTurnEndedEvent =
+      summary.isTurnEnded === true || mergedAgent.usageEvent === 'turn_ended';
+    const acceptTurnEnded =
+      isTurnEndedEvent && (summary.isTurnEnded === true || !prev?.turnEndedFromIpc);
 
     if (summary.isLiveTokenUpdate && summary.liveTokenData) {
       liveAccumulated = summary.liveTokenData.accumulatedTokens;
-    } else if (summary.isTurnEnded || mergedAgent.usageEvent === 'turn_ended') {
+    } else if (acceptTurnEnded) {
       const billed = billedTokenTotal(mergedAgent);
       if (billed > 0) {
         billedTokens = billed;
@@ -164,6 +180,8 @@ export class AgentLiveUsageStatusBar {
       liveAccumulated,
       billedTokens,
       lastActivity: Date.now(),
+      turnEndedFromIpc:
+        summary.isTurnEnded === true || prev?.turnEndedFromIpc === true,
     });
 
     this.activeSessionId = sessionId;

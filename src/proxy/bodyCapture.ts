@@ -33,6 +33,7 @@ function isBinaryContentType(contentType: string | undefined): boolean {
     lower.includes('proto') ||
     lower.includes('grpc') ||
     lower.includes('octet-stream') ||
+    lower.includes('event-stream') ||
     (lower.includes('connect') && !lower.includes('json'))
   );
 }

@@ -252,6 +252,8 @@ export function redactSensitive(obj: unknown, depth = 0): unknown {
 }
 
 const DATA_PREVIEW_MAX = 240;
+/** Reject turn_ended fields above this (guards UTF-8-corrupted JSONL replay). */
+export const MAX_SANE_TURN_TOKENS = 50_000_000;
 
 function previewDataField(value: unknown): string | undefined {
   if (typeof value !== 'string' || value.length === 0) {
@@ -322,6 +324,18 @@ function pickTurnEnded(value: unknown): {
   const cacheWriteTokens = asNumber(
     record.cacheWriteTokens ?? record.cache_write_tokens
   );
+  if (inputTokens != null && inputTokens > MAX_SANE_TURN_TOKENS) {
+    return null;
+  }
+  if (outputTokens != null && outputTokens > MAX_SANE_TURN_TOKENS) {
+    return null;
+  }
+  if (cacheReadTokens != null && cacheReadTokens > MAX_SANE_TURN_TOKENS) {
+    return null;
+  }
+  if (cacheWriteTokens != null && cacheWriteTokens > MAX_SANE_TURN_TOKENS) {
+    return null;
+  }
   if (
     inputTokens == null &&
     outputTokens == null &&
