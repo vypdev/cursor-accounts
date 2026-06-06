@@ -24,14 +24,6 @@ function formatTokenCount(n: number): string {
   return String(Math.round(n));
 }
 
-function formatContextPercent(used: number, max: number): string {
-  if (max <= 0) {
-    return '';
-  }
-  const pct = Math.max(0, Math.min(100, Math.round((used / max) * 1000) / 10));
-  return pct % 1 === 0 ? `${Math.round(pct)}%` : `${pct.toFixed(1)}%`;
-}
-
 function billedTokenTotal(agent: AgentSessionInfo): number {
   return (
     (agent.inputTokens ?? 0) +
@@ -304,38 +296,19 @@ export class AgentLiveUsageStatusBar {
 
     let totalStreamingTokens = 0;
     let totalBilled = 0;
-    let totalInput = 0;
-    let totalOutput = 0;
     let totalLiveCostCents = 0;
     let totalTurnCostCents = 0;
     let hasAuthoritativeTurnCost = false;
     let sessionCount = 0;
-    let bestContextPercent: string | undefined;
 
     for (const sessionState of this.sessions.values()) {
       const agent = sessionState.agent;
       sessionCount++;
 
-      if (
-        agent.contextUsedTokens != null &&
-        agent.maxTokens != null &&
-        agent.maxTokens > 0
-      ) {
-        const pct = formatContextPercent(
-          agent.contextUsedTokens,
-          agent.maxTokens
-        );
-        if (pct) {
-          bestContextPercent = pct;
-        }
-      }
-
       const sessionLive = sessionState.liveAccumulated;
       const sessionBilled = sessionState.billedTokens;
       totalStreamingTokens += sessionLive > 0 ? sessionLive : sessionBilled;
       totalBilled += sessionBilled > 0 ? sessionBilled : billedTokenTotal(agent);
-      totalInput += agent.inputTokens ?? 0;
-      totalOutput += agent.outputTokens ?? 0;
 
       if (sessionState.turnTotalCents != null && sessionState.turnTotalCents > 0) {
         totalTurnCostCents += sessionState.turnTotalCents;
@@ -350,27 +323,14 @@ export class AgentLiveUsageStatusBar {
     const total =
       totalBilled > 0 ? totalBilled : totalStreamingTokens;
 
-    if (total <= 0 && !bestContextPercent && totalLiveCostCents <= 0 && totalTurnCostCents <= 0) {
+    if (total <= 0 && totalLiveCostCents <= 0 && totalTurnCostCents <= 0) {
       this.item.hide();
       return;
     }
 
     const parts: string[] = [];
-    if (bestContextPercent) {
-      parts.push(bestContextPercent);
-    }
     if (total > 0) {
-      const tokenLabel = formatTokenCount(total);
-      parts.push(t('agentLiveUsage.statusBar.tokens', { count: tokenLabel }));
-    }
-
-    if (totalBilled > 0 && (totalInput > 0 || totalOutput > 0)) {
-      parts.push(
-        t('agentLiveUsage.statusBar.inOut', {
-          input: formatTokenCount(totalInput),
-          output: formatTokenCount(totalOutput),
-        })
-      );
+      parts.push(formatTokenCount(total));
     }
 
     const displayCostCents =
@@ -455,12 +415,6 @@ export class AgentLiveUsageStatusBar {
             input: String(agent.inputTokens ?? 0),
             output: String(agent.outputTokens ?? 0),
           })}`
-        );
-      }
-
-      if (agent.contextUsedTokens != null && agent.maxTokens != null) {
-        lines.push(
-          `  Context: ${formatContextPercent(agent.contextUsedTokens, agent.maxTokens)} (${agent.contextUsedTokens}/${agent.maxTokens})`
         );
       }
 

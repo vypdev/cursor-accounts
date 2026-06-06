@@ -162,4 +162,61 @@ describe('AgentLiveUsageStatusBar', () => {
     assert.equal(session?.turnCostFromServer, true);
     assert.equal(session?.liveAccumulatedCostCents, 0);
   });
+
+  it('shows only accumulated tokens and cost without context or in/out on turn_ended', () => {
+    const statusBar = new AgentLiveUsageStatusBar(createContext());
+    const requestId = 'req-display';
+
+    statusBar.ingest(
+      baseSummary({
+        isLiveTokenUpdate: true,
+        liveTokenData: {
+          accumulatedTokens: 2500,
+          latestDelta: 2500,
+          deltaCostCents: 1,
+          modelId: 'composer-2.5',
+        },
+        insights: {
+          agent: {
+            requestId,
+            contextUsedTokens: 50_000,
+            maxTokens: 200_000,
+          },
+        },
+      })
+    );
+
+    statusBar.ingest(
+      baseSummary({
+        isTurnEnded: true,
+        insights: {
+          agent: {
+            requestId,
+            inputTokens: 1200,
+            outputTokens: 300,
+            contextUsedTokens: 50_000,
+            maxTokens: 200_000,
+            usageEvent: 'turn_ended',
+            requestedModelId: 'composer-2.5',
+          },
+          tokens: {
+            promptTokens: 1200,
+            completionTokens: 300,
+            totalCents: 80,
+          },
+        },
+      })
+    );
+
+    const item = (
+      statusBar as unknown as { item: { text: string; tooltip: string } }
+    ).item;
+
+    assert.equal(item.text, '$(symbol-event) 1.5k · $0.80');
+    assert.ok(!item.text.includes('tok'));
+    assert.ok(!item.text.includes('%'));
+    assert.ok(!item.text.includes('in '));
+    assert.ok(!item.text.includes('out '));
+    assert.ok(!item.tooltip.includes('Context:'));
+  });
 });
