@@ -121,6 +121,9 @@ function createMockProxyManager(): IProxyManager {
     ensureTrafficTailer: async () => undefined,
     showOutputChannel: () => undefined,
     showTokenDetectorChannel: () => undefined,
+    startUpstream: async () => ({ success: true, port: 8100 }),
+    stopUpstream: async () => undefined,
+    getRuntimeMetadata: () => undefined,
   };
 }
 

@@ -14,6 +14,7 @@ import type {
   StorageCleanupResult,
 } from '../entities/StorageInfo';
 import type { ProxyStatus } from '../entities/ProxyStatus';
+import type { MultiplexerStatusView } from '../entities/MultiplexerStatus';
 import type { ProxyInstallGuide } from '../entities/ProxyInstallGuide';
 import type { ModelPricingDisplayData } from './modelPricingMessages';
 
@@ -60,6 +61,7 @@ export interface InitData {
   profileGithubTokenStatus: ProfileGithubTokenStatusMap;
   efficiencyStats: EfficiencyStatsMap;
   proxyStatus: ProxyStatus | null;
+  multiplexerStatus: MultiplexerStatusView | null;
   currentWindowUsesProxy: boolean;
   /** Profile IDs with temporary MITM proxy applied in settings.json. */
   profileProxyTemporary: Record<string, boolean>;
@@ -100,6 +102,7 @@ export type ToWebviewMessage =
       };
     }
   | { type: 'proxyStatus'; data: ProxyStatus | null }
+  | { type: 'multiplexerStatus'; data: MultiplexerStatusView | null }
   | { type: 'currentWindowProxyUsage'; usesProxy: boolean }
   | { type: 'proxyInstallGuide'; data: ProxyInstallGuide }
   | { type: 'certificateInstallResult'; success: boolean; error?: string }
@@ -147,4 +150,8 @@ export type FromWebviewMessage =
   | { type: 'uninstallProxyCertificate' }
   | { type: 'saveProxyCertificate' }
   | { type: 'refreshProxyStatus' }
+  | { type: 'startMultiplexer' }
+  | { type: 'stopMultiplexer' }
+  | { type: 'refreshMultiplexerStatus' }
+  | { type: 'setMultiplexerStrategy'; strategy: MultiplexerStatusView['strategy'] }
   | { type: 'requestModelPricing' };

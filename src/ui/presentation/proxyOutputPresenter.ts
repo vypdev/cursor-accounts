@@ -4,6 +4,7 @@ import {
   formatTrafficLine,
   PROXY_TRAFFIC_TAG,
 } from '../../proxy/proxyTrafficFormat';
+import type { IMultiplexerFlowLogger } from '../../application/types/multiplexerFlowLogger';
 import type { ProxyTrafficSummary } from '../../application/types/proxyTraffic';
 
 export interface ProxyOutputConfig {
@@ -24,7 +25,7 @@ export function getProxyOutputConfig(): ProxyOutputConfig {
 /**
  * Dedicated Output channel for live MITM proxy traffic ([ProxyTraffic] tag).
  */
-export class ProxyOutputPresenter {
+export class ProxyOutputPresenter implements IMultiplexerFlowLogger {
   private readonly channel: vscode.OutputChannel;
   private autoShowPending = false;
 
@@ -79,6 +80,84 @@ export class ProxyOutputPresenter {
   appendStopped(): void {
     this.channel.appendLine(
       `[${this.timeLabel()}] ${PROXY_TRAFFIC_TAG} ${t('proxy.output.stopped')}`
+    );
+    this.channel.appendLine('');
+  }
+
+  appendMultiplexerStarted(port: number): void {
+    this.channel.appendLine(
+      `[${this.timeLabel()}] [Multiplexer] Global multiplexer started on port ${port}`
+    );
+    this.channel.appendLine('');
+  }
+
+  appendMultiplexerStopped(): void {
+    this.channel.appendLine(
+      `[${this.timeLabel()}] [Multiplexer] Global multiplexer stopped`
+    );
+    this.channel.appendLine('');
+  }
+
+  appendUpstreamCreated(
+    upstreamId: string,
+    profileId: string,
+    workspace: string,
+    port: number
+  ): void {
+    this.channel.appendLine(
+      `[${this.timeLabel()}] [Upstream] Created ${upstreamId} profile=${profileId} workspace=${workspace} port=${port}`
+    );
+    this.channel.appendLine('');
+  }
+
+  appendUpstreamStopped(upstreamId: string): void {
+    this.channel.appendLine(
+      `[${this.timeLabel()}] [Upstream] Stopped ${upstreamId}`
+    );
+    this.channel.appendLine('');
+  }
+
+  appendRoutingDecision(
+    profileId: string | null,
+    workspace: string | null,
+    upstreamId: string,
+    reason: string
+  ): void {
+    const profileInfo = profileId ? `profile=${profileId}` : 'profile=unknown';
+    const workspaceInfo = workspace ? `workspace=${workspace}` : 'workspace=none';
+    this.channel.appendLine(
+      `[${this.timeLabel()}] [Routing] ${profileInfo} ${workspaceInfo} → upstream=${upstreamId} (${reason})`
+    );
+    this.channel.appendLine('');
+  }
+
+  appendTokenExtraction(email: string | null, profileId: string | null): void {
+    if (email && profileId) {
+      this.channel.appendLine(
+        `[${this.timeLabel()}] [Auth] Token decoded: email=${email} → profile=${profileId}`
+      );
+    } else if (email) {
+      this.channel.appendLine(
+        `[${this.timeLabel()}] [Auth] Token decoded: email=${email} (profile not found)`
+      );
+    } else {
+      this.channel.appendLine(
+        `[${this.timeLabel()}] [Auth] No valid token in request`
+      );
+    }
+    this.channel.appendLine('');
+  }
+
+  appendSettingsModified(userDataDir: string, proxyUrl: string): void {
+    this.channel.appendLine(
+      `[${this.timeLabel()}] [Settings] Applied proxy ${proxyUrl} to ${userDataDir}`
+    );
+    this.channel.appendLine('');
+  }
+
+  appendSettingsRestored(userDataDir: string): void {
+    this.channel.appendLine(
+      `[${this.timeLabel()}] [Settings] Restored proxy settings for ${userDataDir}`
     );
     this.channel.appendLine('');
   }

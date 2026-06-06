@@ -19,7 +19,10 @@ export interface IAgentTrackingRepository {
     conversationId: string,
     profileId: string,
     timestamp: number,
-    messageCount?: number
+    messageCount?: number,
+    workspacePath?: string,
+    repositoryPath?: string,
+    branchName?: string
   ): Promise<void>;
 
   upsertAgent(agent: AgentRecord): Promise<void>;

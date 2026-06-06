@@ -8,6 +8,7 @@ import { ProfileList } from './components/ProfileList';
 import { CaCertificateInstallModal } from './components/CaCertificateInstallModal';
 import { CaCertificateUninstallModal } from './components/CaCertificateUninstallModal';
 import { ProxyStatusCard } from './components/ProxyStatusCard';
+import { MultiplexerStatusCard } from './components/MultiplexerStatusCard';
 import { StorageManagementModal } from './components/StorageManagementModal';
 import { PricesModal } from './components/PricesModal';
 import { L10nProvider, useL10n } from './l10n/context';
@@ -27,6 +28,7 @@ import type {
   ProfileGithubTokenStatusMap,
   EfficiencyStatsMap,
   ProxyStatus,
+  MultiplexerStatusView,
   ProxyInstallGuide,
   ModelPricingDisplayData,
 } from './types';
@@ -56,6 +58,8 @@ const AppContent: React.FC = () => {
     useState<ProfileGithubTokenStatusMap>({});
   const [efficiencyStats, setEfficiencyStats] = useState<EfficiencyStatsMap>({});
   const [proxyStatus, setProxyStatus] = useState<ProxyStatus | null>(null);
+  const [multiplexerStatus, setMultiplexerStatus] =
+    useState<MultiplexerStatusView | null>(null);
   const [currentWindowUsesProxy, setCurrentWindowUsesProxy] = useState(false);
   const [profileProxyTemporary, setProfileProxyTemporary] = useState<
     Record<string, boolean>
@@ -139,6 +143,7 @@ const AppContent: React.FC = () => {
           );
           setEfficiencyStats(message.data.efficiencyStats ?? {});
           setProxyStatus(message.data.proxyStatus ?? null);
+          setMultiplexerStatus(message.data.multiplexerStatus ?? null);
           setCurrentWindowUsesProxy(
             message.data.currentWindowUsesProxy ?? false
           );
@@ -148,6 +153,10 @@ const AppContent: React.FC = () => {
 
         case 'proxyStatus':
           setProxyStatus(message.data);
+          break;
+
+        case 'multiplexerStatus':
+          setMultiplexerStatus(message.data);
           break;
 
         case 'currentWindowProxyUsage':
@@ -629,6 +638,16 @@ const AppContent: React.FC = () => {
           <div className="success-banner" role="status">
             {success}
           </div>
+        )}
+
+        {showProxyUi && multiplexerStatus && (
+          <MultiplexerStatusCard
+            status={multiplexerStatus}
+            onStart={() => vscodeApi.startMultiplexer()}
+            onStop={() => vscodeApi.stopMultiplexer()}
+            onRefresh={() => vscodeApi.refreshMultiplexerStatus()}
+            onSetStrategy={(strategy) => vscodeApi.setMultiplexerStrategy(strategy)}
+          />
         )}
 
         {showProxyUi && (

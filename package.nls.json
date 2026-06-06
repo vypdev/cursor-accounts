@@ -21,6 +21,12 @@
   "commands.proxy.showOutput.title": "Cursor Accounts: Show MITM Proxy Traffic",
   "commands.proxy.showTokenDetector.title": "Cursor Accounts: Show Token Detector Output",
   "commands.proxy.saveCertificate.title": "Cursor Accounts: Save Proxy CA Certificate…",
+  "commands.multiplexer.start.title": "Cursor Accounts: Start Proxy Multiplexor",
+  "commands.multiplexer.stop.title": "Cursor Accounts: Stop Proxy Multiplexor",
+  "commands.multiplexer.status.title": "Cursor Accounts: Proxy Multiplexor Status",
+  "commands.multiplexer.metrics.title": "Cursor Accounts: Proxy Multiplexor Metrics",
+  "commands.multiplexer.setStrategy.title": "Cursor Accounts: Set Proxy Multiplexor Strategy",
+  "commands.multiplexer.sessions.title": "Cursor Accounts: Proxy Multiplexor Sessions",
   "commands.debug.copyActiveConversationId.title": "Cursor Accounts: Copy Active Conversation ID",
   "configuration.title": "Cursor Accounts",
   "configuration.refresh.enabled.description": "Automatically refresh quota data from Cursor.",
@@ -53,5 +59,6 @@
   "configuration.proxy.trafficDiagnostics.description": "Emit periodic [ProxyDiagnostics] summaries in the MITM output channel (CONNECT hosts, Agent RPC counts, bypass hints). Helps detect traffic that never hits the proxy.",
   "configuration.proxy.diagnosticsIntervalMs.description": "Interval in milliseconds between [ProxyDiagnostics] summaries in the MITM output channel.",
   "configuration.proxy.logTokenDetectorToOutput.description": "Write agent/token/conversation events from proxy IPC to the Cursor Token Detector output channel.",
-  "configuration.proxy.autoShowTokenDetectorChannel.description": "Automatically open the Cursor Token Detector output channel when agent or token events arrive."
+  "configuration.proxy.autoShowTokenDetectorChannel.description": "Automatically open the Cursor Token Detector output channel when agent or token events arrive.",
+  "configuration.proxy.multiplexer.routingStrategy.description": "Routing strategy for the per-profile proxy multiplexor (default: workspace-path for per-project isolation)."
 }

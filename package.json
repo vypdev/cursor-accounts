@@ -103,6 +103,30 @@
         "title": "%commands.proxy.saveCertificate.title%"
       },
       {
+        "command": "cursorAccounts.proxy.multiplexer.start",
+        "title": "%commands.multiplexer.start.title%"
+      },
+      {
+        "command": "cursorAccounts.proxy.multiplexer.stop",
+        "title": "%commands.multiplexer.stop.title%"
+      },
+      {
+        "command": "cursorAccounts.proxy.multiplexer.status",
+        "title": "%commands.multiplexer.status.title%"
+      },
+      {
+        "command": "cursorAccounts.proxy.multiplexer.metrics",
+        "title": "%commands.multiplexer.metrics.title%"
+      },
+      {
+        "command": "cursorAccounts.proxy.multiplexer.setStrategy",
+        "title": "%commands.multiplexer.setStrategy.title%"
+      },
+      {
+        "command": "cursorAccounts.proxy.multiplexer.sessions",
+        "title": "%commands.multiplexer.sessions.title%"
+      },
+      {
         "command": "cursorAccounts.debug.copyActiveConversationId",
         "title": "%commands.debug.copyActiveConversationId.title%"
       }
@@ -284,6 +308,19 @@
           "type": "boolean",
           "default": false,
           "description": "%configuration.proxy.autoShowTokenDetectorChannel.description%"
+        },
+        "cursorAccounts.proxy.multiplexer.routingStrategy": {
+          "type": "string",
+          "default": "workspace-path",
+          "enum": [
+            "sticky-session",
+            "token-hash",
+            "round-robin",
+            "least-connections",
+            "workspace-path",
+            "hybrid"
+          ],
+          "description": "%configuration.proxy.multiplexer.routingStrategy.description%"
         },
         "cursorAccounts.experimental.useBetterSqlite3": {
           "type": "boolean",

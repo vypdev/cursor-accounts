@@ -72,24 +72,31 @@ export class BetterSqliteAgentTrackingRepository implements IAgentTrackingReposi
     conversationId: string,
     profileId: string,
     timestamp: number,
-    messageCount?: number
+    messageCount?: number,
+    workspacePath?: string,
+    _repositoryPath?: string,
+    _branchName?: string
   ): Promise<void> {
     const conn = await this.connectionManager.getConnection(this.dbPath);
     
     conn.run(
       `
-      INSERT INTO conversations (conversation_id, profile_id, created_at, last_activity, message_count)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO conversations (
+        conversation_id, profile_id, created_at, last_activity, message_count, workspace_path
+      )
+      VALUES (?, ?, ?, ?, ?, ?)
       ON CONFLICT (conversation_id) DO UPDATE SET
         last_activity = ?,
         message_count = COALESCE(excluded.message_count, conversations.message_count),
-        profile_id = excluded.profile_id
+        profile_id = excluded.profile_id,
+        workspace_path = COALESCE(excluded.workspace_path, conversations.workspace_path)
       `,
       conversationId,
       profileId,
       timestamp,
       timestamp,
       messageCount ?? null,
+      workspacePath ?? null,
       timestamp
     );
   }
@@ -109,9 +116,10 @@ export class BetterSqliteAgentTrackingRepository implements IAgentTrackingReposi
         started_at,
         ended_at,
         is_eof,
-        profile_id
+        profile_id,
+        workspace_path
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT (request_id) DO UPDATE SET
         conversation_id = excluded.conversation_id,
         conversation_group_id = excluded.conversation_group_id,
@@ -120,7 +128,8 @@ export class BetterSqliteAgentTrackingRepository implements IAgentTrackingReposi
         model_name = excluded.model_name,
         ended_at = excluded.ended_at,
         is_eof = excluded.is_eof,
-        profile_id = excluded.profile_id
+        profile_id = excluded.profile_id,
+        workspace_path = COALESCE(excluded.workspace_path, agents.workspace_path)
       `,
       agent.requestId,
       agent.conversationId,
@@ -131,7 +140,8 @@ export class BetterSqliteAgentTrackingRepository implements IAgentTrackingReposi
       agent.startedAt,
       agent.endedAt ?? null,
       agent.isEof ? 1 : 0,
-      agent.profileId
+      agent.profileId,
+      agent.workspacePath ?? null
     );
   }
 

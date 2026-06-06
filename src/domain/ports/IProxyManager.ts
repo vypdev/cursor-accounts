@@ -13,10 +13,29 @@ export interface ProxyStartResult {
   error?: string;
 }
 
+/** Metadata attached to an upstream MITM proxy runtime. */
+export interface ProxyRuntimeMetadata {
+  workspacePath?: string;
+  profileId?: string;
+}
+
+/** Options for starting a workspace-scoped upstream MITM proxy. */
+export interface UpstreamStartOptions {
+  profileId: string;
+  workspacePath: string;
+  preferredPort?: number;
+}
+
 /** Port for managing per-profile MITM proxy lifecycle and status. */
 export interface IProxyManager {
   start(profileId: string): Promise<ProxyStartResult>;
+  startUpstream(
+    upstreamId: string,
+    options: UpstreamStartOptions
+  ): Promise<ProxyStartResult>;
+  getRuntimeMetadata(runtimeId: string): ProxyRuntimeMetadata | undefined;
   stop(profileId: string, options?: { restoreSettings?: boolean }): Promise<void>;
+  stopUpstream(upstreamId: string): Promise<void>;
   restartProfileProxy(profileId: string): Promise<ProxyStartResult>;
   getStatus(profileId: string): Promise<ProxyStatus | null>;
   isRunning(profileId: string): Promise<boolean>;

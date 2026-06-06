@@ -4,7 +4,9 @@ import * as vscode from 'vscode';
 import type {
   ProxyStartResult,
   IProxyManager,
+  ProxyRuntimeMetadata,
   RestoreAllProfilesResult,
+  UpstreamStartOptions,
 } from '../domain/ports/IProxyManager';
 import type { IProfileManager } from '../domain/ports/IProfileManager';
 import type { IProfileSettingsManager } from '../domain/ports/IProfileSettingsManager';
@@ -137,6 +139,7 @@ function defaultDependencies(
  */
 export class ProxyManager implements IProxyManager {
   private readonly runtimes = new Map<string, ProfileProxyRuntime>();
+  private readonly runtimeMetadata = new Map<string, ProxyRuntimeMetadata>();
   private readonly statusCallbacks: Array<() => void> = [];
   private readonly usagePersistedListeners: ConversationUsagePersistedListener[] =
     [];
@@ -167,14 +170,19 @@ export class ProxyManager implements IProxyManager {
     this.storageDir = storageDir;
     this.logDir = path.join(this.storageDir, 'logs');
 
-    this.deps.trafficBus.subscribe((summary, profileId) => {
-      void this.handleTraffic(summary, profileId);
+    this.deps.trafficBus.subscribe((summary, profileId, workspacePath) => {
+      void this.handleTraffic(summary, profileId, workspacePath);
     });
+  }
+
+  getRuntimeMetadata(runtimeId: string): ProxyRuntimeMetadata | undefined {
+    return this.runtimeMetadata.get(runtimeId);
   }
 
   private async handleTraffic(
     summary: Parameters<TrafficListener>[0],
-    profileId?: string
+    profileId?: string,
+    workspacePath?: string
   ): Promise<void> {
     const agent = summary.insights?.agent;
     const isAgentTraffic =
@@ -206,7 +214,7 @@ export class ProxyManager implements IProxyManager {
           `[AgentTracking] no AgentTrackingService for profile=${profileId}`
         );
       }
-      const result = await tracking?.ingestTraffic(summary);
+      const result = await tracking?.ingestTraffic(summary, workspacePath);
       if (isAgentTraffic) {
         extensionLog.info(
           `[AgentTracking] ingest result profile=${profileId} ` +
@@ -379,6 +387,115 @@ export class ProxyManager implements IProxyManager {
       const message = error instanceof Error ? error.message : String(error);
       extensionLog.error(`[Proxy] start failed: ${message}`);
       return { success: false, error: message };
+    }
+  }
+
+  async startUpstream(
+    upstreamId: string,
+    options: UpstreamStartOptions
+  ): Promise<ProxyStartResult> {
+    try {
+      const profile = await this.profileManager.getProfile(options.profileId);
+      if (!profile) {
+        return {
+          success: false,
+          error: `Profile ${options.profileId} not found`,
+        };
+      }
+
+      const existing = this.runtimes.get(upstreamId);
+      if (existing) {
+        return { success: true, port: existing.port };
+      }
+
+      let port: number | undefined = options.preferredPort;
+      if (port == null || !(await isPortAvailable(port))) {
+        port = (await this.findAvailableUpstreamPort(options.preferredPort)) ?? undefined;
+      }
+      if (port == null) {
+        return { success: false, error: 'No available port for upstream proxy' };
+      }
+
+      await fs.mkdir(this.storageDir, { recursive: true });
+      await fs.mkdir(this.logDir, { recursive: true });
+
+      await this.deps.certService.ensureCaCertificate();
+      const serverConfig = this.buildServerConfig(port, profile);
+
+      const proxyProcess = this.deps.createProcess();
+      proxyProcess.onMessage((msg: ProxyChildMessage) => {
+        this.handleChildMessage(upstreamId, msg);
+      });
+      proxyProcess.onExit(() => {
+        this.runtimes.delete(upstreamId);
+        this.runtimeMetadata.delete(upstreamId);
+        this.notifyStatusChange();
+      });
+
+      const runtime = await proxyProcess.start(serverConfig);
+      const ready = await proxyProcess.waitForReady(port, PROXY_START_TIMEOUT_MS);
+      if (!ready.success) {
+        await proxyProcess.stop(runtime.pid);
+        return ready;
+      }
+
+      this.runtimes.set(upstreamId, {
+        process: proxyProcess,
+        port,
+        userDataDir: profile.userDataDir,
+      });
+      this.runtimeMetadata.set(upstreamId, {
+        profileId: options.profileId,
+        workspacePath: options.workspacePath,
+      });
+
+      await this.ensureAgentTracking(options.profileId, profile.userDataDir);
+
+      extensionLog.info(
+        `[Proxy:${upstreamId}] Upstream started on 127.0.0.1:${port} workspace=${options.workspacePath}`
+      );
+      this.notifyStatusChange();
+      return { success: true, port };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      extensionLog.error(`[Proxy] startUpstream failed: ${message}`);
+      return { success: false, error: message };
+    }
+  }
+
+  private async findAvailableUpstreamPort(
+    preferred?: number
+  ): Promise<number | null> {
+    if (preferred != null && (await isPortAvailable(preferred))) {
+      return preferred;
+    }
+    for (let port = 8000; port < 9000; port++) {
+      if (await isPortAvailable(port)) {
+        return port;
+      }
+    }
+    return null;
+  }
+
+  async stopUpstream(upstreamId: string): Promise<void> {
+    const runtime = this.runtimes.get(upstreamId);
+    if (!runtime) {
+      return;
+    }
+
+    try {
+      if (runtime.process.isConnected()) {
+        await runtime.process.sendShutdown(PROXY_STOP_TIMEOUT_MS);
+      }
+
+      await this.forceStopChild(upstreamId);
+      this.deps.trafficIngress.stop(upstreamId);
+      extensionLog.info(`[Proxy:${upstreamId}] Upstream stopped`);
+      this.notifyStatusChange();
+    } catch (error) {
+      extensionLog.error(
+        `[Proxy] stopUpstream failed: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 
@@ -690,7 +807,12 @@ export class ProxyManager implements IProxyManager {
       return;
     }
     if (msg.type === 'traffic') {
-      this.deps.trafficBus.publish(msg.summary, profileId);
+      const metadata = this.runtimeMetadata.get(profileId);
+      this.deps.trafficBus.publish(
+        msg.summary,
+        metadata?.profileId ?? profileId,
+        metadata?.workspacePath
+      );
     }
   }
 
@@ -802,6 +924,7 @@ export class ProxyManager implements IProxyManager {
   private async forceStopChild(profileId: string): Promise<void> {
     const runtime = this.runtimes.get(profileId);
     this.runtimes.delete(profileId);
+    this.runtimeMetadata.delete(profileId);
     this.agentTrackingServices.delete(profileId);
 
     if (!runtime) {

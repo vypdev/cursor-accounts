@@ -14,6 +14,9 @@ export interface ConversationRecord {
   createdAt: number;
   lastActivity: number;
   messageCount?: number;
+  workspacePath?: string;
+  repositoryPath?: string;
+  branchName?: string;
 }
 
 export interface AgentRecord {
@@ -27,6 +30,9 @@ export interface AgentRecord {
   endedAt?: number;
   isEof: boolean;
   profileId: string;
+  workspacePath?: string;
+  repositoryPath?: string;
+  branchName?: string;
 }
 
 export type AgentTokenType = 'delta' | 'turn_ended' | 'token_details';

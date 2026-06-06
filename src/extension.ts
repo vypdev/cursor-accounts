@@ -8,6 +8,10 @@ import { ProfileAuthReader } from './auth/profileAuthReader';
 import { TokenService } from './auth/tokenRefresh';
 import { registerProfileCommands } from './commands/profileCommands';
 import { registerProxyCommands } from './commands/proxyCommands';
+import { registerMultiplexerCommands } from './commands/multiplexerCommands';
+import { MultiplexerRegistry } from './application/services/multiplexerRegistry';
+import { ProfileMultiplexerService } from './services/profileMultiplexerService';
+import { getMultiplexerRoutingSettings } from './proxy/multiplexer/multiplexerConfig';
 import { ProxyStateFileStore } from './proxy/proxyStateFileStore';
 import { getSharedProxyStorageDir } from './proxy/sharedProxyPaths';
 import { ProxyOutputPresenter } from './proxy/proxyOutputPresenter';
@@ -111,12 +115,35 @@ export function activate(context: vscode.ExtensionContext): void {
     proxyOutputPresenter,
     tokenDetectorPresenter
   );
+  const multiplexerRegistry = new MultiplexerRegistry(
+    proxyManager,
+    profileManager,
+    proxyOutputPresenter
+  );
+  context.subscriptions.push(multiplexerRegistry);
+  const routingSettings = getMultiplexerRoutingSettings();
+  void multiplexerRegistry.ensureStarted({
+    routing: {
+      strategy: routingSettings.routingStrategy,
+      fallbackStrategy: 'sticky-session',
+    },
+  });
+
+  const multiplexerManager = new ProfileMultiplexerService(
+    multiplexerRegistry,
+    profileDetector,
+    profileManager,
+    profileSettingsManager,
+    proxyOutputPresenter
+  );
 
   const profileLauncher = new ProfileLauncher(
     profileManager,
     instanceDetector,
     proxyManager,
-    profileSettingsManager
+    profileSettingsManager,
+    multiplexerRegistry,
+    proxyOutputPresenter
   );
   const workspaceScanner = new WorkspaceScanner();
   const profileWorkspaceService = new ProfileWorkspaceService(
@@ -175,7 +202,8 @@ export function activate(context: vscode.ExtensionContext): void {
     storageBundle.storageAnalyzer,
     proxyManager,
     proxySettingsService,
-    profileSettingsManager
+    profileSettingsManager,
+    multiplexerManager
   );
 
   efficiencyStatsStorage.setStatsUpdatedListener(() => {
@@ -256,18 +284,12 @@ export function activate(context: vscode.ExtensionContext): void {
         );
       }
     } else if (isProfileProxyEnabled(currentProfile)) {
-      const result = await proxyManager.ensureProfileProxy(currentProfile.id);
-      if (result.success) {
-        extensionLog.info(
-          `[Proxy] Ensured proxy for profile ${currentProfile.displayName} on port ${result.port ?? 'unknown'}`
-        );
-        await proxyManager.ensureTrafficTailer();
-        void accountsPanel.refreshProxyStatus();
-      } else {
-        extensionLog.warn(
-          `[Proxy] Failed to ensure proxy for ${currentProfile.displayName}: ${result.error ?? 'unknown'}`
-        );
-      }
+      await multiplexerRegistry.ensureStarted();
+      extensionLog.info(
+        `[Multiplexer] Ensured global router for profile ${currentProfile.displayName} on port 9000`
+      );
+      void accountsPanel.refreshMultiplexerStatus();
+      void accountsPanel.refreshProxyStatus();
     }
 
     const workspaceOpen = hasActiveWorkspace();
@@ -310,6 +332,10 @@ export function activate(context: vscode.ExtensionContext): void {
 
   registerProxyCommands(context, proxyManager, profileDetector, () => {
     void accountsPanel.refreshProxyStatus();
+  });
+
+  registerMultiplexerCommands(context, multiplexerManager, () => {
+    void accountsPanel.refreshMultiplexerStatus();
   });
 
   const profilesConfig = vscode.workspace.getConfiguration(

@@ -14,12 +14,16 @@ export class ProxyTrafficBus implements IProxyTrafficBus {
     ) => ProxyTrafficSummary
   ) {}
 
-  publish(summary: ProxyTrafficSummary, profileId?: string): void {
+  publish(
+    summary: ProxyTrafficSummary,
+    profileId?: string,
+    workspacePath?: string
+  ): void {
     const enriched = this.enrich ? this.enrich(summary) : summary;
 
     for (const listener of this.listeners) {
       try {
-        listener(enriched, profileId);
+        listener(enriched, profileId, workspacePath);
       } catch (error) {
         extensionLog.debug(
           `[Proxy] traffic listener error: ${

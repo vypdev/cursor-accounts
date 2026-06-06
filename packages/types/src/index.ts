@@ -8,6 +8,7 @@ export * from './entities/Workspace';
 export * from './entities/GitHub';
 export * from './entities/EfficiencyStats';
 export * from './entities/ProxyStatus';
+export * from './entities/MultiplexerStatus';
 export * from './entities/ProxyInstallGuide';
 export * from './entities/ModelPricing';
 export * from './entities/ModelCatalog';

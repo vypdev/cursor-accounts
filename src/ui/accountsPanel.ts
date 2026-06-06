@@ -37,7 +37,8 @@ import type { IProfileStorageAnalyzer } from '../domain/ports/IProfileStorageAna
 import type { IStorageCleanupService } from '../domain/ports/IStorageCleanupService';
 import type { IProxyManager } from '../domain/ports/IProxyManager';
 import type { ProxySettingsService } from '../services/proxySettingsService';
-import type { ProxyStatus } from '@cursor-accounts/types';
+import type { MultiplexerStatusView, ProxyStatus } from '@cursor-accounts/types';
+import type { IMultiplexerManager } from '../domain/ports/IMultiplexerManager';
 import { isProfileProxyEnabled } from '@cursor-accounts/types';
 import type { IProfileSettingsManager } from '../domain/ports/IProfileSettingsManager';
 import { AccountsPanelHandlers } from './accountsPanelHandlers';
@@ -88,7 +89,8 @@ export class AccountsPanelProvider {
     storageAnalyzer: IProfileStorageAnalyzer,
     private readonly proxyManager: IProxyManager,
     private readonly proxySettingsService?: ProxySettingsService,
-    profileSettingsManager?: IProfileSettingsManager
+    profileSettingsManager?: IProfileSettingsManager,
+    private readonly multiplexerManager?: IMultiplexerManager
   ) {
     this.efficiencyService = efficiencyService;
 
@@ -111,6 +113,7 @@ export class AccountsPanelProvider {
         storageAnalyzer,
         profileWorkspaceService,
         proxyManager,
+        multiplexerManager,
         profileSettingsManager,
       },
       {
@@ -118,6 +121,7 @@ export class AccountsPanelProvider {
         refresh: () => this.refresh(),
         refreshInstances: () => this.refreshInstances(),
         refreshGithubSummaries: () => this.refreshGithubSummaries(),
+        refreshMultiplexerStatus: () => this.refreshMultiplexerStatus(),
         refreshProxyStatus: (options) => this.refreshProxyStatus(options),
         hasActiveWebview: () => this.getActiveWebview() !== undefined,
       }
@@ -342,6 +346,7 @@ export class AccountsPanelProvider {
         currentWindowUsesProxy: this.shouldShowProxyUi(currentProfile)
           ? await this.proxyManager.isCurrentWindowUsingProxy()
           : false,
+        multiplexerStatus: await this.buildMultiplexerStatusForWebview(),
         profileProxyTemporary: await this.buildProfileProxyTemporary(currentProfile),
         locale: getLocale(),
         messages: getWebviewMessages(),
@@ -393,6 +398,21 @@ export class AccountsPanelProvider {
     }
 
     return { ...status, caCertificateInstalled };
+  }
+
+  private async buildMultiplexerStatusForWebview(): Promise<MultiplexerStatusView | null> {
+    if (!this.multiplexerManager) {
+      return null;
+    }
+    return this.multiplexerManager.buildStatusView();
+  }
+
+  public async refreshMultiplexerStatus(): Promise<void> {
+    if (!this.getActiveWebview()) {
+      return;
+    }
+    const status = await this.buildMultiplexerStatusForWebview();
+    await this.postMessage({ type: 'multiplexerStatus', data: status });
   }
 
   /** Push latest proxy status to the webview. */

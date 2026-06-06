@@ -1,4 +1,5 @@
 import type { IngestTrafficResult } from '../application/types/agentPersistence';
+import { extractGitInfo } from '../utils/gitWorkspaceExtractor';
 import type { IAgentTrackingRepository } from '../domain/ports/IAgentTrackingRepository';
 import type { IProxyLiveCostCalculator } from '../domain/ports/IProxyLiveCostCalculator';
 import type { ITokenTurnDetectionService } from '../domain/ports/ITokenTurnDetectionService';
@@ -37,7 +38,8 @@ export class AgentTrackingService {
   }
 
   async ingestTraffic(
-    summary: ProxyTrafficSummary
+    summary: ProxyTrafficSummary,
+    workspacePath?: string
   ): Promise<IngestTrafficResult | void> {
     const ingestKind = summary.isLiveTokenUpdate
       ? 'live'
@@ -84,11 +86,18 @@ export class AgentTrackingService {
         return;
       }
 
+      const gitInfo = workspacePath
+        ? await extractGitInfo(workspacePath)
+        : null;
+
       await this.repository.upsertConversation(
         conversationId,
         this.profileId,
         timestamp,
-        insights.context?.messageCount
+        insights.context?.messageCount,
+        workspacePath,
+        gitInfo?.repositoryPath,
+        gitInfo?.branchName ?? undefined
       );
 
       await this.repository.upsertAgent({
@@ -102,6 +111,9 @@ export class AgentTrackingService {
         endedAt: agent.eof ? timestamp : undefined,
         isEof: agent.eof ?? false,
         profileId: this.profileId,
+        workspacePath,
+        repositoryPath: gitInfo?.repositoryPath,
+        branchName: gitInfo?.branchName ?? undefined,
       });
 
       const httpRequestId = summary.httpRequestId;

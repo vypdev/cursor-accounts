@@ -9,6 +9,9 @@ import type { IProfileLauncher } from '../domain/ports/IProfileLauncher';
 import type { IProfileManager } from '../domain/ports/IProfileManager';
 import type { IProfileSettingsManager } from '../domain/ports/IProfileSettingsManager';
 import type { IProxyManager } from '../domain/ports/IProxyManager';
+import type { MultiplexerRegistry } from '../application/services/multiplexerRegistry';
+import type { IMultiplexerFlowLogger } from '../application/types/multiplexerFlowLogger';
+import { getMultiplexerRoutingSettings } from '../proxy/multiplexer/multiplexerConfig';
 import type { Profile } from './types';
 
 export interface LaunchResult {
@@ -115,7 +118,9 @@ export class ProfileLauncher implements IProfileLauncher {
     private readonly profileManager: IProfileManager,
     private readonly instanceDetector?: IInstanceDetector,
     private readonly proxyManager?: IProxyManager,
-    private readonly profileSettingsManager?: IProfileSettingsManager
+    private readonly profileSettingsManager?: IProfileSettingsManager,
+    private readonly multiplexerRegistry?: MultiplexerRegistry,
+    private readonly flowLogger?: IMultiplexerFlowLogger
   ) {}
 
   /**
@@ -197,9 +202,7 @@ export class ProfileLauncher implements IProfileLauncher {
         : null;
 
       const execPath = this.getExecutablePath();
-      const args = this.buildLaunchArgs(userDataDir, projectPath, {
-        proxyUrl: launchContext?.proxyUrl,
-      });
+      const args = this.buildLaunchArgs(userDataDir, projectPath);
 
       extensionLog.info(
         `[ProfileLauncher] Spawn: ${this.formatSpawnCommand(execPath, args)}`
@@ -217,10 +220,7 @@ export class ProfileLauncher implements IProfileLauncher {
       }
 
       if (this.instanceDetector && pid == null) {
-        const manualCmd = buildManualLaunchCommand(
-          userDataDir,
-          launchContext?.proxyUrl
-        );
+        const manualCmd = buildManualLaunchCommand(userDataDir);
         extensionLog.warn(
           `[ProfileLauncher] Cursor did not start for ${userDataDir}`
         );
@@ -389,7 +389,6 @@ export class ProfileLauncher implements IProfileLauncher {
     profileId: string,
     userDataDir: string
   ): Promise<{
-    proxyUrl: string;
     caCertPath: string;
   } | null> {
     if (!this.proxyManager) {
@@ -401,21 +400,20 @@ export class ProfileLauncher implements IProfileLauncher {
       return null;
     }
 
-    const running = await this.proxyManager.isRunning(profileId);
-    if (!running) {
-      const startResult = await this.proxyManager.ensureProfileProxy(profileId);
-      if (!startResult.success) {
-        extensionLog.warn(
-          `[ProfileLauncher] Failed to start proxy for ${profileId}: ${startResult.error ?? 'unknown error'}`
-        );
-        return null;
-      }
-    }
-
-    const proxyUrl = await this.proxyManager.getProxyServerUrl(profileId);
-    if (!proxyUrl) {
+    if (!this.multiplexerRegistry) {
       return null;
     }
+
+    const routingSettings = getMultiplexerRoutingSettings();
+    await this.multiplexerRegistry.ensureStarted({
+      routing: {
+        strategy: routingSettings.routingStrategy,
+        fallbackStrategy: 'sticky-session',
+      },
+    });
+
+    const proxyUrl = this.multiplexerRegistry.getProxyServerUrl();
+    const caCertPath = await this.proxyManager.getCertificatePath();
 
     if (this.profileSettingsManager) {
       try {
@@ -423,21 +421,17 @@ export class ProfileLauncher implements IProfileLauncher {
           userDataDir,
           proxyUrl
         );
+        this.flowLogger?.appendSettingsModified(userDataDir, proxyUrl);
       } catch (error) {
         extensionLog.warn(
-          `[ProfileLauncher] Failed to apply proxy settings for ${profileId}: ${
+          `[ProfileLauncher] Failed to apply multiplexor proxy settings for ${profileId}: ${
             error instanceof Error ? error.message : String(error)
           }`
         );
       }
     }
 
-    const caCertPath = await this.proxyManager.getCertificatePath();
-    if (!caCertPath) {
-      return { proxyUrl, caCertPath: '' };
-    }
-
-    return { proxyUrl, caCertPath };
+    return { caCertPath: caCertPath ?? '' };
   }
 
   private async spawnProcess(

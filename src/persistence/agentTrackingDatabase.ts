@@ -213,21 +213,26 @@ export class AgentTrackingDatabase implements IAgentTrackingRepository {
     conversationId: string,
     profileId: string,
     timestamp: number,
-    messageCount?: number
+    messageCount?: number,
+    workspacePath?: string,
+    _repositoryPath?: string,
+    _branchName?: string
   ): Promise<void> {
     const sql = `
 INSERT INTO conversations (
-  conversation_id, profile_id, created_at, last_activity, message_count
+  conversation_id, profile_id, created_at, last_activity, message_count, workspace_path
 ) VALUES (
   ${sqlLiteral(conversationId)},
   ${sqlLiteral(profileId)},
   ${timestamp},
   ${timestamp},
-  ${messageCount != null ? sqlNumber(messageCount) : 'NULL'}
+  ${messageCount != null ? sqlNumber(messageCount) : 'NULL'},
+  ${sqlLiteral(workspacePath)}
 )
 ON CONFLICT(conversation_id) DO UPDATE SET
   last_activity = ${timestamp},
-  message_count = COALESCE(${messageCount != null ? sqlNumber(messageCount) : 'NULL'}, message_count);
+  message_count = COALESCE(${messageCount != null ? sqlNumber(messageCount) : 'NULL'}, message_count),
+  workspace_path = COALESCE(excluded.workspace_path, conversations.workspace_path);
 `.trim();
     await this.executor.runStatement(sql);
   }
@@ -236,7 +241,7 @@ ON CONFLICT(conversation_id) DO UPDATE SET
     const sql = `
 INSERT INTO agents (
   request_id, conversation_id, conversation_group_id, parent_request_id,
-  subagent_request_id, model_name, started_at, ended_at, is_eof, profile_id
+  subagent_request_id, model_name, started_at, ended_at, is_eof, profile_id, workspace_path
 ) VALUES (
   ${sqlLiteral(agent.requestId)},
   ${sqlLiteral(agent.conversationId)},
@@ -247,7 +252,8 @@ INSERT INTO agents (
   ${agent.startedAt},
   ${agent.endedAt != null ? agent.endedAt : 'NULL'},
   ${agent.isEof ? 1 : 0},
-  ${sqlLiteral(agent.profileId)}
+  ${sqlLiteral(agent.profileId)},
+  ${sqlLiteral(agent.workspacePath)}
 )
 ON CONFLICT(request_id) DO UPDATE SET
   conversation_id = excluded.conversation_id,
@@ -257,7 +263,8 @@ ON CONFLICT(request_id) DO UPDATE SET
   model_name = COALESCE(excluded.model_name, model_name),
   started_at = MIN(agents.started_at, excluded.started_at),
   ended_at = COALESCE(excluded.ended_at, agents.ended_at),
-  is_eof = CASE WHEN excluded.is_eof = 1 THEN 1 ELSE agents.is_eof END;
+  is_eof = CASE WHEN excluded.is_eof = 1 THEN 1 ELSE agents.is_eof END,
+  workspace_path = COALESCE(excluded.workspace_path, agents.workspace_path);
 `.trim();
     await this.executor.runStatement(sql);
   }
