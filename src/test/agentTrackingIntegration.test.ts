@@ -73,6 +73,7 @@ describe('AgentTracking integration', () => {
     assert.equal(result.totalInputTokens, 50);
     assert.equal(result.totalOutputTokens, 100);
     assert.equal(result.totalCacheReadTokens, 20);
+    assert.equal(result.totalDeltaTokens, 150);
     assert.ok(result.models.includes('claude-sonnet'));
   });
 
@@ -199,7 +200,7 @@ ORDER BY turn_index ASC;
     assert.equal(rows[1]?.streaming_tokens, 250);
   });
 
-  it('persists turn_ended incrementally and skips live token_delta', async () => {
+  it('persists live token_delta into one minute bucket and turn_ended separately', async () => {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-integration-'));
     const dbPath = path.join(tempDir, 'efficiency.db');
     const repo = new AgentTrackingDatabase(dbPath, extensionPath);
@@ -207,7 +208,6 @@ ORDER BY turn_index ASC;
     await service.initialize();
 
     const base = {
-      timestamp: new Date(1_000_000).toISOString(),
       kind: 'response',
       url: 'https://agent.api5.cursor.sh/agent.v1.AgentService/RunSSE',
       host: 'agent.api5.cursor.sh',
@@ -217,6 +217,7 @@ ORDER BY turn_index ASC;
 
     await service.ingestTraffic({
       ...base,
+      timestamp: new Date(1_000_000).toISOString(),
       insights: {
         agent: {
           requestId: 'req-runsse',
@@ -257,19 +258,105 @@ ORDER BY turn_index ASC;
     } satisfies ProxyTrafficSummary);
 
     const executor = new SqliteExecutor(dbPath, extensionPath);
-    const rows = executor.queryRows<{
-      token_type: string;
+    const deltaRows = executor.queryRows<{
+      streaming_tokens: number | null;
+      minute_bucket: number | null;
+    }>(`
+SELECT streaming_tokens, minute_bucket
+FROM agent_tokens
+WHERE request_id = 'req-runsse' AND token_type = 'delta';
+`);
+    const turnRows = executor.queryRows<{
       input_tokens: number | null;
       output_tokens: number | null;
     }>(`
-SELECT token_type, input_tokens, output_tokens
-FROM agent_tokens
+SELECT input_tokens, output_tokens
+FROM agent_turn_ended
 WHERE request_id = 'req-runsse';
 `);
 
-    assert.equal(rows.length, 1);
-    assert.equal(rows[0]?.token_type, 'turn_ended');
-    assert.equal(rows[0]?.input_tokens, 800);
-    assert.equal(rows[0]?.output_tokens, 150);
+    assert.equal(deltaRows.length, 1);
+    assert.equal(deltaRows[0]?.streaming_tokens, 250);
+    assert.equal(turnRows.length, 1);
+    assert.equal(turnRows[0]?.input_tokens, 800);
+    assert.equal(turnRows[0]?.output_tokens, 150);
+  });
+
+  it('aggregates 100 live token_delta events into 5 minute buckets', async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-integration-'));
+    const dbPath = path.join(tempDir, 'efficiency.db');
+    const repo = new AgentTrackingDatabase(dbPath, extensionPath);
+    const service = new AgentTrackingService(repo, 'prof-1');
+    await service.initialize();
+
+    const baseSecond = 1_740_000_000;
+    const perMinute = [20, 10, 10, 30, 30];
+
+    await service.ingestTraffic({
+      timestamp: new Date(baseSecond * 1000).toISOString(),
+      kind: 'response',
+      url: 'https://agent.api5.cursor.sh/agent.v1.AgentService/RunSSE',
+      host: 'agent.api5.cursor.sh',
+      endpoint: '/agent.v1.AgentService/RunSSE',
+      insights: {
+        agent: {
+          requestId: 'req-live',
+          conversationId: 'conv-live',
+        },
+      },
+    } satisfies ProxyTrafficSummary);
+
+    for (let minute = 0; minute < perMinute.length; minute++) {
+      for (let i = 0; i < perMinute[minute]!; i++) {
+        await service.ingestTraffic({
+          timestamp: new Date((baseSecond + minute * 60 + i) * 1000).toISOString(),
+          kind: 'response',
+          url: 'https://agent.api5.cursor.sh/agent.v1.AgentService/RunSSE',
+          host: 'agent.api5.cursor.sh',
+          endpoint: '/agent.v1.AgentService/RunSSE',
+          isLiveTokenUpdate: true,
+          liveTokenData: {
+            accumulatedTokens: (i + 1) * 5,
+            latestDelta: 5,
+            deltaCostCents: 0.1,
+          },
+          insights: {
+            agent: {
+              requestId: 'req-live',
+              streamingTokens: (i + 1) * 5,
+              usageEvent: 'token_delta',
+            },
+          },
+        } satisfies ProxyTrafficSummary);
+      }
+    }
+
+    const executor = new SqliteExecutor(dbPath, extensionPath);
+    const deltaRows = executor.queryRows<{
+      minute_bucket: number | null;
+      streaming_tokens: number | null;
+      cost_cents: number | null;
+    }>(`
+SELECT minute_bucket, streaming_tokens, cost_cents
+FROM agent_tokens
+WHERE request_id = 'req-live' AND token_type = 'delta'
+ORDER BY minute_bucket ASC;
+`);
+
+    assert.equal(deltaRows.length, 5);
+    assert.deepEqual(
+      deltaRows.map((row) => row.streaming_tokens),
+      perMinute.map((count) => count * 5)
+    );
+    for (let i = 0; i < perMinute.length; i++) {
+      assert.ok(
+        Math.abs((deltaRows[i]?.cost_cents ?? 0) - perMinute[i]! * 0.1) < 0.0001
+      );
+    }
+
+    const totals = await service.getConversationDeltaTokens('conv-live');
+    assert.equal(totals.minuteBuckets, 5);
+    assert.equal(totals.totalStreamingTokens, 500);
+    assert.ok(Math.abs(totals.totalCostCents - 10) < 0.0001);
   });
 });

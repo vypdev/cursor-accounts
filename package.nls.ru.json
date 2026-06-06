@@ -47,7 +47,6 @@
   "configuration.proxy.spillLargeBodies.description": "Если тело превышает inline-лимит, сохранять полные сырые байты в logs/bodies/ вместо обрезки (рекомендуется для анализа).",
   "configuration.proxy.showLiveUsageInStatusBar.description": "Показывать использование токенов агента/чата в реальном времени на панели состояния, пока работает MITM-прокси (автоматически отслеживает логи прокси).",
   "configuration.proxy.estimatedDollarsPerMillionTokens.description": "Примерные USD за миллион токенов для оценки стоимости в реальном времени на панели состояния (фактическое списание может отличаться).",
-  "configuration.proxy.developmentMode.description": "Записывать трафик прокси в локальные JSONL-файлы журналов для отладки. Оставляйте выключенным при обычном использовании; расширение получает трафик в реальном времени через IPC.",
   "configuration.proxy.logTokenDetectorToOutput.description": "Записывать события агента/токена/беседы с IPC прокси в канал вывода Cursor Token Detector.",
   "configuration.proxy.autoShowTokenDetectorChannel.description": "Автоматически открывать канал вывода Cursor Token Detector при поступлении событий агента или токена."
 }

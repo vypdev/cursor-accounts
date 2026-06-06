@@ -35,6 +35,14 @@ See [FEATURE-MULTI-PROFILE.md](FEATURE-MULTI-PROFILE.md) for user flows and prof
 
 See [MODEL-EFFICIENCY.md](MODEL-EFFICIENCY.md) for how to enable analysis per profile.
 
+## Debug / development
+
+| Command ID | Palette title | Description |
+|------------|---------------|-------------|
+| `cursorAccounts.debug.copyActiveConversationId` | Cursor Accounts: Copy Active Conversation ID | Copy the focused Composer chat UUID (`lastFocusedComposerIds`) to the clipboard; also bound to the debug status bar item |
+
+See [ACTIVE-CONVERSATION-DETECTION.md](ACTIVE-CONVERSATION-DETECTION.md) and `cursorAccounts.debug.showActiveConversationInStatusBar`.
+
 ## MITM proxy
 
 | Command ID | Palette title | Description |

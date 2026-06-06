@@ -71,6 +71,7 @@ function createHandlers(deps: {
       proxyManager: {
         start: async () => ({ success: true, port: 8080 }),
         stop: async () => undefined,
+        restartProfileProxy: async () => ({ success: true, port: 8080 }),
         getStatus: async () => ({ running: false }),
         isRunning: async () => false,
         isCurrentWindowUsingProxy: async () => false,

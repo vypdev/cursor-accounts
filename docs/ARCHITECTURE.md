@@ -2,7 +2,7 @@
 
 This document describes how the extension is structured, how data flows, and why key decisions were made. For API and quota research, see [RESEARCH.md](RESEARCH.md). For multi-profile product behavior, see [FEATURE-MULTI-PROFILE.md](FEATURE-MULTI-PROFILE.md).
 
-**Last reviewed:** 2026-06-04
+**Last reviewed:** 2026-06-05
 
 ## Overview
 
@@ -84,7 +84,7 @@ graph TB
 | Layer | Path | Responsibility |
 |-------|------|----------------|
 | Composition root | `src/extension.ts`, `src/composition/` | `activate`/`deactivate`, DI wiring, storage service factory, migrations from `cursorQuota`, command registration |
-| Domain ports | `src/domain/ports/` | `IQuotaService`, `ITokenProvider`, `IProfileStorage`, `IProfileManager`, `IProfileDetector`, `IProfileLauncher`, `IInstanceDetector`, `IProfileAuthReader`, `IUserService`, `IActivityLeaderboardService`, `IStorageCleanupService`, `IFileSystemService`, `IDatabaseCleanupService`, `ICacheCleanupService`, `IProfileStorageAnalyzer`, `IProxyManager`, `IProxyServer`, `IProtocolAdapter`, `IAgentTrackingRepository`, `ITokenTurnDetectionService` |
+| Domain ports | `src/domain/ports/` | `IQuotaService`, `ITokenProvider`, `IProfileStorage`, `IProfileManager`, `IProfileDetector`, `IProfileLauncher`, `IInstanceDetector`, `IProfileAuthReader`, `IUserService`, `IActivityLeaderboardService`, `IStorageCleanupService`, `IFileSystemService`, `IDatabaseCleanupService`, `ICacheCleanupService`, `IProfileStorageAnalyzer`, `IProxyManager`, `IProxyServer`, `IProtocolAdapter`, `IAgentTrackingRepository`, `ITokenTurnDetectionService`, `IActiveConversationRepository`, `IWorkspaceStateDbPathResolver` |
 | Application types | `src/application/types/` | Cross-layer DTOs (`AgentSessionInfo`, `ProxyServerConfig`, agent persistence records) |
 | Shared kernel | `packages/types/` | Entities, quota business rules, webview message contracts |
 | HTTP / adapters | `src/api/` | Quota, usage summary, user, team metadata, leaderboard clients; DTO→domain mappers in `quotaMappers.ts` |
@@ -95,6 +95,7 @@ graph TB
 | Scheduling | `src/services/` | Interval refresh for status bar and all-profile quotas; storage cleanup orchestration |
 | Storage adapters | `src/storage/` | Filesystem, SQLite maintenance, VS Code cache/command cleanup, profile storage analysis |
 | UI (host) | `src/ui/` | Status bar items, webview provider and message routing |
+| Active conversation | `src/cursor/`, `src/services/activeConversationTracker.ts` | Read workspace `composer.composerData`, poll focus changes |
 | Efficiency | `src/modelEfficiency/` | Composer DB poll, SDK classify, output channel, model catalog + pricing adapters |
 | Pricing (display) | `src/services/modelPricingService.ts` | Combine catalog + official per-model pricing for Accounts panel modal |
 | Proxy (optional) | `src/proxy/`, `src/services/proxyManager.ts` | MITM child process, decode, traffic tail, live usage status bar |
@@ -373,6 +374,28 @@ The live usage status bar keys sessions by bidi `request_id` and **sums** all ac
 
 See [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md) and [DATABASE-SCHEMA.md](DATABASE-SCHEMA.md).
 
+## Active Composer chat focus
+
+Cursor does not expose a tab-focus event. The extension reads workspace-scoped `composer.composerData` (`lastFocusedComposerIds`) from `{workspaceStorage}/{hash}/state.vscdb` and polls for changes.
+
+```mermaid
+flowchart LR
+  WSDB["workspace state.vscdb\ncomposer.composerData"]
+  Repo[SqliteActiveConversationRepository]
+  Tracker[ActiveConversationTracker]
+  SB[ActiveConversationStatusBar]
+  WSDB --> Repo --> Tracker --> SB
+```
+
+| Component | Path | Role |
+|-----------|------|------|
+| Ports | `IActiveConversationRepository`, `IWorkspaceStateDbPathResolver` | Domain boundaries |
+| Adapters | `src/cursor/sqliteActiveConversationRepository.ts`, `workspaceStateDbPathResolver.ts` | SQLite read + path from `storageUri` |
+| Service | `src/services/activeConversationTracker.ts` | Poll, dedupe, notify |
+| UI | `src/ui/activeConversationStatusBar.ts` | Dev status bar (`cursorAccounts.debug.*`) |
+
+Full investigation and identity mapping (`composerId` = Agent `conversation_id`): [ACTIVE-CONVERSATION-DETECTION.md](ACTIVE-CONVERSATION-DETECTION.md).
+
 ## Known maintainability notes
 
 - `extension.ts` concentrates wiring and migrations (~400 lines)
@@ -389,6 +412,7 @@ See [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md) and [DATABASE-SCHEMA.md](DATABASE
 - [CLI-AGENT-COMMUNICATION.md](CLI-AGENT-COMMUNICATION.md) — CLI Agent wire process
 - [PROXY-JSONL-SCHEMA.md](PROXY-JSONL-SCHEMA.md) — MITM JSONL log format
 - [PROXY-AGENT-IDS-AND-SUBAGENTS.md](PROXY-AGENT-IDS-AND-SUBAGENTS.md) — Agent session IDs and parallel subagents
+- [ACTIVE-CONVERSATION-DETECTION.md](ACTIVE-CONVERSATION-DETECTION.md) — focused Composer tab (`lastFocusedComposerIds`)
 - [DATABASE-SCHEMA.md](DATABASE-SCHEMA.md) — agent tracking tables and turn_index
 - [PROXY-SETUP.md](PROXY-SETUP.md) — MITM proxy setup
 - [FEATURE-MULTI-PROFILE.md](FEATURE-MULTI-PROFILE.md) — product flows and terminology

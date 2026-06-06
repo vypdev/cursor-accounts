@@ -47,7 +47,6 @@
   "configuration.proxy.showLiveUsageInStatusBar.description": "Visa live agent/chatt-tokenanvändning i statusfältet medan MITM-proxyn körs (följer proxyloggar automatiskt).",
   "configuration.proxy.estimatedDollarsPerMillionTokens.description": "Ungefärliga USD per miljon tokens för live-kostnadsuppskattningar i statusfältet (faktisk fakturering kan skilja sig).",
   "commands.proxy.showTokenDetector.title": "Cursor Accounts: Visa utdata för tokendetektor",
-  "configuration.proxy.developmentMode.description": "Skriv proxytrafik till lokala JSONL-loggfiler för felsökning. Lämna inaktiverat vid normal användning; tillägget tar emot trafik i realtid via IPC.",
   "configuration.proxy.logTokenDetectorToOutput.description": "Skriv agent/token/konversationshändelser från proxy-IPC till utdatakanalen Cursor Token Detector.",
   "configuration.proxy.autoShowTokenDetectorChannel.description": "Öppna automatiskt utdatakanalen Cursor Token Detector när agent- eller tokenhändelser anländer."
 }

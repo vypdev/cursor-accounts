@@ -2,7 +2,7 @@
 
 Reference for agent/conversation/token tables in `cursor-accounts-efficiency.db`.
 
-**Last reviewed:** 2026-06-04
+**Last reviewed:** 2026-06-05
 
 ---
 
@@ -36,41 +36,92 @@ Reference for agent/conversation/token tables in `cursor-accounts-efficiency.db`
 
 ## agent_tokens
 
-Stores token usage snapshots for agents, with support for multi-turn tracking within a single bidi session.
+Stores **aggregated live `token_delta`** rows and legacy offline replay snapshots.
 
 | Column | Type | Description |
 |--------|------|-------------|
 | id | INTEGER PK | Auto-increment row id |
 | request_id | TEXT FK | Bidi agent session id |
-| token_type | TEXT | `delta`, `turn_ended`, or `token_details` |
-| streaming_tokens | INTEGER | Live counter from `token_delta` |
-| input_tokens | INTEGER | Billed input (from `turn_ended`) |
-| output_tokens | INTEGER | Billed output (from `turn_ended`) |
-| cache_read_tokens | INTEGER | Cache read tokens |
-| cache_write_tokens | INTEGER | Cache write tokens |
+| token_type | TEXT | `delta` or `token_details` (live `turn_ended` moved to `agent_turn_ended`) |
+| streaming_tokens | INTEGER | Sum of `token_delta` increments in the minute bucket |
+| input_tokens | INTEGER | Legacy / offline fields only |
+| output_tokens | INTEGER | Legacy / offline fields only |
+| cache_read_tokens | INTEGER | Legacy / offline fields only |
+| cache_write_tokens | INTEGER | Legacy / offline fields only |
 | total_tokens | INTEGER | Resolved total for the snapshot |
 | usage_uuid | TEXT | Optional usage uuid from stream |
-| recorded_at | INTEGER | Unix seconds |
+| recorded_at | INTEGER | Unix seconds (equals `minute_bucket` for live deltas) |
 | model_name | TEXT | Model at snapshot time |
-| turn_index | INTEGER | Turn sequence within `request_id` (0 = first turn). NULL for single-event snapshots. |
-| http_request_id | TEXT | HTTP `x-request-id` for RunSSE request/response correlation (audit/debug). |
+| turn_index | INTEGER | Offline RunSSE replay turn grouping (batch heuristic) |
+| http_request_id | TEXT | HTTP `x-request-id` for RunSSE correlation |
+| minute_bucket | INTEGER | Unix seconds truncated to minute (`floor(ts/60)*60`) |
+| cost_cents | REAL | Sum of estimated live delta cost (USD cents) in the minute bucket |
+| context_used_tokens | INTEGER | Context window usage at the latest event in this bucket |
+| context_max_tokens | INTEGER | Context window size at the latest event in this bucket |
 
-### Turn tracking
+### Live token_delta aggregation
 
-**Primary (live):** Rows with `token_type = 'turn_ended'` are inserted when the MITM decoder sees server `InteractionUpdate.turn_ended` (`StreamingAgentDecoder`). These rows carry final input/output/cache fields; `turn_index` is often NULL.
+Live `token_delta` events from `StreamingAgentDecoder` are **not** stored one row per event. `AgentTrackingService` sums increments into one row per `(request_id, minute_bucket)`:
 
-**Secondary (batch heuristic):** When ingesting a full RunSSE body with multiple `token_delta` frames, `TokenTurnDetectionService` may assign `turn_index` using peak ≥ **300** and reset ≤ **150**. This path is for offline replay, not live status bar billing.
+- 100 `token_delta` events over 5 minutes → **5 rows** (not 100)
+- UPSERT adds `latestDelta` to `streaming_tokens` within the same minute
+- UPSERT adds per-delta `cost_cents` (from model pricing or proxy-enriched `deltaCostCents`) into `cost_cents` within the same minute
+- UPSERT overwrites `context_used_tokens` / `context_max_tokens` with the latest snapshot from the proxy (`token_delta` or `token_details`)
+- `recorded_at` stores the Unix seconds of the latest event in the bucket (used to pick the newest context for a conversation)
 
-**RunPoll (HTTP/1):** Each `RunPoll` response typically produces one snapshot; `turn_index` is usually NULL.
+Unique index: `idx_tokens_delta_bucket` on `(request_id, minute_bucket)` where `token_type = 'delta'`.
 
-### Example query
+### Offline replay (batch)
+
+When ingesting a full RunSSE body with `allTokenFrames[]`, `TokenTurnDetectionService` may still write legacy `delta` rows with `turn_index` (peak ≥ **300**, reset ≤ **150**). These rows have `minute_bucket = NULL`.
+
+---
+
+## agent_turn_ended
+
+Billing-grade turn completions — **one row per server `turn_ended` event** (no aggregation).
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | INTEGER PK | Auto-increment row id |
+| request_id | TEXT FK | Bidi agent session id |
+| input_tokens | INTEGER | Billed input tokens |
+| output_tokens | INTEGER | Billed output tokens |
+| cache_read_tokens | INTEGER | Cache read tokens |
+| cache_write_tokens | INTEGER | Cache write tokens |
+| total_tokens | INTEGER | Resolved billed total |
+| total_cents | REAL | Server-reported cost in USD cents (when present) |
+| usage_uuid | TEXT | Optional usage uuid |
+| recorded_at | INTEGER | Unix seconds |
+| model_name | TEXT | Model at turn end |
+| http_request_id | TEXT | HTTP `x-request-id` for RunSSE correlation |
+
+Inserted when the MITM decoder emits `isTurnEnded` / `InteractionUpdate.turn_ended`.
+
+---
+
+## Querying by conversation_id
 
 ```sql
-SELECT request_id, turn_index, streaming_tokens, http_request_id, recorded_at
-FROM agent_tokens
-WHERE request_id = 'abc123'
-ORDER BY turn_index ASC;
+-- Live progress counter total (minute-bucketed deltas + cost)
+SELECT COALESCE(SUM(t.streaming_tokens), 0) AS total_delta,
+       COALESCE(SUM(t.cost_cents), 0) AS total_delta_cost_cents,
+       COUNT(DISTINCT t.minute_bucket) AS minute_buckets
+FROM agent_tokens t
+JOIN agents a ON a.request_id = t.request_id
+WHERE a.conversation_id = '<conversation_id>'
+  AND t.token_type = 'delta'
+  AND t.minute_bucket IS NOT NULL;
+
+-- Billing-grade turn history
+SELECT te.*
+FROM agent_turn_ended te
+JOIN agents a ON a.request_id = te.request_id
+WHERE a.conversation_id = '<conversation_id>'
+ORDER BY te.recorded_at DESC;
 ```
+
+`AgentTrackingService.getConversationTokens()` returns both billed totals (`agent_turn_ended`) and `totalDeltaTokens` / `totalDeltaCostCents` / `deltaMinuteBuckets`, plus `latestContextUsedTokens` / `latestContextMaxTokens` from the most recent delta row with context for that conversation.
 
 ---
 
@@ -81,6 +132,8 @@ ORDER BY turn_index ASC;
 | 1 | `001_initial_schema.sql` | Efficiency scoring tables |
 | 2 | `002_agent_tracking.sql` | conversations, agents, agent_tokens |
 | 3 | `003_agent_turn_tracking.sql` | `turn_index`, `http_request_id` on agent_tokens |
+| 4 | `004_cleanup_corrupt_tokens.sql` | Remove corrupt `turn_ended` rows |
+| 5 | `005_agent_turn_ended_table.sql` | `minute_bucket`, `agent_turn_ended`, migrate legacy `turn_ended` |
 
 ---
 
@@ -88,4 +141,5 @@ ORDER BY turn_index ASC;
 
 - [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md) — token signal semantics
 - [PROXY-AGENT-IDS-AND-SUBAGENTS.md](PROXY-AGENT-IDS-AND-SUBAGENTS.md) — request_id vs conversation_id
+- [ACTIVE-CONVERSATION-DETECTION.md](ACTIVE-CONVERSATION-DETECTION.md) — focused chat tab id
 - [ARCHITECTURE.md](ARCHITECTURE.md) — Clean Architecture layers

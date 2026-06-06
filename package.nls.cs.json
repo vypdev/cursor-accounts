@@ -47,7 +47,6 @@
   "configuration.proxy.spillLargeBodies.description": "Pokud tělo překročí inline limit, uložit kompletní surové bajty do logs/bodies/ místo ořezání (doporučeno pro analýzu).",
   "configuration.proxy.showLiveUsageInStatusBar.description": "Zobrazovat živé využití tokenů agenta/chatu ve stavovém řádku, zatímco běží proxy MITM (automaticky sleduje logy proxy).",
   "configuration.proxy.estimatedDollarsPerMillionTokens.description": "Hrubé USD za milion tokenů pro odhady živých nákladů ve stavovém řádku (skutečná fakturace se může lišit).",
-  "configuration.proxy.developmentMode.description": "Zapisovat provoz proxy do lokálních JSONL log souborů pro ladění. Ponechte vypnuté při běžném použití; rozšíření přijímá provoz v reálném čase přes IPC.",
   "configuration.proxy.logTokenDetectorToOutput.description": "Zapisovat události agenta/tokenu/konverzace z IPC proxy do výstupního kanálu Cursor Token Detector.",
   "configuration.proxy.autoShowTokenDetectorChannel.description": "Automaticky otevřít výstupní kanál Cursor Token Detector při příchodu událostí agenta nebo tokenu."
 }

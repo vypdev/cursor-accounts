@@ -25,7 +25,7 @@ import { resolveRecentProjectLaunch } from '../profiles/recentProjectLaunchRoute
 import type { ProfileWorkspaceService } from '../services/profileWorkspaceService';
 import type { IProfileSettingsManager } from '../domain/ports/IProfileSettingsManager';
 import type { IProxyManager } from '../domain/ports/IProxyManager';
-import { isProfileProxyEnabled } from '@cursor-accounts/types';
+import { isProfileProxyEnabled, isProfileProxyJsonlLoggingEnabled } from '@cursor-accounts/types';
 import { saveCaCertificateAs } from '../proxy/saveCaCertificate';
 import { getOpenWorkspacePaths } from '../services/activeWorkspaceService';
 import { buildSuggestedProfileResponse } from './suggestedProfile';
@@ -284,10 +284,17 @@ export class AccountsPanelHandlers {
     profileId: string,
     updates: Partial<Profile>
   ): Promise<void> {
+    const previousProfile = await this.deps.profileManager.getProfile(profileId);
     const profile = await this.deps.profileManager.updateProfile(
       profileId,
       updates
     );
+
+    const jsonlLoggingChanged =
+      'proxyJsonlLoggingEnabled' in updates &&
+      previousProfile != null &&
+      isProfileProxyJsonlLoggingEnabled(previousProfile) !==
+        isProfileProxyJsonlLoggingEnabled(profile);
 
     if (updates.proxyEnabled === false) {
       await this.deps.proxyManager.stop(profileId);
@@ -301,6 +308,12 @@ export class AccountsPanelHandlers {
       if (current?.id === profileId && isProfileProxyEnabled(profile)) {
         await this.deps.proxyManager.ensureProfileProxy(profileId);
       }
+    } else if (
+      jsonlLoggingChanged &&
+      isProfileProxyEnabled(profile) &&
+      (await this.deps.proxyManager.isRunning(profileId))
+    ) {
+      await this.deps.proxyManager.restartProfileProxy(profileId);
     }
 
     await this.callbacks.postMessage({

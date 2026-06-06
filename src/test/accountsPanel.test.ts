@@ -94,6 +94,7 @@ function createMockProxyManager(): IProxyManager {
   return {
     start: async () => ({ success: true, port: 8080 }),
     stop: async () => undefined,
+    restartProfileProxy: async () => ({ success: true, port: 8080 }),
     getStatus: async () => ({ running: false, logDirectory: '/tmp/proxy-logs' }),
     isRunning: async () => false,
     isCurrentWindowUsingProxy: async () => false,

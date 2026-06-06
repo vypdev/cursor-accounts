@@ -88,7 +88,9 @@ export class StreamingAgentDecoder {
 
       const ids = extractConversationAndSubagentIds(decoded);
       if (Object.keys(ids).length > 0) {
-        this.relationshipIds = { ...this.relationshipIds, ...ids };
+        this.relationshipIds =
+          mergeAgentSessionInfo(this.relationshipIds, ids) ??
+          this.relationshipIds;
       }
 
       const insight = extractAgentInnerInsights(decoded);

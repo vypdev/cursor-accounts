@@ -20,6 +20,20 @@ class MockRepository implements IAgentTrackingRepository {
     inputTokens?: number;
     outputTokens?: number;
   }> = [];
+  deltas: Array<{
+    requestId: string;
+    minuteBucket: number;
+    streamingTokens: number;
+    costCents?: number;
+    contextUsedTokens?: number;
+    contextMaxTokens?: number;
+    recordedAt?: number;
+  }> = [];
+  turnEnded: Array<{
+    requestId: string;
+    inputTokens: number;
+    outputTokens: number;
+  }> = [];
   agentsByRequestId = new Map<
     string,
     { requestId: string; conversationId: string }
@@ -69,6 +83,49 @@ class MockRepository implements IAgentTrackingRepository {
     });
   }
 
+  async upsertTokenDelta(delta: {
+    requestId: string;
+    minuteBucket: number;
+    streamingTokens: number;
+    costCents?: number;
+    contextUsedTokens?: number;
+    contextMaxTokens?: number;
+    recordedAt?: number;
+  }): Promise<void> {
+    const existing = this.deltas.find(
+      (row) =>
+        row.requestId === delta.requestId &&
+        row.minuteBucket === delta.minuteBucket
+    );
+    if (existing) {
+      existing.streamingTokens += delta.streamingTokens;
+      existing.costCents = (existing.costCents ?? 0) + (delta.costCents ?? 0);
+      if (delta.contextUsedTokens != null) {
+        existing.contextUsedTokens = delta.contextUsedTokens;
+      }
+      if (delta.contextMaxTokens != null) {
+        existing.contextMaxTokens = delta.contextMaxTokens;
+      }
+      if (delta.recordedAt != null) {
+        existing.recordedAt = delta.recordedAt;
+      }
+      return;
+    }
+    this.deltas.push({ ...delta });
+  }
+
+  async insertTurnEnded(turn: {
+    requestId: string;
+    inputTokens: number;
+    outputTokens: number;
+  }): Promise<void> {
+    this.turnEnded.push({
+      requestId: turn.requestId,
+      inputTokens: turn.inputTokens,
+      outputTokens: turn.outputTokens,
+    });
+  }
+
   async getTotalConversationTokens() {
     return {
       totalInputTokens: 0,
@@ -76,11 +133,23 @@ class MockRepository implements IAgentTrackingRepository {
       totalCacheReadTokens: 0,
       totalCacheWriteTokens: 0,
       totalTokens: 0,
+      totalDeltaTokens: 0,
+      totalDeltaCostCents: 0,
+      totalTurnCostCents: 0,
+      deltaMinuteBuckets: 0,
       agentCount: 0,
       models: [],
       startedAt: 0,
       endedAt: 0,
     };
+  }
+
+  async getTotalDeltaTokensByConversation() {
+    return { totalStreamingTokens: 0, totalCostCents: 0, minuteBuckets: 0 };
+  }
+
+  async getTurnEndedByConversation() {
+    return [];
   }
 
   async getAgentTokens(requestId: string) {
@@ -142,8 +211,8 @@ describe('AgentTrackingService', () => {
     assert.equal(repo.conversations[0]?.conversationId, 'conv-456');
     assert.equal(repo.agents.length, 1);
     assert.equal(repo.agents[0]?.requestId, 'req-123');
-    assert.equal(repo.tokens.length, 1);
-    assert.equal(repo.tokens[0]?.tokenType, 'delta');
+    assert.equal(repo.deltas.length, 1);
+    assert.equal(repo.deltas[0]?.streamingTokens, 100);
   });
 
   it('resolves conversation_id from existing agent for RunSSE without conversation_id', async () => {
@@ -219,6 +288,8 @@ describe('AgentTrackingService', () => {
       },
       async upsertAgent() {},
       async insertTokenSnapshot() {},
+      async upsertTokenDelta() {},
+      async insertTurnEnded() {},
       async getTotalConversationTokens() {
         return {
           totalInputTokens: 0,
@@ -226,11 +297,21 @@ describe('AgentTrackingService', () => {
           totalCacheReadTokens: 0,
           totalCacheWriteTokens: 0,
           totalTokens: 0,
+          totalDeltaTokens: 0,
+          totalDeltaCostCents: 0,
+          totalTurnCostCents: 0,
+          deltaMinuteBuckets: 0,
           agentCount: 0,
           models: [],
           startedAt: 0,
           endedAt: 0,
         };
+      },
+      async getTotalDeltaTokensByConversation() {
+        return { totalStreamingTokens: 0, totalCostCents: 0, minuteBuckets: 0 };
+      },
+      async getTurnEndedByConversation() {
+        return [];
       },
       async getAgentTokens() {
         return null;
@@ -310,7 +391,7 @@ describe('AgentTrackingService', () => {
     assert.equal(repo.tokens[1]?.streamingTokens, 200);
   });
 
-  it('does not persist isLiveTokenUpdate traffic', async () => {
+  it('persists live token_delta into minute buckets', async () => {
     const repo = new MockRepository();
     const service = new AgentTrackingService(repo, 'prof-1');
     await service.initialize();
@@ -334,10 +415,166 @@ describe('AgentTrackingService', () => {
       },
     } satisfies ProxyTrafficSummary);
 
-    assert.equal(repo.tokens.length, 0);
+    assert.equal(repo.deltas.length, 1);
+    assert.equal(repo.deltas[0]?.streamingTokens, 12);
   });
 
-  it('persists turn_ended from incremental RunSSE decode', async () => {
+  it('returns deltaPersisted after live token_delta is stored', async () => {
+    const repo = new MockRepository();
+    const service = new AgentTrackingService(repo, 'prof-1');
+    await service.initialize();
+
+    const result = await service.ingestTraffic({
+      timestamp: new Date(1_000_000).toISOString(),
+      kind: 'response',
+      url: 'https://agent.api5.cursor.sh/agent.v1.AgentService/RunSSE',
+      host: 'agent.api5.cursor.sh',
+      endpoint: '/agent.v1.AgentService/RunSSE',
+      isLiveTokenUpdate: true,
+      liveTokenData: { accumulatedTokens: 12, latestDelta: 12 },
+      insights: {
+        agent: {
+          requestId: 'bidi-req-1',
+          conversationId: 'conv-456',
+          streamingTokens: 12,
+          usageEvent: 'token_delta',
+        },
+      },
+    } satisfies ProxyTrafficSummary);
+
+    assert.deepEqual(result, {
+      conversationId: 'conv-456',
+      deltaPersisted: true,
+      turnEndedPersisted: false,
+      contextPersisted: false,
+    });
+  });
+
+  it('persists context snapshot from token_details events', async () => {
+    const repo = new MockRepository();
+    const service = new AgentTrackingService(repo, 'prof-1');
+    await service.initialize();
+
+    const result = await service.ingestTraffic({
+      timestamp: new Date(1_000_000).toISOString(),
+      kind: 'response',
+      url: 'https://agent.api5.cursor.sh/agent.v1.AgentService/RunSSE',
+      host: 'agent.api5.cursor.sh',
+      endpoint: '/agent.v1.AgentService/RunSSE',
+      insights: {
+        agent: {
+          requestId: 'bidi-req-1',
+          conversationId: 'conv-456',
+          contextUsedTokens: 42_000,
+          maxTokens: 200_000,
+          usageEvent: 'token_details',
+        },
+      },
+    } satisfies ProxyTrafficSummary);
+
+    assert.deepEqual(result, {
+      conversationId: 'conv-456',
+      deltaPersisted: false,
+      turnEndedPersisted: false,
+      contextPersisted: true,
+    });
+    assert.equal(repo.deltas[0]?.streamingTokens, 0);
+    assert.equal(repo.deltas[0]?.contextUsedTokens, 42_000);
+    assert.equal(repo.deltas[0]?.contextMaxTokens, 200_000);
+  });
+
+  it('persists live token_delta cost from deltaCostCents', async () => {
+    const repo = new MockRepository();
+    const service = new AgentTrackingService(repo, 'prof-1');
+    await service.initialize();
+
+    await service.ingestTraffic({
+      timestamp: new Date(1_000_000).toISOString(),
+      kind: 'response',
+      url: 'https://agent.api5.cursor.sh/agent.v1.AgentService/RunSSE',
+      host: 'agent.api5.cursor.sh',
+      endpoint: '/agent.v1.AgentService/RunSSE',
+      isLiveTokenUpdate: true,
+      liveTokenData: {
+        accumulatedTokens: 50,
+        latestDelta: 10,
+        deltaCostCents: 0.25,
+      },
+      insights: {
+        agent: {
+          requestId: 'bidi-req-1',
+          conversationId: 'conv-456',
+          streamingTokens: 50,
+          usageEvent: 'token_delta',
+        },
+      },
+    } satisfies ProxyTrafficSummary);
+
+    assert.equal(repo.deltas[0]?.costCents, 0.25);
+  });
+
+  it('calculates live token_delta cost when calculator is provided', async () => {
+    const repo = new MockRepository();
+    const service = new AgentTrackingService(repo, 'prof-1', undefined, {
+      calculateDeltaCost(deltaTokens: number) {
+        return deltaTokens * 0.01;
+      },
+      calculateTurnCost() {
+        return 0;
+      },
+    });
+    await service.initialize();
+
+    await service.ingestTraffic({
+      timestamp: new Date(1_000_000).toISOString(),
+      kind: 'response',
+      url: 'https://agent.api5.cursor.sh/agent.v1.AgentService/RunSSE',
+      host: 'agent.api5.cursor.sh',
+      endpoint: '/agent.v1.AgentService/RunSSE',
+      isLiveTokenUpdate: true,
+      liveTokenData: { accumulatedTokens: 20, latestDelta: 20 },
+      insights: {
+        agent: {
+          requestId: 'bidi-req-1',
+          conversationId: 'conv-456',
+          streamingTokens: 20,
+          usageEvent: 'token_delta',
+          modelName: 'composer-2.5',
+        },
+      },
+    } satisfies ProxyTrafficSummary);
+
+    assert.equal(repo.deltas[0]?.costCents, 0.2);
+  });
+
+  it('persists batch token_delta when streamingTurnsAlreadyPersisted but live path missed', async () => {
+    const repo = new MockRepository();
+    const service = new AgentTrackingService(repo, 'prof-1');
+    await service.initialize();
+
+    await service.ingestTraffic({
+      timestamp: new Date(1_000_000).toISOString(),
+      kind: 'response',
+      url: 'https://agent.api5.cursor.sh/agent.v1.AgentService/RunSSE',
+      host: 'agent.api5.cursor.sh',
+      endpoint: '/agent.v1.AgentService/RunSSE',
+      httpRequestId: 'http-req-1',
+      insights: {
+        agent: {
+          requestId: 'bidi-req-1',
+          conversationId: 'conv-456',
+          streamingTokens: 42,
+          usageEvent: 'token_delta',
+        },
+        streamingTurnsAlreadyPersisted: true,
+      },
+    } satisfies ProxyTrafficSummary);
+
+    assert.equal(repo.deltas.length, 1);
+    assert.equal(repo.deltas[0]?.streamingTokens, 42);
+  });
+
+  it('persists turn_ended into dedicated table', async () => {
     const repo = new MockRepository();
     const service = new AgentTrackingService(repo, 'prof-1');
     await service.initialize();
@@ -363,10 +600,9 @@ describe('AgentTrackingService', () => {
       },
     } satisfies ProxyTrafficSummary);
 
-    assert.equal(repo.tokens.length, 1);
-    assert.equal(repo.tokens[0]?.tokenType, 'turn_ended');
-    assert.equal(repo.tokens[0]?.inputTokens, 1000);
-    assert.equal(repo.tokens[0]?.outputTokens, 200);
-    assert.equal(repo.tokens[0]?.httpRequestId, 'http-req-1');
+    assert.equal(repo.turnEnded.length, 1);
+    assert.equal(repo.turnEnded[0]?.inputTokens, 1000);
+    assert.equal(repo.turnEnded[0]?.outputTokens, 200);
+    assert.equal(repo.tokens.length, 0);
   });
 });

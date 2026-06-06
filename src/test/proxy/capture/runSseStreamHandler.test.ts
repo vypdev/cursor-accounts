@@ -41,4 +41,35 @@ describe('RunSseStreamHandler', () => {
     assert.equal(summary.liveTokenData?.modelId, 'composer-2.5');
     assert.ok((summary.liveTokenData?.deltaCostCents ?? 0) > 0);
   });
+
+  it('resolves conversationId for live token updates from bidi session map', () => {
+    const summaries: unknown[] = [];
+    const handler = new RunSseStreamHandler((s) => summaries.push(s), {
+      resolveConversationId: (bidiRequestId) =>
+        bidiRequestId === 'bidi-1' ? 'conv-abc' : undefined,
+    });
+
+    handler.emitLiveTokenUpdate(
+      {
+        accumulatedTokens: 50,
+        latestDelta: 50,
+        agent: { streamingTokens: 50, usageEvent: 'token_delta' },
+      },
+      {
+        url: 'https://api2.cursor.sh/RunSSE',
+        host: 'api2.cursor.sh',
+        bidiRequestId: 'bidi-1',
+        isCursorHost: true,
+      }
+    );
+
+    const summary = summaries[0] as {
+      insights?: {
+        agent?: { conversationId?: string };
+        context?: { conversationId?: string };
+      };
+    };
+    assert.equal(summary.insights?.agent?.conversationId, 'conv-abc');
+    assert.equal(summary.insights?.context?.conversationId, 'conv-abc');
+  });
 });

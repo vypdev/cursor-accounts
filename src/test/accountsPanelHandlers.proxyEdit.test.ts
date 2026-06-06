@@ -129,4 +129,105 @@ describe('AccountsPanelHandlers proxy edit', () => {
     assert.equal(ensureProfileProxy.mock.callCount(), 1);
     assert.deepEqual(ensureProfileProxy.mock.calls[0]?.arguments, ['p1']);
   });
+
+  it('restarts only the edited profile proxy when JSONL logging is toggled', async () => {
+    const restartProfileProxy = mock.fn(async () => ({ success: true, port: 8080 }));
+    const isRunning = mock.fn(async () => true);
+
+    const handlers = new AccountsPanelHandlers(
+      {
+        profileManager: {
+          getProfile: async () => ({
+            ...CURRENT_PROFILE,
+            proxyJsonlLoggingEnabled: false,
+          }),
+          updateProfile: async () => ({
+            ...CURRENT_PROFILE,
+            proxyJsonlLoggingEnabled: true,
+          }),
+        } as unknown as ProfileManager,
+        profileLauncher: {} as never,
+        profileDetector: {
+          detectCurrentProfile: async () => CURRENT_PROFILE,
+        } as ProfileDetector,
+        efficiencyService: {} as never,
+        authReader: {} as never,
+        instanceDetector: {} as never,
+        storageCleanupService: {} as never,
+        storageAnalyzer: {} as never,
+        profileWorkspaceService: {} as never,
+        proxyManager: {
+          isRunning,
+          restartProfileProxy,
+        } as unknown as IProxyManager,
+      },
+      {
+        postMessage: async () => undefined,
+        refresh: async () => undefined,
+        refreshInstances: async () => undefined,
+        refreshGithubSummaries: async () => undefined,
+        refreshProxyStatus: async () => undefined,
+        hasActiveWebview: () => true,
+      }
+    );
+
+    await handlers.handle({
+      type: 'edit',
+      profileId: 'p1',
+      updates: { proxyJsonlLoggingEnabled: true },
+    });
+
+    assert.equal(isRunning.mock.callCount(), 1);
+    assert.equal(restartProfileProxy.mock.callCount(), 1);
+    assert.deepEqual(restartProfileProxy.mock.calls[0]?.arguments, ['p1']);
+  });
+
+  it('does not restart proxy when JSONL logging value is unchanged', async () => {
+    const restartProfileProxy = mock.fn(async () => ({ success: true, port: 8080 }));
+
+    const handlers = new AccountsPanelHandlers(
+      {
+        profileManager: {
+          getProfile: async () => ({
+            ...CURRENT_PROFILE,
+            proxyJsonlLoggingEnabled: true,
+          }),
+          updateProfile: async () => ({
+            ...CURRENT_PROFILE,
+            proxyJsonlLoggingEnabled: true,
+          }),
+        } as unknown as ProfileManager,
+        profileLauncher: {} as never,
+        profileDetector: {
+          detectCurrentProfile: async () => CURRENT_PROFILE,
+        } as ProfileDetector,
+        efficiencyService: {} as never,
+        authReader: {} as never,
+        instanceDetector: {} as never,
+        storageCleanupService: {} as never,
+        storageAnalyzer: {} as never,
+        profileWorkspaceService: {} as never,
+        proxyManager: {
+          isRunning: async () => true,
+          restartProfileProxy,
+        } as unknown as IProxyManager,
+      },
+      {
+        postMessage: async () => undefined,
+        refresh: async () => undefined,
+        refreshInstances: async () => undefined,
+        refreshGithubSummaries: async () => undefined,
+        refreshProxyStatus: async () => undefined,
+        hasActiveWebview: () => true,
+      }
+    );
+
+    await handlers.handle({
+      type: 'edit',
+      profileId: 'p1',
+      updates: { proxyJsonlLoggingEnabled: true, displayName: 'User' },
+    });
+
+    assert.equal(restartProfileProxy.mock.callCount(), 0);
+  });
 });

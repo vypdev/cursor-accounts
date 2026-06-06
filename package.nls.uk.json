@@ -47,7 +47,6 @@
   "configuration.proxy.showLiveUsageInStatusBar.description": "Показувати використання токенів агента/чату в реальному часі на панелі стану, поки працює MITM-проксі (автоматично відстежує журнали проксі).",
   "configuration.proxy.estimatedDollarsPerMillionTokens.description": "Приблизні USD за мільйон токенів для оцінки вартості в реальному часі на панелі стану (фактичне списання може відрізнятися).",
   "commands.proxy.showTokenDetector.title": "Cursor Accounts: Показати вивід детектора токенів",
-  "configuration.proxy.developmentMode.description": "Записувати трафік проксі в локальні JSONL-файли журналу для налагодження. Залишайте вимкненим під час звичайного використання; розширення отримує трафік у реальному часі через IPC.",
   "configuration.proxy.logTokenDetectorToOutput.description": "Записувати події агента/токена/розмови з IPC проксі в канал виводу Cursor Token Detector.",
   "configuration.proxy.autoShowTokenDetectorChannel.description": "Автоматично відкривати канал виводу Cursor Token Detector при надходженні подій агента або токена."
 }

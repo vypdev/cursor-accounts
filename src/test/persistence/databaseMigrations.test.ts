@@ -44,17 +44,20 @@ describe('DatabaseMigrator', () => {
 
     const result = await migrator.migrate();
     assert.equal(result.success, true);
-    assert.equal(result.toVersion, 4);
+    assert.equal(result.toVersion, 7);
     assert.ok(result.migrationsApplied.includes('001_initial_schema.sql'));
     assert.ok(result.migrationsApplied.includes('002_agent_tracking.sql'));
     assert.ok(result.migrationsApplied.includes('003_agent_turn_tracking.sql'));
     assert.ok(result.migrationsApplied.includes('004_cleanup_corrupt_tokens.sql'));
+    assert.ok(result.migrationsApplied.includes('005_agent_turn_ended_table.sql'));
+    assert.ok(result.migrationsApplied.includes('006_agent_tokens_delta_cost.sql'));
+    assert.ok(result.migrationsApplied.includes('007_agent_tokens_delta_context.sql'));
 
     const validation = await migrator.validate();
     assert.equal(validation.valid, true);
 
     const version = await migrator.getCurrentVersion();
-    assert.equal(version, 4);
+    assert.equal(version, 7);
   });
 
   it('does not reapply migrations when already at target version', async () => {

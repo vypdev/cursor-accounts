@@ -56,6 +56,8 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
   private readonly runSSEBidiIds = new Map<string, string>();
   /** Bidi request_id → model id from runRequest (BidiAppend). */
   private readonly sessionModelIds = new Map<string, string>();
+  /** Bidi request_id → conversation_id from runRequest (BidiAppend). */
+  private readonly sessionConversationIds = new Map<string, string>();
   /** Active incremental decoders for RunSSE response streams. */
   private readonly streamingDecoders = new Map<string, StreamingAgentDecoder>();
   private diagnostics: ProxyTrafficDiagnosticsCollector | null = null;
@@ -78,6 +80,10 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
         costCalculator: this.liveCostCalculator,
         resolveModelId: (bidiRequestId) =>
           bidiRequestId ? this.sessionModelIds.get(bidiRequestId) : undefined,
+        resolveConversationId: (bidiRequestId) =>
+          bidiRequestId
+            ? this.sessionConversationIds.get(bidiRequestId)
+            : undefined,
       }
     );
   }
@@ -202,9 +208,20 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
           protocolVersion: entry.protocolVersion,
         });
         if (isAgentIncrementalStreamUrl(url) && requestId) {
-          const bidiId = await extractBidiRequestIdFromBody(rawBody, contentType);
+          const bidiId = await extractBidiRequestIdFromBody(
+            body,
+            contentType,
+            contentEncoding
+          );
           if (bidiId) {
             this.runSSEBidiIds.set(requestId, bidiId);
+            process.stderr.write(
+              `[AgentTracking] RunSSE bidi correlated http=${requestId.slice(0, 8)}… → bidi=${bidiId.slice(0, 8)}…\n`
+            );
+          } else {
+            process.stderr.write(
+              `[AgentTracking] RunSSE bidi extract FAILED http=${requestId.slice(0, 8)}…\n`
+            );
           }
         }
         this.emitTrafficSummary(entry);
@@ -393,6 +410,7 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
     this.requestStartedAt.clear();
     this.runSSEBidiIds.clear();
     this.sessionModelIds.clear();
+    this.sessionConversationIds.clear();
     this.streamingDecoders.clear();
     this.diagnostics = null;
     await this.requestLogger.close();
@@ -447,6 +465,12 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
       };
       for (const liveUpdate of result.liveUpdates) {
         this.diagnostics?.recordLiveTokenUpdate();
+        if (!bidiRequestId) {
+          process.stderr.write(
+            `[AgentTracking] RunSSE live update WITHOUT bidi correlation ` +
+              `http=${requestId.slice(0, 8)}… delta=${liveUpdate.latestDelta}\n`
+          );
+        }
         this.runSseHandler.emitLiveTokenUpdate(liveUpdate, emitContext);
       }
       for (const turnEnded of result.turnEndedEvents) {
@@ -463,6 +487,16 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
     const sessionId = agent?.requestId;
     if (modelId && sessionId) {
       this.sessionModelIds.set(sessionId, modelId);
+    }
+  }
+
+  private trackSessionConversation(summary: ProxyTrafficSummary): void {
+    const agent = summary.insights?.agent;
+    const conversationId =
+      agent?.conversationId ?? summary.insights?.context?.conversationId;
+    const sessionId = agent?.requestId;
+    if (conversationId && sessionId) {
+      this.sessionConversationIds.set(sessionId, conversationId);
     }
   }
 
@@ -491,6 +525,23 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
           }
         }
         this.trackSessionModel(summary);
+        this.trackSessionConversation(summary);
+        const agent = summary.insights?.agent;
+        if (
+          agent?.usageEvent === 'token_delta' ||
+          (summary.insights?.allTokenFrames?.length ?? 0) > 0 ||
+          entry.url.includes('BidiAppend')
+        ) {
+          process.stderr.write(
+            `[AgentTracking] emitTrafficSummary ${entry.direction} ` +
+              `${entry.url.includes('BidiAppend') ? 'BidiAppend' : entry.url.includes('RunSSE') ? 'RunSSE' : 'agent'} ` +
+              `bidi=${(correlation?.bidiRequestId ?? agent?.requestId)?.slice(0, 8) ?? '(none)'}… ` +
+              `conv=${(agent?.conversationId ?? summary.insights?.context?.conversationId)?.slice(0, 8) ?? '(none)'}… ` +
+              `usage=${agent?.usageEvent ?? '(none)'} ` +
+              `frames=${summary.insights?.allTokenFrames?.length ?? 0} ` +
+              `incrPersisted=${correlation?.incrementalTurnsAlreadyPersisted === true}\n`
+          );
+        }
         this.handlers?.onTraffic?.(summary);
       })
       .catch(() => {

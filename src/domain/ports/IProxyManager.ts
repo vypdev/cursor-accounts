@@ -16,7 +16,8 @@ export interface ProxyStartResult {
 /** Port for managing per-profile MITM proxy lifecycle and status. */
 export interface IProxyManager {
   start(profileId: string): Promise<ProxyStartResult>;
-  stop(profileId: string): Promise<void>;
+  stop(profileId: string, options?: { restoreSettings?: boolean }): Promise<void>;
+  restartProfileProxy(profileId: string): Promise<ProxyStartResult>;
   getStatus(profileId: string): Promise<ProxyStatus | null>;
   isRunning(profileId: string): Promise<boolean>;
   isCurrentWindowUsingProxy(): Promise<boolean>;

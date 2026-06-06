@@ -47,7 +47,6 @@
   "configuration.proxy.spillLargeBodies.description": "Når en body overskrider inline-grensen, lagre fullstendige rå bytes i logs/bodies/ i stedet for å trunkere (anbefales for analyse).",
   "configuration.proxy.showLiveUsageInStatusBar.description": "Vis live agent/chat-tokenbruk i statuslinjen mens MITM-proxyen kjører (følger proxylogger automatisk).",
   "configuration.proxy.estimatedDollarsPerMillionTokens.description": "Omtrentlige USD per million tokens for live-kostnadsestimater i statuslinjen (faktisk fakturering kan avvike).",
-  "configuration.proxy.developmentMode.description": "Skriv proxytrafikk til lokale JSONL-loggfiler for feilsøking. La være deaktivert ved normal bruk; utvidelsen mottar trafikk i sanntid via IPC.",
   "configuration.proxy.logTokenDetectorToOutput.description": "Skriv agent/token/samtalehendelser fra proxy-IPC til Cursor Token Detector-outputkanalen.",
   "configuration.proxy.autoShowTokenDetectorChannel.description": "Åpne automatisk Cursor Token Detector-outputkanalen når agent- eller tokenhendelser ankommer."
 }

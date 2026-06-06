@@ -28,6 +28,9 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
   const [proxyEnabled, setProxyEnabled] = useState(
     profile.proxyEnabled !== false
   );
+  const [proxyJsonlLoggingEnabled, setProxyJsonlLoggingEnabled] = useState(
+    profile.proxyJsonlLoggingEnabled === true
+  );
   const [error, setError] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -48,6 +51,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
         notes: notes.trim() || undefined,
       },
       proxyEnabled,
+      proxyJsonlLoggingEnabled: proxyEnabled ? proxyJsonlLoggingEnabled : false,
     };
 
     if (isCurrent) {
@@ -150,6 +154,22 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
             </label>
             <p className="form-help-text">{t('editProfile.proxyHelp')}</p>
           </div>
+
+          {proxyEnabled ? (
+            <div className="form-group checkbox">
+              <label htmlFor="edit-proxy-jsonl">
+                <input
+                  id="edit-proxy-jsonl"
+                  type="checkbox"
+                  checked={proxyJsonlLoggingEnabled}
+                  onChange={(e) => setProxyJsonlLoggingEnabled(e.target.checked)}
+                />
+                {t('editProfile.proxyJsonlLabel')}
+              </label>
+              <p className="form-help-text">{t('editProfile.proxyJsonlHelp')}</p>
+              <p className="cert-install-warning">{t('editProfile.proxyJsonlDisclaimer')}</p>
+            </div>
+          ) : null}
 
           {isCurrent ? (
             <div className="form-group checkbox">

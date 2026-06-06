@@ -13,11 +13,13 @@ import type { IProxyProcess } from '../domain/ports/IProxyProcess';
 import type { IProxyTrafficBus, TrafficListener } from '../domain/ports/IProxyTrafficBus';
 import type { IProxyTrafficIngress } from '../domain/ports/IProxyTrafficIngress';
 import type { IProxyStateStore } from '../domain/ports/IProxyStateStore';
-import type {
-  ProxyInstallGuide,
-  ProxyStateFile,
-  ProxyStatus,
-  ProxyTrafficDiagnostics,
+import {
+  isProfileProxyJsonlLoggingEnabled,
+  type ProxyInstallGuide,
+  type ProxyStateFile,
+  type ProxyStatus,
+  type ProxyTrafficDiagnostics,
+  type Profile,
 } from '@cursor-accounts/types';
 import type { ProxyServerConfig } from '../application/types/proxyConfig';
 import type { ProxyChildMessage } from '../application/types/proxyTraffic';
@@ -43,12 +45,23 @@ import {
 } from '../proxy/types';
 import { AgentTrackingDatabase } from '../persistence/agentTrackingDatabase';
 import { getEfficiencyDbPath } from '../persistence/efficiencyDatabase';
+import { ProxyLiveCostCalculator } from '../domain/services/ProxyLiveCostCalculator';
 import { TokenTurnDetectionService } from '../domain/services/tokenTurnDetectionService';
+import { CursorModelPricingProvider } from '../modelEfficiency/cursorModelPricingProvider';
 import { AgentTrackingService } from './agentTrackingService';
 import { ProxyCertificateService } from './proxyCertificateService';
 import type { ProxySettingsService } from './proxySettingsService';
 
 export type ProxyTrafficListener = TrafficListener;
+
+export interface ConversationUsagePersistedEvent {
+  conversationId: string;
+  profileId: string;
+}
+
+export type ConversationUsagePersistedListener = (
+  event: ConversationUsagePersistedEvent
+) => void;
 
 const PROXY_START_TIMEOUT_MS = 15_000;
 const PROXY_STOP_TIMEOUT_MS = 5_000;
@@ -125,6 +138,8 @@ function defaultDependencies(
 export class ProxyManager implements IProxyManager {
   private readonly runtimes = new Map<string, ProfileProxyRuntime>();
   private readonly statusCallbacks: Array<() => void> = [];
+  private readonly usagePersistedListeners: ConversationUsagePersistedListener[] =
+    [];
   private readonly agentTrackingServices = new Map<string, AgentTrackingService>();
   private readonly storageDir: string;
   private readonly logDir: string;
@@ -153,14 +168,82 @@ export class ProxyManager implements IProxyManager {
     this.logDir = path.join(this.storageDir, 'logs');
 
     this.deps.trafficBus.subscribe((summary, profileId) => {
-      if (profileId) {
-        void this.agentTrackingServices.get(profileId)?.ingestTraffic(summary);
-      }
-      this.tokenDetectorPresenter?.appendTraffic(summary, profileId);
-      if (getProxyOutputConfig().logTrafficToOutput) {
-        this.outputPresenter?.appendTraffic(summary);
-      }
+      void this.handleTraffic(summary, profileId);
     });
+  }
+
+  private async handleTraffic(
+    summary: Parameters<TrafficListener>[0],
+    profileId?: string
+  ): Promise<void> {
+    const agent = summary.insights?.agent;
+    const isAgentTraffic =
+      summary.isLiveTokenUpdate === true ||
+      summary.isTurnEnded === true ||
+      agent?.usageEvent != null ||
+      (summary.insights?.allTokenFrames?.length ?? 0) > 0;
+
+    if (isAgentTraffic) {
+      const bidi = agent?.requestId;
+      const conv =
+        agent?.conversationId ?? summary.insights?.context?.conversationId;
+      extensionLog.info(
+        `[AgentTracking] proxy recv profile=${profileId ?? '(none)'} ` +
+          `live=${summary.isLiveTokenUpdate === true} turnEnded=${summary.isTurnEnded === true} ` +
+          `bidi=${bidi ? `${bidi.slice(0, 8)}…` : '(none)'} ` +
+          `conv=${conv ? `${conv.slice(0, 8)}…` : '(none)'} ` +
+          `usage=${agent?.usageEvent ?? '(none)'} ` +
+          `delta=${summary.liveTokenData?.latestDelta ?? '(none)'} ` +
+          `endpoint=${summary.endpoint ?? summary.url}`
+      );
+    }
+
+    if (profileId) {
+      await this.ensureAgentTrackingForProfile(profileId);
+      const tracking = this.agentTrackingServices.get(profileId);
+      if (!tracking && isAgentTraffic) {
+        extensionLog.warn(
+          `[AgentTracking] no AgentTrackingService for profile=${profileId}`
+        );
+      }
+      const result = await tracking?.ingestTraffic(summary);
+      if (isAgentTraffic) {
+        extensionLog.info(
+          `[AgentTracking] ingest result profile=${profileId} ` +
+            `delta=${result?.deltaPersisted === true} ` +
+            `turnEnded=${result?.turnEndedPersisted === true} ` +
+            `context=${result?.contextPersisted === true} ` +
+            `conv=${result?.conversationId ? `${result.conversationId.slice(0, 8)}…` : '(none)'}`
+        );
+      }
+      if (
+        result &&
+        (result.deltaPersisted ||
+          result.turnEndedPersisted ||
+          result.contextPersisted)
+      ) {
+        for (const listener of this.usagePersistedListeners) {
+          try {
+            listener({
+              conversationId: result.conversationId,
+              profileId,
+            });
+          } catch (error) {
+            extensionLog.debug(
+              `[Proxy] usage persisted listener error: ${extensionLog.formatError(error)}`
+            );
+          }
+        }
+      }
+    } else if (isAgentTraffic) {
+      extensionLog.warn(
+        '[AgentTracking] agent traffic without profileId — ingest skipped'
+      );
+    }
+    this.tokenDetectorPresenter?.appendTraffic(summary, profileId);
+    if (getProxyOutputConfig().logTrafficToOutput) {
+      this.outputPresenter?.appendTraffic(summary);
+    }
   }
 
   onStatusChange(callback: () => void): void {
@@ -171,10 +254,18 @@ export class ProxyManager implements IProxyManager {
     this.deps.trafficBus.subscribe(listener);
   }
 
-  private isProxyDevelopmentMode(): boolean {
-    return vscode.workspace
-      .getConfiguration('cursorAccounts.proxy')
-      .get<boolean>('developmentMode', false);
+  onConversationUsagePersisted(
+    listener: ConversationUsagePersistedListener
+  ): void {
+    this.usagePersistedListeners.push(listener);
+  }
+
+  getAgentTrackingService(profileId: string): AgentTrackingService | undefined {
+    return this.agentTrackingServices.get(profileId);
+  }
+
+  private isProfileJsonlLogging(profile: Profile): boolean {
+    return isProfileProxyJsonlLoggingEnabled(profile);
   }
 
   async start(profileId: string): Promise<ProxyStartResult> {
@@ -208,11 +299,15 @@ export class ProxyManager implements IProxyManager {
       await fs.mkdir(this.logDir, { recursive: true });
 
       const caPath = await this.deps.certService.ensureCaCertificate();
-      const serverConfig = this.buildServerConfig(port);
+      const serverConfig = this.buildServerConfig(port, profile);
 
       const proxyProcess = this.deps.createProcess();
       proxyProcess.onStderr((line) => {
-        extensionLog.debug(`[Proxy:${profileId}] ${line}`);
+        if (line.includes('[AgentTracking]')) {
+          extensionLog.info(`[Proxy:${profileId}] ${line}`);
+        } else {
+          extensionLog.debug(`[Proxy:${profileId}] ${line}`);
+        }
       });
 
       proxyProcess.onMessage((msg: ProxyChildMessage) => {
@@ -268,6 +363,8 @@ export class ProxyManager implements IProxyManager {
           ipc: true,
           jsonlTail: true,
         });
+      } else {
+        this.deps.trafficIngress.stop(profileId);
       }
 
       if (getProxyOutputConfig().autoShowOutputChannel) {
@@ -285,7 +382,11 @@ export class ProxyManager implements IProxyManager {
     }
   }
 
-  async stop(profileId: string): Promise<void> {
+  async stop(
+    profileId: string,
+    options?: { restoreSettings?: boolean }
+  ): Promise<void> {
+    const restoreSettings = options?.restoreSettings !== false;
     try {
       const profile = await this.profileManager.getProfile(profileId);
       if (!profile) {
@@ -303,7 +404,7 @@ export class ProxyManager implements IProxyManager {
       await this.forceStopChild(profileId);
       this.deps.trafficIngress.stop(profileId);
 
-      if (this.profileSettingsManager) {
+      if (restoreSettings && this.profileSettingsManager) {
         try {
           await this.profileSettingsManager.restoreProxySettings(profile.userDataDir);
         } catch (error) {
@@ -324,6 +425,23 @@ export class ProxyManager implements IProxyManager {
         `[Proxy] stop failed: ${error instanceof Error ? error.message : String(error)}`
       );
     }
+  }
+
+  async restartProfileProxy(profileId: string): Promise<ProxyStartResult> {
+    const profile = await this.profileManager.getProfile(profileId);
+    if (!profile) {
+      return { success: false, error: `Profile ${profileId} not found` };
+    }
+
+    if (!(await this.isRunning(profileId))) {
+      return { success: true };
+    }
+
+    extensionLog.info(
+      `[Proxy:${profileId}] Restarting proxy after JSONL logging change`
+    );
+    await this.stop(profileId, { restoreSettings: false });
+    return await this.start(profileId);
   }
 
   async getStatus(profileId: string): Promise<ProxyStatus | null> {
@@ -422,9 +540,17 @@ export class ProxyManager implements IProxyManager {
       return;
     }
 
+    const profile = await this.profileManager.getProfile(profileId);
+    const jsonlTail = profile ? this.isProfileJsonlLogging(profile) : false;
+
     const attached = !this.runtimes.has(profileId) || options?.forceRestart === true;
     if (attached && getProxyOutputConfig().logTrafficToOutput) {
       this.outputPresenter?.appendAttached(status.port);
+    }
+
+    if (!jsonlTail) {
+      this.deps.trafficIngress.stop(profileId);
+      return;
     }
 
     await this.deps.trafficIngress.start(
@@ -440,20 +566,25 @@ export class ProxyManager implements IProxyManager {
   }
 
   async ensureTrafficTailer(): Promise<void> {
-    if (!this.isProxyDevelopmentMode()) {
-      return;
-    }
-
-    for (const [profileId, runtime] of this.runtimes) {
-      await this.deps.trafficIngress.start(profileId, runtime.port, {
-        ipc: true,
-        jsonlTail: true,
-      });
-      return;
+    for (const [profileId] of this.runtimes) {
+      const profile = await this.profileManager.getProfile(profileId);
+      if (profile && this.isProfileJsonlLogging(profile)) {
+        const runtime = this.runtimes.get(profileId);
+        if (runtime) {
+          await this.deps.trafficIngress.start(profileId, runtime.port, {
+            ipc: true,
+            jsonlTail: true,
+          });
+        }
+        return;
+      }
     }
 
     const profiles = await this.profileManager.getProfiles();
     for (const profile of profiles) {
+      if (!this.isProfileJsonlLogging(profile)) {
+        continue;
+      }
       if (!(await this.isRunning(profile.id))) {
         continue;
       }
@@ -536,7 +667,7 @@ export class ProxyManager implements IProxyManager {
     return await this.start(profileId);
   }
 
-  private buildServerConfig(port: number): ProxyServerConfig {
+  private buildServerConfig(port: number, profile: Profile): ProxyServerConfig {
     const config = vscode.workspace.getConfiguration('cursorAccounts.proxy');
     const maxLogSizeMb = config.get<number>('maxLogSizeMB', 500);
     const maxBodyLogMb = config.get<number>('maxBodyLogMB', 4);
@@ -547,7 +678,7 @@ export class ProxyManager implements IProxyManager {
       maxLogSizeMb,
       maxBodyLogBytes: Math.max(1, Math.floor(maxBodyLogMb * 1024 * 1024)),
       spillLargeBodies: config.get<boolean>('spillLargeBodies', true),
-      developmentMode: config.get<boolean>('developmentMode', false),
+      developmentMode: this.isProfileJsonlLogging(profile),
       trafficDiagnostics: config.get<boolean>('trafficDiagnostics', true),
       diagnosticsIntervalMs: config.get<number>('diagnosticsIntervalMs', 30_000),
     };
@@ -586,6 +717,17 @@ export class ProxyManager implements IProxyManager {
     this.outputPresenter?.appendDiagnostics(lines);
   }
 
+  private async ensureAgentTrackingForProfile(profileId: string): Promise<void> {
+    if (this.agentTrackingServices.has(profileId)) {
+      return;
+    }
+    const profile = await this.profileManager.getProfile(profileId);
+    if (!profile) {
+      return;
+    }
+    await this.ensureAgentTracking(profileId, profile.userDataDir);
+  }
+
   private async ensureAgentTracking(
     profileId: string,
     userDataDir: string
@@ -601,10 +743,18 @@ export class ProxyManager implements IProxyManager {
         this.context.extensionPath
       );
       const turnDetectionService = new TokenTurnDetectionService();
+      const liveCostCalculator = new ProxyLiveCostCalculator(
+        new CursorModelPricingProvider(),
+        () =>
+          vscode.workspace
+            .getConfiguration('cursorAccounts.proxy')
+            .get<number>('estimatedDollarsPerMillionTokens', 4)
+      );
       const service = new AgentTrackingService(
         repository,
         profileId,
-        turnDetectionService
+        turnDetectionService,
+        liveCostCalculator
       );
       await service.initialize();
       this.agentTrackingServices.set(profileId, service);

@@ -82,6 +82,7 @@ No additional installation required. See [docs/PLATFORM-SUPPORT.md](docs/PLATFOR
 - [CLI Agent Communication](docs/CLI-AGENT-COMMUNICATION.md) — `RunSSE`, `BidiAppend`, framing
 - [Proxy JSONL Schema](docs/PROXY-JSONL-SCHEMA.md) — MITM log format and body spill
 - [Agent IDs & Subagents](docs/PROXY-AGENT-IDS-AND-SUBAGENTS.md) — bidi sessions, **chat tab ids**, parallel subagents
+- [Active Conversation Detection](docs/ACTIVE-CONVERSATION-DETECTION.md) — which Composer tab is focused (`lastFocusedComposerIds`)
 - [Proxy Model Detection](docs/PROXY-MODEL-DETECTION.md) — extracting AI models from JSONL logs (`runRequest`, `modelDetails`)
 - [Dashboard Usage Events API](docs/USAGE-EVENTS-API.md)
 - [Platform Support](docs/PLATFORM-SUPPORT.md)

@@ -196,7 +196,8 @@ export function scanConnectAgentServerStream(
 
     const ids = extractConversationAndSubagentIds(decoded);
     if (Object.keys(ids).length > 0) {
-      relationshipIds = { ...relationshipIds, ...ids };
+      relationshipIds =
+        mergeAgentSessionInfo(relationshipIds, ids) ?? relationshipIds;
     }
 
     const insight = extractAgentInnerInsights(decoded);

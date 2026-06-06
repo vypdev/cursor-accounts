@@ -15,6 +15,8 @@ export interface Profile {
   efficiencyAnalysisEnabled?: boolean;
   /** When false, this profile never starts or uses the MITM proxy. Default: true. */
   proxyEnabled?: boolean;
+  /** When true, the MITM proxy writes JSONL traffic logs for this profile. Default: false. */
+  proxyJsonlLoggingEnabled?: boolean;
   /** Absolute path to a file containing a GitHub PAT (optional, per profile). */
   githubTokenPath?: string;
   metadata?: ProfileMetadata;

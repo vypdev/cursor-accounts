@@ -1,8 +1,11 @@
 import type {
   AgentRecord,
   AgentTreeNode,
+  ConversationDeltaTotals,
   ConversationTokenTotals,
+  TokenDeltaMinuteRecord,
   TokenSnapshotRecord,
+  TurnEndedRecord,
 } from '../../application/types/agentPersistence';
 
 /**
@@ -23,7 +26,19 @@ export interface IAgentTrackingRepository {
 
   insertTokenSnapshot(tokens: Omit<TokenSnapshotRecord, 'id'>): Promise<void>;
 
+  /** Upsert minute-bucketed token_delta (sums increments within the same minute). */
+  upsertTokenDelta(delta: TokenDeltaMinuteRecord): Promise<void>;
+
+  /** Insert one billing-grade turn_ended row (no aggregation). */
+  insertTurnEnded(turnEnded: Omit<TurnEndedRecord, 'id'>): Promise<void>;
+
   getTotalConversationTokens(conversationId: string): Promise<ConversationTokenTotals>;
+
+  getTotalDeltaTokensByConversation(
+    conversationId: string
+  ): Promise<ConversationDeltaTotals>;
+
+  getTurnEndedByConversation(conversationId: string): Promise<TurnEndedRecord[]>;
 
   getAgentTokens(requestId: string): Promise<AgentTokenBreakdown | null>;
 

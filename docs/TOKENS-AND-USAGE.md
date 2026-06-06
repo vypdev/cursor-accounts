@@ -419,6 +419,7 @@ Batch counts from `analyze:proxy-traffic` may under-report checkpoint tokens com
 | [PROXY-SETUP.md](PROXY-SETUP.md) | Enable proxy, CA, routing, log paths |
 | [PROXY-JSONL-SCHEMA.md](PROXY-JSONL-SCHEMA.md) | JSONL line fields, body spill, examples |
 | [PROXY-AGENT-IDS-AND-SUBAGENTS.md](PROXY-AGENT-IDS-AND-SUBAGENTS.md) | `request_id`, chat tab `conversation_id`, parallel subagents |
+| [ACTIVE-CONVERSATION-DETECTION.md](ACTIVE-CONVERSATION-DETECTION.md) | Focused Composer tab (`lastFocusedComposerIds`) — not the same as latest traffic |
 | [USAGE-EVENTS-API.md](USAGE-EVENTS-API.md) | Per-request `tokenUsage` + `chargedCents` |
 | [HOW-IT-WORKS.md](HOW-IT-WORKS.md) | Quota fetch, auth, refresh |
 | [RESEARCH.md](RESEARCH.md) | API research, quota fields |

@@ -47,7 +47,6 @@
   "configuration.proxy.spillLargeBodies.description": "Saat body melebihi batas inline, simpan byte mentah lengkap ke logs/bodies/ alih-alih memotong (disarankan untuk analisis).",
   "configuration.proxy.showLiveUsageInStatusBar.description": "Tampilkan penggunaan token agent/chat langsung di bilah status saat proxy MITM berjalan (mengikuti log proxy secara otomatis).",
   "configuration.proxy.estimatedDollarsPerMillionTokens.description": "Perkiraan USD per juta token untuk estimasi biaya langsung di bilah status (penagihan aktual mungkin berbeda).",
-  "configuration.proxy.developmentMode.description": "Tulis lalu lintas proxy ke file log JSONL lokal untuk debugging. Biarkan nonaktif untuk penggunaan normal; ekstensi menerima lalu lintas secara real time via IPC.",
   "configuration.proxy.logTokenDetectorToOutput.description": "Tulis peristiwa agen/token/percakapan dari IPC proxy ke saluran output Cursor Token Detector.",
   "configuration.proxy.autoShowTokenDetectorChannel.description": "Buka saluran output Cursor Token Detector secara otomatis saat peristiwa agen atau token tiba."
 }

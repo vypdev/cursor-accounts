@@ -426,6 +426,19 @@ function pickStringField(
   return typeof value === 'string' && value.length > 0 ? value : undefined;
 }
 
+/** Drop explicit `undefined` entries so spreads/merges never erase populated fields. */
+export function definedAgentFields(
+  fields: Partial<AgentSessionInfo>
+): Partial<AgentSessionInfo> {
+  const out: Partial<AgentSessionInfo> = {};
+  for (const [key, value] of Object.entries(fields)) {
+    if (value !== undefined) {
+      (out as Record<string, unknown>)[key] = value;
+    }
+  }
+  return out;
+}
+
 /**
  * Extract model and session fields from AgentClientMessage.runRequest.
  */
@@ -474,13 +487,13 @@ export function extractAgentRunRequestInfo(
     return null;
   }
 
-  return {
+  return definedAgentFields({
     requestId,
     requestedModelId,
     modelDisplayName,
     subagentTypeName,
     modelName: requestedModelId ?? modelDisplayName,
-  };
+  });
 }
 
 /**
@@ -494,22 +507,34 @@ export function extractConversationAndSubagentIds(
   const runRequest = pickField(decoded, 'run_request', 'runRequest');
   if (runRequest && typeof runRequest === 'object') {
     const req = runRequest as Record<string, unknown>;
-    result.conversationId = pickStringField(req, 'conversation_id', 'conversationId');
-    result.conversationGroupId = pickStringField(
+    const conversationId = pickStringField(req, 'conversation_id', 'conversationId');
+    if (conversationId) {
+      result.conversationId = conversationId;
+    }
+    const conversationGroupId = pickStringField(
       req,
       'conversation_group_id',
       'conversationGroupId'
     );
-    result.parentRequestId = pickStringField(
+    if (conversationGroupId) {
+      result.conversationGroupId = conversationGroupId;
+    }
+    const parentRequestId = pickStringField(
       req,
       'parent_request_id',
       'parentRequestId'
     );
-    result.subagentRequestId = pickStringField(
+    if (parentRequestId) {
+      result.parentRequestId = parentRequestId;
+    }
+    const subagentRequestId = pickStringField(
       req,
       'subagent_request_id',
       'subagentRequestId'
     );
+    if (subagentRequestId) {
+      result.subagentRequestId = subagentRequestId;
+    }
   }
 
   const prewarmRequest = pickField(decoded, 'prewarm_request', 'prewarmRequest');
@@ -529,7 +554,7 @@ export function extractConversationAndSubagentIds(
     const success = pickField(resultObj, 'success', 'success');
     if (success && typeof success === 'object') {
       const successObj = success as Record<string, unknown>;
-      result.subagentRequestId = pickStringField(successObj, 'agent_id', 'agentId');
+      result.subagentRequestId ??= pickStringField(successObj, 'agent_id', 'agentId');
     }
   }
 
@@ -558,7 +583,15 @@ export function mergeAgentSessionInfo(
   if (!base && !extra) {
     return undefined;
   }
-  return { ...base, ...extra };
+  const merged: AgentSessionInfo = { ...(base ?? {}) };
+  if (extra) {
+    for (const [key, value] of Object.entries(extra)) {
+      if (value !== undefined) {
+        (merged as Record<string, unknown>)[key] = value;
+      }
+    }
+  }
+  return Object.keys(merged).length > 0 ? merged : undefined;
 }
 
 export function estimateTokenCostUsd(
@@ -611,14 +644,14 @@ export function extractAgentSessionInfo(
     return null;
   }
 
-  return {
+  return definedAgentFields({
     requestId,
     appendSeqno,
     pollSeqno,
     eof: eof || undefined,
     dataPreview,
     dataBytes,
-  };
+  });
 }
 
 function isAgentInteractiveRpc(rpcPath: string): boolean {

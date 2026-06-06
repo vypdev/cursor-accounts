@@ -47,7 +47,6 @@
   "configuration.proxy.spillLargeBodies.description": "body がインライン制限を超えた場合、切り詰めず logs/bodies/ に完全な生バイトを保存します（分析に推奨）。",
   "configuration.proxy.showLiveUsageInStatusBar.description": "MITM プロキシ実行中、ステータスバーにエージェント/チャットのトークン使用量をリアルタイム表示します（プロキシログを自動追跡）。",
   "configuration.proxy.estimatedDollarsPerMillionTokens.description": "ステータスバーのライブコスト見積もり用の、100 万トークンあたりの概算 USD（実際の請求は異なる場合があります）。",
-  "configuration.proxy.developmentMode.description": "デバッグ用にプロキシトラフィックをローカルの JSONL ログファイルに書き込む。通常使用時は無効のままにしてください。拡張機能は IPC 経由でリアルタイムにトラフィックを受信します。",
   "configuration.proxy.logTokenDetectorToOutput.description": "プロキシ IPC からのエージェント/トークン/会話イベントを Cursor Token Detector 出力チャンネルに書き込む。",
   "configuration.proxy.autoShowTokenDetectorChannel.description": "エージェントまたはトークンイベントが到着したときに Cursor Token Detector 出力チャンネルを自動で開く。"
 }

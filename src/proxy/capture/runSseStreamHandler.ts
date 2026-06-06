@@ -15,6 +15,7 @@ export interface RunSseEmitContext {
 export interface RunSseStreamHandlerOptions {
   costCalculator?: IProxyLiveCostCalculator;
   resolveModelId?: (bidiRequestId?: string) => string | undefined;
+  resolveConversationId?: (bidiRequestId?: string) => string | undefined;
 }
 
 /**
@@ -43,6 +44,18 @@ export class RunSseStreamHandler {
         modelId
       );
 
+    const conversationId =
+      update.agent.conversationId ??
+      this.options.resolveConversationId?.(context.bidiRequestId);
+
+    process.stderr.write(
+      `[AgentTracking] emitLiveTokenUpdate bidi=${context.bidiRequestId?.slice(0, 8) ?? '(none)'}… ` +
+        `http=${context.httpRequestId?.slice(0, 8) ?? '(none)'}… ` +
+        `conv=${conversationId?.slice(0, 8) ?? '(none)'}… ` +
+        `delta=${update.latestDelta} accumulated=${update.accumulatedTokens} ` +
+        `usage=${update.agent.usageEvent ?? '(none)'}\n`
+    );
+
     this.onTraffic({
       timestamp: new Date().toISOString(),
       kind: 'response',
@@ -64,8 +77,10 @@ export class RunSseStreamHandler {
         agent: {
           ...update.agent,
           requestId: context.bidiRequestId,
+          conversationId,
           requestedModelId: modelId,
         },
+        context: conversationId ? { conversationId } : undefined,
       },
       httpRequestId: context.httpRequestId,
       isCursorHost: context.isCursorHost,
@@ -97,6 +112,10 @@ export class RunSseStreamHandler {
       calculatedCostCents ??
       0;
 
+    const conversationId =
+      event.agent.conversationId ??
+      this.options.resolveConversationId?.(context.bidiRequestId);
+
     this.onTraffic({
       timestamp: new Date().toISOString(),
       kind: 'response',
@@ -112,6 +131,7 @@ export class RunSseStreamHandler {
         agent: {
           ...event.agent,
           requestId: context.bidiRequestId,
+          conversationId,
           requestedModelId: modelId,
           totalCents: displayCents > 0 ? displayCents : undefined,
           inputTokens: event.inputTokens,
@@ -127,6 +147,7 @@ export class RunSseStreamHandler {
           totalCents: serverTotalCents,
         },
         streamingTurnsAlreadyPersisted: true,
+        context: conversationId ? { conversationId } : undefined,
       },
       httpRequestId: context.httpRequestId,
       isCursorHost: context.isCursorHost,

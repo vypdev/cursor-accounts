@@ -6,8 +6,10 @@ import {
   extractAgentRunRequestInfo,
   extractConversationAndSubagentIds,
   extractConversationContext,
+  definedAgentFields,
   extractInsightsForRpc,
   extractTokenUsage,
+  mergeAgentSessionInfo,
   redactSensitive,
 } from '../proxy/proxyInsightExtractor';
 
@@ -178,5 +180,84 @@ describe('proxyInsightExtractor', () => {
     });
 
     assert.equal(ids.subagentRequestId, 'sub-agent-1');
+  });
+
+  it('mergeAgentSessionInfo keeps base requestId when extra omits it', () => {
+    const merged = mergeAgentSessionInfo(
+      { requestId: 'bidi-session-1', dataPreview: 'abc' },
+      { requestedModelId: 'composer-2.5', requestId: undefined }
+    );
+
+    assert.equal(merged?.requestId, 'bidi-session-1');
+    assert.equal(merged?.requestedModelId, 'composer-2.5');
+    assert.equal(merged?.dataPreview, 'abc');
+  });
+
+  it('mergeAgentSessionInfo preserves every populated field when extra has undefined keys', () => {
+    const base = {
+      requestId: 'bidi-1',
+      conversationId: 'conv-1',
+      conversationGroupId: 'group-1',
+      parentRequestId: 'parent-1',
+      subagentRequestId: 'sub-1',
+      appendSeqno: 2,
+      pollSeqno: 5,
+      dataPreview: 'preview',
+      dataBytes: 99,
+      streamingTokens: 120,
+      requestedModelId: 'composer-2.5',
+      modelName: 'composer-2.5',
+      usageEvent: 'token_delta' as const,
+    };
+    const merged = mergeAgentSessionInfo(base, {
+      requestId: undefined,
+      conversationId: undefined,
+      conversationGroupId: undefined,
+      parentRequestId: undefined,
+      subagentRequestId: undefined,
+      appendSeqno: undefined,
+      pollSeqno: undefined,
+      dataPreview: undefined,
+      dataBytes: undefined,
+      streamingTokens: undefined,
+      modelDisplayName: 'Composer 2.5',
+    });
+
+    assert.deepEqual(merged, {
+      ...base,
+      modelDisplayName: 'Composer 2.5',
+    });
+  });
+
+  it('definedAgentFields omits undefined keys from extractor output', () => {
+    assert.deepEqual(
+      definedAgentFields({
+        requestId: undefined,
+        conversationId: 'conv-1',
+        parentRequestId: undefined,
+      }),
+      { conversationId: 'conv-1' }
+    );
+  });
+
+  it('extractConversationAndSubagentIds omits undefined relationship fields', () => {
+    const ids = extractConversationAndSubagentIds({
+      runRequest: {
+        conversationId: 'conv-only',
+      },
+    });
+
+    assert.deepEqual(ids, { conversationId: 'conv-only' });
+  });
+
+  it('extractAgentRunRequestInfo omits undefined requestId key', () => {
+    const info = extractAgentRunRequestInfo({
+      runRequest: {
+        requestedModel: { modelId: 'composer-2.5' },
+      },
+    });
+
+    assert.equal(info?.requestedModelId, 'composer-2.5');
+    assert.equal('requestId' in (info ?? {}), false);
   });
 });

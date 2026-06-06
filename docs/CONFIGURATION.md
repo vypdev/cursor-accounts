@@ -40,6 +40,16 @@ Settings are grouped by area: refresh polling, status bar display, multi-profile
 
 See [MODEL-EFFICIENCY.md](MODEL-EFFICIENCY.md) for how to enable and use model efficiency analysis per profile.
 
+## Debug / development
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `cursorAccounts.debug.webviewLifecycle` | `true` | Log webview lifecycle diagnostics to the Cursor Accounts output channel |
+| `cursorAccounts.debug.showActiveConversationInStatusBar` | `true` | Show focused Composer chat ID (`lastFocusedComposerIds`) in the status bar |
+| `cursorAccounts.debug.activeConversationPollIntervalMs` | `400` | Poll interval for Composer tab focus changes (100–5000 ms) |
+
+See [ACTIVE-CONVERSATION-DETECTION.md](ACTIVE-CONVERSATION-DETECTION.md) for how focus is resolved from workspace `state.vscdb`.
+
 ## MITM proxy (research / debugging)
 
 Optional localhost proxy to observe Cursor network traffic. Setup: [PROXY-SETUP.md](PROXY-SETUP.md). Token and billing semantics: [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md).

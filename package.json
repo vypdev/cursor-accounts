@@ -101,6 +101,10 @@
       {
         "command": "cursorAccounts.proxy.saveCertificate",
         "title": "%commands.proxy.saveCertificate.title%"
+      },
+      {
+        "command": "cursorAccounts.debug.copyActiveConversationId",
+        "title": "%commands.debug.copyActiveConversationId.title%"
       }
     ],
     "configuration": {
@@ -179,6 +183,18 @@
           "default": true,
           "description": "%configuration.debug.webviewLifecycle.description%"
         },
+        "cursorAccounts.debug.showActiveConversationInStatusBar": {
+          "type": "boolean",
+          "default": true,
+          "description": "%configuration.debug.showActiveConversationInStatusBar.description%"
+        },
+        "cursorAccounts.debug.activeConversationPollIntervalMs": {
+          "type": "number",
+          "default": 400,
+          "minimum": 100,
+          "maximum": 5000,
+          "description": "%configuration.debug.activeConversationPollIntervalMs.description%"
+        },
         "cursorAccounts.proxy.enabled": {
           "type": "boolean",
           "default": false,
@@ -246,11 +262,6 @@
           "minimum": 0,
           "maximum": 100,
           "description": "%configuration.proxy.estimatedDollarsPerMillionTokens.description%"
-        },
-        "cursorAccounts.proxy.developmentMode": {
-          "type": "boolean",
-          "default": false,
-          "description": "%configuration.proxy.developmentMode.description%"
         },
         "cursorAccounts.proxy.trafficDiagnostics": {
           "type": "boolean",

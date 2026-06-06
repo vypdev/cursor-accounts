@@ -11,6 +11,7 @@ export const EXPECTED_SCHEMA_TABLES = [
   'conversations',
   'agents',
   'agent_tokens',
+  'agent_turn_ended',
 ] as const;
 
 export interface PromptEventRecord {
@@ -75,7 +76,10 @@ export type {
   AgentRecord,
   AgentTokenType,
   AgentTreeNode,
+  ConversationDeltaTotals,
   ConversationRecord,
   ConversationTokenTotals,
+  TokenDeltaMinuteRecord,
   TokenSnapshotRecord,
+  TurnEndedRecord,
 } from '../application/types/agentPersistence';

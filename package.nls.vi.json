@@ -47,7 +47,6 @@
   "configuration.proxy.showLiveUsageInStatusBar.description": "Hiển thị mức sử dụng token agent/chat trực tiếp trên thanh trạng thái khi proxy MITM đang chạy (tự động theo dõi log proxy).",
   "configuration.proxy.estimatedDollarsPerMillionTokens.description": "USD ước tính cho mỗi triệu token để ước tính chi phí trực tiếp trên thanh trạng thái (hóa đơn thực tế có thể khác).",
   "commands.proxy.showTokenDetector.title": "Cursor Accounts: Hiển thị đầu ra bộ phát hiện token",
-  "configuration.proxy.developmentMode.description": "Ghi lưu lượng proxy vào tệp nhật ký JSONL cục bộ để gỡ lỗi. Giữ tắt khi dùng bình thường; tiện ích nhận lưu lượng theo thời gian thực qua IPC.",
   "configuration.proxy.logTokenDetectorToOutput.description": "Ghi sự kiện agent/token/hội thoại từ IPC proxy vào kênh đầu ra Cursor Token Detector.",
   "configuration.proxy.autoShowTokenDetectorChannel.description": "Tự động mở kênh đầu ra Cursor Token Detector khi có sự kiện agent hoặc token."
 }

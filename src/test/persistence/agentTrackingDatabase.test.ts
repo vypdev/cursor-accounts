@@ -81,21 +81,18 @@ describe('AgentTrackingDatabase', () => {
       profileId: 'prof-1',
     });
 
-    await db.insertTokenSnapshot({
+    await db.upsertTokenDelta({
       requestId: 'req-1',
-      tokenType: 'delta',
+      minuteBucket: 960,
       streamingTokens: 100,
-      recordedAt: 1001,
     });
-    await db.insertTokenSnapshot({
+    await db.upsertTokenDelta({
       requestId: 'req-1',
-      tokenType: 'delta',
-      streamingTokens: 250,
-      recordedAt: 1002,
+      minuteBucket: 960,
+      streamingTokens: 150,
     });
-    await db.insertTokenSnapshot({
+    await db.insertTurnEnded({
       requestId: 'req-1',
-      tokenType: 'turn_ended',
       inputTokens: 50,
       outputTokens: 200,
       cacheReadTokens: 10,
@@ -108,6 +105,137 @@ describe('AgentTrackingDatabase', () => {
     assert.equal(tokens.finalInputTokens, 50);
     assert.equal(tokens.finalOutputTokens, 200);
     assert.equal(tokens.finalCacheReadTokens, 10);
+  });
+
+  it('aggregates token_delta within the same minute bucket', async () => {
+    const db = await createDb();
+    await db.upsertConversation('conv-1', 'prof-1', 1000);
+    await db.upsertAgent({
+      requestId: 'req-1',
+      conversationId: 'conv-1',
+      startedAt: 1000,
+      isEof: false,
+      profileId: 'prof-1',
+    });
+
+    await db.upsertTokenDelta({
+      requestId: 'req-1',
+      minuteBucket: 1_740_000_000,
+      streamingTokens: 20,
+    });
+    await db.upsertTokenDelta({
+      requestId: 'req-1',
+      minuteBucket: 1_740_000_000,
+      streamingTokens: 10,
+    });
+    await db.upsertTokenDelta({
+      requestId: 'req-1',
+      minuteBucket: 1_740_000_060,
+      streamingTokens: 30,
+    });
+
+    const totals = await db.getTotalDeltaTokensByConversation('conv-1');
+    assert.equal(totals.totalStreamingTokens, 60);
+    assert.equal(totals.minuteBuckets, 2);
+  });
+
+  it('aggregates cost_cents within the same minute bucket', async () => {
+    const db = await createDb();
+    await db.upsertConversation('conv-1', 'prof-1', 1000);
+    await db.upsertAgent({
+      requestId: 'req-1',
+      conversationId: 'conv-1',
+      startedAt: 1000,
+      isEof: false,
+      profileId: 'prof-1',
+    });
+
+    await db.upsertTokenDelta({
+      requestId: 'req-1',
+      minuteBucket: 1_740_000_000,
+      streamingTokens: 20,
+      costCents: 0.15,
+    });
+    await db.upsertTokenDelta({
+      requestId: 'req-1',
+      minuteBucket: 1_740_000_000,
+      streamingTokens: 10,
+      costCents: 0.075,
+    });
+    await db.upsertTokenDelta({
+      requestId: 'req-1',
+      minuteBucket: 1_740_000_060,
+      streamingTokens: 30,
+      costCents: 0.2,
+    });
+
+    const totals = await db.getTotalDeltaTokensByConversation('conv-1');
+    assert.equal(totals.totalStreamingTokens, 60);
+    assert.ok(Math.abs(totals.totalCostCents - 0.425) < 0.0001);
+    assert.equal(totals.minuteBuckets, 2);
+  });
+
+  it('stores latest context snapshot on delta rows and queries it by conversation', async () => {
+    const db = await createDb();
+    await db.upsertConversation('conv-1', 'prof-1', 1000);
+    await db.upsertAgent({
+      requestId: 'req-1',
+      conversationId: 'conv-1',
+      startedAt: 1000,
+      isEof: false,
+      profileId: 'prof-1',
+    });
+
+    await db.upsertTokenDelta({
+      requestId: 'req-1',
+      minuteBucket: 1_740_000_000,
+      streamingTokens: 10,
+      contextUsedTokens: 30_000,
+      contextMaxTokens: 200_000,
+      recordedAt: 1_740_000_010,
+    });
+    await db.upsertTokenDelta({
+      requestId: 'req-1',
+      minuteBucket: 1_740_000_060,
+      streamingTokens: 5,
+      contextUsedTokens: 45_000,
+      contextMaxTokens: 200_000,
+      recordedAt: 1_740_000_090,
+    });
+
+    const totals = await db.getTotalConversationTokens('conv-1');
+    assert.equal(totals.latestContextUsedTokens, 45_000);
+    assert.equal(totals.latestContextMaxTokens, 200_000);
+  });
+
+  it('stores turn_ended rows separately and queries by conversation', async () => {
+    const db = await createDb();
+    await db.upsertConversation('conv-1', 'prof-1', 1000);
+    await db.upsertAgent({
+      requestId: 'req-1',
+      conversationId: 'conv-1',
+      startedAt: 1000,
+      isEof: false,
+      profileId: 'prof-1',
+    });
+
+    await db.insertTurnEnded({
+      requestId: 'req-1',
+      inputTokens: 80,
+      outputTokens: 120,
+      recordedAt: 1001,
+    });
+    await db.insertTurnEnded({
+      requestId: 'req-1',
+      inputTokens: 40,
+      outputTokens: 60,
+      recordedAt: 1002,
+    });
+
+    const rows = await db.getTurnEndedByConversation('conv-1');
+    assert.equal(rows.length, 2);
+    assert.equal(rows[0]?.inputTokens, 40);
+    assert.equal(rows[1]?.inputTokens, 80);
   });
 
   it('aggregates conversation totals across multiple agents', async () => {
@@ -133,18 +261,18 @@ describe('AgentTrackingDatabase', () => {
       profileId: 'prof-1',
     });
 
-    await db.insertTokenSnapshot({
+    await db.insertTurnEnded({
       requestId: 'req-1',
-      tokenType: 'turn_ended',
       inputTokens: 100,
       outputTokens: 200,
+      totalCents: 1.25,
       recordedAt: 2000,
     });
-    await db.insertTokenSnapshot({
+    await db.insertTurnEnded({
       requestId: 'req-2',
-      tokenType: 'turn_ended',
       inputTokens: 50,
       outputTokens: 150,
+      totalCents: 0.75,
       recordedAt: 3000,
     });
 
@@ -152,6 +280,8 @@ describe('AgentTrackingDatabase', () => {
     assert.equal(result.agentCount, 2);
     assert.equal(result.totalInputTokens, 150);
     assert.equal(result.totalOutputTokens, 350);
+    assert.equal(result.totalDeltaTokens, 0);
+    assert.ok(Math.abs(result.totalTurnCostCents - 2) < 0.0001);
     assert.ok(result.models.includes('claude-sonnet'));
     assert.ok(result.models.includes('gpt-4'));
   });

@@ -318,6 +318,7 @@ Example from local logs: chat `a4387fcb-8a88-4981-89ba-bc66962153c6` appeared un
 | Gap | Impact |
 |-----|--------|
 | No `conversation_id` in proxy insights | Cannot filter live UI or output by chat tab without decode |
+| Live status bar not scoped to focused tab | `AgentLiveUsageStatusBar` sums all sessions; use [ACTIVE-CONVERSATION-DETECTION.md](ACTIVE-CONVERSATION-DETECTION.md) + debug status bar for `lastFocusedComposerIds` |
 | No extraction of `parent_request_id` ↔ `subagent_request_id` | Cannot build subagent tree from logs alone |
 | `subagent_result` in live UI | `agent_id` extracted to `subagentRequestId` on decode; transcript path and status bar labels not implemented |
 | Parallel sessions summed in status bar | Inflated “live tokens” vs parent-only view |
@@ -333,4 +334,5 @@ Example from local logs: chat `a4387fcb-8a88-4981-89ba-bc66962153c6` appeared un
 | [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md) | `token_delta`, billing channels, validation |
 | [PROXY-JSONL-SCHEMA.md](PROXY-JSONL-SCHEMA.md) | JSONL fields and body spill |
 | [PROXY-SETUP.md](PROXY-SETUP.md) | Capture checklist |
+| [ACTIVE-CONVERSATION-DETECTION.md](ACTIVE-CONVERSATION-DETECTION.md) | Which chat tab is focused (`lastFocusedComposerIds`) |
 | [USAGE-EVENTS-API.md](USAGE-EVENTS-API.md) | Per-request billed tokens + `chargedCents` |

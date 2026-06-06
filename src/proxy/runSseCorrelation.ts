@@ -6,9 +6,16 @@ import { getProtoRegistry } from './protoRegistry';
  */
 export async function extractBidiRequestIdFromBody(
   body: Buffer,
-  contentType?: string
+  contentType?: string,
+  contentEncoding?: string
 ): Promise<string | null> {
-  if (!contentType?.includes('connect+proto')) {
+  const isConnectProto =
+    !contentType ||
+    contentType.includes('connect+proto') ||
+    contentType.includes('application/proto') ||
+    contentType.includes('application/grpc');
+
+  if (!isConnectProto && body.length > 64) {
     return null;
   }
 
@@ -19,7 +26,7 @@ export async function extractBidiRequestIdFromBody(
       return null;
     }
 
-    for (const payload of prepareConnectPayload(body, undefined)) {
+    for (const payload of prepareConnectPayload(body, contentEncoding)) {
       try {
         const decoded = registry.decode(type, payload) as {
           request_id?: string;

@@ -47,7 +47,6 @@
   "configuration.proxy.spillLargeBodies.description": "Gdy body przekracza limit inline, zapisz pełne surowe bajty w logs/bodies/ zamiast obcinać (zalecane do analizy).",
   "configuration.proxy.showLiveUsageInStatusBar.description": "Pokazuj bieżące użycie tokenów agenta/czatu na pasku stanu, gdy proxy MITM jest uruchomione (automatycznie śledzi logi proxy).",
   "configuration.proxy.estimatedDollarsPerMillionTokens.description": "Przybliżone USD za milion tokenów do szacunków kosztów na żywo na pasku stanu (rzeczywiste rozliczenie może się różnić).",
-  "configuration.proxy.developmentMode.description": "Zapisuj ruch proxy do lokalnych plików logów JSONL w celu debugowania. Pozostaw wyłączone przy normalnym użyciu; rozszerzenie odbiera ruch w czasie rzeczywistym przez IPC.",
   "configuration.proxy.logTokenDetectorToOutput.description": "Zapisuj zdarzenia agenta/tokena/rozmowy z IPC proxy do kanału wyjściowego Cursor Token Detector.",
   "configuration.proxy.autoShowTokenDetectorChannel.description": "Automatycznie otwieraj kanał wyjściowy Cursor Token Detector po nadejściu zdarzeń agenta lub tokena."
 }

@@ -38,7 +38,11 @@ import { hasActiveWorkspace } from './services/activeWorkspaceService';
 import { AccountsPanelProvider } from './ui/accountsPanel';
 import { shouldAutoOpenAccountsPanel } from './ui/accountsPanelStartup';
 import { isProfileProxyEnabled } from '@cursor-accounts/types';
+import { SqliteActiveConversationRepository } from './cursor/sqliteActiveConversationRepository';
+import { WorkspaceStateDbPathResolver } from './cursor/workspaceStateDbPathResolver';
+import { ActiveConversationTracker } from './services/activeConversationTracker';
 import { AgentLiveUsageStatusBar } from './ui/agentLiveUsageStatusBar';
+import { ActiveConversationStatusBar } from './ui/activeConversationStatusBar';
 import { StatusBarManager } from './ui/statusBarManager';
 import { EfficiencyService } from './modelEfficiency/efficiencyService';
 import { EfficiencyStatsStorage } from './modelEfficiency/efficiencyStatsStorage';
@@ -178,8 +182,41 @@ export function activate(context: vscode.ExtensionContext): void {
   });
 
   const agentLiveUsageStatusBar = new AgentLiveUsageStatusBar(context);
+
+  const workspaceStateDbPathResolver = new WorkspaceStateDbPathResolver(context);
+  const activeConversationRepository = new SqliteActiveConversationRepository(
+    context.extensionPath
+  );
+  const activeConversationTracker = new ActiveConversationTracker(
+    activeConversationRepository,
+    workspaceStateDbPathResolver
+  );
+  const activeConversationStatusBar = new ActiveConversationStatusBar(
+    context,
+    activeConversationTracker,
+    async (conversationId, profileId) => {
+      const resolvedProfileId =
+        profileId ?? (await profileDetector.detectCurrentProfile())?.id;
+      if (!resolvedProfileId) {
+        return null;
+      }
+      const tracking = proxyManager.getAgentTrackingService(resolvedProfileId);
+      if (!tracking) {
+        return null;
+      }
+      return tracking.getConversationTokens(conversationId);
+    }
+  );
+  activeConversationStatusBar.start();
+  activeConversationTracker.start();
   proxyManager.onTraffic((summary) => {
     agentLiveUsageStatusBar.ingest(summary);
+  });
+  proxyManager.onConversationUsagePersisted(({ conversationId, profileId }) => {
+    activeConversationStatusBar.notifyUsagePersisted(conversationId, profileId);
+  });
+  context.subscriptions.push({
+    dispose: () => activeConversationTracker.stop(),
   });
 
   void proxyManager.ensureTrafficTailer();
@@ -367,6 +404,23 @@ export function activate(context: vscode.ExtensionContext): void {
       'cursorAccounts.efficiency.restartDetector',
       async () => {
         await efficiencyService?.restartPromptDetector();
+      }
+    ),
+    vscode.commands.registerCommand(
+      'cursorAccounts.debug.copyActiveConversationId',
+      async () => {
+        const id =
+          activeConversationStatusBar.getCurrentState()?.lastFocusedComposerId;
+        if (!id) {
+          vscode.window.showInformationMessage(
+            t('activeConversation.copy.none')
+          );
+          return;
+        }
+        await vscode.env.clipboard.writeText(id);
+        vscode.window.showInformationMessage(
+          t('activeConversation.copy.success', { id: id.slice(0, 8) })
+        );
       }
     )
   );
