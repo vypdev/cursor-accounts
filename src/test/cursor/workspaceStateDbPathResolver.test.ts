@@ -129,4 +129,5 @@ describe('WorkspaceStateDbPathResolver', () => {
 
     assert.equal(resolver.resolve(), null);
   });
+
 });

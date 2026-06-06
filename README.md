@@ -52,6 +52,24 @@ Pre-compiled SQLite 3.53.1 binaries are bundled for:
 
 No additional installation required. See [docs/PLATFORM-SUPPORT.md](docs/PLATFORM-SUPPORT.md) for binary details and verification.
 
+### Database Engine
+
+**Experimental feature**: The extension now supports `better-sqlite3` with persistent connections as an alternative to the legacy CLI subprocess model. Enable via:
+
+```json
+{
+  "cursorAccounts.experimental.useBetterSqlite3": true
+}
+```
+
+**Benefits:**
+- ✅ Eliminates "database is locked" errors (WAL mode + busy_timeout)
+- ✅ 10-100x faster operations (no process spawn overhead)
+- ✅ Real ACID transactions for batch writes
+- ✅ Concurrent multi-window access (SQLite WAL handles coordination)
+
+See [docs/DATABASE-BETTER-SQLITE3.md](docs/DATABASE-BETTER-SQLITE3.md) for architecture, migration plan, and testing guide.
+
 ## Documentation
 
 ### Getting started

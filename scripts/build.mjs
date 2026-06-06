@@ -100,7 +100,7 @@ function bundleExtension() {
   run('pnpm run bundle');
 }
 
-function preparePackage() {
+async function preparePackage() {
   console.log('\n==> Preparing production dependencies');
   run('pnpm install --frozen-lockfile', {
     env: { ...process.env, CI: 'true' },
@@ -108,6 +108,10 @@ function preparePackage() {
 
   console.log('Building sqlite3 native binding…');
   run('npm rebuild sqlite3');
+
+  // Download better-sqlite3 prebuild for Electron (directly from GitHub releases)
+  console.log('Downloading better-sqlite3 prebuild for Electron…');
+  run('node scripts/download-electron-prebuild.mjs');
 
   const cursorDir = path.join(root, 'node_modules', '@cursor');
   if (!fs.existsSync(path.join(cursorDir, 'sdk', 'package.json'))) {
@@ -128,8 +132,21 @@ function preparePackage() {
     'node_sqlite3.node'
   );
 
+  const betterSqliteBinding = path.join(
+    root,
+    'node_modules',
+    'better-sqlite3',
+    'build',
+    'Release',
+    'better_sqlite3.node'
+  );
+
   if (!fs.existsSync(sqliteBinding)) {
     throw new Error(`Missing sqlite3 native binding: ${sqliteBinding}`);
+  }
+
+  if (!fs.existsSync(betterSqliteBinding)) {
+    throw new Error(`Missing better-sqlite3 native binding: ${betterSqliteBinding}`);
   }
 
   console.log(
@@ -138,6 +155,7 @@ function preparePackage() {
       : 'Platform SDK packages will be installed per target during packaging'
   );
   console.log(`Found sqlite3 binding: ${sqliteBinding}`);
+  console.log(`Found better-sqlite3 binding: ${betterSqliteBinding}`);
 }
 
 function packageTarget(target) {
@@ -177,6 +195,10 @@ function verifyVsix(target) {
       pattern: 'extension/node_modules/sqlite3/build/Release/node_sqlite3.node',
     },
     {
+      label: 'better-sqlite3 native binding',
+      pattern: 'extension/node_modules/better-sqlite3/build/Release/better_sqlite3.node',
+    },
+    {
       label: '@cursor/sdk',
       pattern: 'extension/node_modules/@cursor/sdk/package.json',
     },
@@ -211,14 +233,14 @@ function verifyVsix(target) {
   }
 }
 
-function main() {
+async function main() {
   const args = parseArgs(process.argv.slice(2));
   let packagingPrepared = false;
 
   try {
     ensureNodeVersion();
     bundleExtension();
-    preparePackage();
+    await preparePackage();
 
     saveState();
     convertToProduction();
@@ -239,4 +261,7 @@ function main() {
   }
 }
 
-main();
+main().catch((error) => {
+  console.error('Build failed:', error);
+  process.exit(1);
+});

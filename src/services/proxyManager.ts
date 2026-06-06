@@ -43,7 +43,7 @@ import {
   PROXY_STATE_SCHEMA_VERSION,
   PROXY_STATE_FILE_NAME,
 } from '../proxy/types';
-import { AgentTrackingDatabase } from '../persistence/agentTrackingDatabase';
+import { createAgentTrackingRepository } from '../persistence/agentTrackingRepositoryFactory';
 import { getEfficiencyDbPath } from '../persistence/efficiencyDatabase';
 import { ProxyLiveCostCalculator } from '../domain/services/ProxyLiveCostCalculator';
 import { TokenTurnDetectionService } from '../domain/services/tokenTurnDetectionService';
@@ -738,7 +738,7 @@ export class ProxyManager implements IProxyManager {
 
     try {
       const dbPath = getEfficiencyDbPath(userDataDir);
-      const repository = new AgentTrackingDatabase(
+      const repository = createAgentTrackingRepository(
         dbPath,
         this.context.extensionPath
       );

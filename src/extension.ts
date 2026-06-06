@@ -46,6 +46,7 @@ import { ActiveConversationStatusBar } from './ui/activeConversationStatusBar';
 import { StatusBarManager } from './ui/statusBarManager';
 import { EfficiencyService } from './modelEfficiency/efficiencyService';
 import { EfficiencyStatsStorage } from './modelEfficiency/efficiencyStatsStorage';
+import { closeAllConnections } from './persistence/agentTrackingRepositoryFactory';
 
 let refreshService: RefreshService | undefined;
 let multiProfileQuotaService: MultiProfileQuotaService | undefined;
@@ -442,6 +443,10 @@ export function activate(context: vscode.ExtensionContext): void {
 
 export async function deactivate(): Promise<void> {
   extensionLog.info('[Extension] Cursor Accounts deactivated');
+  
+  // Close database connections first (may checkpoint WAL)
+  await closeAllConnections();
+  
   refreshService?.stop();
   refreshService = undefined;
   multiProfileQuotaService?.stop();

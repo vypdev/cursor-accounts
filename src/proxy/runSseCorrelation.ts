@@ -2,6 +2,17 @@ import { prepareConnectPayload } from './connectDecode';
 import { getProtoRegistry } from './protoRegistry';
 
 /**
+ * Agent bidi session id from RunSSE request headers.
+ * Cursor sets x-request-id to the same UUID as BidiRequestId.request_id in the body.
+ */
+export function bidiRequestIdFromRunSseHeaders(
+  headers: Record<string, string>
+): string | undefined {
+  const id = headers['x-request-id'];
+  return typeof id === 'string' && id.length > 0 ? id : undefined;
+}
+
+/**
  * Extract bidi request_id from a RunSSE request body (BidiRequestId message).
  */
 export async function extractBidiRequestIdFromBody(

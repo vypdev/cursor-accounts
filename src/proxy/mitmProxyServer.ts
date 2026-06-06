@@ -22,7 +22,7 @@ import {
   ProxyTrafficDiagnosticsCollector,
 } from './proxyTrafficDiagnostics';
 import { extractRequestId, toTrafficSummary } from './proxyTrafficFormat';
-import { extractBidiRequestIdFromBody } from './runSseCorrelation';
+import { bidiRequestIdFromRunSseHeaders } from './runSseCorrelation';
 import { StreamingAgentDecoder } from './streamingAgentDecoder';
 import { buildTrafficSummary } from './trafficSummaryBuilder';
 import { RunSseStreamHandler } from './capture/runSseStreamHandler';
@@ -52,8 +52,6 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
     activeConnections: 0,
   };
   private readonly requestStartedAt = new Map<string, number>();
-  /** HTTP requestId → bidi request_id for RunSSE correlation. */
-  private readonly runSSEBidiIds = new Map<string, string>();
   /** Bidi request_id → model id from runRequest (BidiAppend). */
   private readonly sessionModelIds = new Map<string, string>();
   /** Bidi request_id → conversation_id from runRequest (BidiAppend). */
@@ -207,23 +205,6 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
           direction: 'request',
           protocolVersion: entry.protocolVersion,
         });
-        if (isAgentIncrementalStreamUrl(url) && requestId) {
-          const bidiId = await extractBidiRequestIdFromBody(
-            body,
-            contentType,
-            contentEncoding
-          );
-          if (bidiId) {
-            this.runSSEBidiIds.set(requestId, bidiId);
-            process.stderr.write(
-              `[AgentTracking] RunSSE bidi correlated http=${requestId.slice(0, 8)}… → bidi=${bidiId.slice(0, 8)}…\n`
-            );
-          } else {
-            process.stderr.write(
-              `[AgentTracking] RunSSE bidi extract FAILED http=${requestId.slice(0, 8)}…\n`
-            );
-          }
-        }
         this.emitTrafficSummary(entry);
         endCallback();
       });
@@ -245,6 +226,7 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
         ctx.clientToProxyRequest.headers as Record<string, string | string[] | undefined>
       );
       const requestId = extractRequestId(requestHeaders);
+      const bidiRequestId = bidiRequestIdFromRunSseHeaders(requestHeaders);
       const startedAt = requestId
         ? this.requestStartedAt.get(requestId)
         : undefined;
@@ -275,6 +257,7 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
           void this.processRunSSEChunk(
             chunk,
             requestId,
+            bidiRequestId,
             decoderReady,
             {
               url,
@@ -301,7 +284,6 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
             if (decoder) {
               incrementalTurnsAlreadyPersisted = true;
               const finalLive = decoder.finalize();
-              const bidiRequestId = this.runSSEBidiIds.get(requestId);
               const streamContext = {
                 url,
                 host,
@@ -357,12 +339,6 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
           direction: 'response',
           protocolVersion: entry.protocolVersion,
         });
-        const bidiRequestId = requestId
-          ? this.runSSEBidiIds.get(requestId)
-          : undefined;
-        if (requestId && bidiRequestId) {
-          this.runSSEBidiIds.delete(requestId);
-        }
         this.emitTrafficSummary(entry, durationMs, {
           bidiRequestId,
           httpRequestId: requestId,
@@ -408,7 +384,6 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
     ]);
 
     this.requestStartedAt.clear();
-    this.runSSEBidiIds.clear();
     this.sessionModelIds.clear();
     this.sessionConversationIds.clear();
     this.streamingDecoders.clear();
@@ -441,6 +416,7 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
   private async processRunSSEChunk(
     chunk: Buffer,
     requestId: string,
+    bidiRequestId: string | undefined,
     decoderReady: Promise<void> | undefined,
     context: {
       url: string;
@@ -457,7 +433,6 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
       }
 
       const result = decoder.feedChunk(chunk);
-      const bidiRequestId = this.runSSEBidiIds.get(requestId);
       const emitContext = {
         ...context,
         bidiRequestId,
@@ -465,12 +440,6 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
       };
       for (const liveUpdate of result.liveUpdates) {
         this.diagnostics?.recordLiveTokenUpdate();
-        if (!bidiRequestId) {
-          process.stderr.write(
-            `[AgentTracking] RunSSE live update WITHOUT bidi correlation ` +
-              `http=${requestId.slice(0, 8)}… delta=${liveUpdate.latestDelta}\n`
-          );
-        }
         this.runSseHandler.emitLiveTokenUpdate(liveUpdate, emitContext);
       }
       for (const turnEnded of result.turnEndedEvents) {

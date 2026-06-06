@@ -25,6 +25,26 @@ There is no backend service. Everything runs in the **Extension Host**, with net
 
 The shared types package has **no dependencies** on VS Code or Node APIs. `@cursor-accounts/shared` is likewise dependency-free and safe for both extension and webview. Extension and webview both consume `types`; formatters live in `shared`. The webview talks to the host only via `postMessage`.
 
+## Database Architecture (better-sqlite3)
+
+As of Milestone 1 (in progress), the extension supports **two database implementations** controlled by a feature flag:
+
+### Legacy (default currently)
+- **Implementation**: CLI subprocess (`src/persistence/sqliteExecutor.ts`)
+- **Behavior**: Spawns `sqlite3` binary for each operation
+- **Limitations**: "database is locked" errors, no transactions, process overhead
+
+### Modern (experimental: `useBetterSqlite3` flag)
+- **Implementation**: `better-sqlite3` native module with persistent connections
+- **Architecture**: Clean Architecture with dependency inversion
+  - **Domain port**: `src/domain/ports/IDatabaseConnectionManager.ts`
+  - **Infrastructure adapter**: `src/persistence/betterSqlite/betterSqliteConnectionManager.ts`
+  - **Repositories**: `BetterSqliteAgentTrackingRepository` (in progress)
+- **Benefits**: WAL mode + busy_timeout eliminates lock errors, supports transactions, 10-100x faster
+- **Multi-window**: Each VS Code window maintains its own connection; SQLite WAL handles concurrent access
+
+See [ADR-001](adr/001-migrate-to-better-sqlite3.md) and [ADR-002](adr/002-connection-manager-design.md) for detailed rationale.
+
 ## High-level structure
 
 ```mermaid
@@ -39,12 +59,14 @@ graph TB
   end
   subgraph domain [src/domain]
     Ports[ports/]
+    DbPort[IDatabaseConnectionManager]
   end
   subgraph infra [Infrastructure]
     API[api/]
     Auth[auth/]
     Profiles[profiles/]
     Validation[validation/]
+    DbAdapter[BetterSqlite]
   end
   subgraph runtime [Runtime services]
     Refresh[RefreshService]
