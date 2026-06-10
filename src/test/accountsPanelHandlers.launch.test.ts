@@ -95,6 +95,7 @@ function createHandlers(deps: {
         onStatusChange: () => undefined,
         ensureOutputTailer: async () => undefined,
         ensureTrafficTailer: async () => undefined,
+        connectToExistingProxy: async () => undefined,
         showOutputChannel: () => undefined,
         showTokenDetectorChannel: () => undefined,
       },

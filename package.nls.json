@@ -48,10 +48,11 @@
   "configuration.proxy.autoShowOutputChannel.description": "Automatically open the Cursor MITM Proxy output channel when the proxy starts.",
   "configuration.proxy.outputCursorHostsOnly.description": "Only log Cursor host traffic (cursor.sh, cursor.com) in the MITM Proxy output channel.",
   "configuration.proxy.outputTailFromStart.description": "When opening the MITM Proxy output channel, replay recent lines from the active log file.",
-  "configuration.proxy.showLiveUsageInStatusBar.description": "Show live agent/chat token usage in the status bar while the MITM proxy is running (updates from proxy IPC traffic, not log files).",
+  "configuration.proxy.showLiveUsageInStatusBar.description": "Show live agent/chat token usage in the status bar while the MITM proxy is running (updates from the proxy localhost API, not log files).",
   "configuration.proxy.estimatedDollarsPerMillionTokens.description": "Rough USD per million tokens for live cost estimates in the status bar (actual billing may differ).",
+  "configuration.proxy.apiPortOffset.description": "Offset added to the MITM port to derive the dedicated localhost API port (default: MITM 8080 → API 18080).",
   "configuration.proxy.trafficDiagnostics.description": "Emit periodic [ProxyDiagnostics] summaries in the MITM output channel (CONNECT hosts, Agent RPC counts, bypass hints). Helps detect traffic that never hits the proxy.",
   "configuration.proxy.diagnosticsIntervalMs.description": "Interval in milliseconds between [ProxyDiagnostics] summaries in the MITM output channel.",
-  "configuration.proxy.logTokenDetectorToOutput.description": "Write agent/token/conversation events from proxy IPC to the Cursor Token Detector output channel.",
+  "configuration.proxy.logTokenDetectorToOutput.description": "Write agent/token/conversation events from the proxy API to the Cursor Token Detector output channel.",
   "configuration.proxy.autoShowTokenDetectorChannel.description": "Automatically open the Cursor Token Detector output channel when agent or token events arrive."
 }

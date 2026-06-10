@@ -79,6 +79,8 @@ describe('MitmProxyServer forwarding', () => {
     proxyServer = new MitmProxyServer(certManager, requestLogger);
     await proxyServer.start({
       port: proxyPort,
+      apiPort: proxyPort + 10_000,
+      profileId: 'test-profile',
       storageDir: tempDir,
       logDir: path.join(tempDir, 'logs'),
       maxLogSizeMb: 1,

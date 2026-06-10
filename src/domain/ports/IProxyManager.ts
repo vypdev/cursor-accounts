@@ -38,6 +38,7 @@ export interface IProxyManager {
     options?: { tailFromStart?: boolean; forceRestart?: boolean }
   ): Promise<void>;
   ensureTrafficTailer(): Promise<void>;
+  connectToExistingProxy(profileId: string): Promise<void>;
   showOutputChannel(): void;
   showTokenDetectorChannel(): void;
 }

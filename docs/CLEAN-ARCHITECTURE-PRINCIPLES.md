@@ -71,7 +71,7 @@ See [HTTP2-PROXY-IMPLEMENTATION.md](HTTP2-PROXY-IMPLEMENTATION.md) for the full 
 
 **After:** Layered services with explicit ports:
 
-- `IProxyProcess` → `NodeProxyProcess` (fork + IPC)
+- `IProxyProcess` → `NodeProxyProcess` (spawn, sin IPC; lifecycle via localhost API)
 - `IProxyCertificateService` → `ProxyCertificateService`
 - `IProxyTrafficBus` → `ProxyTrafficBus` (pub/sub + cost enrichment)
 - `IProxyTrafficIngress` → `ProxyTrafficIngress` (JSONL tail when enabled)

@@ -24,7 +24,7 @@ function baseSummary(
 }
 
 describe('AgentLiveUsageStatusBar', () => {
-  it('ignores batch turn_ended after IPC turn_ended for the same session', () => {
+  it('ignores batch turn_ended after live turn_ended for the same session', () => {
     const statusBar = new AgentLiveUsageStatusBar(createContext());
     const requestId = 'req-ipc-priority';
 
@@ -62,7 +62,7 @@ describe('AgentLiveUsageStatusBar', () => {
           {
             agent: { inputTokens?: number; outputTokens?: number };
             billedTokens: number;
-            turnEndedFromIpc?: boolean;
+            turnEndedFromLive?: boolean;
           }
         >;
       }
@@ -72,7 +72,7 @@ describe('AgentLiveUsageStatusBar', () => {
     assert.equal(session?.agent.inputTokens, 1200);
     assert.equal(session?.agent.outputTokens, 300);
     assert.equal(session?.billedTokens, 1500);
-    assert.equal(session?.turnEndedFromIpc, true);
+    assert.equal(session?.turnEndedFromLive, true);
   });
 
   it('accumulates live cost incrementally from deltaCostCents', () => {

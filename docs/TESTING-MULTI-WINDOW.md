@@ -295,6 +295,49 @@ Run after multi-window testing:
 
 ---
 
+## Test 6: Multi-window proxy API attach
+
+### Objective
+
+Verify that a second VS Code window receives live proxy traffic (tokens, agent tracking) without restarting the proxy, using the localhost API.
+
+### Prerequisites
+
+1. Proxy enabled for a profile.
+2. Note MITM port (e.g. `8080`) and API port (default `18080` = MITM + 10000).
+
+### Steps
+
+1. **Window 1:** Start the MITM proxy for profile A from the Accounts panel.
+2. Confirm API responds:
+   ```bash
+   curl -s http://127.0.0.1:18080/api/status | jq
+   ```
+3. **Window 2:** Open the same profile (`code --user-data-dir="<profile userDataDir>"`).
+4. Check Output → **Cursor Accounts** for:
+   ```
+   [Proxy:profile-id] Failed to attach...  # should NOT appear
+   ```
+5. In Window 2, run a Composer/Agent prompt while Window 1 keeps the proxy running.
+6. Verify in **both windows**:
+   - Token Detector / live usage status bar updates
+   - Output → Cursor Accounts shows `[AgentTracking] proxy recv` / `ingest result`
+   - Database rows in `agent_tokens` / `agent_tokens_delta` (if better-sqlite3 enabled)
+
+### Expected Result
+
+- Window 2 attaches via `connectToExistingProxy()` without restarting the proxy.
+- Live token events appear in both windows.
+- Stopping the proxy from either window shuts down the shared child process.
+
+### Automated test
+
+```bash
+pnpm test -- --test-name-pattern='ProxyApiServer|multi-window'
+```
+
+---
+
 ## Rollback Plan
 
 If issues occur during manual testing:

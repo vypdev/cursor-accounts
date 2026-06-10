@@ -13,6 +13,7 @@ const proxyStateSchema = z.object({
   profileId: z.string(),
   running: z.boolean(),
   port: z.number().optional(),
+  apiPort: z.number().optional(),
   pid: z.number().optional(),
   startedAt: z.string().optional(),
   caCertificatePath: z.string().optional(),

@@ -20,8 +20,6 @@ export const CURSOR_HOST_SUFFIXES = [
 export type { ProxyServerConfig } from '../application/types/proxyConfig';
 export type {
   MitmProxyHandlers,
-  ProxyChildMessage,
-  ProxyParentMessage,
   ProxyTrafficSummary,
 } from '../application/types/proxyTraffic';
 export type { ProxyInsights } from '../application/types/proxyInsights';

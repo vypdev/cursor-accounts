@@ -62,7 +62,7 @@ function formatTokenParts(agent: AgentSessionInfo | undefined): string[] {
 }
 
 /**
- * Format IPC proxy traffic for the token/agent detector channel.
+ * Format live proxy traffic for the token/agent detector channel.
  * Returns null when the event has nothing useful for token or agent tracking.
  */
 export function formatTokenDetectorLine(
@@ -160,7 +160,7 @@ export function formatTokenDetectorLine(
 }
 
 /**
- * Output channel for live agent/token detection from proxy IPC (no JSONL tail required).
+ * Output channel for live agent/token detection from proxy API (no JSONL tail required).
  */
 export class TokenDetectorOutputPresenter {
   private readonly channel: vscode.OutputChannel;

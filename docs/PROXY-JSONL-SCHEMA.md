@@ -4,7 +4,7 @@ Reference for every field written by the MITM proxy to `~/.cursor-accounts/proxy
 
 **Last reviewed:** 2026-06-04
 
-**Prerequisite:** JSONL files are written only when **`cursorAccounts.proxy.developmentMode`** is `true` (default `false`). Normal extension use receives traffic via IPC from the proxy child; see [PROXY-SETUP.md](PROXY-SETUP.md#traffic-to-the-extension-ipc-vs-jsonl).
+**Prerequisite:** JSONL files are written only when **per-profile JSONL logging** is enabled (`proxyJsonlLoggingEnabled`). Normal extension use receives traffic via the proxy localhost WebSocket API; see [PROXY-SETUP.md](PROXY-SETUP.md#traffic-to-the-extension-api-vs-jsonl).
 
 ## Storage layout
 

@@ -73,11 +73,17 @@ If the field is empty after starting the proxy:
 
 The Accounts panel shows a **Temporary proxy** badge on profiles whose `settings.json` was modified and will be restored automatically.
 
-## Traffic to the extension (IPC vs JSONL)
+## Traffic to the extension (API vs JSONL)
 
-By default (**Proxy: Development Mode** = `false`), the proxy child sends redacted traffic summaries to the extension host over IPC. The live usage status bar, Token Detector channel, and agent tracking DB use this path — no log files are required.
+By default, the proxy child exposes a **localhost HTTP/WebSocket control-plane API** on a dedicated port (`MITM port + cursorAccounts.proxy.apiPortOffset`, default **+10000** → MITM `8080` / API `18080`). Every extension host window connects to this API independently for traffic, startup readiness (`GET /api/health`), and shutdown (`POST /api/shutdown`). See **[PROXY-API-REFERENCE.md](PROXY-API-REFERENCE.md)**.
 
-Enable **`cursorAccounts.proxy.developmentMode`** to also write JSON Lines under `~/.cursor-accounts/proxy/logs/` (needed for `pnpm run verify:proto-jsonl`, `scan:proxy-interactive`, and offline analysis). See [CONFIGURATION.md](CONFIGURATION.md#mitm-proxy-research--debugging).
+| Path | Purpose |
+|------|---------|
+| REST `GET /api/status`, `/api/stats` | Health, runtime state, counters |
+| WebSocket `/ws` | Live `traffic`, `stats`, `diagnostics`, `error` events |
+| REST `POST /api/shutdown` | Graceful proxy stop (any attached window) |
+
+The live usage status bar, Token Detector channel, and agent tracking DB consume the **WebSocket API**. Enable **per-profile JSONL logging** (`proxyJsonlLoggingEnabled` on the profile) to also write JSON Lines under `~/.cursor-accounts/proxy/logs/` (needed for `pnpm run verify:proto-jsonl`, `scan:proxy-interactive`, and offline analysis). JSONL tailing remains available as a development/fallback path. See [CONFIGURATION.md](CONFIGURATION.md#mitm-proxy-research--debugging).
 
 ## View logs
 

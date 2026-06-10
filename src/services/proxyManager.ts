@@ -22,7 +22,6 @@ import {
   type Profile,
 } from '@cursor-accounts/types';
 import type { ProxyServerConfig } from '../application/types/proxyConfig';
-import type { ProxyChildMessage } from '../application/types/proxyTraffic';
 import { createProxyCostEnricher } from '../application/services/proxyCostEnricher';
 import { ProxyTrafficBus } from '../application/services/proxyTrafficBus';
 import { ProxyTrafficIngress } from '../application/services/proxyTrafficIngress';
@@ -34,6 +33,15 @@ import * as extensionLog from '../logging/extensionLog';
 import { CertificateManager } from '../proxy/certificateManager';
 import { getSharedProxyStorageDir } from '../proxy/sharedProxyPaths';
 import { NodeProxyProcess } from '../proxy/nodeProxyProcess';
+import {
+  buildProxyApiBaseUrl,
+  ProxyApiClient,
+  resolveProxyApiPort,
+} from '../proxy/api/proxyApiClient';
+import {
+  PROXY_API_PATHS,
+  type ProxyApiHealthResponse,
+} from '../application/types/proxyApi';
 import { isPortAvailable, isProcessAlive } from '../proxy/portUtils';
 import {
   getAllUsedProxyPorts,
@@ -64,11 +72,13 @@ export type ConversationUsagePersistedListener = (
 ) => void;
 
 const PROXY_START_TIMEOUT_MS = 15_000;
-const PROXY_STOP_TIMEOUT_MS = 5_000;
+const PROXY_HEALTH_POLL_MS = 200;
+const PROXY_STOP_GRACE_MS = 500;
 
 interface ProfileProxyRuntime {
   process: IProxyProcess;
   port: number;
+  apiPort: number;
   userDataDir: string;
 }
 
@@ -77,59 +87,6 @@ export interface ProxyManagerDependencies {
   trafficBus: IProxyTrafficBus;
   trafficIngress: IProxyTrafficIngress;
   createProcess: () => IProxyProcess;
-}
-
-function defaultDependencies(
-  storageDir: string,
-  logDir: string,
-  stateStore: IProxyStateStore,
-  profileManager: IProfileManager,
-  extensionPath: string,
-  outputPresenter?: ProxyOutputPresenter,
-  _tokenDetectorPresenter?: TokenDetectorOutputPresenter
-): ProxyManagerDependencies {
-  const certManager = new CertificateManager(path.join(storageDir, 'certs'));
-  const trafficBus = new ProxyTrafficBus(
-    createProxyCostEnricher(() =>
-      vscode.workspace
-        .getConfiguration('cursorAccounts.proxy')
-        .get<number>('estimatedDollarsPerMillionTokens', 4)
-    )
-  );
-
-  const trafficIngress = new ProxyTrafficIngress(
-    logDir,
-    trafficBus,
-    () =>
-      vscode.workspace
-        .getConfiguration('cursorAccounts.proxy')
-        .get<boolean>('outputTailFromStart', false),
-    {
-      onLogFileResolved: (filePath) => {
-        if (filePath) {
-          outputPresenter?.appendTailing(filePath);
-        }
-      },
-      onTailerError: (profileId, summary) => {
-        extensionLog.warn(
-          `[Proxy:${profileId}] ${summary.errorKind ?? 'PROXY_ERROR'}: ${summary.errorMessage ?? 'unknown error'}`
-        );
-      },
-    }
-  );
-
-  const scriptPath = path.join(extensionPath, 'out', 'proxy', 'proxyServer.js');
-
-  return {
-    certService: new ProxyCertificateService(
-      certManager,
-      stateStore,
-      profileManager
-    ),
-    trafficBus,
-    trafficIngress,
-    createProcess: () => new NodeProxyProcess(scriptPath, extensionPath),
-  };
 }
 
 /**
@@ -144,6 +101,7 @@ export class ProxyManager implements IProxyManager {
   private readonly storageDir: string;
   private readonly logDir: string;
   private lastDiagnosticsOutputAt = 0;
+  private readonly deps: ProxyManagerDependencies;
 
   constructor(
     private readonly stateStore: IProxyStateStore,
@@ -154,22 +112,75 @@ export class ProxyManager implements IProxyManager {
     private readonly profileSettingsManager?: IProfileSettingsManager,
     private readonly outputPresenter?: ProxyOutputPresenter,
     private readonly tokenDetectorPresenter?: TokenDetectorOutputPresenter,
-    private readonly deps: ProxyManagerDependencies = defaultDependencies(
-      storageDir,
-      path.join(storageDir, 'logs'),
-      stateStore,
-      profileManager,
-      context.extensionPath,
-      outputPresenter,
-      tokenDetectorPresenter
-    )
+    deps?: ProxyManagerDependencies
   ) {
     this.storageDir = storageDir;
     this.logDir = path.join(this.storageDir, 'logs');
-
+    this.deps =
+      deps ??
+      this.createDefaultDependencies(
+        storageDir,
+        this.logDir,
+        context.extensionPath
+      );
     this.deps.trafficBus.subscribe((summary, profileId) => {
       void this.handleTraffic(summary, profileId);
     });
+  }
+
+  private createDefaultDependencies(
+    storageDir: string,
+    logDir: string,
+    extensionPath: string
+  ): ProxyManagerDependencies {
+    const certManager = new CertificateManager(path.join(storageDir, 'certs'));
+    const trafficBus = new ProxyTrafficBus(
+      createProxyCostEnricher(() =>
+        vscode.workspace
+          .getConfiguration('cursorAccounts.proxy')
+          .get<number>('estimatedDollarsPerMillionTokens', 4)
+      )
+    );
+
+    const trafficIngress = new ProxyTrafficIngress(
+      logDir,
+      trafficBus,
+      () =>
+        vscode.workspace
+          .getConfiguration('cursorAccounts.proxy')
+          .get<boolean>('outputTailFromStart', false),
+      {
+        onLogFileResolved: (filePath) => {
+          if (filePath) {
+            this.outputPresenter?.appendTailing(filePath);
+          }
+        },
+        onTailerError: (profileId, summary) => {
+          extensionLog.warn(
+            `[Proxy:${profileId}] ${summary.errorKind ?? 'PROXY_ERROR'}: ${summary.errorMessage ?? 'unknown error'}`
+          );
+        },
+        onStats: (_profileId, stats) => {
+          this.maybeEmitDiagnosticsSummary(stats.diagnostics);
+        },
+        onDiagnostics: (_profileId, lines) => {
+          this.outputPresenter?.appendDiagnostics(lines);
+        },
+      }
+    );
+
+    const scriptPath = path.join(extensionPath, 'out', 'proxy', 'proxyServer.js');
+
+    return {
+      certService: new ProxyCertificateService(
+        certManager,
+        this.stateStore,
+        this.profileManager
+      ),
+      trafficBus,
+      trafficIngress,
+      createProcess: () => new NodeProxyProcess(scriptPath, extensionPath),
+    };
   }
 
   private async handleTraffic(
@@ -268,6 +279,100 @@ export class ProxyManager implements IProxyManager {
     return isProfileProxyJsonlLoggingEnabled(profile);
   }
 
+  private getApiPortOffset(): number {
+    return vscode.workspace
+      .getConfiguration('cursorAccounts.proxy')
+      .get<number>('apiPortOffset', 10_000);
+  }
+
+  private resolveApiPort(mitmPort: number, persistedApiPort?: number): number {
+    return resolveProxyApiPort(
+      mitmPort,
+      this.getApiPortOffset(),
+      persistedApiPort
+    );
+  }
+
+  private async ensureTrafficIngress(
+    profileId: string,
+    mitmPort: number,
+    apiPort: number,
+    options?: {
+      forceRestart?: boolean;
+      tailFromStart?: boolean;
+    }
+  ): Promise<void> {
+    const profile = await this.profileManager.getProfile(profileId);
+    const jsonlTail = profile ? this.isProfileJsonlLogging(profile) : false;
+
+    const attached =
+      !this.runtimes.has(profileId) || options?.forceRestart === true;
+    if (attached && getProxyOutputConfig().logTrafficToOutput) {
+      this.outputPresenter?.appendAttached(mitmPort);
+    }
+
+    await this.deps.trafficIngress.start(
+      profileId,
+      mitmPort,
+      { api: true, jsonlTail },
+      {
+        apiPort,
+        attached,
+        tailFromStart: options?.tailFromStart,
+        forceRestart: options?.forceRestart,
+      }
+    );
+  }
+
+  async connectToExistingProxy(profileId: string): Promise<void> {
+    const profile = await this.profileManager.getProfile(profileId);
+    if (!profile) {
+      return;
+    }
+
+    const state = await this.stateStore.read(profile.userDataDir);
+    if (!state?.running || state.port == null) {
+      return;
+    }
+
+    const apiPort = this.resolveApiPort(state.port, state.apiPort);
+
+    try {
+      const probe = new ProxyApiClient({
+        baseUrl: buildProxyApiBaseUrl(apiPort),
+        reconnect: false,
+      });
+      const status = await probe.getStatus();
+      if (!status.running) {
+        await this.stateStore.clear(profile.userDataDir);
+        return;
+      }
+
+      await this.ensureAgentTracking(profileId, profile.userDataDir).catch(
+        (error) => {
+          extensionLog.warn(
+            `[Proxy:${profileId}] Agent tracking init failed during attach: ${
+              error instanceof Error ? error.message : String(error)
+            }`
+          );
+        }
+      );
+      await this.applyProxySettingsForProfile(profile.userDataDir, state.port);
+      await this.ensureTrafficIngress(profileId, state.port, apiPort, {
+        forceRestart: true,
+      });
+      this.notifyStatusChange();
+    } catch (error) {
+      extensionLog.warn(
+        `[Proxy:${profileId}] Failed to attach to existing proxy API: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+      await this.stateStore.clear(profile.userDataDir);
+      this.notifyStatusChange();
+    }
+  }
+
   async start(profileId: string): Promise<ProxyStartResult> {
     try {
       const profile = await this.profileManager.getProfile(profileId);
@@ -277,9 +382,12 @@ export class ProxyManager implements IProxyManager {
 
       const existing = await this.getStatus(profileId);
       if (existing?.running && existing.port != null) {
+        const apiPort = this.resolveApiPort(existing.port, existing.apiPort);
         await this.ensureAgentTracking(profileId, profile.userDataDir);
         await this.applyProxySettingsForProfile(profile.userDataDir, existing.port);
-        await this.ensureOutputTailer(profileId, { forceRestart: true });
+        await this.ensureTrafficIngress(profileId, existing.port, apiPort, {
+          forceRestart: true,
+        });
         return { success: true, port: existing.port };
       }
 
@@ -302,16 +410,14 @@ export class ProxyManager implements IProxyManager {
       const serverConfig = this.buildServerConfig(port, profile);
 
       const proxyProcess = this.deps.createProcess();
+      const stderrLines: string[] = [];
       proxyProcess.onStderr((line) => {
+        stderrLines.push(line);
         if (line.includes('[AgentTracking]')) {
           extensionLog.info(`[Proxy:${profileId}] ${line}`);
         } else {
           extensionLog.debug(`[Proxy:${profileId}] ${line}`);
         }
-      });
-
-      proxyProcess.onMessage((msg: ProxyChildMessage) => {
-        this.handleChildMessage(profileId, msg);
       });
 
       proxyProcess.onExit((code) => {
@@ -325,18 +431,29 @@ export class ProxyManager implements IProxyManager {
       });
 
       const runtime = await proxyProcess.start(serverConfig);
-      const ready = await proxyProcess.waitForReady(port, PROXY_START_TIMEOUT_MS);
+      const ready = await this.pollProxyHealth(
+        serverConfig.apiPort,
+        PROXY_START_TIMEOUT_MS,
+        {
+          getStderr: () => stderrLines.join('\n'),
+          isProcessAlive: () =>
+            runtime.pid != null && proxyProcess.isAlive(runtime.pid),
+        }
+      );
       if (!ready.success) {
-        await proxyProcess.stop(runtime.pid);
+        await proxyProcess.stop(runtime.pid, 'SIGKILL');
         if (proxyProcess instanceof NodeProxyProcess) {
           proxyProcess.detach();
         }
-        return ready;
+        return { success: false, error: ready.error };
       }
+
+      const apiPort = serverConfig.apiPort;
 
       this.runtimes.set(profileId, {
         process: proxyProcess,
         port,
+        apiPort,
         userDataDir: profile.userDataDir,
       });
 
@@ -345,6 +462,7 @@ export class ProxyManager implements IProxyManager {
         profileId,
         running: true,
         port,
+        apiPort,
         pid: runtime.pid,
         startedAt: new Date().toISOString(),
         caCertificatePath: caPath,
@@ -353,19 +471,13 @@ export class ProxyManager implements IProxyManager {
       await this.stateStore.write(profile.userDataDir, state);
 
       extensionLog.info(
-        `[Proxy:${profileId}] Started on 127.0.0.1:${port} (pid ${runtime.pid})`
+        `[Proxy:${profileId}] Started MITM on 127.0.0.1:${port}, API on 127.0.0.1:${apiPort} (pid ${runtime.pid})`
       );
       this.outputPresenter?.appendStarted(port);
       await this.ensureAgentTracking(profileId, profile.userDataDir);
-
-      if (serverConfig.developmentMode) {
-        await this.deps.trafficIngress.start(profileId, port, {
-          ipc: true,
-          jsonlTail: true,
-        });
-      } else {
-        this.deps.trafficIngress.stop(profileId);
-      }
+      await this.ensureTrafficIngress(profileId, port, apiPort, {
+        forceRestart: true,
+      });
 
       if (getProxyOutputConfig().autoShowOutputChannel) {
         this.outputPresenter?.show();
@@ -394,11 +506,27 @@ export class ProxyManager implements IProxyManager {
       }
 
       const runtime = this.runtimes.get(profileId);
-      if (runtime?.process.isConnected()) {
-        await runtime.process.sendShutdown(PROXY_STOP_TIMEOUT_MS);
-      } else {
-        const state = await this.stateStore.read(profile.userDataDir);
-        await runtime?.process.stop(state?.pid, 'SIGTERM');
+      const state = await this.stateStore.read(profile.userDataDir);
+      const apiPort =
+        runtime?.apiPort ??
+        (state?.port != null
+          ? this.resolveApiPort(state.port, state.apiPort)
+          : undefined);
+
+      if (apiPort != null) {
+        try {
+          await new ProxyApiClient({
+            baseUrl: buildProxyApiBaseUrl(apiPort),
+            reconnect: false,
+          }).shutdown();
+          await new Promise((resolve) => setTimeout(resolve, PROXY_STOP_GRACE_MS));
+        } catch (error) {
+          extensionLog.debug(
+            `[Proxy:${profileId}] API shutdown failed, falling back to process stop: ${
+              error instanceof Error ? error.message : String(error)
+            }`
+          );
+        }
       }
 
       await this.forceStopChild(profileId);
@@ -458,6 +586,7 @@ export class ProxyManager implements IProxyManager {
         return {
           running: true,
           port: runtime.port,
+          apiPort: runtime.apiPort,
           pid: runtime.process instanceof NodeProxyProcess
             ? runtime.process.getChild()?.pid
             : undefined,
@@ -495,6 +624,7 @@ export class ProxyManager implements IProxyManager {
     return {
       running: true,
       port: state.port,
+      apiPort: state.apiPort ?? (port != null ? this.resolveApiPort(port) : undefined),
       pid: state.pid,
       startedAt: state.startedAt
         ? new Date(state.startedAt).getTime()
@@ -540,59 +670,31 @@ export class ProxyManager implements IProxyManager {
       return;
     }
 
-    const profile = await this.profileManager.getProfile(profileId);
-    const jsonlTail = profile ? this.isProfileJsonlLogging(profile) : false;
-
-    const attached = !this.runtimes.has(profileId) || options?.forceRestart === true;
-    if (attached && getProxyOutputConfig().logTrafficToOutput) {
-      this.outputPresenter?.appendAttached(status.port);
-    }
-
-    if (!jsonlTail) {
-      this.deps.trafficIngress.stop(profileId);
-      return;
-    }
-
-    await this.deps.trafficIngress.start(
-      profileId,
-      status.port,
-      { ipc: true, jsonlTail: true },
-      {
-        attached,
-        tailFromStart: options?.tailFromStart,
-        forceRestart: options?.forceRestart,
-      }
-    );
+    const apiPort = this.resolveApiPort(status.port, status.apiPort);
+    await this.ensureTrafficIngress(profileId, status.port, apiPort, {
+      forceRestart: options?.forceRestart,
+      tailFromStart: options?.tailFromStart,
+    });
   }
 
   async ensureTrafficTailer(): Promise<void> {
-    for (const [profileId] of this.runtimes) {
-      const profile = await this.profileManager.getProfile(profileId);
-      if (profile && this.isProfileJsonlLogging(profile)) {
-        const runtime = this.runtimes.get(profileId);
-        if (runtime) {
-          await this.deps.trafficIngress.start(profileId, runtime.port, {
-            ipc: true,
-            jsonlTail: true,
-          });
-        }
-        return;
-      }
+    for (const [profileId, runtime] of this.runtimes) {
+      await this.ensureTrafficIngress(profileId, runtime.port, runtime.apiPort, {
+        forceRestart: false,
+      });
+      return;
     }
 
     const profiles = await this.profileManager.getProfiles();
     for (const profile of profiles) {
-      if (!this.isProfileJsonlLogging(profile)) {
-        continue;
-      }
       if (!(await this.isRunning(profile.id))) {
         continue;
       }
       const status = await this.getStatus(profile.id);
       if (status?.port != null) {
-        await this.deps.trafficIngress.start(profile.id, status.port, {
-          ipc: true,
-          jsonlTail: true,
+        const apiPort = this.resolveApiPort(status.port, status.apiPort);
+        await this.ensureTrafficIngress(profile.id, status.port, apiPort, {
+          forceRestart: false,
         });
         return;
       }
@@ -657,10 +759,13 @@ export class ProxyManager implements IProxyManager {
       if (status?.port != null) {
         const profile = await this.profileManager.getProfile(profileId);
         if (profile) {
+          const apiPort = this.resolveApiPort(status.port, status.apiPort);
           await this.ensureAgentTracking(profileId, profile.userDataDir);
           await this.applyProxySettingsForProfile(profile.userDataDir, status.port);
+          await this.ensureTrafficIngress(profileId, status.port, apiPort, {
+            forceRestart: true,
+          });
         }
-        await this.ensureOutputTailer(profileId, { forceRestart: true });
       }
       return { success: true, port: status?.port };
     }
@@ -671,8 +776,11 @@ export class ProxyManager implements IProxyManager {
     const config = vscode.workspace.getConfiguration('cursorAccounts.proxy');
     const maxLogSizeMb = config.get<number>('maxLogSizeMB', 500);
     const maxBodyLogMb = config.get<number>('maxBodyLogMB', 4);
+    const apiPortOffset = config.get<number>('apiPortOffset', 10_000);
     return {
       port,
+      apiPort: port + apiPortOffset,
+      profileId: profile.id,
       storageDir: this.storageDir,
       logDir: this.logDir,
       maxLogSizeMb,
@@ -682,16 +790,6 @@ export class ProxyManager implements IProxyManager {
       trafficDiagnostics: config.get<boolean>('trafficDiagnostics', true),
       diagnosticsIntervalMs: config.get<number>('diagnosticsIntervalMs', 30_000),
     };
-  }
-
-  private handleChildMessage(profileId: string, msg: ProxyChildMessage): void {
-    if (msg.type === 'stats') {
-      this.maybeEmitDiagnosticsSummary(msg.data.diagnostics);
-      return;
-    }
-    if (msg.type === 'traffic') {
-      this.deps.trafficBus.publish(msg.summary, profileId);
-    }
   }
 
   private maybeEmitDiagnosticsSummary(
@@ -799,6 +897,52 @@ export class ProxyManager implements IProxyManager {
     }
   }
 
+  private async pollProxyHealth(
+    apiPort: number,
+    timeoutMs: number,
+    options?: {
+      getStderr?: () => string;
+      isProcessAlive?: () => boolean;
+    }
+  ): Promise<{ success: boolean; error?: string }> {
+    const baseUrl = buildProxyApiBaseUrl(apiPort);
+    const deadline = Date.now() + timeoutMs;
+
+    while (Date.now() < deadline) {
+      if (options?.isProcessAlive && !options.isProcessAlive()) {
+        const stderr = options.getStderr?.().trim();
+        return {
+          success: false,
+          error: stderr
+            ? `Proxy process exited before API was ready: ${stderr}`
+            : 'Proxy process exited before API was ready',
+        };
+      }
+
+      try {
+        const response = await fetch(`${baseUrl}${PROXY_API_PATHS.health}`);
+        if (response.ok) {
+          const body = (await response.json()) as ProxyApiHealthResponse;
+          if (body.ok) {
+            return { success: true };
+          }
+        }
+      } catch {
+        // API not ready yet.
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, PROXY_HEALTH_POLL_MS));
+    }
+
+    const stderr = options?.getStderr?.().trim();
+    return {
+      success: false,
+      error: stderr
+        ? `Proxy did not become ready within ${timeoutMs}ms: ${stderr}`
+        : `Proxy did not become ready within ${timeoutMs}ms`,
+    };
+  }
+
   private async forceStopChild(profileId: string): Promise<void> {
     const runtime = this.runtimes.get(profileId);
     this.runtimes.delete(profileId);
@@ -816,7 +960,11 @@ export class ProxyManager implements IProxyManager {
       nodeProcess?.getChild()?.pid ??
       (await this.stateStore.read(runtime.userDataDir))?.pid;
 
-    await runtime.process.stop(pid);
+    await runtime.process.stop(pid, 'SIGTERM');
+    await new Promise((resolve) => setTimeout(resolve, PROXY_STOP_GRACE_MS));
+    if (pid != null && runtime.process.isAlive(pid)) {
+      await runtime.process.stop(pid, 'SIGKILL');
+    }
     nodeProcess?.detach();
   }
 }

@@ -240,6 +240,10 @@ export function activate(context: vscode.ExtensionContext): void {
 
     await efficiencyService?.initialize();
 
+    for (const profile of profiles) {
+      await proxyManager.connectToExistingProxy(profile.id);
+    }
+
     const currentProfile = await profileDetector.detectCurrentProfile();
 
     if (currentProfile === null) {

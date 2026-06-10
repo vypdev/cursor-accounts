@@ -4,6 +4,9 @@ import type { ProxyTrafficSummary } from '../../proxy/types';
 import type { RestoreAllProfilesResult } from '../../domain/ports/IProxyManager';
 import type { IProfileManager } from '../../domain/ports/IProfileManager';
 import type { IProxyStateStore } from '../../domain/ports/IProxyStateStore';
+import { ProxyTrafficBus } from '../../application/services/proxyTrafficBus';
+import { createProxyCostEnricher } from '../../application/services/proxyCostEnricher';
+import { ProxyTrafficIngress } from '../../application/services/proxyTrafficIngress';
 import type { ProxySettingsService } from '../../services/proxySettingsService';
 
 function sampleTraffic(): ProxyTrafficSummary {
@@ -24,8 +27,12 @@ function sampleTraffic(): ProxyTrafficSummary {
   };
 }
 
+function createTrafficBus(): ProxyTrafficBus {
+  return new ProxyTrafficBus(createProxyCostEnricher(() => 4));
+}
+
 describe('ProxyManager integration', () => {
-  it('forwards IPC traffic summaries to onTraffic listeners', async () => {
+  it('forwards traffic summaries from the traffic bus to onTraffic listeners', async () => {
     const { ProxyManager } = await import('../../services/proxyManager.js');
 
     const stateStore: IProxyStateStore = {
@@ -39,6 +46,7 @@ describe('ProxyManager integration', () => {
       getProfiles: async () => [],
     } as unknown as IProfileManager;
 
+    const trafficBus = createTrafficBus();
     const manager = new ProxyManager(
       stateStore,
       profileManager,
@@ -46,7 +54,21 @@ describe('ProxyManager integration', () => {
         globalStorageUri: { fsPath: '/tmp/cursor-accounts-proxy-test' },
         extensionPath: '/tmp/extension',
       } as never,
-      '/tmp/cursor-accounts-proxy-storage'
+      '/tmp/cursor-accounts-proxy-storage',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      {
+        certService: {
+          ensureCaCertificate: async () => '/tmp/ca.pem',
+        } as never,
+        trafficBus,
+        trafficIngress: new ProxyTrafficIngress('/tmp/logs', trafficBus, () => false),
+        createProcess: () => {
+          throw new Error('not used');
+        },
+      }
     );
 
     const received: ProxyTrafficSummary[] = [];
@@ -54,13 +76,7 @@ describe('ProxyManager integration', () => {
       received.push(summary);
     });
 
-    const internal = manager as unknown as {
-      handleChildMessage(profileId: string, msg: unknown): void;
-    };
-    internal.handleChildMessage('profile-a', {
-      type: 'traffic',
-      summary: sampleTraffic(),
-    });
+    trafficBus.publish(sampleTraffic(), 'profile-a');
 
     assert.equal(received.length, 1);
     assert.equal(received[0]?.host, 'api2.cursor.sh');
@@ -72,6 +88,7 @@ describe('ProxyManager integration', () => {
 
   it('continues notifying listeners when one listener throws', async () => {
     const { ProxyManager } = await import('../../services/proxyManager.js');
+    const trafficBus = createTrafficBus();
 
     const manager = new ProxyManager(
       {
@@ -84,7 +101,19 @@ describe('ProxyManager integration', () => {
         globalStorageUri: { fsPath: '/tmp/cursor-accounts-proxy-test-2' },
         extensionPath: '/tmp/extension',
       } as never,
-      '/tmp/cursor-accounts-proxy-storage-2'
+      '/tmp/cursor-accounts-proxy-storage-2',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      {
+        certService: {} as never,
+        trafficBus,
+        trafficIngress: new ProxyTrafficIngress('/tmp/logs', trafficBus, () => false),
+        createProcess: () => {
+          throw new Error('not used');
+        },
+      }
     );
 
     let okCount = 0;
@@ -95,14 +124,7 @@ describe('ProxyManager integration', () => {
       okCount += 1;
     });
 
-    const internal = manager as unknown as {
-      handleChildMessage(profileId: string, msg: unknown): void;
-    };
-    internal.handleChildMessage('p', {
-      type: 'traffic',
-      summary: sampleTraffic(),
-    });
-
+    trafficBus.publish(sampleTraffic(), 'p');
     assert.equal(okCount, 1);
   });
 

@@ -57,12 +57,12 @@ interface SessionState {
   /** Active model id for this session. */
   modelId?: string;
   lastActivity: number;
-  /** True when billing-grade turn_ended came from IPC live decode. */
-  turnEndedFromIpc?: boolean;
+  /** True when billing-grade turn_ended came from live proxy decode (API). */
+  turnEndedFromLive?: boolean;
 }
 
 /**
- * Live agent/chat token usage in the status bar (requires MITM proxy + IPC traffic).
+ * Live agent/chat token usage in the status bar (requires MITM proxy + live API traffic).
  */
 export class AgentLiveUsageStatusBar {
   private readonly item: vscode.StatusBarItem;
@@ -155,7 +155,7 @@ export class AgentLiveUsageStatusBar {
     const prev = this.sessions.get(sessionId);
 
     if (
-      prev?.turnEndedFromIpc &&
+      prev?.turnEndedFromLive &&
       !summary.isTurnEnded &&
       !summary.isLiveTokenUpdate &&
       mergedAgent.usageEvent === 'turn_ended'
@@ -178,7 +178,7 @@ export class AgentLiveUsageStatusBar {
     const isTurnEndedEvent =
       summary.isTurnEnded === true || mergedAgent.usageEvent === 'turn_ended';
     const acceptTurnEnded =
-      isTurnEndedEvent && (summary.isTurnEnded === true || !prev?.turnEndedFromIpc);
+      isTurnEndedEvent && (summary.isTurnEnded === true || !prev?.turnEndedFromLive);
 
     if (summary.isLiveTokenUpdate && summary.liveTokenData) {
       liveAccumulated = summary.liveTokenData.accumulatedTokens;
@@ -243,8 +243,8 @@ export class AgentLiveUsageStatusBar {
       turnCostFromServer,
       modelId,
       lastActivity: Date.now(),
-      turnEndedFromIpc:
-        summary.isTurnEnded === true || prev?.turnEndedFromIpc === true,
+      turnEndedFromLive:
+        summary.isTurnEnded === true || prev?.turnEndedFromLive === true,
     });
 
     this.activeSessionId = sessionId;

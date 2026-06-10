@@ -12,6 +12,8 @@ describe('NodeProxyProcess', () => {
       () =>
         process.start({
           port: 8080,
+          apiPort: 18080,
+          profileId: 'test-profile',
           storageDir: '/tmp',
           logDir: '/tmp/logs',
           maxLogSizeMb: 50,
@@ -30,36 +32,16 @@ describe('NodeProxyProcess', () => {
     assert.equal(process.isAlive(999_999_999), false);
   });
 
-  it('delivers IPC messages when handlers are registered before start', async () => {
+  it('spawns child without IPC channel', async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'node-proxy-process-'));
-    const scriptPath = path.join(dir, 'ipc-echo.js');
-    await fs.writeFile(
-      scriptPath,
-      `
-        process.send({ type: 'ready', port: 8080 });
-        process.send({
-          type: 'traffic',
-          summary: {
-            timestamp: new Date().toISOString(),
-            kind: 'response',
-            url: 'https://api2.cursor.sh/agent.v1.AgentService/RunSSE',
-            host: 'api2.cursor.sh',
-            isLiveTokenUpdate: true,
-            liveTokenData: { accumulatedTokens: 42, latestDelta: 7 },
-            insights: { agent: { streamingTokens: 42, usageEvent: 'token_delta' } },
-          },
-        });
-      `
-    );
+    const scriptPath = path.join(dir, 'idle.js');
+    await fs.writeFile(scriptPath, 'setInterval(() => {}, 1000);');
 
     const proxyProcess = new NodeProxyProcess(scriptPath, dir);
-    const messages: unknown[] = [];
-    proxyProcess.onMessage((msg) => {
-      messages.push(msg);
-    });
-
     await proxyProcess.start({
       port: 8080,
+      apiPort: 18080,
+      profileId: 'test-profile',
       storageDir: dir,
       logDir: path.join(dir, 'logs'),
       maxLogSizeMb: 50,
@@ -70,19 +52,10 @@ describe('NodeProxyProcess', () => {
       diagnosticsIntervalMs: 30_000,
     });
 
-    await new Promise((resolve) => setTimeout(resolve, 250));
-
-    const traffic = messages.find(
-      (msg) =>
-        typeof msg === 'object' &&
-        msg != null &&
-        (msg as { type?: string }).type === 'traffic'
-    ) as { summary?: { isLiveTokenUpdate?: boolean } } | undefined;
-
-    assert.ok(traffic, 'expected traffic IPC message');
-    assert.equal(traffic.summary?.isLiveTokenUpdate, true);
-
     const child = proxyProcess.getChild();
+    // With spawn(), there's no IPC channel (unlike fork())
+    assert.equal(child?.channel, undefined);
+
     if (child?.pid != null) {
       await proxyProcess.stop(child.pid, 'SIGKILL');
     }

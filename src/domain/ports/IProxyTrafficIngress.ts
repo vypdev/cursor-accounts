@@ -1,5 +1,7 @@
 export interface TrafficIngressMode {
-  readonly ipc: boolean;
+  /** Connect to the proxy localhost WebSocket API for live traffic. */
+  readonly api: boolean;
+  /** Tail shared JSONL logs (development / offline analysis). */
   readonly jsonlTail: boolean;
 }
 
@@ -8,7 +10,12 @@ export interface IProxyTrafficIngress {
     profileId: string,
     port: number,
     mode: TrafficIngressMode,
-    options?: { attached?: boolean; tailFromStart?: boolean; forceRestart?: boolean }
+    options?: {
+      attached?: boolean;
+      tailFromStart?: boolean;
+      forceRestart?: boolean;
+      apiPort?: number;
+    }
   ): Promise<void>;
   stop(profileId: string): void;
   stopAll(): void;

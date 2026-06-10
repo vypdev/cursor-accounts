@@ -2,6 +2,8 @@
 export interface ProxyStatus {
   running: boolean;
   port?: number;
+  /** Localhost HTTP/WebSocket control-plane port. */
+  apiPort?: number;
   pid?: number;
   startedAt?: number;
   caCertificatePath?: string;
@@ -53,6 +55,8 @@ export interface ProxyStateFile {
   profileId: string;
   running: boolean;
   port?: number;
+  /** Localhost HTTP/WebSocket control-plane port (separate from MITM port). */
+  apiPort?: number;
   pid?: number;
   startedAt?: string;
   caCertificatePath?: string;

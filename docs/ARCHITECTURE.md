@@ -338,19 +338,21 @@ sequenceDiagram
 
 ## Optional MITM proxy subsystem
 
-When enabled, a **child Node process** runs [`PolyglotMitmProxyServer`](../src/proxy/polyglotMitmProxyServer.ts) (`http-mitm-proxy` + `@httptoolkit/httpolyglot` for HTTP/1.0/1.1/2 ALPN) on localhost. The extension host does not terminate TLS itself; it receives decoded traffic summaries over **IPC** and optionally writes JSONL when `cursorAccounts.proxy.developmentMode` is true. See [HTTP2-PROXY-IMPLEMENTATION.md](HTTP2-PROXY-IMPLEMENTATION.md) and [CLEAN-ARCHITECTURE-PRINCIPLES.md](CLEAN-ARCHITECTURE-PRINCIPLES.md).
+When enabled, a **child Node process** runs [`PolyglotMitmProxyServer`](../src/proxy/polyglotMitmProxyServer.ts) (`http-mitm-proxy` + `@httptoolkit/httpolyglot` for HTTP/1.0/1.1/2 ALPN) on localhost. The extension host does not terminate TLS itself; decoded traffic summaries and lifecycle control use a **localhost HTTP/WebSocket API** (`src/proxy/api/`) so any VS Code window can start, stop, and attach independently. JSONL is written when per-profile development logging is enabled. See [PROXY-API-REFERENCE.md](PROXY-API-REFERENCE.md), [HTTP2-PROXY-IMPLEMENTATION.md](HTTP2-PROXY-IMPLEMENTATION.md), and [CLEAN-ARCHITECTURE-PRINCIPLES.md](CLEAN-ARCHITECTURE-PRINCIPLES.md).
 
 ```mermaid
 flowchart TB
   subgraph Application
     PM[ProxyManager_facade]
     PP[NodeProxyProcess]
+    AC[ProxyApiClient]
     CB[ProxyCertificateService]
     TB[ProxyTrafficBus]
     TI[ProxyTrafficIngress]
   end
   subgraph Child
     MITM[PolyglotMitmProxyServer]
+    API[ProxyApiServer]
     RSSE[RunSseStreamHandler]
     LOG[RequestLogger_or_NullLogger]
   end
@@ -361,10 +363,11 @@ flowchart TB
   end
   PM --> PP
   PP --> MITM
+  MITM --> API
   MITM --> RSSE
   MITM --> LOG
-  MITM --> IPC[IPC_traffic]
-  IPC --> TB
+  API -->|WebSocket_traffic| AC
+  AC --> TI
   LOG -.->|developmentMode| TI
   TI --> TB
   TB --> AT
@@ -374,14 +377,16 @@ flowchart TB
 
 | Component | Path | Role |
 |-----------|------|------|
-| Facade | `src/services/proxyManager.ts` | Coordinates process, certs, settings, traffic bus |
-| Process | `src/proxy/nodeProxyProcess.ts` (`IProxyProcess`) | Fork child, IPC, ready/stop protocol |
+| Facade | `src/services/proxyManager.ts` | Coordinates process, certs, settings, API attach, traffic bus |
+| Process | `src/proxy/nodeProxyProcess.ts` (`IProxyProcess`) | Spawn child (no IPC); readiness via API health poll; stop via API + SIGTERM/SIGKILL |
+| API server | `src/proxy/api/proxyApiServer.ts` (`IProxyApiServer`) | Localhost REST + WebSocket control plane in child |
+| API client | `src/proxy/api/proxyApiClient.ts` (`IProxyApiClient`) | Extension-side HTTP/WS consumer (multi-window) |
 | Certificates | `src/services/proxyCertificateService.ts` | CA trust and install guide |
 | Traffic bus | `src/application/services/proxyTrafficBus.ts` | Pub/sub for `ProxyTrafficSummary` |
-| Traffic ingress | `src/application/services/proxyTrafficIngress.ts` | Optional JSONL tail (dev / replay) |
+| Traffic ingress | `src/application/services/proxyTrafficIngress.ts` | WebSocket API attach + optional JSONL tail |
 | MITM | `src/proxy/polyglotMitmProxyServer.ts` | HTTP/1.x + HTTP/2 capture (`IProxyServer`) |
 | RunSSE | `src/proxy/capture/runSseStreamHandler.ts` | Live `token_delta` / `turn_ended` summaries |
-| Logging | `src/proxy/requestLogger.ts` | JSONL when `developmentMode` is true |
+| Logging | `src/proxy/requestLogger.ts` | JSONL when development logging is enabled |
 | Presentation | `src/ui/presentation/`, `src/ui/agentLiveUsageStatusBar.ts` | Output channels and status bar |
 
 Token semantics and billing channels: [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md). JSONL schema: [PROXY-JSONL-SCHEMA.md](PROXY-JSONL-SCHEMA.md). Agent/subagent IDs and parallel workers: [PROXY-AGENT-IDS-AND-SUBAGENTS.md](PROXY-AGENT-IDS-AND-SUBAGENTS.md). User setup: [PROXY-SETUP.md](PROXY-SETUP.md).
@@ -390,7 +395,7 @@ The live usage status bar keys sessions by bidi `request_id` and **sums** all ac
 
 ### Live agent tokens and turn persistence
 
-**Live UI (primary):** [`StreamingAgentDecoder`](../src/proxy/streamingAgentDecoder.ts) in `mitmProxyServer` emits incremental `token_delta` summaries (`isLiveTokenUpdate`) and billing-grade `turn_ended` rows (`isTurnEnded`) over IPC. [`AgentLiveUsageStatusBar`](../src/ui/agentLiveUsageStatusBar.ts) sums active sessions; [`AgentTrackingService`](../src/services/agentTrackingService.ts) persists `turn_ended` snapshots without requiring `turn_index`.
+**Live UI (primary):** [`StreamingAgentDecoder`](../src/proxy/streamingAgentDecoder.ts) in `mitmProxyServer` emits incremental `token_delta` summaries (`isLiveTokenUpdate`) and billing-grade `turn_ended` rows (`isTurnEnded`) to the proxy API WebSocket. [`AgentLiveUsageStatusBar`](../src/ui/agentLiveUsageStatusBar.ts) sums active sessions; [`AgentTrackingService`](../src/services/agentTrackingService.ts) persists `turn_ended` snapshots without requiring `turn_index`.
 
 **Batch / offline heuristic (secondary):** [`TokenTurnDetectionService`](../src/domain/services/tokenTurnDetectionService.ts) applies peak/reset thresholds (≥300 / ≤150) only when `AgentTrackingService` ingests traffic with `allTokenFrames[]` (e.g. full RunSSE body replay). It is **not** used for live status bar updates.
 
@@ -437,6 +442,7 @@ Full investigation and identity mapping (`composerId` = Agent `conversation_id`)
 - [ACTIVE-CONVERSATION-DETECTION.md](ACTIVE-CONVERSATION-DETECTION.md) — focused Composer tab (`lastFocusedComposerIds`)
 - [DATABASE-SCHEMA.md](DATABASE-SCHEMA.md) — agent tracking tables and turn_index
 - [PROXY-SETUP.md](PROXY-SETUP.md) — MITM proxy setup
+- [PROXY-API-REFERENCE.md](PROXY-API-REFERENCE.md) — Localhost REST/WebSocket API
 - [FEATURE-MULTI-PROFILE.md](FEATURE-MULTI-PROFILE.md) — product flows and terminology
 - [RESEARCH.md](RESEARCH.md) — quota APIs and account-switching limits
 - [README.md](../README.md) — project overview and documentation index

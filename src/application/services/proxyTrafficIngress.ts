@@ -1,20 +1,39 @@
+import type { ProxyStatistics } from '@cursor-accounts/types';
 import type { ProxyTrafficSummary } from '../types/proxyTraffic';
 import type {
   IProxyTrafficIngress,
   TrafficIngressMode,
 } from '../../domain/ports/IProxyTrafficIngress';
 import type { IProxyTrafficBus } from '../../domain/ports/IProxyTrafficBus';
+import type { IProxyApiClient } from '../../domain/ports/IProxyApiClient';
+import type { ProxyApiEvent } from '../types/proxyApi';
 import { ProxyLogTailer } from '../../proxy/proxyLogTailer';
+import {
+  ProxyApiClient,
+  buildProxyApiBaseUrl,
+} from '../../proxy/api/proxyApiClient';
 
 export interface ProxyTrafficIngressCallbacks {
   onLogFileResolved?: (filePath: string | null) => void;
   onTailerError?: (profileId: string, summary: ProxyTrafficSummary) => void;
+  onStats?: (profileId: string, stats: ProxyStatistics) => void;
+  onDiagnostics?: (profileId: string, lines: string[]) => void;
+}
+
+export interface ProxyTrafficIngressStartOptions {
+  attached?: boolean;
+  tailFromStart?: boolean;
+  forceRestart?: boolean;
+  /** Required when mode.api is true. */
+  apiPort?: number;
 }
 
 export class ProxyTrafficIngress implements IProxyTrafficIngress {
   private tailer: ProxyLogTailer | null = null;
   private activePort: number | null = null;
   private activeProfileId: string | null = null;
+  private readonly apiClients = new Map<string, IProxyApiClient>();
+  private readonly apiUnsubscribers = new Map<string, () => void>();
 
   constructor(
     private readonly logDir: string,
@@ -27,13 +46,22 @@ export class ProxyTrafficIngress implements IProxyTrafficIngress {
     profileId: string,
     port: number,
     mode: TrafficIngressMode,
-    options?: {
-      attached?: boolean;
-      tailFromStart?: boolean;
-      forceRestart?: boolean;
-    }
+    options?: ProxyTrafficIngressStartOptions
   ): Promise<void> {
+    if (mode.api) {
+      const apiPort = options?.apiPort;
+      if (apiPort == null) {
+        throw new Error(
+          `[ProxyTrafficIngress] apiPort is required when mode.api is enabled`
+        );
+      }
+      await this.ensureApiClient(profileId, apiPort, options?.forceRestart === true);
+    } else {
+      this.stopApiClient(profileId);
+    }
+
     if (!mode.jsonlTail) {
+      this.stopJsonlTailer(profileId);
       return;
     }
 
@@ -47,7 +75,7 @@ export class ProxyTrafficIngress implements IProxyTrafficIngress {
       return;
     }
 
-    this.stopAll();
+    this.stopJsonlTailer();
 
     const tailFromStart = options?.tailFromStart ?? this.getTailFromStart();
 
@@ -74,27 +102,113 @@ export class ProxyTrafficIngress implements IProxyTrafficIngress {
   }
 
   stop(profileId: string): void {
-    if (this.activeProfileId === profileId) {
-      this.stopAll();
-    }
+    this.stopApiClient(profileId);
+    this.stopJsonlTailer(profileId);
   }
 
   stopAll(): void {
+    for (const profileId of [...this.apiClients.keys()]) {
+      this.stopApiClient(profileId);
+    }
+    this.stopJsonlTailer();
+  }
+
+  isRunning(profileId: string): boolean {
+    const apiRunning = this.apiClients.get(profileId)?.isConnected() === true;
+    const jsonlRunning =
+      this.activeProfileId === profileId && (this.tailer?.isRunning() ?? false);
+    return apiRunning || jsonlRunning;
+  }
+
+  getActivePort(): number | null {
+    return this.activePort;
+  }
+
+  getApiClient(profileId: string): IProxyApiClient | undefined {
+    return this.apiClients.get(profileId);
+  }
+
+  private async ensureApiClient(
+    profileId: string,
+    apiPort: number,
+    forceRestart: boolean
+  ): Promise<void> {
+    const existing = this.apiClients.get(profileId);
+    if (existing?.isConnected() && !forceRestart) {
+      return;
+    }
+
+    this.stopApiClient(profileId);
+
+    const client = new ProxyApiClient({
+      baseUrl: buildProxyApiBaseUrl(apiPort),
+      reconnect: true,
+    });
+
+    const unsubscribe = client.onEvent((event) => {
+      this.handleApiEvent(event, profileId);
+    });
+
+    await client.connect();
+    this.apiClients.set(profileId, client);
+    this.apiUnsubscribers.set(profileId, unsubscribe);
+  }
+
+  private handleApiEvent(event: ProxyApiEvent, profileId: string): void {
+    switch (event.type) {
+      case 'traffic':
+        this.trafficBus.publish(event.data as ProxyTrafficSummary, profileId);
+        break;
+      case 'stats':
+        this.callbacks?.onStats?.(
+          profileId,
+          event.data as ProxyStatistics
+        );
+        break;
+      case 'diagnostics': {
+        const payload = event.data as { lines?: string[] };
+        if (payload.lines?.length) {
+          this.callbacks?.onDiagnostics?.(profileId, payload.lines);
+        }
+        break;
+      }
+      case 'error': {
+        const payload = event.data as { message?: string; kind?: string };
+        this.trafficBus.publish(
+          {
+            timestamp: event.timestamp,
+            kind: 'error',
+            url: '',
+            host: '',
+            endpoint: '',
+            errorKind: payload.kind ?? 'PROXY_ERROR',
+            errorMessage: payload.message ?? 'unknown error',
+          },
+          profileId
+        );
+        break;
+      }
+      default:
+        break;
+    }
+  }
+
+  private stopApiClient(profileId: string): void {
+    this.apiUnsubscribers.get(profileId)?.();
+    this.apiUnsubscribers.delete(profileId);
+    this.apiClients.get(profileId)?.disconnect();
+    this.apiClients.delete(profileId);
+  }
+
+  private stopJsonlTailer(profileId?: string): void {
+    if (profileId != null && this.activeProfileId !== profileId) {
+      return;
+    }
     if (this.tailer) {
       this.tailer.stop();
       this.tailer = null;
     }
     this.activePort = null;
     this.activeProfileId = null;
-  }
-
-  isRunning(profileId: string): boolean {
-    return (
-      this.activeProfileId === profileId && (this.tailer?.isRunning() ?? false)
-    );
-  }
-
-  getActivePort(): number | null {
-    return this.activePort;
   }
 }

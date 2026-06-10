@@ -1,8 +1,7 @@
-import type { ProxyStatistics } from '@cursor-accounts/types';
 import type { HttpProtocolVersion } from '../../domain/types/httpProtocol';
 import type { ProxyInsights } from './proxyInsights';
 
-/** Redacted traffic event for IPC and output channels. */
+/** Redacted traffic event for the proxy API and output channels. */
 export interface ProxyTrafficSummary {
   timestamp: string;
   kind: 'request' | 'response' | 'error';
@@ -28,7 +27,7 @@ export interface ProxyTrafficSummary {
   protocolVersion?: HttpProtocolVersion;
   /** Frequent token_delta accumulation for live status bar (persisted via minute buckets). */
   isLiveTokenUpdate?: boolean;
-  /** Server turn_ended from IPC live decode (billing-grade; persisted). */
+  /** Server turn_ended from live stream decode (billing-grade; persisted). */
   isTurnEnded?: boolean;
   liveTokenData?: {
     accumulatedTokens: number;
@@ -44,15 +43,3 @@ export interface MitmProxyHandlers {
   onTraffic?: (summary: ProxyTrafficSummary) => void;
   onProxyError?: (summary: ProxyTrafficSummary) => void;
 }
-
-/** IPC messages from parent to child. */
-export type ProxyParentMessage =
-  | { type: 'shutdown' }
-  | { type: 'getStats' };
-
-/** IPC messages from child to parent. */
-export type ProxyChildMessage =
-  | { type: 'ready'; port: number }
-  | { type: 'error'; message: string }
-  | { type: 'stats'; data: ProxyStatistics }
-  | { type: 'traffic'; summary: ProxyTrafficSummary };

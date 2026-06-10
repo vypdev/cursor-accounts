@@ -25,7 +25,7 @@ export interface ProxyLogTailerOptions {
 
 /**
  * Tails the shared proxy JSONL log and emits traffic summaries for the Output channel.
- * Works across extension host windows (unlike child IPC).
+ * Works across extension host windows (optional fallback when API attach is unavailable).
  */
 export class ProxyLogTailer {
   private running = false;
