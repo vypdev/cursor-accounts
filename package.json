@@ -79,14 +79,6 @@
         "title": "%commands.efficiency.restartDetector.title%"
       },
       {
-        "command": "cursorAccounts.proxy.start",
-        "title": "%commands.proxy.start.title%"
-      },
-      {
-        "command": "cursorAccounts.proxy.stop",
-        "title": "%commands.proxy.stop.title%"
-      },
-      {
         "command": "cursorAccounts.proxy.showLogs",
         "title": "%commands.proxy.showLogs.title%"
       },
@@ -117,10 +109,6 @@
       {
         "command": "cursorAccounts.proxy.multiplexer.metrics",
         "title": "%commands.multiplexer.metrics.title%"
-      },
-      {
-        "command": "cursorAccounts.proxy.multiplexer.setStrategy",
-        "title": "%commands.multiplexer.setStrategy.title%"
       },
       {
         "command": "cursorAccounts.proxy.multiplexer.sessions",
@@ -219,18 +207,6 @@
           "maximum": 5000,
           "description": "%configuration.debug.activeConversationPollIntervalMs.description%"
         },
-        "cursorAccounts.proxy.enabled": {
-          "type": "boolean",
-          "default": false,
-          "description": "%configuration.proxy.enabled.description%"
-        },
-        "cursorAccounts.proxy.port": {
-          "type": "number",
-          "default": 8080,
-          "minimum": 1024,
-          "maximum": 65535,
-          "description": "%configuration.proxy.port.description%"
-        },
         "cursorAccounts.proxy.maxLogSizeMB": {
           "type": "number",
           "default": 500,
@@ -249,11 +225,6 @@
           "type": "boolean",
           "default": true,
           "description": "%configuration.proxy.spillLargeBodies.description%"
-        },
-        "cursorAccounts.proxy.autoLaunchWithProxy": {
-          "type": "boolean",
-          "default": true,
-          "description": "%configuration.proxy.autoLaunchWithProxy.description%"
         },
         "cursorAccounts.proxy.logTrafficToOutput": {
           "type": "boolean",
@@ -314,11 +285,7 @@
           "default": "workspace-path",
           "enum": [
             "sticky-session",
-            "token-hash",
-            "round-robin",
-            "least-connections",
-            "workspace-path",
-            "hybrid"
+            "workspace-path"
           ],
           "description": "%configuration.proxy.multiplexer.routingStrategy.description%"
         },
@@ -341,6 +308,7 @@
     "http-mitm-proxy": "^1.1.0",
     "node-forge": "^1.3.1",
     "protobufjs": "7",
+    "ws": "^8.21.0",
     "zod": "^3.24.2"
   },
   "scripts": {

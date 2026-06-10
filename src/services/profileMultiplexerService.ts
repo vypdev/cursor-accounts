@@ -7,35 +7,57 @@ import type {
 import type { IProfileDetector } from '../domain/ports/IProfileDetector';
 import type { IProfileManager } from '../domain/ports/IProfileManager';
 import type { IProfileSettingsManager } from '../domain/ports/IProfileSettingsManager';
-import type { IMultiplexerFlowLogger } from '../application/types/multiplexerFlowLogger';
+import type { MultiplexerEventLogger } from '../proxy/multiplexer/multiplexerEventLogger';
 import type { MultiplexerConfig } from '../application/types/multiplexerConfig';
 import type { MultiplexerMetricsView } from '../application/types/multiplexerMetrics';
-import type { RoutingStrategyName } from '../domain/types/multiplexerTypes';
 import type { SessionBinding } from '../domain/ports/ISessionStore';
 import { MultiplexerRegistry } from '../application/services/multiplexerRegistry';
+import {
+  ManagementApiClient,
+  mapStrategyName,
+} from '../proxy/multiplexer/api/managementApiClient';
+import * as extensionLog from '../logging/extensionLog';
 
 /**
- * Profile-scoped facade over the global MultiplexerRegistry for UI and commands.
+ * Profile-scoped facade over the global multiplexer for UI and commands.
+ * All multiplexer state is queried through the management API.
  */
 export class ProfileMultiplexerService implements IMultiplexerManager {
+  private readonly apiClient: ManagementApiClient;
+
   constructor(
     private readonly registry: MultiplexerRegistry,
     private readonly profileDetector: IProfileDetector,
     private readonly profileManager?: IProfileManager,
     private readonly profileSettingsManager?: IProfileSettingsManager,
-    private readonly flowLogger?: IMultiplexerFlowLogger
+    private readonly eventLogger?: MultiplexerEventLogger
   ) {
-    this.registry.onStatusChange(() => {
-      for (const callback of this.statusCallbacks) {
-        callback();
-      }
-    });
+    this.apiClient = new ManagementApiClient(registry.getProxyServerUrl());
+
+    this.apiClient.connectWebSocket();
+    this.apiClient.onNotification('status_changed', () => this.notifyStatusCallbacks());
+    this.apiClient.onNotification('upstream_created', () => this.notifyStatusCallbacks());
+    this.apiClient.onNotification('upstream_stopped', () => this.notifyStatusCallbacks());
+    this.apiClient.onNotification('metrics_updated', () => this.notifyStatusCallbacks());
+    this.apiClient.onNotification('config_changed', () => this.notifyStatusCallbacks());
+
+    this.registry.onStatusChange(() => this.notifyStatusCallbacks());
   }
 
   private readonly statusCallbacks: Array<() => void> = [];
 
   onStatusChange(callback: () => void): void {
     this.statusCallbacks.push(callback);
+  }
+
+  private notifyStatusCallbacks(): void {
+    for (const callback of this.statusCallbacks) {
+      try {
+        callback();
+      } catch {
+        // ignore listener errors
+      }
+    }
   }
 
   private async resolveProfileId(): Promise<string | null> {
@@ -53,13 +75,24 @@ export class ProfileMultiplexerService implements IMultiplexerManager {
     if (!profileId) {
       return;
     }
-    await this.registry.stopUpstreamsForProfile(profileId);
+
+    if (this.registry.isRunning()) {
+      try {
+        await this.apiClient.deleteUpstreamsByProfile(profileId);
+      } catch (error) {
+        extensionLog.warn(
+          `[ProfileMultiplexerService] Failed to stop upstreams via API: ${
+            error instanceof Error ? error.message : String(error)
+          }`
+        );
+      }
+    }
 
     if (this.profileManager && this.profileSettingsManager) {
       const profile = await this.profileManager.getProfile(profileId);
       if (profile) {
         await this.profileSettingsManager.restoreProxySettings(profile.userDataDir);
-        this.flowLogger?.appendSettingsRestored(profile.userDataDir);
+        void this.eventLogger?.logSettingsRestored(profile.userDataDir);
       }
     }
   }
@@ -70,21 +103,34 @@ export class ProfileMultiplexerService implements IMultiplexerManager {
   }
 
   async getStatus(): Promise<MultiplexerStatus> {
-    const profileId = await this.resolveProfileId();
-    const runtime = this.registry.getRuntime();
     const running = this.registry.isRunning();
-    const metrics = runtime?.metricsAggregator.getView();
-    const profileUpstreams = profileId
-      ? this.registry.listUpstreamsForProfile(profileId)
-      : [];
+    if (!running) {
+      return {
+        running: false,
+        activeSessions: 0,
+      };
+    }
 
-    return {
-      running,
-      port: running ? 9000 : undefined,
-      strategy: runtime?.service.getConfig()?.routing.strategy,
-      upstreamCount: profileUpstreams.length,
-      activeSessions: metrics?.snapshot.activeSessions ?? 0,
-    };
+    try {
+      const statusResponse = await this.apiClient.getStatus();
+      return {
+        running: statusResponse.running,
+        port: statusResponse.port,
+        strategy: mapStrategyName(statusResponse.strategy),
+        activeSessions: statusResponse.activeSessions,
+      };
+    } catch (error) {
+      extensionLog.warn(
+        `[ProfileMultiplexerService] Failed to get status via API: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+      return {
+        running: true,
+        port: 9000,
+        activeSessions: 0,
+      };
+    }
   }
 
   isRunning(): boolean {
@@ -96,32 +142,38 @@ export class ProfileMultiplexerService implements IMultiplexerManager {
   }
 
   async getMetrics(): Promise<MultiplexerMetricsView | null> {
-    return this.registry.getRuntime()?.metricsAggregator.getView() ?? null;
+    if (!this.registry.isRunning()) {
+      return null;
+    }
+
+    try {
+      const metricsResponse = await this.apiClient.getMetrics();
+      return this.apiClient.toMetricsView(metricsResponse);
+    } catch (error) {
+      extensionLog.warn(
+        `[ProfileMultiplexerService] Failed to get metrics via API: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+      const cached = this.apiClient.getCachedMetrics();
+      return cached ? this.apiClient.toMetricsView(cached) : null;
+    }
   }
 
   getSessions(): readonly SessionBinding[] {
-    return this.registry.getRuntime()?.sessionStore.list() ?? [];
+    return this.apiClient.getCachedSessions();
   }
 
   async getSessionsForCurrentProfile(): Promise<readonly SessionBinding[]> {
-    return this.getSessions();
-  }
-
-  async getConfig(): Promise<MultiplexerConfig> {
-    const config = this.registry.getRuntime()?.service.getConfig();
-    if (!config) {
-      throw new Error('Global multiplexer is not running');
+    if (!this.registry.isRunning()) {
+      return [];
     }
-    return config;
-  }
 
-  async setStrategy(
-    strategy: RoutingStrategyName
-  ): Promise<MultiplexerStartResult> {
-    await this.registry.stopAll();
-    return this.start({
-      routing: { strategy, fallbackStrategy: 'sticky-session' },
-    });
+    try {
+      return await this.apiClient.getSessions();
+    } catch {
+      return this.apiClient.getCachedSessions();
+    }
   }
 
   getProxyServerUrl(): string | null {
@@ -134,39 +186,78 @@ export class ProfileMultiplexerService implements IMultiplexerManager {
 
   async buildStatusView(): Promise<MultiplexerStatusView> {
     const profileId = await this.resolveProfileId();
-    const runtime = this.registry.getRuntime();
     const running = this.registry.isRunning();
-    const metrics = runtime?.metricsAggregator.getView();
-    const config = runtime?.service.getConfig();
-    const profileUpstreams = profileId
-      ? this.registry.listUpstreamsForProfile(profileId)
-      : [];
 
-    const upstreams = profileUpstreams.map((upstream) => {
-      const metric = metrics?.snapshot.upstreamMetrics[upstream.id];
+    if (!running) {
       return {
-        id: upstream.id,
-        host: upstream.host,
-        port: upstream.port,
-        requests: metric?.requests ?? 0,
-        activeConnections: upstream.connectionCount,
-        healthy: upstream.healthy,
+        running: false,
+        activeSessions: 0,
+        upstreams: [],
       };
-    });
+    }
 
-    return {
-      running,
-      port: running ? 9000 : config?.router.port,
-      strategy: config?.routing.strategy,
-      upstreamCount: upstreams.length,
-      activeSessions: metrics?.snapshot.activeSessions ?? 0,
-      upstreams,
-      sessions: (runtime?.sessionStore.list() ?? []).map((session) => ({
-        sessionKey: session.sessionKey,
-        upstreamId: session.upstreamId,
-        workspacePath: session.workspacePath,
-        assignedAt: session.assignedAt.toISOString(),
-      })),
-    };
+    try {
+      const [statusResponse, metricsResponse, profileUpstreamsDto] =
+        await Promise.all([
+          this.apiClient.getStatus(),
+          this.apiClient.getMetrics(),
+          profileId
+            ? this.apiClient.getUpstreams(profileId)
+            : Promise.resolve([]),
+        ]);
+
+      const upstreams = profileUpstreamsDto.map((upstream) => ({
+        id: upstream.id,
+        host: '127.0.0.1',
+        port: 0,
+        requests: metricsResponse.snapshot.upstreamMetrics[upstream.id]?.requests ?? upstream.trafficReceived,
+        activeConnections: 0,
+        healthy: upstream.healthy,
+      }));
+
+      return {
+        running: statusResponse.running,
+        port: statusResponse.port,
+        strategy: mapStrategyName(statusResponse.strategy),
+        activeSessions: statusResponse.activeSessions,
+        upstreams,
+      };
+    } catch (error) {
+      extensionLog.warn(
+        `[ProfileMultiplexerService] Failed to build status view via API: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+
+      const cachedStatus = this.apiClient.getCachedStatus();
+      const cachedMetrics = this.apiClient.getCachedMetrics();
+      const cachedUpstreams = profileId
+        ? this.apiClient.getCachedUpstreams()
+        : [];
+
+      return {
+        running: true,
+        port: cachedStatus?.port ?? 9000,
+        strategy: mapStrategyName(cachedStatus?.strategy ?? cachedMetrics?.strategy),
+        activeSessions:
+          cachedStatus?.activeSessions ??
+          cachedMetrics?.snapshot.activeSessions ??
+          0,
+        upstreams: cachedUpstreams.map((upstream) => ({
+          id: upstream.id,
+          host: '127.0.0.1',
+          port: 0,
+          requests:
+            cachedMetrics?.snapshot.upstreamMetrics[upstream.id]?.requests ??
+            upstream.trafficReceived,
+          activeConnections: 0,
+          healthy: upstream.healthy,
+        })),
+      };
+    }
+  }
+
+  dispose(): void {
+    this.apiClient.disconnect();
   }
 }

@@ -168,8 +168,7 @@ Full proxy settings table: [CONFIGURATION.md — MITM proxy](CONFIGURATION.md#mi
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `cursorAccounts.proxy.enabled` | `false` | Start proxy on extension activation |
-| `cursorAccounts.proxy.port` | `8080` | Local TCP port (per-profile launches may use 8081, 8082, or 8888) |
+| `cursorAccounts.proxy.multiplexer.routingStrategy` | `workspace-path` | Global multiplexer routing strategy |
 | `cursorAccounts.proxy.maxLogSizeMB` | `500` | Max total log size before rotation |
 
 ## Related documentation

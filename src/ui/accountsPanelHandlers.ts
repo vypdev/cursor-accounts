@@ -26,7 +26,6 @@ import type { ProfileWorkspaceService } from '../services/profileWorkspaceServic
 import type { IProfileSettingsManager } from '../domain/ports/IProfileSettingsManager';
 import type { IProxyManager } from '../domain/ports/IProxyManager';
 import type { IMultiplexerManager } from '../domain/ports/IMultiplexerManager';
-import { getMultiplexerRoutingSettings } from '../proxy/multiplexer/multiplexerConfig';
 import { isProfileProxyEnabled, isProfileProxyJsonlLoggingEnabled } from '@cursor-accounts/types';
 import { saveCaCertificateAs } from '../proxy/saveCaCertificate';
 import { getOpenWorkspacePaths } from '../services/activeWorkspaceService';
@@ -125,14 +124,6 @@ export class AccountsPanelHandlers {
         await this.handleClearGithubToken(message.profileId);
         break;
 
-      case 'startProxy':
-        await this.handleStartProxy();
-        break;
-
-      case 'stopProxy':
-        await this.handleStopProxy();
-        break;
-
       case 'showProxyLogs':
         await this.handleShowProxyLogs();
         break;
@@ -159,22 +150,6 @@ export class AccountsPanelHandlers {
 
       case 'refreshProxyStatus':
         await this.callbacks.refreshProxyStatus({ checkCertificate: true });
-        break;
-
-      case 'startMultiplexer':
-        await this.handleStartMultiplexer();
-        break;
-
-      case 'stopMultiplexer':
-        await this.handleStopMultiplexer();
-        break;
-
-      case 'refreshMultiplexerStatus':
-        await this.callbacks.refreshMultiplexerStatus?.();
-        break;
-
-      case 'setMultiplexerStrategy':
-        await this.handleSetMultiplexerStrategy(message.strategy);
         break;
 
       default:
@@ -608,53 +583,6 @@ export class AccountsPanelHandlers {
     await this.callbacks.refreshGithubSummaries();
   }
 
-  private async handleStartProxy(): Promise<void> {
-    const currentProfile = await this.deps.profileDetector.detectCurrentProfile();
-    if (!currentProfile || !isProfileProxyEnabled(currentProfile)) {
-      await this.callbacks.postMessage({
-        type: 'error',
-        message: t('commands.proxy.requiresProfile'),
-      });
-      return;
-    }
-
-    const result = await this.deps.proxyManager.start(currentProfile.id);
-    if (result.success) {
-      await this.callbacks.postMessage({
-        type: 'success',
-        message: t('commands.proxy.started', {
-          port: String(result.port ?? ''),
-        }),
-      });
-    } else {
-      await this.callbacks.postMessage({
-        type: 'error',
-        message: t('commands.proxy.startFailed', {
-          error: result.error ?? t('errors.unknown'),
-        }),
-      });
-    }
-    await this.callbacks.refreshProxyStatus({ checkCertificate: true });
-  }
-
-  private async handleStopProxy(): Promise<void> {
-    const currentProfile = await this.deps.profileDetector.detectCurrentProfile();
-    if (!currentProfile || !isProfileProxyEnabled(currentProfile)) {
-      await this.callbacks.postMessage({
-        type: 'error',
-        message: t('commands.proxy.requiresProfile'),
-      });
-      return;
-    }
-
-    await this.deps.proxyManager.stop(currentProfile.id);
-    await this.callbacks.postMessage({
-      type: 'success',
-      message: t('commands.proxy.stopped'),
-    });
-    await this.callbacks.refreshProxyStatus();
-  }
-
   private async handleShowProxyLogs(): Promise<void> {
     const logDir = this.deps.proxyManager.getLogDirectory();
     await vscode.commands.executeCommand(
@@ -721,71 +649,5 @@ export class AccountsPanelHandlers {
           result.error ?? t('commands.proxy.saveCertificate.notFound'),
       }),
     });
-  }
-
-  private async handleStartMultiplexer(): Promise<void> {
-    if (!this.deps.multiplexerManager) {
-      return;
-    }
-    const settings = getMultiplexerRoutingSettings();
-    const result = await this.deps.multiplexerManager.start({
-      routing: {
-        strategy: settings.routingStrategy,
-        fallbackStrategy: 'sticky-session',
-      },
-    });
-    if (result.success) {
-      await this.callbacks.postMessage({
-        type: 'success',
-        message: t('commands.multiplexer.started', {
-          port: String(result.port ?? ''),
-        }),
-      });
-    } else {
-      await this.callbacks.postMessage({
-        type: 'error',
-        message: t('commands.multiplexer.startFailed', {
-          error: result.error ?? t('errors.unknown'),
-        }),
-      });
-    }
-    await this.callbacks.refreshMultiplexerStatus?.();
-  }
-
-  private async handleStopMultiplexer(): Promise<void> {
-    if (!this.deps.multiplexerManager) {
-      return;
-    }
-    await this.deps.multiplexerManager.stop();
-    await this.callbacks.postMessage({
-      type: 'success',
-      message: t('commands.multiplexer.stopped'),
-    });
-    await this.callbacks.refreshMultiplexerStatus?.();
-  }
-
-  private async handleSetMultiplexerStrategy(
-    strategy: NonNullable<
-      Parameters<IMultiplexerManager['setStrategy']>[0]
-    > | undefined
-  ): Promise<void> {
-    if (!this.deps.multiplexerManager || !strategy) {
-      return;
-    }
-    const result = await this.deps.multiplexerManager.setStrategy(strategy);
-    if (result.success) {
-      await this.callbacks.postMessage({
-        type: 'success',
-        message: t('commands.multiplexer.strategySet', { strategy }),
-      });
-    } else {
-      await this.callbacks.postMessage({
-        type: 'error',
-        message: t('commands.multiplexer.strategyFailed', {
-          error: result.error ?? t('errors.unknown'),
-        }),
-      });
-    }
-    await this.callbacks.refreshMultiplexerStatus?.();
   }
 }

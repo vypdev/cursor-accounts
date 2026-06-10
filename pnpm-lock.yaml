@@ -35,6 +35,9 @@ importers:
       protobufjs:
         specifier: '7'
         version: 7.6.2
+      ws:
+        specifier: ^8.21.0
+        version: 8.21.0
       zod:
         specifier: ^3.24.2
         version: 3.25.76

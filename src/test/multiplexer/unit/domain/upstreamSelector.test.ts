@@ -86,7 +86,7 @@ describe('UpstreamSelector', () => {
     const selector = new UpstreamSelector(
       mockStrategy((_session, _upstreams, context) => {
         receivedContext = context;
-        return new RoutingDecision(u1, 'token-hash');
+        return new RoutingDecision(u1, 'sticky-session-new');
       })
     );
 
@@ -101,9 +101,13 @@ describe('UpstreamSelector', () => {
 
   it('exposes strategy name', () => {
     const selector = new UpstreamSelector({
-      name: 'round-robin',
-      selectUpstream: () => new RoutingDecision(new Upstream('u1', '127.0.0.1', 8080), 'round-robin'),
+      name: 'workspace-path',
+      selectUpstream: () =>
+        new RoutingDecision(
+          new Upstream('u1', '127.0.0.1', 8080),
+          'workspace-path-hit'
+        ),
     });
-    assert.equal(selector.strategyName, 'round-robin');
+    assert.equal(selector.strategyName, 'workspace-path');
   });
 });

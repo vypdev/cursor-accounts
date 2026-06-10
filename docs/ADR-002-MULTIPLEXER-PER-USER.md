@@ -1,54 +1,21 @@
 # ADR 002: One Multiplexer Per User (Profile)
 
-**Status:** Accepted  
-**Date:** 2026-06-06
+**Status:** Superseded  
+**Date:** 2026-06-06  
+**Superseded by:** Global multiplexer on port 9000 (see `docs/PROXY-MULTIPLEXER-ARCHITECTURE.md` v2)
 
 ## Context
 
-We need to track metrics (tokens, costs) per project (workspace), not only per user (profile). An earlier design used a single global multiplexer router. That worked for routing but:
+This ADR described one router per profile on ports 9000–9099. The implementation moved to a **single global router on port 9000** shared by all profiles, with profile identification via JWT and upstreams keyed by `(profileId, workspacePath)`.
 
-1. Mixed workspace mappings across different users on the same machine
-2. Required complex garbage-collection logic for shared resources
-3. Made it hard to isolate configs and metrics by user
+## Historical decision (no longer active)
 
-The legacy alternative — one MITM proxy per profile with no router — could not isolate metrics when multiple Cursor windows shared a profile.
+Each VS Code profile was to get a dedicated multiplexer on its own port. That design was replaced because:
 
-## Decision
+- A global router simplifies extension startup and UI
+- JWT-based profile identification works without per-profile router ports
+- Dynamic upstreams per `(profileId, workspacePath)` provide the same isolation
 
-Each VS Code profile gets a dedicated multiplexer:
+## Current architecture
 
-- **Router ports**: 9000–9099 (one per profile)
-- **Upstream ports**: 8000–8999 (segmented per profile, dynamic per workspace)
-- **Lifecycle**: created on profile window launch, stopped when the profile multiplexer is stopped
-- **Routing default**: `workspace-path` with dynamic upstream creation
-
-## Consequences
-
-### Positive
-
-- Full user isolation: configs, upstreams, and metrics are scoped to the profile
-- Simpler GC: upstreams are cleaned per profile, not globally
-- Scalable for single-machine use: up to 100 concurrent profile routers
-
-### Negative
-
-- More processes: N profiles ⇒ N multiplexer processes plus M upstreams per profile
-- Port exhaustion: limited to 100 profiles in the 9000–9099 range
-
-### Neutral
-
-- Port allocation is sequential within the extension process (9000 for first profile, 9001 for second, etc.)
-
-## Alternatives considered
-
-1. **Single global multiplexer** — simpler process model, no per-user isolation
-2. **Per-workspace proxies without a router** — no protobuf-based workspace detection layer
-3. **Keep legacy + optional multiplexer** — rejected; dual code paths increased maintenance and confusion
-
-## Implementation
-
-- `MultiplexerRegistry` — `src/application/services/multiplexerRegistry.ts`
-- `ProfileMultiplexerService` — `src/application/services/profileMultiplexerService.ts`
-- `WorkspacePathStrategy` — `src/proxy/multiplexer/routing/workspacePathStrategy.ts`
-
-See [PROXY-MULTIPLEXER-ARCHITECTURE.md](PROXY-MULTIPLEXER-ARCHITECTURE.md) for the full data flow.
+See `docs/PROXY-MULTIPLEXER-MIGRATION.md` section **v2: Global Multiplexer on Port 9000**.

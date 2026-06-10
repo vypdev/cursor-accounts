@@ -14,7 +14,6 @@ export interface MultiplexerStatus {
   running: boolean;
   port?: number;
   strategy?: RoutingStrategyName;
-  upstreamCount: number;
   activeSessions: number;
 }
 
@@ -27,8 +26,6 @@ export interface IMultiplexerManager {
   isRunning(): boolean;
   getMetrics(): Promise<MultiplexerMetricsView | null>;
   getSessions(): readonly SessionBinding[];
-  getConfig(): Promise<MultiplexerConfig>;
-  setStrategy(strategy: RoutingStrategyName): Promise<MultiplexerStartResult>;
   getProxyServerUrl(): string | null;
   buildStatusView(): Promise<MultiplexerStatusView>;
   onStatusChange(callback: () => void): void;

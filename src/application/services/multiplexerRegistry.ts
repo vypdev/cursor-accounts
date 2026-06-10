@@ -1,36 +1,45 @@
-import * as crypto from 'node:crypto';
 import type { IProfileManager } from '../../domain/ports/IProfileManager';
-import type { IProxyManager } from '../../domain/ports/IProxyManager';
 import type { MultiplexerConfig } from '../types/multiplexerConfig';
-import type { IMultiplexerFlowLogger } from '../types/multiplexerFlowLogger';
+import { buildMultiplexerConfig, GLOBAL_MULTIPLEXER_PORT } from '../types/multiplexerConfig';
+import type { MultiplexerEventLogger } from '../../proxy/multiplexer/multiplexerEventLogger';
 import type { MultiplexerRuntime } from '../../proxy/multiplexer/factory';
 import { createMultiplexerRuntime } from '../../proxy/multiplexer/factory';
+import { ManagementApiClient } from '../../proxy/multiplexer/api/managementApiClient';
 import * as extensionLog from '../../logging/extensionLog';
 import * as vscode from 'vscode';
 
 const UPSTREAM_GC_INTERVAL_MS = 5 * 60 * 1000;
 const UPSTREAM_IDLE_TTL_MS = 30 * 60 * 1000;
-const GLOBAL_MULTIPLEXER_PORT = 9000;
-const UPSTREAM_PORT_BASE = 8000;
-const UPSTREAM_PORTS_PER_PROFILE = 100;
 
 /**
- * Application service: single global multiplexer router shared by all profiles.
+ * Application service: launches the global multiplexer MITM process (lifecycle only).
+ * All status/metrics queries go through the management API client.
  */
 export class MultiplexerRegistry implements vscode.Disposable {
   private globalRuntime: MultiplexerRuntime | null = null;
+  private readonly apiClient: ManagementApiClient;
   private readonly upstreamActivity = new Map<string, Map<string, number>>();
-  private readonly upstreamProfiles = new Map<string, string>();
   private gcInterval: ReturnType<typeof setInterval> | undefined;
   private readonly statusCallbacks: Array<() => void> = [];
+  private multiplexerStarted = false;
+  private externalMultiplexerDetected = false;
+  private readonly port: number;
 
   constructor(
-    private readonly proxyManager: IProxyManager,
     private readonly profileManager: IProfileManager,
-    private readonly flowLogger?: IMultiplexerFlowLogger
-  ) {}
+    private readonly storageDir: string,
+    private readonly extensionPath: string,
+    private readonly eventLogger?: MultiplexerEventLogger,
+    port?: number
+  ) {
+    this.port = port ?? GLOBAL_MULTIPLEXER_PORT;
+    this.apiClient = new ManagementApiClient(
+      `http://127.0.0.1:${this.port}`
+    );
+  }
 
   dispose(): void {
+    this.apiClient.disconnect();
     void this.stopAll();
   }
 
@@ -39,78 +48,129 @@ export class MultiplexerRegistry implements vscode.Disposable {
   }
 
   getProxyServerUrl(): string {
-    return `http://127.0.0.1:${GLOBAL_MULTIPLEXER_PORT}`;
+    return `http://127.0.0.1:${this.port}`;
   }
 
   isRunning(): boolean {
-    return this.globalRuntime?.service.isRunning() === true;
-  }
-
-  getRuntime(): MultiplexerRuntime | undefined {
-    return this.globalRuntime ?? undefined;
+    return (
+      this.multiplexerStarted ||
+      this.externalMultiplexerDetected ||
+      this.globalRuntime?.service.isRunning() === true
+    );
   }
 
   async ensureStarted(config?: Partial<MultiplexerConfig>): Promise<void> {
-    if (this.globalRuntime?.service.isRunning()) {
+    if (this.multiplexerStarted || this.globalRuntime?.service.isRunning()) {
       return;
     }
 
-    const fullConfig: MultiplexerConfig = {
-      router: { port: GLOBAL_MULTIPLEXER_PORT, host: '127.0.0.1' },
-      upstreams: [],
-      routing: {
-        strategy: 'workspace-path',
-        fallbackStrategy: 'sticky-session',
-        sessionTimeoutMs: 3_600_000,
-      },
-      health: {
-        checkIntervalMs: 30_000,
-        timeoutMs: 5_000,
-        unhealthyThreshold: 3,
-      },
-      ...config,
-    };
+    const fullConfig = buildMultiplexerConfig(config);
 
     const runtime = createMultiplexerRuntime(fullConfig, {
       profileManager: this.profileManager,
-      flowLogger: this.flowLogger,
-      onUpstreamCreate: (profileId, workspacePath) =>
-        this.createUpstreamForWorkspace(profileId, workspacePath),
-      onUpstreamActivity: (upstreamId) =>
-        this.recordUpstreamActivityForUpstream(upstreamId),
+      eventLogger: this.eventLogger,
+      storageDir: this.storageDir,
+      extensionPath: this.extensionPath,
+      testMode: process.env.NODE_ENV === 'test',
     });
 
-    await runtime.service.start(fullConfig);
-    this.globalRuntime = runtime;
-    this.startGc();
+    try {
+      await runtime.service.start(fullConfig);
+      this.globalRuntime = runtime;
+      this.multiplexerStarted = true;
+      this.startGc();
 
-    this.flowLogger?.appendMultiplexerStarted(GLOBAL_MULTIPLEXER_PORT);
-    extensionLog.info(
-      `[Multiplexer] Global multiplexer started on 127.0.0.1:${GLOBAL_MULTIPLEXER_PORT}`
-    );
-    this.notifyStatusChange();
+      void this.eventLogger?.logMultiplexerStarted(
+        GLOBAL_MULTIPLEXER_PORT,
+        fullConfig.routing.strategy
+      );
+      extensionLog.info(
+        `[Multiplexer] Global multiplexer started on 127.0.0.1:${GLOBAL_MULTIPLEXER_PORT}`
+      );
+      this.notifyStatusChange();
+    } catch (error) {
+      const isAddressInUse =
+        error instanceof Error &&
+        'code' in error &&
+        error.code === 'EADDRINUSE';
+
+      if (isAddressInUse) {
+        extensionLog.warn(
+          `[Multiplexer] Port ${GLOBAL_MULTIPLEXER_PORT} already in use (another Cursor window is running the multiplexer). This window will use the shared multiplexer.`
+        );
+        this.externalMultiplexerDetected = true;
+        this.notifyStatusChange();
+        return;
+      }
+
+      extensionLog.error(
+        `[Multiplexer] Failed to start: ${error instanceof Error ? error.message : String(error)}`
+      );
+      throw error;
+    }
   }
 
-  async stopUpstreamsForProfile(profileId: string): Promise<void> {
-    const runtime = this.globalRuntime;
-    if (!runtime) {
+  async createUpstreamWorker(
+    profileId: string,
+    workspacePath: string,
+    userDataDir?: string
+  ): Promise<string> {
+    if (!this.isRunning()) {
+      throw new Error('Global multiplexer is not running');
+    }
+
+    const resolvedUserDataDir =
+      userDataDir && userDataDir.length > 0
+        ? userDataDir
+        : (await this.profileManager.getProfile(profileId))?.userDataDir;
+
+    if (!resolvedUserDataDir) {
+      throw new Error(`Profile ${profileId} not found`);
+    }
+
+    // Check if upstream already exists via API
+    const existing = await this.apiClient.getUpstreams(profileId);
+    const found = existing.find(
+      (u) => u.metadata?.workspacePath === workspacePath
+    );
+    if (found) {
+      this.recordUpstreamActivity(profileId, found.id);
+      return found.id;
+    }
+
+    // Create upstream via Management API
+    const result = await this.apiClient.createUpstream(
+      profileId,
+      workspacePath,
+      resolvedUserDataDir
+    );
+
+    this.recordUpstreamActivity(profileId, result.upstreamId);
+
+    extensionLog.info(
+      `[Multiplexer] Created upstream worker ${result.upstreamId} profile=${profileId} workspace=${workspacePath}`
+    );
+    return result.upstreamId;
+  }
+
+  async stopUpstreamWorkersForProfile(profileId: string): Promise<void> {
+    if (!this.isRunning()) {
       return;
     }
 
-    const upstreams = runtime.upstreamPool.listByMetadata({ profileId });
-    for (const upstream of upstreams) {
-      await runtime.upstreamPool.removeUpstream(upstream.id);
-      await this.proxyManager.stopUpstream(upstream.id);
-      this.upstreamProfiles.delete(upstream.id);
-      this.flowLogger?.appendUpstreamStopped(upstream.id);
+    try {
+      await this.apiClient.deleteUpstreamsByProfile(profileId);
+      this.upstreamActivity.delete(profileId);
+      this.notifyStatusChange();
+
+      extensionLog.info(
+        `[Multiplexer] Stopped upstream workers for profile=${profileId}`
+      );
+    } catch (error) {
+      extensionLog.error(
+        `[Multiplexer] Failed to stop upstreams for profile=${profileId}: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
-
-    this.upstreamActivity.delete(profileId);
-    this.notifyStatusChange();
-
-    extensionLog.info(
-      `[Multiplexer] Stopped upstreams for profile=${profileId}`
-    );
   }
 
   async stopAll(): Promise<void> {
@@ -120,123 +180,42 @@ export class MultiplexerRegistry implements vscode.Disposable {
     }
 
     if (this.globalRuntime) {
-      const upstreams = this.globalRuntime.upstreamPool.getAll();
-      for (const upstream of upstreams) {
-        await this.proxyManager.stopUpstream(upstream.id);
-        this.upstreamProfiles.delete(upstream.id);
-        this.flowLogger?.appendUpstreamStopped(upstream.id);
-      }
-
       await this.globalRuntime.service.stop();
       this.globalRuntime = null;
-      this.flowLogger?.appendMultiplexerStopped();
+      this.multiplexerStarted = false;
+      void this.eventLogger?.logMultiplexerStopped();
       extensionLog.info('[Multiplexer] Global multiplexer stopped');
     }
 
     this.upstreamActivity.clear();
+    this.externalMultiplexerDetected = false;
     this.notifyStatusChange();
   }
 
-  async createUpstreamForWorkspace(
-    profileId: string,
-    workspacePath: string
-  ): Promise<string> {
-    if (!this.globalRuntime) {
-      throw new Error('Global multiplexer is not running');
+  private async deleteUpstreamWorker(
+    upstreamId: string,
+    _reason?: string
+  ): Promise<void> {
+    if (!this.isRunning()) {
+      return;
     }
 
-    const existing = this.globalRuntime.upstreamPool.getByWorkspace(
-      workspacePath,
-      profileId
-    );
-    if (existing) {
-      return existing.id;
+    try {
+      await this.apiClient.deleteUpstream(upstreamId);
+    } catch (error) {
+      extensionLog.error(
+        `[Multiplexer] Failed to delete upstream ${upstreamId}: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
-
-    const upstreamId = `${profileId}-${this.hashWorkspace(workspacePath)}`;
-    const preferredPort = await this.allocateUpstreamPort(profileId);
-
-    const result = await this.proxyManager.startUpstream(upstreamId, {
-      profileId,
-      workspacePath,
-      preferredPort,
-    });
-
-    if (!result.success) {
-      throw new Error(`Failed to start upstream: ${result.error ?? 'unknown'}`);
-    }
-
-    const port = result.port ?? preferredPort;
-    await this.globalRuntime.upstreamPool.createUpstream({
-      id: upstreamId,
-      host: '127.0.0.1',
-      port,
-      weight: 1,
-      maxConnections: 100,
-      metadata: { workspacePath, profileId },
-    });
-    this.upstreamProfiles.set(upstreamId, profileId);
-
-    this.flowLogger?.appendUpstreamCreated(
-      upstreamId,
-      profileId,
-      workspacePath,
-      port
-    );
-    extensionLog.info(
-      `[Multiplexer] Created upstream ${upstreamId} profile=${profileId} workspace=${workspacePath}`
-    );
-    return upstreamId;
   }
 
-  recordUpstreamActivity(profileId: string, upstreamId: string): void {
+  private recordUpstreamActivity(profileId: string, upstreamId: string): void {
     let activity = this.upstreamActivity.get(profileId);
     if (!activity) {
       activity = new Map();
       this.upstreamActivity.set(profileId, activity);
     }
     activity.set(upstreamId, Date.now());
-  }
-
-  listUpstreamsForProfile(profileId: string) {
-    return (
-      this.globalRuntime?.upstreamPool.listByMetadata({ profileId }) ?? []
-    );
-  }
-
-  private recordUpstreamActivityForUpstream(upstreamId: string): void {
-    const profileId = this.upstreamProfiles.get(upstreamId);
-    if (profileId) {
-      this.recordUpstreamActivity(profileId, upstreamId);
-    }
-  }
-
-  private async allocateUpstreamPort(profileId: string): Promise<number> {
-    const profiles = await this.profileManager.getProfiles();
-    const profileIndex = profiles.findIndex((profile) => profile.id === profileId);
-    const basePort =
-      UPSTREAM_PORT_BASE +
-      Math.max(0, profileIndex) * UPSTREAM_PORTS_PER_PROFILE;
-    const usedPorts = new Set(
-      this.globalRuntime?.upstreamPool.getAll().map((upstream) => upstream.port) ??
-        []
-    );
-
-    for (
-      let port = basePort;
-      port < basePort + UPSTREAM_PORTS_PER_PROFILE;
-      port++
-    ) {
-      if (!usedPorts.has(port)) {
-        return port;
-      }
-    }
-
-    throw new Error(`No available upstream ports for profile ${profileId}`);
-  }
-
-  private hashWorkspace(path: string): string {
-    return crypto.createHash('sha256').update(path).digest('hex').slice(0, 8);
   }
 
   private startGc(): void {
@@ -250,33 +229,33 @@ export class MultiplexerRegistry implements vscode.Disposable {
   }
 
   private async cleanupIdleUpstreams(): Promise<void> {
-    const runtime = this.globalRuntime;
-    if (!runtime) {
+    if (!this.isRunning()) {
       return;
     }
 
-    const now = Date.now();
+    try {
+      const allUpstreams = await this.apiClient.getUpstreams();
+      const now = Date.now();
 
-    for (const upstream of runtime.upstreamPool.getAll()) {
-      const profileId = this.upstreamProfiles.get(upstream.id);
-      const activity = profileId
-        ? (this.upstreamActivity.get(profileId) ?? new Map())
-        : new Map<string, number>();
-      const lastActivity = activity.get(upstream.id) ?? 0;
+      for (const worker of allUpstreams) {
+        const activity = this.upstreamActivity.get(worker.metadata?.profileId ?? '') ?? new Map();
+        const lastActivity = activity.get(worker.id) ?? 0;
 
-      if (
-        now - lastActivity > UPSTREAM_IDLE_TTL_MS &&
-        upstream.connectionCount === 0
-      ) {
-        extensionLog.info(
-          `[Multiplexer] GC removing idle upstream ${upstream.id}`
-        );
-        await runtime.upstreamPool.removeUpstream(upstream.id);
-        await this.proxyManager.stopUpstream(upstream.id);
-        this.upstreamProfiles.delete(upstream.id);
-        activity.delete(upstream.id);
-        this.flowLogger?.appendUpstreamStopped(upstream.id);
+        if (
+          now - lastActivity > UPSTREAM_IDLE_TTL_MS &&
+          worker.trafficReceived === 0
+        ) {
+          extensionLog.info(
+            `[Multiplexer] GC removing idle upstream worker ${worker.id}`
+          );
+          await this.deleteUpstreamWorker(worker.id, 'idle-gc');
+          activity.delete(worker.id);
+        }
       }
+    } catch (error) {
+      extensionLog.error(
+        `[Multiplexer] Failed to cleanup idle upstreams: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 

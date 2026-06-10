@@ -162,14 +162,6 @@ class VSCodeAPI {
     this.sendMessage({ type: 'clearGithubToken', profileId });
   }
 
-  startProxy(): void {
-    this.sendMessage({ type: 'startProxy' });
-  }
-
-  stopProxy(): void {
-    this.sendMessage({ type: 'stopProxy' });
-  }
-
   showProxyLogs(): void {
     this.sendMessage({ type: 'showProxyLogs' });
   }
@@ -196,26 +188,6 @@ class VSCodeAPI {
 
   refreshProxyStatus(): void {
     this.sendMessage({ type: 'refreshProxyStatus' });
-  }
-
-  startMultiplexer(): void {
-    this.sendMessage({ type: 'startMultiplexer' });
-  }
-
-  stopMultiplexer(): void {
-    this.sendMessage({ type: 'stopMultiplexer' });
-  }
-
-  refreshMultiplexerStatus(): void {
-    this.sendMessage({ type: 'refreshMultiplexerStatus' });
-  }
-
-  setMultiplexerStrategy(
-    strategy: NonNullable<
-      Extract<FromWebviewMessage, { type: 'setMultiplexerStrategy' }>['strategy']
-    >
-  ): void {
-    this.sendMessage({ type: 'setMultiplexerStrategy', strategy });
   }
 
   saveState(state: Omit<WebviewPersistedState, 'version'>): void {

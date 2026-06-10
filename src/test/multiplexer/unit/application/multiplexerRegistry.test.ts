@@ -1,19 +1,25 @@
 import assert from 'node:assert/strict';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import { afterEach, describe, it } from 'node:test';
 import type { IProfileManager } from '../../../../domain/ports/IProfileManager';
-import type { IProxyManager } from '../../../../domain/ports/IProxyManager';
 import { MultiplexerRegistry } from '../../../../application/services/multiplexerRegistry';
+import { ManagementApiClient } from '../../../../proxy/multiplexer/api/managementApiClient';
 
 function createMockProfileManager(): IProfileManager {
   return {
     initialize: async () => undefined,
     getProfiles: async () => [
-      { id: 'profile-a', email: 'a@example.com' } as never,
-      { id: 'profile-b', email: 'b@example.com' } as never,
+      { id: 'profile-a', email: 'a@example.com', userDataDir: '/tmp/profile-a' } as never,
+      { id: 'profile-b', email: 'b@example.com', userDataDir: '/tmp/profile-b' } as never,
     ],
     getProfile: async (id) =>
       id === 'profile-a' || id === 'profile-b'
-        ? ({ id, email: `${id}@example.com` } as never)
+        ? ({
+            id,
+            email: `${id}@example.com`,
+            userDataDir: `/tmp/${id}`,
+          } as never)
         : undefined,
     findProfileByEmail: async () => undefined,
     findProfileByPath: async () => undefined,
@@ -35,138 +41,113 @@ function createMockProfileManager(): IProfileManager {
   };
 }
 
-function createMockProxyManager(): IProxyManager & {
-  startUpstreamCalls: Array<{
-    upstreamId: string;
-    profileId: string;
-    workspacePath: string;
-  }>;
-  stopUpstreamCalls: string[];
-} {
-  const startUpstreamCalls: Array<{
-    upstreamId: string;
-    profileId: string;
-    workspacePath: string;
-  }> = [];
-  const stopUpstreamCalls: string[] = [];
-
-  return {
-    startUpstreamCalls,
-    stopUpstreamCalls,
-    start: async () => ({ success: true, port: 8080 }),
-    startUpstream: async (upstreamId, options) => {
-      startUpstreamCalls.push({
-        upstreamId,
-        profileId: options.profileId,
-        workspacePath: options.workspacePath,
-      });
-      return { success: true, port: 8100 + startUpstreamCalls.length };
-    },
-    stop: async () => undefined,
-    stopUpstream: async (upstreamId) => {
-      stopUpstreamCalls.push(upstreamId);
-    },
-    getRuntimeMetadata: () => undefined,
-    restartProfileProxy: async () => ({ success: true, port: 8080 }),
-    getStatus: async () => null,
-    isRunning: async () => false,
-    isCurrentWindowUsingProxy: async () => false,
-    getCertificatePath: async () => '/tmp/ca.pem',
-    getLogDirectory: () => '/tmp/logs',
-    getProxyInstallGuide: async () => ({
-      platform: 'darwin',
-      certAvailable: true,
-      certPath: '/tmp/ca.pem',
-      title: 'Install',
-      intro: 'Intro',
-      steps: [],
-    }),
-    installCertificate: async () => ({ success: true }),
-    uninstallCertificate: async () => ({ success: true }),
-    checkCertificateInstalled: async () => true,
-    getCachedCertificateInstalled: () => true,
-    getProxyServerUrl: async () => null,
-    getAllUsedPorts: async () => [],
-    ensureProfileProxy: async () => ({ success: true, port: 8080 }),
-    restoreAllProfileProxySettings: async () => ({ restored: 0, errors: [] }),
-    onStatusChange: () => undefined,
-    ensureOutputTailer: async () => undefined,
-    ensureTrafficTailer: async () => undefined,
-    showOutputChannel: () => undefined,
-    showTokenDetectorChannel: () => undefined,
-  };
-}
-
 describe('MultiplexerRegistry', { concurrency: 1 }, () => {
   const registries: MultiplexerRegistry[] = [];
+  const apiClients: ManagementApiClient[] = [];
+  const tempRoot = path.join(os.tmpdir(), `mux-registry-test-${process.pid}`);
+  let nextPort = 19_500 + (process.pid % 1000);
+
+  function allocateTestPort(): number {
+    return nextPort++;
+  }
 
   afterEach(async () => {
+    for (const client of apiClients.splice(0)) {
+      client.disconnect();
+    }
     for (const registry of registries.splice(0)) {
       await registry.stopAll();
     }
+    await new Promise((resolve) => setTimeout(resolve, 100));
   });
 
-  function createRegistry(proxyManager = createMockProxyManager()): {
+  function createRegistry(): {
     registry: MultiplexerRegistry;
-    proxyManager: ReturnType<typeof createMockProxyManager>;
+    apiClient: ManagementApiClient;
+    port: number;
   } {
+    const port = allocateTestPort();
     const registry = new MultiplexerRegistry(
-      proxyManager,
-      createMockProfileManager()
+      createMockProfileManager(),
+      tempRoot,
+      process.cwd(),
+      undefined,
+      port
     );
+    const apiClient = new ManagementApiClient(`http://127.0.0.1:${port}`);
     registries.push(registry);
-    return { registry, proxyManager };
+    apiClients.push(apiClient);
+    return { registry, apiClient, port };
   }
 
   it('singleton reuses global multiplexer on port 9000', async () => {
-    const { registry } = createRegistry();
+    const { registry, apiClient, port } = createRegistry();
 
-    await registry.ensureStarted();
-    await registry.ensureStarted();
+    await registry.ensureStarted({ router: { port, host: '127.0.0.1' } });
+    await registry.ensureStarted({ router: { port, host: '127.0.0.1' } });
 
     assert.equal(registry.isRunning(), true);
-    assert.equal(registry.getProxyServerUrl(), 'http://127.0.0.1:9000');
-    assert.equal(registry.getRuntime()?.service.getConfig()?.router.port, 9000);
+
+    const status = await apiClient.getStatus();
+    assert.equal(status.port, port);
+    assert.equal(status.running, true);
   });
 
-  it('creates upstream dynamically for profile and workspace', async () => {
-    const { registry, proxyManager } = createRegistry();
-    await registry.ensureStarted();
+  it('creates upstream worker via management API', async () => {
+    const { registry, apiClient, port } = createRegistry();
+    await registry.ensureStarted({ router: { port, host: '127.0.0.1' } });
 
-    const upstreamId = await registry.createUpstreamForWorkspace(
+    const result = await apiClient.createUpstream(
       'profile-a',
       '/workspace/project-x'
     );
 
-    assert.ok(upstreamId);
-    assert.equal(proxyManager.startUpstreamCalls.length, 1);
-    assert.equal(proxyManager.startUpstreamCalls[0]?.profileId, 'profile-a');
-    assert.equal(
-      proxyManager.startUpstreamCalls[0]?.workspacePath,
-      '/workspace/project-x'
-    );
+    assert.ok(result.upstreamId);
+
+    const upstreams = await apiClient.getUpstreams('profile-a');
+    assert.equal(upstreams.length, 1);
+    assert.equal(upstreams[0]?.id, result.upstreamId);
+    assert.equal(upstreams[0]?.metadata?.workspacePath, '/workspace/project-x');
   });
 
-  it('stopUpstreamsForProfile removes upstreams without stopping global router', async () => {
-    const { registry, proxyManager } = createRegistry();
-    await registry.ensureStarted();
-    await registry.createUpstreamForWorkspace('profile-a', '/workspace/a');
+  it('stopUpstreamsForProfile removes workers without stopping global router', async () => {
+    const { registry, apiClient, port } = createRegistry();
+    await registry.ensureStarted({ router: { port, host: '127.0.0.1' } });
+    await apiClient.createUpstream('profile-a', '/workspace/a');
 
-    await registry.stopUpstreamsForProfile('profile-a');
+    await apiClient.deleteUpstreamsByProfile('profile-a');
 
     assert.equal(registry.isRunning(), true);
-    assert.ok(proxyManager.stopUpstreamCalls.length >= 1);
-    assert.equal(registry.listUpstreamsForProfile('profile-a').length, 0);
+    const upstreams = await apiClient.getUpstreams('profile-a');
+    assert.equal(upstreams.length, 0);
   });
 
-  it('stopAll stops global multiplexer and all upstreams', async () => {
-    const { registry, proxyManager } = createRegistry();
-    await registry.ensureStarted();
-    await registry.createUpstreamForWorkspace('profile-a', '/workspace/a');
+  it('stopAll stops global multiplexer and all upstream workers', async () => {
+    const { registry, apiClient, port } = createRegistry();
+    await registry.ensureStarted({ router: { port, host: '127.0.0.1' } });
+    await apiClient.createUpstream('profile-a', '/workspace/a');
 
     await registry.stopAll();
 
     assert.equal(registry.isRunning(), false);
-    assert.ok(proxyManager.stopUpstreamCalls.length >= 1);
+  });
+
+  it('createUpstreamWorker registers worker at launch time', async () => {
+    const { registry, apiClient, port } = createRegistry();
+    await registry.ensureStarted({ router: { port, host: '127.0.0.1' } });
+
+    const upstreamId = await registry.createUpstreamWorker(
+      'profile-a',
+      '/workspace/launch',
+      '/tmp/profile-a'
+    );
+
+    assert.ok(upstreamId);
+    
+    // Small delay to ensure worker registration completes
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    const upstreams = await apiClient.getUpstreams('profile-a');
+    assert.equal(upstreams.length, 1);
   });
 });

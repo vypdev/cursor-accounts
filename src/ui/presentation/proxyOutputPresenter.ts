@@ -84,6 +84,18 @@ export class ProxyOutputPresenter implements IMultiplexerFlowLogger {
     this.channel.appendLine('');
   }
 
+  appendMultiplexerLog(line: string): void {
+    this.channel.appendLine(`[${this.timeLabel()}] ${line}`);
+    this.channel.appendLine('');
+  }
+
+  appendMultiplexerTailing(logFilePath: string): void {
+    this.channel.appendLine(
+      `[${this.timeLabel()}] [Multiplexer] Tailing log file: ${logFilePath}`
+    );
+    this.channel.appendLine('');
+  }
+
   appendMultiplexerStarted(port: number): void {
     this.channel.appendLine(
       `[${this.timeLabel()}] [Multiplexer] Global multiplexer started on port ${port}`

@@ -7,8 +7,7 @@ import { ImportDialog } from './components/ImportDialog';
 import { ProfileList } from './components/ProfileList';
 import { CaCertificateInstallModal } from './components/CaCertificateInstallModal';
 import { CaCertificateUninstallModal } from './components/CaCertificateUninstallModal';
-import { ProxyStatusCard } from './components/ProxyStatusCard';
-import { MultiplexerStatusCard } from './components/MultiplexerStatusCard';
+import { ProxyStatusCardUnified } from './components/ProxyStatusCardUnified';
 import { StorageManagementModal } from './components/StorageManagementModal';
 import { PricesModal } from './components/PricesModal';
 import { L10nProvider, useL10n } from './l10n/context';
@@ -438,14 +437,6 @@ const AppContent: React.FC = () => {
     persistUiState(showAddForm, null);
   }, [showAddForm, persistUiState]);
 
-  const handleStartProxy = useCallback(() => {
-    vscodeApi.startProxy();
-  }, []);
-
-  const handleStopProxy = useCallback(() => {
-    vscodeApi.stopProxy();
-  }, []);
-
   const handleShowProxyLogs = useCallback(() => {
     vscodeApi.showProxyLogs();
   }, []);
@@ -641,22 +632,10 @@ const AppContent: React.FC = () => {
         )}
 
         {showProxyUi && multiplexerStatus && (
-          <MultiplexerStatusCard
-            status={multiplexerStatus}
-            onStart={() => vscodeApi.startMultiplexer()}
-            onStop={() => vscodeApi.stopMultiplexer()}
-            onRefresh={() => vscodeApi.refreshMultiplexerStatus()}
-            onSetStrategy={(strategy) => vscodeApi.setMultiplexerStrategy(strategy)}
-          />
-        )}
-
-        {showProxyUi && (
-          <ProxyStatusCard
+          <ProxyStatusCardUnified
+            multiplexerStatus={multiplexerStatus}
             proxyStatus={proxyStatus}
-            currentWindowUsesProxy={currentWindowUsesProxy}
             uninstallInProgress={uninstallInProgress}
-            onStartProxy={handleStartProxy}
-            onStopProxy={handleStopProxy}
             onShowLogs={handleShowProxyLogs}
             onShowTraffic={handleShowProxyTraffic}
             onShowCertificate={handleShowProxyCertificate}

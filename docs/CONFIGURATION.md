@@ -54,27 +54,26 @@ See [ACTIVE-CONVERSATION-DETECTION.md](ACTIVE-CONVERSATION-DETECTION.md) for how
 
 Optional localhost proxy to observe Cursor network traffic. Setup: [PROXY-SETUP.md](PROXY-SETUP.md). Token and billing semantics: [TOKENS-AND-USAGE.md](TOKENS-AND-USAGE.md).
 
+Proxy is enabled **per profile** in the Accounts panel (`proxyEnabled` on each profile). The global multiplexer router starts automatically on port **9000** when the extension activates.
+
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `cursorAccounts.proxy.enabled` | `false` | Start proxy when the extension activates |
-| `cursorAccounts.proxy.port` | `8080` | Listen port (per-profile launches may use 8081, 8082, or 8888) |
+| `cursorAccounts.proxy.multiplexer.routingStrategy` | `workspace-path` | Global multiplexer routing (`workspace-path` or `sticky-session`) |
 | `cursorAccounts.proxy.maxLogSizeMB` | `500` | Max total log disk usage before rotation |
 | `cursorAccounts.proxy.maxBodyLogMB` | `4` | Inline body size threshold before spill to `logs/bodies/` |
 | `cursorAccounts.proxy.spillLargeBodies` | `true` | Write large bodies to sidecar `.bin` files |
-| `cursorAccounts.proxy.autoLaunchWithProxy` | `true` | Apply proxy settings when launching a profile from Accounts |
 | `cursorAccounts.proxy.logTrafficToOutput` | `true` | Stream decoded traffic lines to MITM Proxy output |
 | `cursorAccounts.proxy.autoShowOutputChannel` | `false` | Open output channel when proxy starts |
 | `cursorAccounts.proxy.outputCursorHostsOnly` | `false` | Filter output to Cursor API hosts |
 | `cursorAccounts.proxy.outputTailFromStart` | `false` | Tail log from beginning when output opens |
 | `cursorAccounts.proxy.showLiveUsageInStatusBar` | `true` | Show live agent token counter + rough cost estimate (via proxy child IPC, not log tailing) |
 | `cursorAccounts.proxy.estimatedDollarsPerMillionTokens` | `4` | Flat rate for live cost estimate (not real billing) |
-| `cursorAccounts.proxy.developmentMode` | `false` | Write JSONL logs under `~/.cursor-accounts/proxy/logs/`; when off, traffic flows via IPC only |
 | `cursorAccounts.proxy.trafficDiagnostics` | `true` | Periodic `[ProxyDiagnostics]` summaries in MITM output (hosts, RPC counts, bypass hints) |
 | `cursorAccounts.proxy.diagnosticsIntervalMs` | `30000` | Interval between diagnostics summaries (10000–300000 ms) |
 | `cursorAccounts.proxy.logTokenDetectorToOutput` | `true` | Stream agent/token events to **Cursor Token Detector** output channel |
 | `cursorAccounts.proxy.autoShowTokenDetectorChannel` | `false` | Open Token Detector output when agent/token events arrive |
 
-**Runtime modes:** With `developmentMode` off (default), the extension host receives decoded traffic from the proxy child over IPC (`ProxyManager.onTraffic`). JSONL files and log tailing are only used when `developmentMode` is `true` or when you open the output channel with **Proxy: Output Tail From Start** (replays the active log file if one exists).
+Per-profile JSONL logging is controlled by `proxyJsonlLoggingEnabled` on each profile in the Accounts panel.
 
 ## Common scenarios
 

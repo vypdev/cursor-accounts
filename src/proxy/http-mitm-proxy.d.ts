@@ -12,6 +12,7 @@ declare module 'http-mitm-proxy' {
 
   export interface IContext {
     clientToProxyRequest: http.IncomingMessage;
+    proxyToClientResponse: http.ServerResponse;
     serverToProxyResponse?: http.IncomingMessage;
     isSSL?: boolean;
     onRequestData(

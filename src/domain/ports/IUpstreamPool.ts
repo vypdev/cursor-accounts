@@ -32,4 +32,5 @@ export interface IUpstreamPool {
   getByWorkspace(workspacePath: string, profileId?: string): Upstream | undefined;
   removeUpstream(upstreamId: string): Promise<void>;
   listByMetadata(filter: UpstreamMetadataFilter): readonly Upstream[];
+  getMetadata(upstreamId: string): UpstreamConfig['metadata'] | undefined;
 }

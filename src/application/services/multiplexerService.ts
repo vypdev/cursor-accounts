@@ -1,13 +1,25 @@
+import * as path from 'path';
 import type { IMultiplexerServer } from '../../domain/ports/IMultiplexerServer';
-import type { IUpstreamPool } from '../../domain/ports/IUpstreamPool';
 import type { ISessionStore } from '../../domain/ports/ISessionStore';
+import type { ProxyServerConfig } from '../types/proxyConfig';
 import type { MultiplexerConfig } from '../types/multiplexerConfig';
+import { CertificateManager } from '../../proxy/certificateManager';
 import { MetricsAggregator } from './metricsAggregator';
-import { RoutingOrchestrator } from './routingOrchestrator';
-import { UpstreamHealthMonitor } from './upstreamHealthMonitor';
+import type { UpstreamWorkerManager } from '../../proxy/multiplexer/upstreamWorkerManager';
+
+export interface MultiplexerServiceLifecycleHooks {
+  onStarted?: (config: MultiplexerConfig) => void;
+  onStopped?: () => void;
+}
+
+export interface MultiplexerServiceDependencies {
+  storageDir: string;
+  logDir: string;
+  extensionPath: string;
+}
 
 /**
- * Application service: multiplexor lifecycle and request routing.
+ * Application service: multiplexor MITM lifecycle.
  */
 export class MultiplexerService {
   private config: MultiplexerConfig | null = null;
@@ -15,39 +27,31 @@ export class MultiplexerService {
 
   constructor(
     private readonly server: IMultiplexerServer,
-    private readonly upstreamPool: IUpstreamPool,
+    private readonly upstreamWorkerManager: UpstreamWorkerManager,
     private readonly sessionStore: ISessionStore,
-    private readonly healthMonitor: UpstreamHealthMonitor,
-    private readonly routingOrchestrator: RoutingOrchestrator,
-    private readonly metricsAggregator?: MetricsAggregator
+    private readonly metricsAggregator: MetricsAggregator,
+    private readonly deps: MultiplexerServiceDependencies,
+    private readonly lifecycleHooks?: MultiplexerServiceLifecycleHooks
   ) {}
 
   async start(config: MultiplexerConfig): Promise<void> {
     this.config = config;
-    await this.upstreamPool.initialize(config.upstreams);
-    await this.healthMonitor.start(
-      this.upstreamPool,
-      config.health.checkIntervalMs
-    );
 
-    await this.server.listen(
-      config.router.port,
-      config.router.host,
-      async (session, context) => {
-        const decision = await this.routingOrchestrator.route(session, context);
-        return {
-          host: decision.upstream.host,
-          port: decision.upstream.port,
-          upstreamId: decision.upstream.id,
-        };
-      }
+    const certManager = new CertificateManager(
+      path.join(this.deps.storageDir, 'certs')
     );
+    await certManager.ensureCaCertificate();
+
+    const proxyConfig = this.buildProxyServerConfig(config);
+    await this.server.start(proxyConfig);
 
     const timeoutMs = config.routing.sessionTimeoutMs ?? 3_600_000;
     this.sessionCleanupTimer = setInterval(() => {
       const before = new Date(Date.now() - timeoutMs);
       this.sessionStore.clearExpired(before);
     }, Math.min(timeoutMs, 60_000));
+
+    this.lifecycleHooks?.onStarted?.(config);
   }
 
   async stop(): Promise<void> {
@@ -55,9 +59,11 @@ export class MultiplexerService {
       clearInterval(this.sessionCleanupTimer);
       this.sessionCleanupTimer = undefined;
     }
-    await this.healthMonitor.stop();
-    await this.server.close();
+
+    await this.upstreamWorkerManager.stopAll();
+    await this.server.stop();
     this.config = null;
+    this.lifecycleHooks?.onStopped?.();
   }
 
   isRunning(): boolean {
@@ -69,6 +75,20 @@ export class MultiplexerService {
   }
 
   getMetricsView() {
-    return this.metricsAggregator?.getView();
+    return this.metricsAggregator.getView();
+  }
+
+  private buildProxyServerConfig(config: MultiplexerConfig): ProxyServerConfig {
+    return {
+      port: config.router.port,
+      storageDir: this.deps.storageDir,
+      logDir: this.deps.logDir,
+      maxLogSizeMb: 10,
+      maxBodyLogBytes: 4 * 1024 * 1024,
+      spillLargeBodies: true,
+      developmentMode: false,
+      trafficDiagnostics: false,
+      diagnosticsIntervalMs: 30_000,
+    };
   }
 }

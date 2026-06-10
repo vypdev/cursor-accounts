@@ -1,109 +1,105 @@
+import * as path from 'path';
 import { MetricsAggregator } from '../../application/services/metricsAggregator';
 import { MultiplexerService } from '../../application/services/multiplexerService';
-import { RoutingOrchestrator } from '../../application/services/routingOrchestrator';
-import { UpstreamHealthMonitor } from '../../application/services/upstreamHealthMonitor';
 import type { MultiplexerConfig } from '../../application/types/multiplexerConfig';
-import type { IMultiplexerFlowLogger } from '../../application/types/multiplexerFlowLogger';
 import type { IProfileManager } from '../../domain/ports/IProfileManager';
-import { MultiplexerServer } from './multiplexerServer';
+import { CertificateManager } from '../certificateManager';
+import { NullLogger } from '../nullLogger';
+import { getMultiplexerLogDir } from './multiplexerPaths';
+import { ManagementApiServer } from './api/managementApiServer';
+import { MultiplexerMitmServer } from './multiplexerMitmServer';
 import { MultiplexerMetricsCollector } from './metrics/multiplexerMetricsCollector';
-import { ProtoPayloadExtractor } from './protoPayloadExtractor';
-import { createRoutingStrategy } from './routing/routingStrategyFactory';
-import type { WorkspaceUpstreamCreator } from './routing/workspacePathStrategy';
-import { RoutingEventLogger } from './routingEventLogger';
+import { MultiplexerEventLogger } from './multiplexerEventLogger';
 import { InMemorySessionStore } from './storage/inMemorySessionStore';
-import { HealthChecker } from './upstreams/healthChecker';
-import { UpstreamPool } from './upstreams/upstreamPool';
+import { UpstreamWorkerManager } from './upstreamWorkerManager';
+import { UpstreamWorkerRegistry } from './upstreams/upstreamWorkerRegistry';
 
 export interface MultiplexerRuntime {
   service: MultiplexerService;
   metricsAggregator: MetricsAggregator;
-  routingOrchestrator: RoutingOrchestrator;
-  upstreamPool: UpstreamPool;
+  upstreamWorkerManager: UpstreamWorkerManager;
+  workerRegistry: UpstreamWorkerRegistry;
   sessionStore: InMemorySessionStore;
+  managementApi: ManagementApiServer;
 }
 
 export interface MultiplexerRuntimeOptions {
   profileManager?: IProfileManager;
-  flowLogger?: IMultiplexerFlowLogger;
-  onUpstreamCreate?: WorkspaceUpstreamCreator;
-  onUpstreamActivity?: (upstreamId: string) => void;
+  eventLogger?: MultiplexerEventLogger;
+  storageDir: string;
+  extensionPath: string;
+  testMode?: boolean;
 }
 
 /** Builds a fully wired multiplexor runtime from configuration. */
 export function createMultiplexerRuntime(
   config: MultiplexerConfig,
-  options?: MultiplexerRuntimeOptions
+  options: MultiplexerRuntimeOptions
 ): MultiplexerRuntime {
   const sessionStore = new InMemorySessionStore();
-  const upstreamPool = new UpstreamPool();
-  const payloadExtractor = new ProtoPayloadExtractor();
-  const strategyOptions = {
-    profileManager: options?.profileManager,
-    flowLogger: options?.flowLogger,
-  };
-  const primaryStrategy = createRoutingStrategy(
-    config.routing.strategy,
-    sessionStore,
-    payloadExtractor,
-    options?.onUpstreamCreate,
-    upstreamPool,
-    strategyOptions
-  );
-  const fallbackStrategy = config.routing.fallbackStrategy
-    ? createRoutingStrategy(
-        config.routing.fallbackStrategy,
-        sessionStore,
-        payloadExtractor,
-        undefined,
-        upstreamPool,
-        strategyOptions
-      )
-    : undefined;
+  const workerRegistry = new UpstreamWorkerRegistry();
+  const eventLogger = options.eventLogger ?? new MultiplexerEventLogger();
 
   const metrics = new MultiplexerMetricsCollector();
-  const routingOrchestrator = new RoutingOrchestrator(
-    primaryStrategy,
-    sessionStore,
-    upstreamPool,
-    metrics,
-    fallbackStrategy,
-    options?.onUpstreamActivity
-  );
-
-  const eventLogger = new RoutingEventLogger();
-  routingOrchestrator.onRouting((event) => {
-    void eventLogger.append(event);
-  });
-
-  const healthMonitor = new UpstreamHealthMonitor(
-    new HealthChecker({
-      timeoutMs: config.health.timeoutMs,
-      unhealthyThreshold: config.health.unhealthyThreshold,
-    })
-  );
-
   const metricsAggregator = new MetricsAggregator(
     metrics,
-    upstreamPool,
+    workerRegistry,
     config.routing.strategy,
     config.router.port
   );
 
-  const service = new MultiplexerService(
-    new MultiplexerServer(),
-    upstreamPool,
+  const certManager = new CertificateManager(path.join(options.storageDir, 'certs'));
+  const server = new MultiplexerMitmServer(certManager, new NullLogger());
+  server.setProfileManager(options.profileManager);
+
+  const upstreamWorkerManager = new UpstreamWorkerManager(workerRegistry, {
+    profileManager: options.profileManager,
+    eventLogger,
+    extensionPath: options.extensionPath,
+    testMode: options.testMode,
+  });
+  server.setUpstreamNotifier(upstreamWorkerManager);
+
+  let activeConfig: MultiplexerConfig | null = null;
+
+  const managementApi = new ManagementApiServer(
+    workerRegistry,
+    upstreamWorkerManager,
+    metricsAggregator,
     sessionStore,
-    healthMonitor,
-    routingOrchestrator,
-    metricsAggregator
+    () => activeConfig,
+    eventLogger
+  );
+  server.setManagementApi(managementApi);
+
+  const service = new MultiplexerService(
+    server,
+    upstreamWorkerManager,
+    sessionStore,
+    metricsAggregator,
+    {
+      storageDir: options.storageDir,
+      logDir: getMultiplexerLogDir(),
+      extensionPath: options.extensionPath,
+    },
+    {
+      onStarted: (startedConfig) => {
+        activeConfig = startedConfig;
+        managementApi.notifyConfigChanged();
+        managementApi.notifyStatusChanged();
+      },
+      onStopped: () => {
+        activeConfig = null;
+      },
+    }
   );
 
   return {
     service,
     metricsAggregator,
-    routingOrchestrator,
-    upstreamPool,
+    upstreamWorkerManager,
+    workerRegistry,
     sessionStore,
+    managementApi,
   };
 }

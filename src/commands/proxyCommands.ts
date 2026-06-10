@@ -16,38 +16,6 @@ export function registerProxyCommands(
   });
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('cursorAccounts.proxy.start', async () => {
-      const currentProfile = await profileDetector.detectCurrentProfile();
-      if (!currentProfile || !isProfileProxyEnabled(currentProfile)) {
-        vscode.window.showWarningMessage(t('commands.proxy.requiresProfile'));
-        return;
-      }
-
-      const result = await proxyManager.start(currentProfile.id);
-      if (result.success) {
-        vscode.window.showInformationMessage(
-          t('commands.proxy.started', { port: String(result.port ?? '') })
-        );
-      } else {
-        vscode.window.showErrorMessage(
-          t('commands.proxy.startFailed', {
-            error: result.error ?? t('errors.unknown'),
-          })
-        );
-      }
-    }),
-
-    vscode.commands.registerCommand('cursorAccounts.proxy.stop', async () => {
-      const currentProfile = await profileDetector.detectCurrentProfile();
-      if (!currentProfile || !isProfileProxyEnabled(currentProfile)) {
-        vscode.window.showWarningMessage(t('commands.proxy.requiresProfile'));
-        return;
-      }
-
-      await proxyManager.stop(currentProfile.id);
-      vscode.window.showInformationMessage(t('commands.proxy.stopped'));
-    }),
-
     vscode.commands.registerCommand('cursorAccounts.proxy.showLogs', async () => {
       const logDir = proxyManager.getLogDirectory();
       await vscode.commands.executeCommand(

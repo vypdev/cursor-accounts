@@ -49,14 +49,19 @@ export class CertificateManager {
 
     const mitmCaPath = path.join(mitmCertsDir, 'ca.pem');
     const mitmKeyPath = path.join(keysDir, 'ca.private.key');
+    const mitmPublicKeyPath = path.join(keysDir, 'ca.public.key');
 
     const certPem = await fs.readFile(this.getCertificatePath(), 'utf8');
     const keyPem = await fs.readFile(this.getKeyPath(), 'utf8');
+    const publicKeyPem = forge.pki.publicKeyToPem(
+      forge.pki.certificateFromPem(certPem).publicKey
+    );
 
     const replaceHostCerts = await this.shouldReplaceMitmCa(mitmCaPath, certPem);
 
     await fs.writeFile(mitmCaPath, certPem, { mode: 0o600 });
     await fs.writeFile(mitmKeyPath, keyPem, { mode: 0o600 });
+    await fs.writeFile(mitmPublicKeyPath, publicKeyPem, { mode: 0o600 });
 
     // Legacy mistaken path from an earlier layout.
     await fs.rm(path.join(this.storageDir, 'ca.pem'), { force: true });

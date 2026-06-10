@@ -1,152 +1,83 @@
 # Proxy Multiplexer Architecture (Clean Architecture)
 
-**Last reviewed:** 2026-06-06
+**Last reviewed:** 2026-06-10
 
 ## Overview
 
-The multiplexer is the **only** proxy architecture. The legacy per-profile direct MITM proxy path has been removed.
+The multiplexer is the **only** proxy architecture. A **single global MITM router** listens on port **9000** for all profiles. It proxies **all** IDE traffic (Cursor API, GitHub, npm, etc.) transparently.
 
-A **single global router** listens on port **9000** for all profiles. It creates MITM upstream proxies on demand for each unique `(profileId, workspacePath)` pair, so token and traffic metrics stay isolated per project and per account without changing Cursor itself.
+**Upstream workers** are separate analysis processes (not proxies). They receive agent traffic summaries from the multiplexer via IPC and persist token metrics to SQLite with a persistent Better SQLite3 connection.
 
 ## Key principles
 
-- **One global multiplexer**: shared router on port **9000** for all profiles
-- **Profile identification via JWT**: `Authorization` header decoded to email → `ProfileManager` lookup
-- **Dynamic upstreams per (profile, workspace)**: MITM proxies on ports 8000–8999, created on first workspace detection
-- **Proxy via settings.json**: `http.proxy` set to `http://127.0.0.1:9000` (not `--proxy-server` CLI args)
-- **Workspace-based metrics**: tokens and costs stored with `workspace_path` in SQLite
-- **Clean Architecture**: Domain → Application → Infrastructure with dependency inversion
+- **One global MITM multiplexer**: `MultiplexerMitmServer` (`PolyglotMitmProxyServer`) on port **9000**
+- **All traffic proxied**: CONNECT/HTTP MITM for every host; no routing to per-workspace proxy ports
+- **Agent traffic detection**: multiplexer inspects decoded traffic and forwards summaries to upstream workers
+- **Upstream workers per (profile, workspace)**: forked child processes with persistent DB connections
+- **Workers created at window launch**: `ProfileLauncher` creates a worker when opening a profile+workspace
+- **Management API**: all extension windows query state via HTTP/WebSocket on `/_api/*`
 
-## Architecture layers
+## Architecture
+
+```mermaid
+flowchart TB
+    IDE[IDE Cursor] -->|"http.proxy=9000"| Multiplexor
+
+    subgraph MultiplexerProcess [Multiplexer Process - Port 9000]
+        MITM[MultiplexerMitmServer]
+        Detector[Agent Traffic Detector]
+        MITM --> Detector
+        API[Management API /_api/*]
+        MITM --> API
+    end
+
+    Multiplexor -->|All traffic| Internet[External Servers]
+
+    Detector -->|"Agent summaries via IPC"| Workers
+
+    subgraph UpstreamWorkers [Upstream Worker Processes]
+        W1[Worker profileA-workspaceHash]
+        W2[Worker profileB-workspaceHash]
+        W1 --> DB1[(SQLite)]
+        W2 --> DB2[(SQLite)]
+    end
+
+    ProfileLauncher -->|createUpstreamWorker| Workers
+```
+
+## Layers
 
 | Layer | Responsibility | Key modules |
 |-------|----------------|-------------|
-| Domain | Entities, routing ports, business rules | `src/domain/entities/*`, `src/domain/ports/*`, `src/domain/services/*` |
-| Application | Lifecycle orchestration, DTOs | `src/application/services/*`, `src/application/types/*` |
-| Infrastructure | Node.js TCP/HTTP server, strategies, storage | `src/proxy/multiplexer/*` |
-| Facade | Extension integration | `src/application/services/multiplexerRegistry.ts`, `src/services/profileMultiplexerService.ts` |
-
-### Domain layer
-
-- **Entities**: `Upstream`, `Session`, `RoutingDecision`, `HealthStatus`
-- **Ports**: `IRoutingStrategy`, `IUpstreamPool`, `ISessionStore`, `IMultiplexerServer`, `IProxyTrafficBus`, `IProxyManager`
-- **Services**: `UpstreamSelector`, `RoutingPolicyEngine`
-
-No dependencies on Application or Infrastructure.
-
-### Application layer
-
-- **Services**: `MultiplexerService`, `RoutingOrchestrator`, `UpstreamHealthMonitor`, `ProxyTrafficBus`, `MultiplexerRegistry`
-- **DTOs**: `MultiplexerConfig`, `MultiplexerMetrics`, `RoutingEvent`
-
-Depends only on Domain ports.
-
-### Infrastructure layer
-
-- **Server**: `MultiplexerServer` (HTTP + TCP CONNECT tunnels)
-- **Routing**: `WorkspacePathStrategy`, `StickySessionStrategy`, etc.
-- **Upstream management**: `UpstreamPool`, `HealthChecker`, `PortAllocator`
-- **Storage**: `InMemorySessionStore`, `FileConfigLoader`
-
-Implements Domain ports.
+| Domain | Ports, worker registry interface | `IUpstreamWorkerRegistry`, `IMultiplexerServer` |
+| Application | Lifecycle, metrics | `MultiplexerService`, `MultiplexerRegistry`, `MetricsAggregator` |
+| Infrastructure | MITM server, workers, API | `MultiplexerMitmServer`, `UpstreamWorkerManager`, `ManagementApiServer` |
+| Facade | Extension integration | `ProfileMultiplexerService`, `ProfileLauncher` |
 
 ## Data flow
 
-```mermaid
-sequenceDiagram
-    participant CursorA as Cursor_ProfileA
-    participant CursorB as Cursor_ProfileB
-    participant Router as MultiplexerServer_9000
-    participant Strategy as WorkspacePathStrategy
-    participant UpstreamA as MITM_Proxy_8XXX
-    participant UpstreamB as MITM_Proxy_8YYY
-    participant Bus as ProxyTrafficBus
-    participant DB as SQLite
+1. IDE sends all HTTP(S) traffic to `http://127.0.0.1:9000`
+2. `MultiplexerMitmServer` terminates TLS and forwards to real servers
+3. When agent traffic is detected (RunSSE, token deltas, BidiAppend, etc.):
+   - Extract `profileId` from JWT `Authorization` header
+   - Extract `workspacePath` from protobuf (BidiAppend) or bind to registered worker
+   - Send `ProxyTrafficSummary` to matching upstream worker via IPC
+4. Upstream worker runs `AgentTrackingService` and writes to SQLite
 
-    CursorA->>Router: CONNECT api2.cursor.sh:443<br/>Authorization: Bearer tokenA
-    CursorB->>Router: CONNECT api2.cursor.sh:443<br/>Authorization: Bearer tokenB
-    Router->>Strategy: route(session, context)
-    Strategy->>Strategy: decode JWT → profileId
-    Strategy->>Strategy: decode workspace from protobuf
-    Strategy->>Router: create upstream if missing (profileId, workspace)
-    Strategy-->>Router: upstream host:port
-    Router->>UpstreamA: TCP tunnel (profile A)
-    Router->>UpstreamB: TCP tunnel (profile B)
-    UpstreamA->>Bus: publish(summary, profileId, workspacePath)
-    UpstreamB->>Bus: publish(summary, profileId, workspacePath)
-    Bus->>DB: AgentTrackingService persists workspace_path
-```
+## Upstream worker lifecycle
 
-## Profile identification
-
-When `workspace-path` routing is active:
-
-1. Extract `Authorization` header from the request context
-2. Decode JWT payload (`decodeJwtPayload`) to obtain `email` or `sub`
-3. Resolve `profileId` via `ProfileManager.findProfileByEmail()`
-4. If no profile is found, fall back to `sticky-session` (socket-based binding)
-
-Upstream pool indexes workspaces by composite key `profileId:workspacePath`.
-
-## Routing strategies
-
-| Strategy | Isolation | Overhead |
-|----------|-----------|----------|
-| `workspace-path` | Per (profile, workspace) via JWT + protobuf | ~2–5ms on first BidiAppend |
-| `sticky-session` | Per window (source IP:port) | ~0ms |
-| `token-hash` | Per Cursor account | ~0ms |
-| `round-robin` | Load distribution | ~0ms |
-| `least-connections` | Load balancing | <1ms |
-| `hybrid` | Combined rules | varies |
-
-Default: `workspace-path` with fallback `sticky-session`.
-
-## Port allocation
-
-- **Global multiplexer router**: **9000** (shared by all profiles)
-- **Upstream MITM proxies**: 8000–8999 (dynamic per `(profileId, workspacePath)`)
-  - Ports allocated per profile index within the upstream range
-
-## Garbage collection
-
-Upstreams with no activity for 30 minutes and zero active connections are stopped and removed automatically (5-minute GC interval). Stopping upstreams for one profile does **not** stop the global multiplexer.
+| Event | Action |
+|-------|--------|
+| Profile window launched with workspace | `ProfileLauncher` → `MultiplexerRegistry.createUpstreamWorker()` |
+| Agent traffic detected | Multiplexer → `UpstreamWorkerManager.notifyAgentTraffic()` |
+| Profile proxy stopped | `DELETE /_api/upstreams/profile/:profileId` |
+| Idle GC (30 min, no traffic) | `MultiplexerRegistry.cleanupIdleUpstreams()` |
 
 ## Configuration
 
-- VS Code setting: `cursorAccounts.proxy.multiplexer.routingStrategy`
-- Router logs: `~/.cursor-accounts/proxy/logs/router-global-*.jsonl`
-- Output channel **Cursor MITM Proxy**: auth, routing, upstream, and settings events
+Profiles use `http.proxy = http://127.0.0.1:9000` in `settings.json` (via `ProfileSettingsManager`).
 
-## Extension integration
+See also:
 
-On extension activation:
-
-1. `extension.ts` calls `MultiplexerRegistry.ensureStarted()` — starts the global router on port 9000
-
-When a profile window launches with proxy enabled:
-
-1. `ProfileLauncher` calls `multiplexerRegistry.ensureStarted()` (no-op if already running)
-2. `ProfileSettingsManager.applyProxySettings(userDataDir, 'http://127.0.0.1:9000')` writes `http.proxy` to the profile's `settings.json`
-3. Cursor launches **without** `--proxy-server` (proxy comes from settings)
-4. `WorkspacePathStrategy` extracts `profileId` from JWT and creates upstream MITM proxies per workspace on demand
-5. Upstream proxies emit IPC traffic to `ProxyManager` with `workspacePath`
-6. `AgentTrackingService` persists metrics with workspace, repository, and branch metadata
-
-When proxy is disabled for a profile:
-
-1. `MultiplexerRegistry.stopUpstreamsForProfile(profileId)` stops only that profile's upstreams
-2. `ProfileSettingsManager.restoreProxySettings(userDataDir)` restores the original `settings.json`
-
-See also: [PROXY-MULTIPLEXER-SETUP.md](PROXY-MULTIPLEXER-SETUP.md), [PROXY-MULTIPLEXER-MIGRATION.md](PROXY-MULTIPLEXER-MIGRATION.md), [ADR-002-MULTIPLEXER-PER-USER.md](ADR-002-MULTIPLEXER-PER-USER.md).
-
-## Clean Architecture validation
-
-| Check | Status |
-|-------|--------|
-| Domain does not import Application or Infrastructure | ✓ |
-| Application imports only Domain ports | ✓ |
-| Infrastructure implements Domain ports | ✓ |
-| VS Code configuration isolated in Application/Infrastructure | ✓ |
-| Domain tests avoid VS Code APIs | ✓ |
-| Application tests use port mocks | ✓ |
-| Infrastructure tests exercise real adapters | ✓ |
+- [PROXY-MULTIPLEXER-MANAGEMENT-API.md](PROXY-MULTIPLEXER-MANAGEMENT-API.md)
+- [CLEAN-ARCHITECTURE-PRINCIPLES.md](CLEAN-ARCHITECTURE-PRINCIPLES.md)

@@ -1,6 +1,6 @@
 # Proxy Multiplexer Setup
 
-**Last reviewed:** 2026-06-06
+**Last reviewed:** 2026-06-09
 
 ## Automatic setup
 
@@ -19,9 +19,9 @@ When proxy is disabled, `settings.json` is restored and upstreams for that profi
 
 ## No enable/disable toggle
 
-There is no `cursorAccounts.proxy.multiplexer.enabled` or `autoStart` setting. The multiplexor is the only proxy system.
+There is no global proxy enable setting. Proxy is toggled **per profile** in the Accounts panel (Edit Profile → Route traffic through MITM proxy).
 
-The only multiplexer setting is:
+The only multiplexer VS Code setting is:
 
 ```json
 {
@@ -29,7 +29,7 @@ The only multiplexer setting is:
 }
 ```
 
-Reload the extension after changing settings.
+Allowed values: `workspace-path` (default) or `sticky-session`. Reload the extension after changing settings.
 
 ## Commands
 
@@ -39,17 +39,17 @@ Reload the extension after changing settings.
 | `Cursor Accounts: Stop Proxy Multiplexor` | Stop upstreams for the current profile (global router stays up) |
 | `Cursor Accounts: Proxy Multiplexor Status` | Quick status summary |
 | `Cursor Accounts: Proxy Multiplexor Metrics` | Per-upstream request counters |
-| `Cursor Accounts: Set Proxy Multiplexor Strategy` | Change routing strategy |
 | `Cursor Accounts: Proxy Multiplexor Sessions` | Show active session bindings |
 
 ## Accounts panel
 
-The Accounts panel shows:
+The Accounts panel shows a unified **Proxy Status** card:
 
-- Global router port (9000) and strategy
-- Active sessions
+- Global router status (port 9000), strategy, and active sessions
 - Per-upstream health, requests, and connections for the active profile
-- Strategy selector
+- CA certificate install/uninstall and log/traffic shortcuts
+
+There are no manual Start/Stop proxy buttons — the router starts automatically on extension activation.
 
 ## Output channel logging
 
@@ -61,56 +61,12 @@ The **Cursor MITM Proxy** output channel logs:
 - Upstream creation and removal
 - `settings.json` proxy apply/restore
 
-## Advanced JSON config
-
-Optional global config file: `~/.cursor-accounts/proxy/multiplexer-global-config.json`
-
-```json
-{
-  "routing": {
-    "strategy": "workspace-path",
-    "fallbackStrategy": "sticky-session",
-    "sessionTimeoutMs": 3600000
-  },
-  "health": {
-    "checkIntervalMs": 30000,
-    "timeoutMs": 5000,
-    "unhealthyThreshold": 3
-  }
-}
-```
-
-Pre-created upstream example:
-
-```json
-{
-  "upstreams": [
-    {
-      "id": "workspace-project-a",
-      "host": "127.0.0.1",
-      "port": 8100,
-      "metadata": {
-        "profileId": "profile-a",
-        "workspacePath": "/Users/me/projects/project-a"
-      }
-    }
-  ]
-}
-```
-
-## Recommended scenarios
-
-- **Multi-project development:** `workspace-path` (default)
-- **Multiple Cursor accounts:** `token-hash`
-- **Many windows, single workspace:** `sticky-session`
-- **Load balancing:** `least-connections`
-
 ## Troubleshooting
 
 1. Verify global router port: `lsof -i :9000`
 2. Verify upstream MITM proxies: `lsof -i :8000-8999`
-3. Check router logs under `~/.cursor-accounts/proxy/logs/router-global-*.jsonl`
+3. Check router logs under `~/.cursor-accounts/proxy/logs/router-*.jsonl`
 4. Check **Cursor MITM Proxy** output channel for auth/routing/upstream events
 5. Confirm profile `settings.json` contains `http.proxy: "http://127.0.0.1:9000"` (applied automatically on launch)
 6. Relaunch profile windows after enabling proxy so settings take effect
-7. Trust the MITM CA certificate (see Accounts panel → MITM Proxy section)
+7. Trust the MITM CA certificate (see Accounts panel → Proxy Status section)

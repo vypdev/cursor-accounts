@@ -15,8 +15,6 @@
   "commands.importProfiles.title": "Cursor Accounts: Import Profiles",
   "commands.efficiency.showOutput.title": "Cursor Accounts: Show Model Efficiency Output",
   "commands.efficiency.restartDetector.title": "Cursor Accounts: Restart Prompt Detector",
-  "commands.proxy.start.title": "Cursor Accounts: Start MITM Proxy",
-  "commands.proxy.stop.title": "Cursor Accounts: Stop MITM Proxy",
   "commands.proxy.showLogs.title": "Cursor Accounts: Open Proxy Logs",
   "commands.proxy.showOutput.title": "Cursor Accounts: Show MITM Proxy Traffic",
   "commands.proxy.showTokenDetector.title": "Cursor Accounts: Show Token Detector Output",
@@ -25,7 +23,6 @@
   "commands.multiplexer.stop.title": "Cursor Accounts: Stop Proxy Multiplexor",
   "commands.multiplexer.status.title": "Cursor Accounts: Proxy Multiplexor Status",
   "commands.multiplexer.metrics.title": "Cursor Accounts: Proxy Multiplexor Metrics",
-  "commands.multiplexer.setStrategy.title": "Cursor Accounts: Set Proxy Multiplexor Strategy",
   "commands.multiplexer.sessions.title": "Cursor Accounts: Proxy Multiplexor Sessions",
   "commands.debug.copyActiveConversationId.title": "Cursor Accounts: Copy Active Conversation ID",
   "configuration.title": "Cursor Accounts",
@@ -44,12 +41,9 @@
   "configuration.debug.webviewLifecycle.description": "Log webview lifecycle diagnostics to the Cursor Accounts output channel (disable after troubleshooting).",
   "configuration.debug.showActiveConversationInStatusBar.description": "Show the focused Composer chat ID (lastFocusedComposerIds) in the status bar for development and testing.",
   "configuration.debug.activeConversationPollIntervalMs.description": "Polling interval in milliseconds for detecting Composer tab focus changes (100–5000).",
-  "configuration.proxy.enabled.description": "Start the MITM proxy when the extension activates (observes Cursor network traffic).",
-  "configuration.proxy.port.description": "TCP port for the local MITM proxy (localhost only).",
   "configuration.proxy.maxLogSizeMB.description": "Maximum total size of proxy log files and spilled body files in megabytes.",
   "configuration.proxy.maxBodyLogMB.description": "Maximum request/response body size stored inline in each JSONL line. Larger bodies are saved under logs/bodies/ when spill is enabled.",
   "configuration.proxy.spillLargeBodies.description": "When a body exceeds the inline limit, save the full raw bytes to logs/bodies/ instead of truncating (recommended for analysis).",
-  "configuration.proxy.autoLaunchWithProxy.description": "When launching a profile, route traffic through the proxy if it is running.",
   "configuration.proxy.logTrafficToOutput.description": "Write intercepted proxy traffic to the Cursor MITM Proxy output channel.",
   "configuration.proxy.autoShowOutputChannel.description": "Automatically open the Cursor MITM Proxy output channel when the proxy starts.",
   "configuration.proxy.outputCursorHostsOnly.description": "Only log Cursor host traffic (cursor.sh, cursor.com) in the MITM Proxy output channel.",
@@ -60,5 +54,5 @@
   "configuration.proxy.diagnosticsIntervalMs.description": "Interval in milliseconds between [ProxyDiagnostics] summaries in the MITM output channel.",
   "configuration.proxy.logTokenDetectorToOutput.description": "Write agent/token/conversation events from proxy IPC to the Cursor Token Detector output channel.",
   "configuration.proxy.autoShowTokenDetectorChannel.description": "Automatically open the Cursor Token Detector output channel when agent or token events arrive.",
-  "configuration.proxy.multiplexer.routingStrategy.description": "Routing strategy for the per-profile proxy multiplexor (default: workspace-path for per-project isolation)."
+  "configuration.proxy.multiplexer.routingStrategy.description": "Routing strategy for the global proxy multiplexor on port 9000 (default: workspace-path for per-project isolation)."
 }

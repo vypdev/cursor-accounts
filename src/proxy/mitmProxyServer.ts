@@ -350,6 +350,8 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
       callback();
     });
 
+    this.beforeListen(proxy, config);
+
     const listenOptions = this.getMitmListenOptions(sslCaDir, config.port);
 
     await new Promise<void>((resolve, reject) => {
@@ -516,6 +518,17 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
       .catch(() => {
         this.handlers?.onTraffic?.(toTrafficSummary(entry, durationMs));
       });
+  }
+
+  /** Hook for subclasses to register handlers before the proxy listens. */
+  protected beforeListen(_proxy: Proxy, _config: ProxyServerConfig): void {
+    // default no-op
+  }
+
+  /** Returns the underlying http-mitm-proxy HTTP server after start. */
+  protected getHttpServer(): import('node:http').Server | undefined {
+    return (this.proxy as Proxy & { httpServer?: import('node:http').Server })
+      ?.httpServer;
   }
 
   /**

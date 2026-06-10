@@ -141,8 +141,6 @@ export type FromWebviewMessage =
   | { type: 'cleanStorage'; profileId: string; options: StorageCleanupOptions }
   | { type: 'configureGithubToken'; profileId: string }
   | { type: 'clearGithubToken'; profileId: string }
-  | { type: 'startProxy' }
-  | { type: 'stopProxy' }
   | { type: 'showProxyLogs' }
   | { type: 'showProxyTraffic' }
   | { type: 'getProxyInstallGuide' }
@@ -150,8 +148,5 @@ export type FromWebviewMessage =
   | { type: 'uninstallProxyCertificate' }
   | { type: 'saveProxyCertificate' }
   | { type: 'refreshProxyStatus' }
-  | { type: 'startMultiplexer' }
-  | { type: 'stopMultiplexer' }
   | { type: 'refreshMultiplexerStatus' }
-  | { type: 'setMultiplexerStrategy'; strategy: MultiplexerStatusView['strategy'] }
   | { type: 'requestModelPricing' };

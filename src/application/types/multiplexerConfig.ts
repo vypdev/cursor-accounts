@@ -1,5 +1,4 @@
 import type { RoutingStrategyName } from '../../domain/types/multiplexerTypes';
-import type { UpstreamConfig } from '../../domain/ports/IUpstreamPool';
 
 /** Router listener configuration. */
 export interface MultiplexerRouterConfig {
@@ -21,33 +20,24 @@ export interface MultiplexerHealthConfig {
   unhealthyThreshold: number;
 }
 
-/** Metrics collection configuration. */
-export interface MultiplexerMetricsConfig {
-  enabled: boolean;
-  aggregationIntervalMs?: number;
-}
-
 /** Full multiplexor configuration DTO. */
 export interface MultiplexerConfig {
   router: MultiplexerRouterConfig;
-  upstreams: UpstreamConfig[];
   routing: MultiplexerRoutingConfig;
   health: MultiplexerHealthConfig;
-  metrics?: MultiplexerMetricsConfig;
 }
 
-export const DEFAULT_MULTIPLEXER_PORT = 9999;
+export const GLOBAL_MULTIPLEXER_PORT = 9000;
 export const DEFAULT_MULTIPLEXER_HOST = '127.0.0.1';
 
 export const DEFAULT_MULTIPLEXER_CONFIG: MultiplexerConfig = {
   router: {
-    port: DEFAULT_MULTIPLEXER_PORT,
+    port: GLOBAL_MULTIPLEXER_PORT,
     host: DEFAULT_MULTIPLEXER_HOST,
   },
-  upstreams: [],
   routing: {
-    strategy: 'sticky-session',
-    fallbackStrategy: 'least-connections',
+    strategy: 'workspace-path',
+    fallbackStrategy: 'sticky-session',
     sessionTimeoutMs: 3_600_000,
   },
   health: {
@@ -55,8 +45,15 @@ export const DEFAULT_MULTIPLEXER_CONFIG: MultiplexerConfig = {
     timeoutMs: 5_000,
     unhealthyThreshold: 3,
   },
-  metrics: {
-    enabled: true,
-    aggregationIntervalMs: 60_000,
-  },
 };
+
+/** Builds multiplexor config with optional overrides (deep-merges routing/health/router). */
+export function buildMultiplexerConfig(
+  partial?: Partial<MultiplexerConfig>
+): MultiplexerConfig {
+  return {
+    router: { ...DEFAULT_MULTIPLEXER_CONFIG.router, ...partial?.router },
+    routing: { ...DEFAULT_MULTIPLEXER_CONFIG.routing, ...partial?.routing },
+    health: { ...DEFAULT_MULTIPLEXER_CONFIG.health, ...partial?.health },
+  };
+}

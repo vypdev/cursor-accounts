@@ -10,9 +10,9 @@ Use Node.js/TypeScript to reuse the existing MITM stack (`ProxyManager`, `proxyD
 
 ## ADR 002: Default routing strategy
 
-**Status:** Accepted
+**Status:** Accepted (updated 2026-06-09)
 
-Default to `sticky-session` (source IP:port). It requires no payload inspection, works for CONNECT tunnels immediately, and isolates windows in the common case.
+Default to `workspace-path` with fallback `sticky-session`. Workspace-path extracts profile and project from JWT + protobuf and creates upstream MITM proxies on demand. Sticky-session handles CONNECT traffic before workspace is known.
 
 ## ADR 003: Sticky session key
 
@@ -38,11 +38,11 @@ Health checks probe upstream MITM ports with short TCP connect attempts. This is
 
 Session bindings are stored in memory. Restarting the multiplexor reassigns sessions, which is acceptable for desktop development workflows.
 
-## ADR 007: JSON configuration file
+## ADR 007: Configuration source
 
-**Status:** Accepted
+**Status:** Accepted (updated 2026-06-09)
 
-Persist advanced config at `~/.cursor-accounts/proxy/multiplexer-config.json`. VS Code settings provide user-friendly defaults; the file supports power users and tests.
+Multiplexer configuration is built in code via `buildMultiplexerConfig()` with optional VS Code setting overrides (`cursorAccounts.proxy.multiplexer.routingStrategy`). Upstreams are always created dynamically; there is no static upstream list at startup.
 
 ## ADR 008: Workspace path routing via protobuf
 

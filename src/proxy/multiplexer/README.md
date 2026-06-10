@@ -1,20 +1,18 @@
 # Proxy Multiplexor
 
-Local TCP/HTTP router that assigns Cursor windows to dedicated upstream MITM proxies.
+Local TCP/HTTP router on port **9000** that assigns Cursor traffic to dedicated upstream MITM proxies created dynamically per `(profileId, workspacePath)`.
 
 ## Quick start
 
 ```typescript
+import { buildMultiplexerConfig } from '../../application/types/multiplexerConfig';
 import { createMultiplexerRuntime } from './factory';
 
-const runtime = createMultiplexerRuntime({
-  router: { port: 9999, host: '127.0.0.1' },
-  upstreams: [{ id: 'u1', host: '127.0.0.1', port: 8080 }],
-  routing: { strategy: 'sticky-session' },
-  health: { checkIntervalMs: 30000, timeoutMs: 5000, unhealthyThreshold: 3 },
-});
+const config = buildMultiplexerConfig();
+const runtime = createMultiplexerRuntime(config);
 
 await runtime.service.start(config);
+// Upstreams are created on demand when workspace-path routing detects a workspace.
 ```
 
 ## Documentation

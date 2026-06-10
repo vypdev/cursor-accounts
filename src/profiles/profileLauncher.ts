@@ -10,7 +10,7 @@ import type { IProfileManager } from '../domain/ports/IProfileManager';
 import type { IProfileSettingsManager } from '../domain/ports/IProfileSettingsManager';
 import type { IProxyManager } from '../domain/ports/IProxyManager';
 import type { MultiplexerRegistry } from '../application/services/multiplexerRegistry';
-import type { IMultiplexerFlowLogger } from '../application/types/multiplexerFlowLogger';
+import type { MultiplexerEventLogger } from '../proxy/multiplexer/multiplexerEventLogger';
 import { getMultiplexerRoutingSettings } from '../proxy/multiplexer/multiplexerConfig';
 import type { Profile } from './types';
 
@@ -120,7 +120,7 @@ export class ProfileLauncher implements IProfileLauncher {
     private readonly proxyManager?: IProxyManager,
     private readonly profileSettingsManager?: IProfileSettingsManager,
     private readonly multiplexerRegistry?: MultiplexerRegistry,
-    private readonly flowLogger?: IMultiplexerFlowLogger
+    private readonly eventLogger?: MultiplexerEventLogger
   ) {}
 
   /**
@@ -198,7 +198,11 @@ export class ProfileLauncher implements IProfileLauncher {
 
       const profile = await this.profileManager.findProfileByPath(userDataDir);
       const launchContext = profile
-        ? await this.resolveProxyLaunchContext(profile.id, userDataDir)
+        ? await this.resolveProxyLaunchContext(
+            profile.id,
+            userDataDir,
+            projectPath
+          )
         : null;
 
       const execPath = this.getExecutablePath();
@@ -387,7 +391,8 @@ export class ProfileLauncher implements IProfileLauncher {
    */
   private async resolveProxyLaunchContext(
     profileId: string,
-    userDataDir: string
+    userDataDir: string,
+    projectPath?: string
   ): Promise<{
     caCertPath: string;
   } | null> {
@@ -412,6 +417,22 @@ export class ProfileLauncher implements IProfileLauncher {
       },
     });
 
+    if (projectPath) {
+      try {
+        await this.multiplexerRegistry.createUpstreamWorker(
+          profileId,
+          projectPath,
+          userDataDir
+        );
+      } catch (error) {
+        extensionLog.warn(
+          `[ProfileLauncher] Failed to create upstream worker for ${profileId}: ${
+            error instanceof Error ? error.message : String(error)
+          }`
+        );
+      }
+    }
+
     const proxyUrl = this.multiplexerRegistry.getProxyServerUrl();
     const caCertPath = await this.proxyManager.getCertificatePath();
 
@@ -421,7 +442,7 @@ export class ProfileLauncher implements IProfileLauncher {
           userDataDir,
           proxyUrl
         );
-        this.flowLogger?.appendSettingsModified(userDataDir, proxyUrl);
+        void this.eventLogger?.logSettingsModified(userDataDir, proxyUrl);
       } catch (error) {
         extensionLog.warn(
           `[ProfileLauncher] Failed to apply multiplexor proxy settings for ${profileId}: ${

@@ -10,6 +10,9 @@ import { registerProfileCommands } from './commands/profileCommands';
 import { registerProxyCommands } from './commands/proxyCommands';
 import { registerMultiplexerCommands } from './commands/multiplexerCommands';
 import { MultiplexerRegistry } from './application/services/multiplexerRegistry';
+import { MultiplexerEventLogger } from './proxy/multiplexer/multiplexerEventLogger';
+import { MultiplexerLogTailer } from './proxy/multiplexer/multiplexerLogTailer';
+import { getMultiplexerLogDir } from './proxy/multiplexer/multiplexerPaths';
 import { ProfileMultiplexerService } from './services/profileMultiplexerService';
 import { getMultiplexerRoutingSettings } from './proxy/multiplexer/multiplexerConfig';
 import { ProxyStateFileStore } from './proxy/proxyStateFileStore';
@@ -59,7 +62,7 @@ let instanceDetectorRef: InstanceDetector | undefined;
 let proxyOutputPresenterRef: ProxyOutputPresenter | undefined;
 let tokenDetectorPresenterRef: TokenDetectorOutputPresenter | undefined;
 
-export function activate(context: vscode.ExtensionContext): void {
+export async function activate(context: vscode.ExtensionContext): Promise<void> {
   const activateTimestamp = lifecycleLog.markActivate();
 
   initL10n({
@@ -115,18 +118,37 @@ export function activate(context: vscode.ExtensionContext): void {
     proxyOutputPresenter,
     tokenDetectorPresenter
   );
+  const multiplexerEventLogger = new MultiplexerEventLogger();
   const multiplexerRegistry = new MultiplexerRegistry(
-    proxyManager,
     profileManager,
-    proxyOutputPresenter
+    sharedProxyDir,
+    context.extensionPath,
+    multiplexerEventLogger
   );
   context.subscriptions.push(multiplexerRegistry);
   const routingSettings = getMultiplexerRoutingSettings();
-  void multiplexerRegistry.ensureStarted({
+  await multiplexerRegistry.ensureStarted({
     routing: {
       strategy: routingSettings.routingStrategy,
       fallbackStrategy: 'sticky-session',
     },
+  });
+
+  const multiplexerLogTailer = new MultiplexerLogTailer(
+    getMultiplexerLogDir(),
+    {
+      onLogLine: (line) => proxyOutputPresenter.appendMultiplexerLog(line),
+      onLogFileResolved: (filePath) => {
+        if (filePath) {
+          proxyOutputPresenter.appendMultiplexerTailing(filePath);
+        }
+      },
+    },
+    { tailFromStart: true }
+  );
+  await multiplexerLogTailer.start();
+  context.subscriptions.push({
+    dispose: () => multiplexerLogTailer.stop(),
   });
 
   const multiplexerManager = new ProfileMultiplexerService(
@@ -134,7 +156,7 @@ export function activate(context: vscode.ExtensionContext): void {
     profileDetector,
     profileManager,
     profileSettingsManager,
-    proxyOutputPresenter
+    multiplexerEventLogger
   );
 
   const profileLauncher = new ProfileLauncher(
@@ -143,7 +165,7 @@ export function activate(context: vscode.ExtensionContext): void {
     proxyManager,
     profileSettingsManager,
     multiplexerRegistry,
-    proxyOutputPresenter
+    multiplexerEventLogger
   );
   const workspaceScanner = new WorkspaceScanner();
   const profileWorkspaceService = new ProfileWorkspaceService(
@@ -248,8 +270,6 @@ export function activate(context: vscode.ExtensionContext): void {
     dispose: () => activeConversationTracker.stop(),
   });
 
-  void proxyManager.ensureTrafficTailer();
-
   proxyManager.onStatusChange(() => {
     void accountsPanel.refreshProxyStatus();
   });
@@ -284,10 +304,6 @@ export function activate(context: vscode.ExtensionContext): void {
         );
       }
     } else if (isProfileProxyEnabled(currentProfile)) {
-      await multiplexerRegistry.ensureStarted();
-      extensionLog.info(
-        `[Multiplexer] Ensured global router for profile ${currentProfile.displayName} on port 9000`
-      );
       void accountsPanel.refreshMultiplexerStatus();
       void accountsPanel.refreshProxyStatus();
     }

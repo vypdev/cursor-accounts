@@ -78,3 +78,24 @@ See [HTTP2-PROXY-IMPLEMENTATION.md](HTTP2-PROXY-IMPLEMENTATION.md) for the full 
 - `RunSseStreamHandler` → builds live/turn summaries from `StreamingAgentDecoder`
 
 Shared DTOs live in `src/application/types/` (`proxyTraffic`, `proxyInsights`, `proxyConfig`). UI presenters moved under `src/ui/presentation/` with re-exports from `src/proxy/` for backward compatibility.
+
+---
+
+## Multiplexer MITM + upstream workers
+
+The global multiplexer uses a **MITM-first** design:
+
+| Component | Responsibility |
+|-----------|----------------|
+| `MultiplexerMitmServer` | Full MITM proxy on port 9000 for **all** IDE traffic |
+| `UpstreamWorkerManager` | Fork/manage analysis worker processes |
+| `upstreamWorker.ts` | Child process: `AgentTrackingService` + persistent SQLite |
+| `ManagementApiServer` | HTTP/WebSocket API on `/_api/*` |
+| `MultiplexerRegistry` | Lifecycle only (start/stop multiplexer and workers) |
+| `ProfileMultiplexerService` | API client facade for every extension window |
+
+**Dependency rule:** `IUpstreamWorkerRegistry` (domain port) is implemented by `UpstreamWorkerRegistry` (infrastructure). Application services depend on the port, not the fork implementation.
+
+Workers are created when `ProfileLauncher` opens a profile window with a workspace — not on-demand during routing. The multiplexer detects agent traffic and forwards summaries to the matching worker via IPC.
+
+See [PROXY-MULTIPLEXER-ARCHITECTURE.md](PROXY-MULTIPLEXER-ARCHITECTURE.md) and [PROXY-MULTIPLEXER-MANAGEMENT-API.md](PROXY-MULTIPLEXER-MANAGEMENT-API.md).

@@ -1,17 +1,11 @@
-import type { RoutingContext } from './IRoutingStrategy';
-import type { Session } from '../entities/Session';
-
-/** Callback invoked when a client connection is routed. */
-export type RoutingHandler = (
-  session: Session,
-  context: RoutingContext
-) => Promise<{ host: string; port: number; upstreamId: string }>;
+import type { ProxyServerConfig } from '../../application/types/proxyConfig';
 
 /**
- * Port: TCP/HTTP multiplexor listener.
+ * Port: global multiplexor MITM listener (Infrastructure implementations).
  */
 export interface IMultiplexerServer {
-  listen(port: number, host: string, handler: RoutingHandler): Promise<void>;
+  start(config: ProxyServerConfig): Promise<void>;
+  stop(): Promise<void>;
   close(): Promise<void>;
   isListening(): boolean;
   getPort(): number | undefined;
