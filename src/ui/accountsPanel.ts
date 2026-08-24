@@ -5,45 +5,28 @@ import type { IProfileAuthReader } from '../domain/ports/IProfileAuthReader';
 import * as extensionLog from '../logging/extensionLog';
 import * as lifecycleLog from '../logging/webviewLifecycleLog';
 import type { InstanceDetector } from '../profiles/instanceDetector';
-import {
-  getOpenProjectPathsForProfile,
-  instanceMapToRecord,
-} from '../profiles/instanceDetector';
 import type { ProfileDetector } from '../profiles/profileDetector';
 import type { ProfileLauncher } from '../profiles/profileLauncher';
 import type { ProfileManager } from '../profiles/profileManager';
 import type {
   FromWebviewMessage,
-  InitData,
-  InstanceInfo,
-  Profile,
-  ProfileQuota,
   ToWebviewMessage,
-  WorkspaceInfo,
 } from '../profiles/types';
-import type { ProfileWithWorkspaces } from '@cursor-accounts/types';
-import { ProfileGitHubEnrichmentService } from '../github/profileGitHubEnrichmentService';
 import type { MultiProfileQuotaService } from '../services/multiProfileQuotaService';
-import { quotaMapToRecord } from '../services/multiProfileQuotaService';
 import type { ProfileAccountFetcher } from '../services/profileAccountFetcher';
-import { accountMapToRecord } from '../services/profileAccountFetcher';
 import type { ProfileWorkspaceService } from '../services/profileWorkspaceService';
-import {
-  getOpenWorkspacePaths,
-  hasActiveWorkspace,
-  isWorkspacePathOpen,
-} from '../services/activeWorkspaceService';
+import { hasActiveWorkspace } from '../services/activeWorkspaceService';
 import { shouldAutoOpenAccountsPanel } from './accountsPanelStartup';
 import type { EfficiencyService } from '../modelEfficiency/efficiencyService';
-import { getLocale, getWebviewMessages, isRtlLocale, t } from '../l10n';
+import { getLocale, isRtlLocale, t } from '../l10n';
 import type { IProfileStorageAnalyzer } from '../domain/ports/IProfileStorageAnalyzer';
 import type { IStorageCleanupService } from '../domain/ports/IStorageCleanupService';
 import type { IProxyManager } from '../domain/ports/IProxyManager';
 import type { ProxySettingsService } from '../services/proxySettingsService';
-import type { ProxyStatus } from '@cursor-accounts/types';
-import { isProfileProxyEnabled } from '@cursor-accounts/types';
 import type { IProfileSettingsManager } from '../domain/ports/IProfileSettingsManager';
+import { ProfileGitHubEnrichmentService } from '../github/profileGitHubEnrichmentService';
 import { AccountsPanelHandlers } from './accountsPanelHandlers';
+import { AccountsPanelDataRefresher } from './accountsPanelDataRefresher';
 import { ModelPricingService } from '../services/modelPricingService';
 import { CursorModelPricingProvider } from '../modelEfficiency/cursorModelPricingProvider';
 import { StateDbModelCatalogRepository } from '../modelEfficiency/stateDbModelCatalogRepository';
@@ -60,12 +43,9 @@ export class AccountsPanelProvider {
   public static readonly viewType = ACCOUNTS_PANEL_VIEW_ID;
 
   private panel?: vscode.WebviewPanel;
-  private accountsFetchInFlight = false;
-  private githubFetchInFlight = false;
   private webviewRuntimeReady = false;
   private readonly handlers: AccountsPanelHandlers;
-  private readonly githubEnrichment = new ProfileGitHubEnrichmentService();
-  private readonly efficiencyService: EfficiencyService;
+  private readonly dataRefresher: AccountsPanelDataRefresher;
   private readonly modelPricingService: ModelPricingService;
 
   public hasResolvedView(): boolean {
@@ -78,28 +58,45 @@ export class AccountsPanelProvider {
 
   constructor(
     private readonly context: vscode.ExtensionContext,
-    private readonly profileManager: ProfileManager,
+    profileManager: ProfileManager,
     profileLauncher: ProfileLauncher,
     private readonly profileDetector: ProfileDetector,
     private readonly quotaService: MultiProfileQuotaService,
-    private readonly accountFetcher: ProfileAccountFetcher,
+    accountFetcher: ProfileAccountFetcher,
     private readonly instanceDetector: InstanceDetector,
-    private readonly profileWorkspaceService: ProfileWorkspaceService,
+    profileWorkspaceService: ProfileWorkspaceService,
     efficiencyService: EfficiencyService,
     authReader: IProfileAuthReader,
     storageCleanupService: IStorageCleanupService,
     storageAnalyzer: IProfileStorageAnalyzer,
-    private readonly proxyManager: IProxyManager,
-    private readonly proxySettingsService?: ProxySettingsService,
+    proxyManager: IProxyManager,
+    proxySettingsService?: ProxySettingsService,
     profileSettingsManager?: IProfileSettingsManager
   ) {
-    this.efficiencyService = efficiencyService;
-
     const pricingProvider = new CursorModelPricingProvider();
     const catalogRepository = new StateDbModelCatalogRepository();
     this.modelPricingService = new ModelPricingService(
       catalogRepository,
       pricingProvider
+    );
+
+    this.dataRefresher = new AccountsPanelDataRefresher(
+      {
+        profileManager,
+        profileDetector,
+        quotaService,
+        accountFetcher,
+        instanceDetector,
+        profileWorkspaceService,
+        efficiencyService,
+        proxyManager,
+        proxySettingsService,
+        githubEnrichment: new ProfileGitHubEnrichmentService(),
+      },
+      {
+        postMessage: (message) => this.postMessage(message),
+        hasActiveWebview: () => this.getActiveWebview() !== undefined,
+      }
     );
 
     this.handlers = new AccountsPanelHandlers(
@@ -118,20 +115,22 @@ export class AccountsPanelProvider {
       },
       {
         postMessage: (message) => this.postMessage(message),
-        refresh: () => this.refresh(),
-        refreshInstances: () => this.refreshInstances(),
-        refreshGithubSummaries: () => this.refreshGithubSummaries(),
-        refreshProxyStatus: (options) => this.refreshProxyStatus(options),
+        refresh: () => this.dataRefresher.refresh(),
+        refreshInstances: () => this.dataRefresher.refreshInstances(),
+        refreshGithubSummaries: () =>
+          this.dataRefresher.refreshGithubSummaries(),
+        refreshProxyStatus: (options) =>
+          this.dataRefresher.refreshProxyStatus(options),
         hasActiveWebview: () => this.getActiveWebview() !== undefined,
       }
     );
 
     this.quotaService.onRefresh((quotas) => {
-      void this.postQuotas(quotas);
+      void this.dataRefresher.postQuotas(quotas);
     });
 
     this.instanceDetector.onDetectionChange((instances) => {
-      void this.postRunningInstances(instances);
+      void this.dataRefresher.postRunningInstances(instances);
     });
 
     context.subscriptions.push(
@@ -143,7 +142,7 @@ export class AccountsPanelProvider {
 
   private async onWorkspaceFoldersChanged(): Promise<void> {
     await this.maybeAutoOpenPanelOnEmptyWorkspace();
-    await this.refreshOpenWorkspaces();
+    await this.dataRefresher.refreshOpenWorkspaces();
   }
 
   /** Open the panel when the active profile has no project open (e.g. last folder closed). */
@@ -167,93 +166,9 @@ export class AccountsPanelProvider {
     }
   }
 
-  private shouldShowProxyUi(currentProfile: Profile | null): boolean {
-    return currentProfile != null && isProfileProxyEnabled(currentProfile);
-  }
-
-  private async buildProfileProxyTemporary(
-    currentProfile: Profile | null
-  ): Promise<Record<string, boolean>> {
-    if (!this.shouldShowProxyUi(currentProfile) || !this.proxySettingsService) {
-      return {};
-    }
-
-    const backupInfo = await this.proxySettingsService.getAllProxyBackupInfo();
-    const result: Record<string, boolean> = {};
-
-    for (const [profileId, info] of backupInfo) {
-      if (info.hasBackup) {
-        result[profileId] = true;
-        continue;
-      }
-
-      const proxyUrl = await this.proxyManager.getProxyServerUrl(profileId);
-      if (proxyUrl != null && info.currentProxyUrl === proxyUrl) {
-        result[profileId] = true;
-      }
-    }
-
-    return result;
-  }
-
-  private buildProfileWorkspaces(
-    profilesWithWorkspaces: ProfileWithWorkspaces[],
-    currentProfile: Profile | null,
-    openPaths: string[],
-    runningInstances: Record<string, InstanceInfo>
-  ): Record<string, WorkspaceInfo[]> {
-    const profileWorkspaces: Record<string, WorkspaceInfo[]> = {};
-
-    for (const profile of profilesWithWorkspaces) {
-      const openProjectPaths = getOpenProjectPathsForProfile(
-        runningInstances,
-        profile.id
-      );
-
-      profileWorkspaces[profile.id] = profile.workspaces.map((workspace) => ({
-        ...workspace,
-        isOpenInSession:
-          (currentProfile?.id === profile.id &&
-            isWorkspacePathOpen(workspace.path, openPaths)) ||
-          openProjectPaths.some((openPath) =>
-            isWorkspacePathOpen(workspace.path, [openPath])
-          ),
-      }));
-    }
-
-    return profileWorkspaces;
-  }
-
   /** Push updated open-workspace state when folders change in the active window. */
   public async refreshOpenWorkspaces(): Promise<void> {
-    if (!this.getActiveWebview()) {
-      return;
-    }
-
-    try {
-      const openPaths = getOpenWorkspacePaths();
-      const currentProfile = await this.profileDetector.detectCurrentProfile();
-      const profilesWithWorkspaces =
-        await this.profileWorkspaceService.getProfilesWithWorkspaces();
-      const runningInstances = instanceMapToRecord(
-        this.instanceDetector.getLastDetection()
-      );
-      const profileWorkspaces = this.buildProfileWorkspaces(
-        profilesWithWorkspaces,
-        currentProfile,
-        openPaths,
-        runningInstances
-      );
-
-      await this.postMessage({
-        type: 'openWorkspaces',
-        data: { paths: openPaths, profileWorkspaces },
-      });
-    } catch (error) {
-      extensionLog.error(
-        `[AccountsPanel] Failed to refresh open workspaces: ${extensionLog.formatError(error)}`
-      );
-    }
+    await this.dataRefresher.refreshOpenWorkspaces();
   }
 
   /** Open the accounts panel in the editor area. */
@@ -316,278 +231,39 @@ export class AccountsPanelProvider {
    * Refresh webview data.
    */
   public async refresh(): Promise<void> {
-    if (!this.getActiveWebview()) {
-      return;
-    }
-
-    try {
-      const profiles = await this.profileManager.getProfiles();
-      const currentProfile = await this.profileDetector.detectCurrentProfile();
-      const cachedQuotas = this.quotaService.getAllCachedQuotas();
-      const quotas = quotaMapToRecord(cachedQuotas);
-      const runningInstances = instanceMapToRecord(
-        await this.instanceDetector.detectRunningInstances()
-      );
-
-      const profilesWithWorkspaces =
-        await this.profileWorkspaceService.getProfilesWithWorkspaces();
-      const openPaths = getOpenWorkspacePaths();
-      const profileWorkspaces = this.buildProfileWorkspaces(
-        profilesWithWorkspaces,
-        currentProfile,
-        openPaths,
-        runningInstances
-      );
-
-      const initData: InitData = {
-        profiles,
-        profileWorkspaces,
-        currentProfile,
-        quotas,
-        profileAccounts: {},
-        activeAccount: null,
-        runningInstances,
-        openWorkspacePaths: openPaths,
-        profileGithubSummaries: {},
-        profileGithubTokenStatus: {},
-        efficiencyStats: this.efficiencyService.getStatsStorage().getAllStats(),
-        proxyStatus: this.shouldShowProxyUi(currentProfile)
-          ? await this.buildProxyStatusForWebview({
-              checkCertificate: true,
-            })
-          : null,
-        currentWindowUsesProxy: this.shouldShowProxyUi(currentProfile)
-          ? await this.proxyManager.isCurrentWindowUsingProxy()
-          : false,
-        profileProxyTemporary: await this.buildProfileProxyTemporary(currentProfile),
-        locale: getLocale(),
-        messages: getWebviewMessages(),
-      };
-
-      await this.postMessage({ type: 'init', data: initData });
-      lifecycleLog.lifecycle('init.sent', { profileCount: profiles.length });
-
-      void Promise.all([
-        this.refreshQuotas(),
-        this.refreshProfileAccounts(),
-        this.refreshGithubSummaries(),
-      ]);
-    } catch (error) {
-      extensionLog.error(
-        `[AccountsPanel] Failed to refresh accounts panel: ${extensionLog.formatError(error)}`
-      );
-      await this.postMessage({
-        type: 'error',
-        message: t('errors.failedLoadProfiles'),
-      });
-    }
-  }
-
-  private async buildProxyStatusForWebview(options?: {
-    checkCertificate?: boolean;
-  }): Promise<ProxyStatus | null> {
-    const currentProfile = await this.profileDetector.detectCurrentProfile();
-    if (!this.shouldShowProxyUi(currentProfile) || currentProfile == null) {
-      return null;
-    }
-
-    const status = await this.proxyManager.getStatus(currentProfile.id);
-    if (!status) {
-      return null;
-    }
-
-    let caCertificateInstalled: boolean | undefined;
-    if (options?.checkCertificate) {
-      caCertificateInstalled =
-        await this.proxyManager.checkCertificateInstalled();
-    } else {
-      caCertificateInstalled =
-        this.proxyManager.getCachedCertificateInstalled();
-    }
-
-    if (caCertificateInstalled === undefined) {
-      return status;
-    }
-
-    return { ...status, caCertificateInstalled };
+    await this.dataRefresher.refresh();
   }
 
   /** Push latest proxy status to the webview. */
   public async refreshProxyStatus(options?: {
     checkCertificate?: boolean;
   }): Promise<void> {
-    if (!this.getActiveWebview()) {
-      return;
-    }
-
-    const currentProfile = await this.profileDetector.detectCurrentProfile();
-    if (!this.shouldShowProxyUi(currentProfile)) {
-      await this.postMessage({ type: 'proxyStatus', data: null });
-      await this.postMessage({
-        type: 'currentWindowProxyUsage',
-        usesProxy: false,
-      });
-      return;
-    }
-
-    const proxyStatus = await this.buildProxyStatusForWebview(options);
-    await this.postMessage({ type: 'proxyStatus', data: proxyStatus });
-
-    const usesProxy = await this.proxyManager.isCurrentWindowUsingProxy();
-    await this.postMessage({
-      type: 'currentWindowProxyUsage',
-      usesProxy,
-    });
+    await this.dataRefresher.refreshProxyStatus(options);
   }
 
   /** Push latest efficiency stats to the webview. */
   public async postEfficiencyStats(): Promise<void> {
-    if (!this.getActiveWebview()) {
-      return;
-    }
-
-    await this.postMessage({
-      type: 'efficiencyStats',
-      data: this.efficiencyService.getStatsStorage().getAllStats(),
-    });
+    await this.dataRefresher.postEfficiencyStats();
   }
 
   /** Refresh only running instance data. */
   public async refreshInstances(): Promise<void> {
-    if (!this.getActiveWebview()) {
-      return;
-    }
-
-    try {
-      const runningInstances = await this.instanceDetector.detectRunningInstances();
-      await this.postRunningInstances(runningInstances);
-    } catch (error) {
-      extensionLog.error(
-        `[AccountsPanel] Failed to refresh instances: ${extensionLog.formatError(error)}`
-      );
-    }
+    await this.dataRefresher.refreshInstances();
   }
 
   /** Fetch live profile account data and push to webview. */
   public async refreshProfileAccounts(): Promise<void> {
-    if (!this.getActiveWebview()) {
-      return;
-    }
-
-    if (this.accountsFetchInFlight) {
-      extensionLog.debug(
-        '[AccountsPanel] Profile account fetch skipped (already in flight)'
-      );
-      return;
-    }
-
-    try {
-      this.accountsFetchInFlight = true;
-      await this.postMessage({ type: 'accountsLoading', data: true });
-
-      const profiles = await this.profileManager.getProfiles();
-      const currentProfile = await this.profileDetector.detectCurrentProfile();
-      const userDataDir = this.profileDetector.getCurrentUserDataDir();
-
-      const [accountMap, activeAccount] = await Promise.all([
-        this.accountFetcher.fetchAllProfileAccounts(profiles),
-        this.accountFetcher.fetchActiveWindowAccount(
-          userDataDir,
-          currentProfile?.id
-        ),
-      ]);
-
-      await this.postMessage({
-        type: 'profileAccounts',
-        data: accountMapToRecord(accountMap),
-      });
-      await this.postMessage({
-        type: 'activeAccount',
-        data: activeAccount,
-      });
-    } catch (error) {
-      extensionLog.error(
-        `[AccountsPanel] Failed to refresh profile accounts: ${extensionLog.formatError(error)}`
-      );
-    } finally {
-      this.accountsFetchInFlight = false;
-      await this.postMessage({ type: 'accountsLoading', data: false });
-    }
+    await this.dataRefresher.refreshProfileAccounts();
   }
 
   /** Fetch GitHub repo metadata for recent projects and push to webview. */
   public async refreshGithubSummaries(): Promise<void> {
-    if (!this.getActiveWebview()) {
-      return;
-    }
-
-    if (this.githubFetchInFlight) {
-      extensionLog.debug(
-        '[AccountsPanel] GitHub enrichment skipped (already in flight)'
-      );
-      return;
-    }
-
-    try {
-      this.githubFetchInFlight = true;
-      const profilesWithWorkspaces =
-        await this.profileWorkspaceService.getProfilesWithWorkspaces();
-      const { summaries, tokenStatus } =
-        await this.githubEnrichment.enrichProfiles(profilesWithWorkspaces);
-
-      await this.postMessage({
-        type: 'githubSummaries',
-        data: { summaries, tokenStatus },
-      });
-    } catch (error) {
-      extensionLog.error(
-        `[AccountsPanel] Failed to refresh GitHub summaries: ${extensionLog.formatError(error)}`
-      );
-    } finally {
-      this.githubFetchInFlight = false;
-    }
+    await this.dataRefresher.refreshGithubSummaries();
   }
 
   /** Fetch fresh quota data and push to webview. */
   public async refreshQuotas(): Promise<void> {
-    if (!this.getActiveWebview()) {
-      return;
-    }
-
-    try {
-      const quotaMap = await this.quotaService.fetchAllQuotas();
-      await this.postQuotas(quotaMap);
-    } catch (error) {
-      extensionLog.error(
-        `[AccountsPanel] Failed to refresh quotas: ${extensionLog.formatError(error)}`
-      );
-    }
-  }
-
-  private async postQuotas(
-    quotas: Map<string, ProfileQuota>
-  ): Promise<void> {
-    if (!this.getActiveWebview()) {
-      return;
-    }
-
-    await this.postMessage({
-      type: 'quotas',
-      data: quotaMapToRecord(quotas),
-    });
-  }
-
-  private async postRunningInstances(
-    instances: Map<string, InstanceInfo>
-  ): Promise<void> {
-    if (!this.getActiveWebview()) {
-      return;
-    }
-
-    await this.postMessage({
-      type: 'runningInstances',
-      data: instanceMapToRecord(instances),
-    });
+    await this.dataRefresher.refreshQuotas();
   }
 
   /**
