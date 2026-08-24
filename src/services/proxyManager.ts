@@ -74,6 +74,10 @@ import {
   type SharedProxyRuntime,
 } from './sharedProxyLifecycleCoordinator';
 import { ProxyStatusCoordinator } from './proxyStatusCoordinator';
+import {
+  ProxyTrafficTailerCoordinator,
+  type ProxyTrafficTailerOptions,
+} from './proxyTrafficTailerCoordinator';
 import { ProxyCertificateService } from './proxyCertificateService';
 import type { ProxySettingsService } from './proxySettingsService';
 
@@ -103,6 +107,7 @@ export class ProxyManager implements IProxyManager {
   private readonly sharedProxyLifecycleCoordinator: SharedProxyLifecycleCoordinator;
   private readonly profileLifecycleCoordinator: ProxyProfileLifecycleCoordinator;
   private readonly statusCoordinator: ProxyStatusCoordinator;
+  private readonly trafficTailerCoordinator: ProxyTrafficTailerCoordinator;
   private readonly sharedProxyStateStore: SharedProxyStateStore;
   private readonly storageDir: string;
   private readonly logDir: string;
@@ -258,6 +263,19 @@ export class ProxyManager implements IProxyManager {
         }
       },
       isPortAvailable: (port) => isPortAvailable(port),
+    });
+    this.trafficTailerCoordinator = new ProxyTrafficTailerCoordinator({
+      profileManager: this.profileManager,
+      getRuntime: (profileId) => this.runtimes.get(profileId),
+      runtimes: () => this.runtimes,
+      readSharedState: () => this.readSharedProxyState(),
+      getStatus: (profileId) => this.getStatus(profileId),
+      isRunning: (profileId) => this.isRunning(profileId),
+      resolveApiPort: (mitmPort, persistedApiPort) =>
+        this.resolveApiPort(mitmPort, persistedApiPort),
+      getApiToken: (profileId) => this.getApiToken(profileId),
+      ensureTrafficIngress: (profileId, mitmPort, apiPort, options) =>
+        this.ensureTrafficIngress(profileId, mitmPort, apiPort, options),
     });
     this.deps.trafficBus.subscribe((summary, profileId) => {
       void this.handleTraffic(summary, profileId);
@@ -585,68 +603,13 @@ export class ProxyManager implements IProxyManager {
 
   async ensureOutputTailer(
     profileId: string,
-    options?: { tailFromStart?: boolean; forceRestart?: boolean }
+    options?: ProxyTrafficTailerOptions
   ): Promise<void> {
-    const status = await this.getStatus(profileId);
-    if (!status?.running || status.port == null) {
-      return;
-    }
-
-    const apiPort = this.resolveApiPort(status.port, status.apiPort);
-    await this.ensureTrafficIngress(profileId, status.port, apiPort, {
-      forceRestart: options?.forceRestart,
-      tailFromStart: options?.tailFromStart,
-      apiToken: await this.getApiToken(profileId),
-    });
+    await this.trafficTailerCoordinator.ensureOutputTailer(profileId, options);
   }
 
   async ensureTrafficTailer(): Promise<void> {
-    const sharedRuntime = this.runtimes.get(SHARED_PROXY_RUNTIME_KEY);
-    if (sharedRuntime) {
-      await this.ensureTrafficIngress(
-        SHARED_PROXY_RUNTIME_KEY,
-        sharedRuntime.port,
-        sharedRuntime.apiPort,
-        { forceRestart: false, apiToken: sharedRuntime.apiToken }
-      );
-      return;
-    }
-
-    const sharedState = await this.readSharedProxyState();
-    if (sharedState?.running && sharedState.port != null) {
-      const apiPort = this.resolveApiPort(sharedState.port, sharedState.apiPort);
-      await this.ensureTrafficIngress(
-        SHARED_PROXY_RUNTIME_KEY,
-        sharedState.port,
-        apiPort,
-        { forceRestart: false, apiToken: sharedState.apiToken }
-      );
-      return;
-    }
-
-    for (const [profileId, runtime] of this.runtimes) {
-      await this.ensureTrafficIngress(profileId, runtime.port, runtime.apiPort, {
-        forceRestart: false,
-        apiToken: runtime.apiToken,
-      });
-      return;
-    }
-
-    const profiles = await this.profileManager.getProfiles();
-    for (const profile of profiles) {
-      if (!(await this.isRunning(profile.id))) {
-        continue;
-      }
-      const status = await this.getStatus(profile.id);
-      if (status?.port != null) {
-        const apiPort = this.resolveApiPort(status.port, status.apiPort);
-        await this.ensureTrafficIngress(profile.id, status.port, apiPort, {
-          forceRestart: false,
-          apiToken: await this.getApiToken(profile.id),
-        });
-        return;
-      }
-    }
+    await this.trafficTailerCoordinator.ensureTrafficTailer();
   }
 
   showOutputChannel(): void {
