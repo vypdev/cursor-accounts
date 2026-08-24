@@ -37,6 +37,10 @@ export interface ProxyTrafficSummary {
     /** Incremental cost of latestDelta in USD cents. */
     deltaCostCents?: number;
   };
+  /** Profile detected from JWT Authorization header (shared proxy mode). */
+  profileId?: string;
+  /** Workspace detected from agent protobuf payload. */
+  workspaceId?: string;
 }
 
 export interface MitmProxyHandlers {

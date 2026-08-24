@@ -32,10 +32,12 @@ export class ProfileManagerError extends Error {
 
 export class ProfileManager implements IProfileManager {
   private readonly storage: IProfileStorage;
+  private readonly profileRootDir: string;
   private config: ProfileConfig | null = null;
 
-  constructor(storage: IProfileStorage) {
+  constructor(storage: IProfileStorage, profileRootDir = os.homedir()) {
     this.storage = storage;
+    this.profileRootDir = profileRootDir;
   }
 
   /**
@@ -115,13 +117,16 @@ export class ProfileManager implements IProfileManager {
       throw new ProfileManagerError(`Generated slug "${slug}" is invalid`);
     }
 
-    let userDataDir = path.join(os.homedir(), `${PROFILE_DIR_PREFIX}${slug}`);
+    let userDataDir = path.join(
+      this.profileRootDir,
+      `${PROFILE_DIR_PREFIX}${slug}`
+    );
 
     const existingPath = await this.findProfileByPath(userDataDir);
     if (existingPath) {
       const uniqueSlug = generateUniqueSlug(options.email, true);
       userDataDir = path.join(
-        os.homedir(),
+        this.profileRootDir,
         `${PROFILE_DIR_PREFIX}${uniqueSlug}`
       );
 

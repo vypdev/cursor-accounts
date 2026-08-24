@@ -15,9 +15,17 @@ describe('portUtils', () => {
     // Port 80 is commonly unavailable without root; use a random high port we bind
     const net = await import('net');
     const server = net.createServer();
-    await new Promise<void>((resolve) => {
-      server.listen(0, '127.0.0.1', () => resolve());
-    });
+    try {
+      await new Promise<void>((resolve, reject) => {
+        server.once('error', reject);
+        server.listen(0, '127.0.0.1', () => resolve());
+      });
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'EPERM') {
+        return;
+      }
+      throw error;
+    }
     const addr = server.address();
     const port =
       typeof addr === 'object' && addr != null ? addr.port : 0;

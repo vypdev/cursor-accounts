@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as fs from 'fs/promises';
-import * as os from 'os';
 import * as path from 'path';
 import type { Profile } from '@cursor-accounts/types';
 import { ProfileGitHubTokenReader } from '../../github/profileGitHubTokenReader';
@@ -12,17 +11,14 @@ describe('ProfileGitHubTokenReader', () => {
 
   beforeEach(async () => {
     tempDir = await fs.mkdtemp(
-      path.join(os.tmpdir(), 'cursor-accounts-github-token-')
+      path.join(process.cwd(), '.tmp-github-token-')
     );
     reader = new ProfileGitHubTokenReader();
   });
 
   afterEach(async () => {
     await fs.rm(tempDir, { recursive: true, force: true });
-    const tokenDir = path.join(
-      os.homedir(),
-      `.cursor-accounts-test-${path.basename(tempDir)}`
-    );
+    const tokenDir = path.join(tempDir, 'token');
     await fs.rm(tokenDir, { recursive: true, force: true }).catch(() => undefined);
   });
 
@@ -34,10 +30,7 @@ describe('ProfileGitHubTokenReader', () => {
   });
 
   it('reads token from file under home directory', async () => {
-    const tokenDir = path.join(
-      os.homedir(),
-      `.cursor-accounts-test-${path.basename(tempDir)}`
-    );
+    const tokenDir = path.join(tempDir, 'token');
     await fs.mkdir(tokenDir, { recursive: true });
     const tokenFile = path.join(tokenDir, 'github-pat.txt');
     await fs.writeFile(tokenFile, 'ghp_test_token_123\n', 'utf8');

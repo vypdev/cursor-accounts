@@ -95,6 +95,7 @@ export class AgentLiveUsageStatusBar {
         }
       })
     );
+    context.subscriptions.push({ dispose: () => this.dispose() });
   }
 
   ingest(summary: ProxyTrafficSummary): void {
@@ -270,6 +271,10 @@ export class AgentLiveUsageStatusBar {
       clearTimeout(this.refreshThrottleTimer);
       this.refreshThrottleTimer = undefined;
     }
+  }
+
+  dispose(): void {
+    this.clear();
   }
 
   private isEnabled(): boolean {

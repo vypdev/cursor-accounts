@@ -1,7 +1,7 @@
 import { spawn } from 'child_process';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { CA_COMMON_NAME } from './certificateManager';
+import { CA_COMMON_NAME } from './certificateConstants';
 
 /** System CA file path from the Linux install guide. */
 export const LINUX_SYSTEM_CA_PATH =

@@ -15,6 +15,9 @@ import type { ProxyTrafficLogger } from './nullLogger';
 import type { ProxyServerConfig } from './types';
 import { ProxyApiServer } from './api/proxyApiServer';
 import type { ProxyApiEvent } from '../application/types/proxyApi';
+import { SqliteAgentTrackingDbPool } from '../persistence/betterSqlite/sqliteAgentTrackingDbPool';
+import { ProxyAgentTrackingIngress } from './proxyAgentTrackingIngress';
+import { SHARED_PROXY_RUNTIME_KEY } from './types';
 
 function parseConfig(): ProxyServerConfig {
   const raw = process.env.CURSOR_ACCOUNTS_PROXY_CONFIG;
@@ -37,7 +40,7 @@ function emitTrafficEvent(
   const event: ProxyApiEvent = {
     type: 'traffic',
     timestamp: new Date().toISOString(),
-    profileId: config.profileId,
+    profileId: summary.profileId ?? config.profileId,
     data: sanitized,
   };
   apiServer.broadcast(event);
@@ -58,6 +61,25 @@ async function main(): Promise<void> {
 
   const apiServer = new ProxyApiServer();
   let shuttingDown = false;
+  let trackingIngress: ProxyAgentTrackingIngress | undefined;
+
+  const profileDbPaths = config.profileDbPaths
+    ? new Map(Object.entries(config.profileDbPaths))
+    : undefined;
+  if (profileDbPaths && profileDbPaths.size > 0 && config.extensionPath) {
+    const dbPool = new SqliteAgentTrackingDbPool(
+      profileDbPaths,
+      config.extensionPath
+    );
+    trackingIngress = new ProxyAgentTrackingIngress(
+      dbPool,
+      config.profileId ?? SHARED_PROXY_RUNTIME_KEY
+    );
+  }
+
+  const userIdMapping = config.userIdToProfileId
+    ? new Map(Object.entries(config.userIdToProfileId))
+    : undefined;
 
   const shutdown = async (): Promise<void> => {
     if (shuttingDown) {
@@ -72,16 +94,26 @@ async function main(): Promise<void> {
       clearInterval(diagnosticsInterval);
     }
 
+    // Stop producing traffic before closing the ingress. The ingress then
+    // drains all per-profile queues before SQLite connections are closed.
+    await server.stop().catch(() => undefined);
+    await trackingIngress?.close().catch(() => undefined);
     await apiServer.stop();
-    await server.stop();
     process.exit(0);
   };
 
-  const server = new PolyglotMitmProxyServer(certificateManager, requestLogger, {
-    onTraffic: (summary) => {
-      emitTrafficEvent(apiServer, config, summary);
+  const server = new PolyglotMitmProxyServer(
+    certificateManager,
+    requestLogger,
+    {
+      onTraffic: (summary) => {
+        const pendingPersistence = trackingIngress?.enqueue(summary);
+        pendingPersistence?.catch(() => undefined);
+        emitTrafficEvent(apiServer, config, summary);
+      },
     },
-  });
+    userIdMapping
+  );
 
   server.on('error', (err) => {
     process.stderr.write(`[proxy] ${err.message}\n`);

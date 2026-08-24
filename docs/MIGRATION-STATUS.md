@@ -1,13 +1,13 @@
 # Migration Status — better-sqlite3 Persistent Connections
 
-**Last Updated**: 2026-06-06  
-**Status**: ✅ **Milestones 1-4 Complete** | Ready for Alpha Testing
+**Last Updated**: 2026-06-10  
+**Status**: ✅ **Complete** — Legacy CLI removed, better-sqlite3 is the only agent tracking implementation
 
 ---
 
 ## Executive Summary
 
-The migration from legacy CLI subprocess to `better-sqlite3` with persistent connections is **technically complete** and **ready for user testing**. All core infrastructure, repositories, integration, and automated testing are done.
+The migration from legacy CLI subprocess to `better-sqlite3` with persistent connections is **complete**. Legacy `AgentTrackingDatabase` and the `useBetterSqlite3` feature flag were removed in v0.1.35.
 
 ### Key Achievements
 
@@ -15,8 +15,8 @@ The migration from legacy CLI subprocess to `better-sqlite3` with persistent con
 ✅ **10-100x performance improvement** (no process spawn overhead)  
 ✅ **Clean Architecture preserved** (ports/adapters pattern)  
 ✅ **Multi-window concurrency validated** (WAL mode + busy_timeout)  
-✅ **Full backward compatibility** (feature flag, dual-stack coexistence)  
-✅ **Comprehensive documentation** (ADRs, testing guides, rollout plan)
+✅ **Full backward compatibility** (same schema, no data migration required)  
+✅ **Legacy CLI removed** (v0.1.35)
 
 ---
 
@@ -32,7 +32,7 @@ The migration from legacy CLI subprocess to `better-sqlite3` with persistent con
 - ✅ Defined `IDatabaseConnectionManager` port (domain layer)
 - ✅ Implemented `BetterSqliteConnectionManager` (infrastructure layer)
 - ✅ WAL mode, busy_timeout, synchronous=NORMAL, foreign_keys=ON
-- ✅ Feature flag: `cursorAccounts.experimental.useBetterSqlite3` (default: false)
+- ✅ Agent tracking uses better-sqlite3 by default (no feature flag)
 - ✅ Unit tests: 17/17 passing
 - ✅ Documentation: ADR-001, ADR-002, DATABASE-BETTER-SQLITE3.md, updated ARCHITECTURE.md
 
@@ -85,7 +85,7 @@ The migration from legacy CLI subprocess to `better-sqlite3` with persistent con
 **Deliverables**:
 - ✅ Factory pattern: `createAgentTrackingRepository()`
 - ✅ Singleton connection manager per window
-- ✅ Integrated into `ProxyManager` (replaced `new AgentTrackingDatabase()`)
+- ✅ Integrated via `createAgentTrackingRepository()` factory (always better-sqlite3)
 - ✅ Lifecycle management: `closeAllConnections()` in `extension.ts` deactivate
 - ✅ Feature flag-driven selection (runtime switch)
 - ✅ Full backward compatibility (both implementations coexist)
@@ -373,15 +373,7 @@ Send:
 
 ## Rollback Strategy
 
-At any point before Milestone 8 (legacy removal), users can rollback by disabling the feature flag:
-
-```json
-{
-  "cursorAccounts.experimental.useBetterSqlite3": false
-}
-```
-
-**Data safety**: Both implementations use the same database file and schema, so switching between them is safe (no data loss or corruption).
+Legacy CLI agent tracking was removed in v0.1.35. If database issues occur, delete the profile's `cursor-accounts-efficiency.db` file and let the extension recreate it on next startup.
 
 ---
 

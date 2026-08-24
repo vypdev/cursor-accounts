@@ -154,6 +154,17 @@ describe('proxyInsightExtractor', () => {
     assert.equal(insights?.agent?.pollSeqno, 3);
   });
 
+  it('extracts workspace info from agent rpc payloads', () => {
+    const insights = extractInsightsForRpc('/agent.v1.AgentService/BidiAppend', {
+      workspace_id: 'ws-123',
+      workspace_root_path: '/Users/dev/project',
+      relative_workspace_path: 'project',
+    });
+    assert.equal(insights?.workspace?.workspaceId, 'ws-123');
+    assert.equal(insights?.workspace?.workspaceRootPath, '/Users/dev/project');
+    assert.equal(insights?.workspace?.relativeWorkspacePath, 'project');
+  });
+
   it('extracts conversation and subagent ids from runRequest', () => {
     const ids = extractConversationAndSubagentIds({
       runRequest: {

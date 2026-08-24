@@ -1,9 +1,9 @@
 # Rollout Plan — better-sqlite3 Migration (Milestones 5-8)
 
-**Status**: Milestones 1-4 complete, ready for phased rollout  
-**Target audience**: Extension maintainers executing the migration
+**Status**: ✅ **Complete** — Milestone 8 done (legacy CLI removed in v0.1.35)  
+**Target audience**: Extension maintainers (historical reference)
 
-This document outlines the phased rollout strategy for migrating from legacy CLI subprocess to `better-sqlite3` with persistent connections.
+This document outlines the phased rollout strategy that migrated agent tracking from legacy CLI subprocess to `better-sqlite3` with persistent connections.
 
 ---
 
@@ -14,7 +14,7 @@ This document outlines the phased rollout strategy for migrating from legacy CLI
 | 5 | Alpha | 1-2 weeks | `false` (opt-in) | 2-3 internal testers | Easy (disable flag) |
 | 6 | Beta | 2-3 weeks | `false` (opt-in) | ≥10 community volunteers | Easy (disable flag) |
 | 7 | Default | 2+ weeks | `true` (opt-out) | All users | Easy (explicit opt-out) |
-| 8 | Legacy Removal | After 4+ weeks stable | N/A (only better-sqlite3) | All users | Not possible |
+| 8 | Legacy Removal | ✅ Done (v0.1.35) | N/A (only better-sqlite3) | All users | Not possible |
 
 ---
 

@@ -2,7 +2,7 @@
 
 This document describes how the extension is structured, how data flows, and why key decisions were made. For API and quota research, see [RESEARCH.md](RESEARCH.md). For multi-profile product behavior, see [FEATURE-MULTI-PROFILE.md](FEATURE-MULTI-PROFILE.md).
 
-**Last reviewed:** 2026-06-05
+**Last reviewed:** 2026-08-24
 
 ## Overview
 
@@ -27,21 +27,17 @@ The shared types package has **no dependencies** on VS Code or Node APIs. `@curs
 
 ## Database Architecture (better-sqlite3)
 
-As of Milestone 1 (in progress), the extension supports **two database implementations** controlled by a feature flag:
+Agent tracking uses **`better-sqlite3`** with persistent connections:
 
-### Legacy (default currently)
-- **Implementation**: CLI subprocess (`src/persistence/sqliteExecutor.ts`)
-- **Behavior**: Spawns `sqlite3` binary for each operation
-- **Limitations**: "database is locked" errors, no transactions, process overhead
-
-### Modern (experimental: `useBetterSqlite3` flag)
 - **Implementation**: `better-sqlite3` native module with persistent connections
 - **Architecture**: Clean Architecture with dependency inversion
   - **Domain port**: `src/domain/ports/IDatabaseConnectionManager.ts`
   - **Infrastructure adapter**: `src/persistence/betterSqlite/betterSqliteConnectionManager.ts`
-  - **Repositories**: `BetterSqliteAgentTrackingRepository` (in progress)
+  - **Repositories**: `BetterSqliteAgentTrackingRepository`
 - **Benefits**: WAL mode + busy_timeout eliminates lock errors, supports transactions, 10-100x faster
 - **Multi-window**: Each VS Code window maintains its own connection; SQLite WAL handles concurrent access
+
+Efficiency stats (`EfficiencyDatabase`) still uses the CLI subprocess model temporarily.
 
 See [ADR-001](adr/001-migrate-to-better-sqlite3.md) and [ADR-002](adr/002-connection-manager-design.md) for detailed rationale.
 
@@ -107,7 +103,7 @@ graph TB
 |-------|------|----------------|
 | Composition root | `src/extension.ts`, `src/composition/` | `activate`/`deactivate`, DI wiring, storage service factory, migrations from `cursorQuota`, command registration |
 | Domain ports | `src/domain/ports/` | `IQuotaService`, `ITokenProvider`, `IProfileStorage`, `IProfileManager`, `IProfileDetector`, `IProfileLauncher`, `IInstanceDetector`, `IProfileAuthReader`, `IUserService`, `IActivityLeaderboardService`, `IStorageCleanupService`, `IFileSystemService`, `IDatabaseCleanupService`, `ICacheCleanupService`, `IProfileStorageAnalyzer`, `IProxyManager`, `IProxyServer`, `IProtocolAdapter`, `IAgentTrackingRepository`, `ITokenTurnDetectionService`, `IActiveConversationRepository`, `IWorkspaceStateDbPathResolver` |
-| Application types | `src/application/types/` | Cross-layer DTOs (`AgentSessionInfo`, `ProxyServerConfig`, agent persistence records) |
+| Application types | `src/application/types/` | Cross-layer DTOs (`AgentSessionInfo`, `ProxyServerConfig`, `ProxyLogEntry`, agent persistence records) |
 | Shared kernel | `packages/types/` | Entities, quota business rules, webview message contracts |
 | HTTP / adapters | `src/api/` | Quota, usage summary, user, team metadata, leaderboard clients; DTO→domain mappers in `quotaMappers.ts` |
 | Local auth | `src/auth/` | Read `state.vscdb`, OAuth refresh, `ProfileAuthReader`, token providers |
@@ -145,7 +141,7 @@ graph TB
 
 **Not allowed:** `api` → `ui`; `profiles` → `ui`; `domain` → outer layers.
 
-ESLint enforces import boundaries for `domain`, `api`, `profiles`, and `services`. `ui/` relies on convention and code review.
+ESLint enforces import boundaries for `domain`, `api`, `profiles`, and `services`. The reproducible `pnpm run check:architecture` gate also scans relative imports, rejects forbidden inward-boundary violations, and fails on static import cycles. `ui/` relies on convention and code review.
 
 ## Structural migration (2026-06)
 
@@ -338,7 +334,9 @@ sequenceDiagram
 
 ## Optional MITM proxy subsystem
 
-When enabled, a **child Node process** runs [`PolyglotMitmProxyServer`](../src/proxy/polyglotMitmProxyServer.ts) (`http-mitm-proxy` + `@httptoolkit/httpolyglot` for HTTP/1.0/1.1/2 ALPN) on localhost. The extension host does not terminate TLS itself; decoded traffic summaries and lifecycle control use a **localhost HTTP/WebSocket API** (`src/proxy/api/`) so any VS Code window can start, stop, and attach independently. JSONL is written when per-profile development logging is enabled. See [PROXY-API-REFERENCE.md](PROXY-API-REFERENCE.md), [HTTP2-PROXY-IMPLEMENTATION.md](HTTP2-PROXY-IMPLEMENTATION.md), and [CLEAN-ARCHITECTURE-PRINCIPLES.md](CLEAN-ARCHITECTURE-PRINCIPLES.md).
+When enabled, a **single shared child Node process** runs [`PolyglotMitmProxyServer`](../src/proxy/polyglotMitmProxyServer.ts) on `127.0.0.1:8080` for all profiles. The proxy detects profile (JWT) and workspace (protobuf), filters agent-only traffic, and persists metrics via [`SqliteAgentTrackingDbPool`](../src/persistence/betterSqlite/sqliteAgentTrackingDbPool.ts). See [SHARED-PROXY.md](SHARED-PROXY.md).
+
+Decoded traffic summaries and lifecycle control use a **localhost HTTP/WebSocket API** (`src/proxy/api/`) so any VS Code window can attach independently. JSONL is written when per-profile development logging is enabled. See [PROXY-API-REFERENCE.md](PROXY-API-REFERENCE.md), [HTTP2-PROXY-IMPLEMENTATION.md](HTTP2-PROXY-IMPLEMENTATION.md), and [CLEAN-ARCHITECTURE-PRINCIPLES.md](CLEAN-ARCHITECTURE-PRINCIPLES.md).
 
 ```mermaid
 flowchart TB
@@ -385,6 +383,8 @@ flowchart TB
 | Traffic bus | `src/application/services/proxyTrafficBus.ts` | Pub/sub for `ProxyTrafficSummary` |
 | Traffic ingress | `src/application/services/proxyTrafficIngress.ts` | WebSocket API attach + optional JSONL tail |
 | MITM | `src/proxy/polyglotMitmProxyServer.ts` | HTTP/1.x + HTTP/2 capture (`IProxyServer`) |
+| DB pool | `src/persistence/betterSqlite/sqliteAgentTrackingDbPool.ts` (`IAgentTrackingDbPool`) | Per-profile better-sqlite3 connections in shared proxy child |
+| Agent ingress | `src/proxy/proxyAgentTrackingIngress.ts` | Filters agent metrics; persists via pool in child |
 | RunSSE | `src/proxy/capture/runSseStreamHandler.ts` | Live `token_delta` / `turn_ended` summaries |
 | Logging | `src/proxy/requestLogger.ts` | JSONL when development logging is enabled |
 | Presentation | `src/ui/presentation/`, `src/ui/agentLiveUsageStatusBar.ts` | Output channels and status bar |

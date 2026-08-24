@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
 import * as fs from 'fs/promises';
-import * as os from 'os';
 import * as path from 'path';
 import { after, before, describe, it } from 'node:test';
 import {
@@ -15,7 +14,7 @@ describe('ProfileSettingsManager', () => {
 
   before(async () => {
     tempRoot = await fs.mkdtemp(
-      path.join(os.homedir(), '.cursor-accounts-test-settings-')
+      path.join(process.cwd(), '.tmp-profile-settings-')
     );
     userDataDir = path.join(tempRoot, 'profile-a');
     await fs.mkdir(path.join(userDataDir, 'User'), { recursive: true });

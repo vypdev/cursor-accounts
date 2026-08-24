@@ -60,6 +60,32 @@ describe('InstanceDetector', () => {
       assert.equal(instances.get(profile.id)?.pid, 4242);
     });
 
+    it('tracks multiple instances for the same profile with different projects', async () => {
+      const profile = await manager.createProfile({
+        email: 'multi@example.com',
+        displayName: 'Multi',
+      });
+
+      const testDetector = new InstanceDetector(manager, async () => [
+        {
+          pid: 4242,
+          userDataDir: profile.userDataDir,
+          projectPath: '/Users/dev/repo-one',
+        },
+        {
+          pid: 4243,
+          userDataDir: profile.userDataDir,
+          projectPath: '/Users/dev/repo-two',
+        },
+      ]);
+
+      const instances = await testDetector.detectRunningInstances();
+
+      assert.equal(instances.size, 2);
+      assert.ok(instances.has(`${profile.id}:/Users/dev/repo-one`));
+      assert.ok(instances.has(`${profile.id}:/Users/dev/repo-two`));
+    });
+
     it('ignores processes without matching profile', async () => {
       await manager.createProfile({
         email: 'other@example.com',
@@ -160,6 +186,37 @@ describe('InstanceDetector', () => {
       ]);
 
       assert.equal(await testDetector.isProfileRunning(profile.id), true);
+    });
+  });
+
+  describe('isProfileProjectRunning', () => {
+    it('returns true only for matching profile and project path', async () => {
+      const profile = await manager.createProfile({
+        email: 'project@example.com',
+      });
+
+      const testDetector = new InstanceDetector(manager, async () => [
+        {
+          pid: 8080,
+          userDataDir: profile.userDataDir,
+          projectPath: '/Users/dev/repo-one',
+        },
+      ]);
+
+      assert.equal(
+        await testDetector.isProfileProjectRunning(
+          profile.id,
+          '/Users/dev/repo-one'
+        ),
+        true
+      );
+      assert.equal(
+        await testDetector.isProfileProjectRunning(
+          profile.id,
+          '/Users/dev/repo-two'
+        ),
+        false
+      );
     });
   });
 

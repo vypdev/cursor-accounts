@@ -5,7 +5,10 @@ import type { IProfileAuthReader } from '../domain/ports/IProfileAuthReader';
 import * as extensionLog from '../logging/extensionLog';
 import * as lifecycleLog from '../logging/webviewLifecycleLog';
 import type { InstanceDetector } from '../profiles/instanceDetector';
-import { instanceMapToRecord } from '../profiles/instanceDetector';
+import {
+  getOpenProjectPathsForProfile,
+  instanceMapToRecord,
+} from '../profiles/instanceDetector';
 import type { ProfileDetector } from '../profiles/profileDetector';
 import type { ProfileLauncher } from '../profiles/profileLauncher';
 import type { ProfileManager } from '../profiles/profileManager';
@@ -196,16 +199,25 @@ export class AccountsPanelProvider {
   private buildProfileWorkspaces(
     profilesWithWorkspaces: ProfileWithWorkspaces[],
     currentProfile: Profile | null,
-    openPaths: string[]
+    openPaths: string[],
+    runningInstances: Record<string, InstanceInfo>
   ): Record<string, WorkspaceInfo[]> {
     const profileWorkspaces: Record<string, WorkspaceInfo[]> = {};
 
     for (const profile of profilesWithWorkspaces) {
+      const openProjectPaths = getOpenProjectPathsForProfile(
+        runningInstances,
+        profile.id
+      );
+
       profileWorkspaces[profile.id] = profile.workspaces.map((workspace) => ({
         ...workspace,
         isOpenInSession:
-          currentProfile?.id === profile.id &&
-          isWorkspacePathOpen(workspace.path, openPaths),
+          (currentProfile?.id === profile.id &&
+            isWorkspacePathOpen(workspace.path, openPaths)) ||
+          openProjectPaths.some((openPath) =>
+            isWorkspacePathOpen(workspace.path, [openPath])
+          ),
       }));
     }
 
@@ -223,10 +235,14 @@ export class AccountsPanelProvider {
       const currentProfile = await this.profileDetector.detectCurrentProfile();
       const profilesWithWorkspaces =
         await this.profileWorkspaceService.getProfilesWithWorkspaces();
+      const runningInstances = instanceMapToRecord(
+        this.instanceDetector.getLastDetection()
+      );
       const profileWorkspaces = this.buildProfileWorkspaces(
         profilesWithWorkspaces,
         currentProfile,
-        openPaths
+        openPaths,
+        runningInstances
       );
 
       await this.postMessage({
@@ -319,7 +335,8 @@ export class AccountsPanelProvider {
       const profileWorkspaces = this.buildProfileWorkspaces(
         profilesWithWorkspaces,
         currentProfile,
-        openPaths
+        openPaths,
+        runningInstances
       );
 
       const initData: InitData = {

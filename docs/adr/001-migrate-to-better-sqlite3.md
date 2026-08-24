@@ -50,7 +50,7 @@ Migrate to **better-sqlite3 v11** with **persistent connections per VS Code wind
 4. **Migration effort**: ~3-5 weeks for complete implementation and testing
 
 ### Mitigation
-- **Feature flag**: Dual-stack coexistence during rollout (`useBetterSqlite3: false` by default initially)
+- **Feature flag**: Removed in v0.1.35; better-sqlite3 is the only agent tracking implementation
 - **CI pre-build**: GitHub Actions matrix builds native binaries for all 6 platforms
 - **Rollback path**: Users can opt-out to CLI if issues occur
 - **Grace period**: 4+ weeks with better-sqlite3 as default before removing legacy code

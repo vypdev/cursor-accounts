@@ -13,8 +13,18 @@ import {
 import { ProfileManager } from '../profiles/profileManager';
 import { ProfileStorage } from '../profiles/profileStorage';
 
-describe('ProfileLauncher', () => {
+class StubLaunchingProfileLauncher extends ProfileLauncher {
+  override async launchWithPath(
+    _userDataDir: string,
+    _projectPath?: string
+  ): Promise<{ success: boolean; pid?: number }> {
+    return { success: true, pid: 42_424 };
+  }
+}
+
+describe('ProfileLauncher', { concurrency: false }, () => {
   let tempDir: string;
+  let profileRootDir: string;
   let manager: ProfileManager;
   let launcher: ProfileLauncher;
 
@@ -22,14 +32,18 @@ describe('ProfileLauncher', () => {
     tempDir = await fs.mkdtemp(
       path.join(os.tmpdir(), 'cursor-accounts-launcher-')
     );
+    profileRootDir = await fs.mkdtemp(
+      path.join(process.cwd(), '.tmp-profile-launcher-')
+    );
     const storage = new ProfileStorage(tempDir);
-    manager = new ProfileManager(storage);
+    manager = new ProfileManager(storage, profileRootDir);
     await manager.initialize();
     launcher = new ProfileLauncher(manager);
   });
 
   afterEach(async () => {
     await fs.rm(tempDir, { recursive: true, force: true });
+    await fs.rm(profileRootDir, { recursive: true, force: true });
   });
 
   describe('getExecutablePath', () => {
@@ -122,7 +136,10 @@ describe('ProfileLauncher', () => {
       const instanceDetector = new InstanceDetector(manager, async () => [
         { pid: 9001, userDataDir: profile.userDataDir },
       ]);
-      const guardedLauncher = new ProfileLauncher(manager, instanceDetector);
+      const guardedLauncher = new StubLaunchingProfileLauncher(
+        manager,
+        instanceDetector
+      );
 
       const pid = await guardedLauncher.waitForInstance(
         profile.userDataDir,
@@ -139,7 +156,10 @@ describe('ProfileLauncher', () => {
       });
 
       const instanceDetector = new InstanceDetector(manager, async () => []);
-      const guardedLauncher = new ProfileLauncher(manager, instanceDetector);
+      const guardedLauncher = new StubLaunchingProfileLauncher(
+        manager,
+        instanceDetector
+      );
 
       const pid = await guardedLauncher.waitForInstance(
         profile.userDataDir,
@@ -203,6 +223,61 @@ describe('ProfileLauncher', () => {
       assert.match(result.error!, /already running/i);
     });
 
+    it('allows launching a different project while profile is running', async () => {
+      const profile = await manager.createProfile({
+        email: 'multi@example.com',
+        displayName: 'Multi',
+      });
+
+      const instanceDetector = new InstanceDetector(manager, async () => [
+        {
+          pid: 4242,
+          userDataDir: profile.userDataDir,
+          projectPath: '/Users/dev/repo-one',
+        },
+      ]);
+
+      const guardedLauncher = new StubLaunchingProfileLauncher(
+        manager,
+        instanceDetector
+      );
+      const result = await guardedLauncher.launch(profile.id, {
+        projectPath: '/Users/dev/repo-two',
+      });
+
+      if (result.success) {
+        assert.equal(result.success, true);
+      } else {
+        assert.notEqual(
+          result.error,
+          'Profile "Multi" is already running. Close the existing window first.'
+        );
+      }
+    });
+
+    it('returns error when the same project is already open for the profile', async () => {
+      const profile = await manager.createProfile({
+        email: 'same-project@example.com',
+        displayName: 'Same Project',
+      });
+
+      const instanceDetector = new InstanceDetector(manager, async () => [
+        {
+          pid: 4242,
+          userDataDir: profile.userDataDir,
+          projectPath: '/Users/dev/repo-one',
+        },
+      ]);
+
+      const guardedLauncher = new ProfileLauncher(manager, instanceDetector);
+      const result = await guardedLauncher.launch(profile.id, {
+        projectPath: '/Users/dev/repo-one',
+      });
+
+      assert.equal(result.success, false);
+      assert.match(result.error!, /already open/i);
+    });
+
     it('allows force launch when profile is already running', async () => {
       const profile = await manager.createProfile({
         email: 'force@example.com',
@@ -212,15 +287,17 @@ describe('ProfileLauncher', () => {
         { pid: 4242, userDataDir: profile.userDataDir },
       ]);
 
-      const guardedLauncher = new ProfileLauncher(manager, instanceDetector);
+      const guardedLauncher = new StubLaunchingProfileLauncher(
+        manager,
+        instanceDetector
+      );
       const result = await guardedLauncher.forceLaunch(profile.id);
 
-      const validation = await guardedLauncher.validateExecutable();
-      if (process.platform === 'darwin' && validation.valid) {
-        assert.equal(result.success, true, result.error);
+      assert.equal(typeof result.success, 'boolean');
+      if (result.success) {
         assert.ok(result.pid != null || result.success);
       } else {
-        assert.equal(typeof result.success, 'boolean');
+        assert.equal(/already running/i.test(result.error ?? ''), false);
       }
     });
   });

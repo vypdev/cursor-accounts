@@ -2,7 +2,7 @@
 
 Reference for agent/conversation/token tables in `cursor-accounts-efficiency.db`.
 
-**Last reviewed:** 2026-06-05
+**Last reviewed:** 2026-08-24
 
 ---
 
@@ -55,6 +55,7 @@ Stores **aggregated live `token_delta`** rows and legacy offline replay snapshot
 | turn_index | INTEGER | Offline RunSSE replay turn grouping (batch heuristic) |
 | http_request_id | TEXT | HTTP `x-request-id` for RunSSE correlation |
 | minute_bucket | INTEGER | Unix seconds truncated to minute (`floor(ts/60)*60`) |
+| event_key | TEXT | Stable source-event identity; unique when present |
 | cost_cents | REAL | Sum of estimated live delta cost (USD cents) in the minute bucket |
 | context_used_tokens | INTEGER | Context window usage at the latest event in this bucket |
 | context_max_tokens | INTEGER | Context window size at the latest event in this bucket |
@@ -70,6 +71,10 @@ Live `token_delta` events from `StreamingAgentDecoder` are **not** stored one ro
 - `recorded_at` stores the Unix seconds of the latest event in the bucket (used to pick the newest context for a conversation)
 
 Unique index: `idx_tokens_delta_bucket` on `(request_id, minute_bucket)` where `token_type = 'delta'`.
+
+`event_key` is protected by a partial unique index. It allows replayed snapshot
+events to be ignored while preserving compatibility with legacy rows that do
+not have an identity.
 
 ### Offline replay (batch)
 
@@ -95,8 +100,18 @@ Billing-grade turn completions — **one row per server `turn_ended` event** (no
 | recorded_at | INTEGER | Unix seconds |
 | model_name | TEXT | Model at turn end |
 | http_request_id | TEXT | HTTP `x-request-id` for RunSSE correlation |
+| event_key | TEXT | Stable source-event identity; unique when present |
 
 Inserted when the MITM decoder emits `isTurnEnded` / `InteractionUpdate.turn_ended`.
+Repeated delivery of the same decoded event is ignored by `event_key`.
+
+## agent_tokens_delta_events
+
+This is the idempotency ledger for minute-bucketed live deltas. Each accepted
+source event is inserted once, then its increment and cost are folded into
+`agent_tokens_delta`. A replay that has the same `event_key` does not modify the
+aggregate again. The ledger is intentionally separate from the aggregate so
+that one minute can contain many independently identifiable events.
 
 ---
 
@@ -134,6 +149,10 @@ ORDER BY te.recorded_at DESC;
 | 3 | `003_agent_turn_tracking.sql` | `turn_index`, `http_request_id` on agent_tokens |
 | 4 | `004_cleanup_corrupt_tokens.sql` | Remove corrupt `turn_ended` rows |
 | 5 | `005_agent_turn_ended_table.sql` | `minute_bucket`, `agent_turn_ended`, migrate legacy `turn_ended` |
+| 6 | `006_agent_tokens_delta_cost.sql` | Estimated live delta cost |
+| 7 | `007_agent_tokens_delta_context.sql` | Context window fields |
+| 8 | `008_agent_tokens_delta_table.sql` | Minute-bucketed delta aggregation table |
+| 9 | `009_agent_event_idempotency.sql` | Event keys and the live-delta idempotency ledger |
 
 ---
 

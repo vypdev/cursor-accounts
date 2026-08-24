@@ -19,6 +19,7 @@ import {
 export type { CursorProcess } from './instanceProcessParser';
 export {
   extractUserDataDir,
+  extractProjectPath,
   isHelperProcess,
   parseLinuxPsOutput,
   parseMacOSPsOutput,
@@ -43,6 +44,45 @@ export function instanceMapToRecord(
   instances: Map<string, InstanceInfo>
 ): InstanceInfoMap {
   return Object.fromEntries(instances.entries());
+}
+
+/** Build a stable map key for a profile/project instance pair. */
+export function buildInstanceKey(
+  profileId: string,
+  projectPath?: string
+): string {
+  return projectPath ? `${profileId}:${projectPath}` : profileId;
+}
+
+/** Return whether any running instance belongs to the profile. */
+export function isProfilePresentInInstances(
+  instances: Map<string, InstanceInfo> | InstanceInfoMap,
+  profileId: string
+): boolean {
+  const values =
+    instances instanceof Map
+      ? instances.values()
+      : Object.values(instances);
+
+  for (const info of values) {
+    if (info.profileId === profileId) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/** Return project paths currently open for a profile across detected instances. */
+export function getOpenProjectPathsForProfile(
+  instances: InstanceInfoMap,
+  profileId: string
+): string[] {
+  return Object.values(instances)
+    .filter(
+      (info) => info.profileId === profileId && info.projectPath != null
+    )
+    .map((info) => info.projectPath as string);
 }
 
 export class InstanceDetector implements IInstanceDetector {
@@ -82,13 +122,16 @@ export class InstanceDetector implements IInstanceDetector {
         );
 
         if (profile) {
-          instances.set(profile.id, {
+          const instanceInfo: InstanceInfo = {
             profileId: profile.id,
             pid: proc.pid,
             startTime: proc.startTime,
             userDataDir: proc.userDataDir ?? profile.userDataDir,
+            projectPath: proc.projectPath,
             detectedAt: Date.now(),
-          });
+          };
+          const key = buildInstanceKey(profile.id, proc.projectPath);
+          instances.set(key, instanceInfo);
         }
       }
 
@@ -116,7 +159,36 @@ export class InstanceDetector implements IInstanceDetector {
    */
   async isProfileRunning(profileId: string): Promise<boolean> {
     const instances = await this.detectRunningInstances();
-    return instances.has(profileId);
+    return isProfilePresentInInstances(instances, profileId);
+  }
+
+  /**
+   * Check if a profile is already running with the given project path.
+   */
+  async isProfileProjectRunning(
+    profileId: string,
+    projectPath: string
+  ): Promise<boolean> {
+    const instances = await this.detectRunningInstances();
+
+    for (const info of instances.values()) {
+      if (
+        info.profileId === profileId &&
+        info.projectPath != null &&
+        pathsEqual(info.projectPath, projectPath)
+      ) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /** Return all detected instances for a profile. */
+  getProfileInstances(profileId: string): InstanceInfo[] {
+    return [...this.lastDetection.values()].filter(
+      (info) => info.profileId === profileId
+    );
   }
 
   /**
@@ -331,7 +403,11 @@ function mapsEqual(
 
   for (const [key, value] of a) {
     const other = b.get(key);
-    if (!other || other.pid !== value.pid) {
+    if (
+      !other ||
+      other.pid !== value.pid ||
+      other.projectPath !== value.projectPath
+    ) {
       return false;
     }
   }

@@ -1,5 +1,6 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { parse as parseJsonc, type ParseError } from 'jsonc-parser';
 import type {
   IProfileSettingsManager,
   ProxyBackupInfo,
@@ -42,8 +43,16 @@ export class ProfileSettingsManager implements IProfileSettingsManager {
 
     try {
       const content = await fs.readFile(resolvedPath, 'utf-8');
-      const jsonContent = this.stripJsonComments(content);
-      return JSON.parse(jsonContent) as Record<string, unknown>;
+      // Use jsonc-parser to handle comments and trailing commas (same as VS Code)
+      const errors: ParseError[] = [];
+      const parsed = parseJsonc(content, errors, { allowTrailingComma: true });
+      
+      // Check for parse errors after allowing trailing commas
+      if (errors.length > 0) {
+        throw new Error(`Invalid JSON: ${errors.length} parse error(s)`);
+      }
+      
+      return parsed as Record<string, unknown>;
     } catch (error) {
       if (this.isENOENT(error)) {
         return null;
@@ -204,37 +213,5 @@ export class ProfileSettingsManager implements IProfileSettingsManager {
       'code' in error &&
       (error as NodeJS.ErrnoException).code === 'ENOENT'
     );
-  }
-
-  /** VS Code settings.json may contain // and block comments. */
-  private stripJsonComments(json: string): string {
-    let result = json.replace(/\/\*[\s\S]*?\*\//g, '');
-    const lines = result.split('\n');
-    const stripped = lines.map((line) => {
-      let inString = false;
-      let escape = false;
-      let cut = line.length;
-      for (let i = 0; i < line.length; i++) {
-        const ch = line[i];
-        if (escape) {
-          escape = false;
-          continue;
-        }
-        if (ch === '\\' && inString) {
-          escape = true;
-          continue;
-        }
-        if (ch === '"') {
-          inString = !inString;
-          continue;
-        }
-        if (!inString && ch === '/' && line[i + 1] === '/') {
-          cut = i;
-          break;
-        }
-      }
-      return line.slice(0, cut);
-    });
-    return stripped.join('\n');
   }
 }

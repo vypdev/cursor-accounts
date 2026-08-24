@@ -91,6 +91,8 @@ function createHandlers(deps: {
         getProxyServerUrl: async () => null,
         getAllUsedPorts: async () => [],
         ensureProfileProxy: async () => ({ success: true, port: 8080 }),
+        ensureSharedProxy: async () => ({ success: true, port: 8080 }),
+        stopAll: async () => undefined,
         restoreAllProfileProxySettings: async () => ({ restored: 0, errors: [] }),
         onStatusChange: () => undefined,
         ensureOutputTailer: async () => undefined,

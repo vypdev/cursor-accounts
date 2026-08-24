@@ -14,6 +14,7 @@ import { first } from './testUtils';
 
 describe('ProfileExporter', () => {
   let tempDir: string;
+  let profileRootDir: string;
   let manager: ProfileManager;
   let exporter: ProfileExporter;
 
@@ -21,14 +22,18 @@ describe('ProfileExporter', () => {
     tempDir = await fs.mkdtemp(
       path.join(os.tmpdir(), 'cursor-accounts-export-test-')
     );
+    profileRootDir = await fs.mkdtemp(
+      path.join(process.cwd(), '.tmp-profile-export-')
+    );
     const storage = new ProfileStorage(tempDir);
-    manager = new ProfileManager(storage);
+    manager = new ProfileManager(storage, profileRootDir);
     await manager.initialize();
     exporter = new ProfileExporter(manager);
   });
 
   afterEach(async () => {
     await fs.rm(tempDir, { recursive: true, force: true });
+    await fs.rm(profileRootDir, { recursive: true, force: true });
   });
 
   it('exports profile metadata without settings', async () => {

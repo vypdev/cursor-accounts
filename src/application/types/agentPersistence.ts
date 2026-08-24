@@ -33,6 +33,8 @@ export type AgentTokenType = 'delta' | 'turn_ended' | 'token_details';
 
 export interface TokenSnapshotRecord {
   id?: number;
+  /** Stable identity of the source event; used to make replayed traffic idempotent. */
+  eventKey?: string;
   requestId: string;
   tokenType: AgentTokenType;
   streamingTokens?: number;
@@ -52,6 +54,8 @@ export interface TokenSnapshotRecord {
 
 /** Aggregated token_delta for one request_id within a one-minute window. */
 export interface TokenDeltaMinuteRecord {
+  /** Stable identity of the source event; used to prevent aggregate double-counting. */
+  eventKey?: string;
   requestId: string;
   minuteBucket: number;
   streamingTokens: number;
@@ -68,6 +72,8 @@ export interface TokenDeltaMinuteRecord {
 /** Billing-grade turn completion (one row per server turn_ended event). */
 export interface TurnEndedRecord {
   id?: number;
+  /** Stable identity of the source event; used to make replayed traffic idempotent. */
+  eventKey?: string;
   requestId: string;
   inputTokens: number;
   outputTokens: number;

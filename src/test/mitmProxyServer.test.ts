@@ -41,7 +41,11 @@ describe('MitmProxyServer forwarding', () => {
         resolve();
         return;
       }
-      backendServer.close(() => resolve());
+      const timeout = setTimeout(resolve, 2_000);
+      backendServer.close(() => {
+        clearTimeout(timeout);
+        resolve();
+      });
     });
     backendServer = undefined;
     await fs.rm(tempDir, { recursive: true, force: true });

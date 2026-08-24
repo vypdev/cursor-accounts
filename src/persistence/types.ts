@@ -11,6 +11,8 @@ export const EXPECTED_SCHEMA_TABLES = [
   'conversations',
   'agents',
   'agent_tokens',
+  'agent_tokens_delta',
+  'agent_tokens_delta_events',
   'agent_turn_ended',
 ] as const;
 

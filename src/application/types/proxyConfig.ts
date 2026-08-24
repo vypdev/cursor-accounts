@@ -16,4 +16,10 @@ export interface ProxyServerConfig {
   trafficDiagnostics: boolean;
   /** How often the child emits diagnostics on stats API/WS (ms). */
   diagnosticsIntervalMs: number;
+  /** Mapping userId (JWT sub) → profileId for shared multi-profile proxy. */
+  userIdToProfileId?: Record<string, string>;
+  /** Mapping profileId → absolute SQLite DB path for agent tracking. */
+  profileDbPaths?: Record<string, string>;
+  /** Extension root path (migrations, bundled sqlite3 binary). */
+  extensionPath?: string;
 }

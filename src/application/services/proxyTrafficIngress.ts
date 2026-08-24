@@ -157,7 +157,10 @@ export class ProxyTrafficIngress implements IProxyTrafficIngress {
   private handleApiEvent(event: ProxyApiEvent, profileId: string): void {
     switch (event.type) {
       case 'traffic':
-        this.trafficBus.publish(event.data as ProxyTrafficSummary, profileId);
+        this.trafficBus.publish(
+          event.data as ProxyTrafficSummary,
+          (event.data as ProxyTrafficSummary).profileId ?? profileId
+        );
         break;
       case 'stats':
         this.callbacks?.onStats?.(

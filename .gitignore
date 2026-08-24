@@ -1,5 +1,6 @@
 # Dependencies
 node_modules/
+.pnpm-store/
 
 # Lockfiles (pnpm is the package manager; keep pnpm-lock.yaml)
 package-lock.json
@@ -29,6 +30,11 @@ webview/src/**/*.js.map
 
 # Generated API reference (pnpm run docs:api)
 docs/api/
+
+# Local code analysis state
+.repowise/
+.graphify/
+graphify-out/
 
 # Test coverage and reports
 coverage/

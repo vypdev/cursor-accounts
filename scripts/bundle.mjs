@@ -51,6 +51,8 @@ try {
     minify: production,
     logLevel: 'info',
     metafile: false,
+    // Prefer ESM modules over UMD to avoid runtime require() issues
+    mainFields: ['module', 'main'],
   });
 
   console.log('\n✓ Bundle created successfully: out/extension-bundle.js');

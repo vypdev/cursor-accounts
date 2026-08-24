@@ -9,6 +9,7 @@ import type { IProfileLauncher } from '../domain/ports/IProfileLauncher';
 import type { IProfileManager } from '../domain/ports/IProfileManager';
 import type { IProfileSettingsManager } from '../domain/ports/IProfileSettingsManager';
 import type { IProxyManager } from '../domain/ports/IProxyManager';
+import { isProfilePresentInInstances } from './instanceDetector';
 import type { Profile } from './types';
 
 export interface LaunchResult {
@@ -148,15 +149,33 @@ export class ProfileLauncher implements IProfileLauncher {
       }
 
       if (this.instanceDetector && !options?.force) {
-        const instances = await this.instanceDetector.detectRunningInstances();
-        if (instances.has(profileId)) {
-          extensionLog.warn(
-            `[ProfileLauncher] Profile ${profileId} is already running`
-          );
-          return {
-            success: false,
-            error: `Profile "${profile.displayName}" is already running. Close the existing window first.`,
-          };
+        if (options?.projectPath) {
+          const projectAlreadyOpen =
+            await this.instanceDetector.isProfileProjectRunning(
+              profileId,
+              options.projectPath
+            );
+          if (projectAlreadyOpen) {
+            extensionLog.warn(
+              `[ProfileLauncher] Project already open for profile ${profileId}: ${options.projectPath}`
+            );
+            return {
+              success: false,
+              error: `This project is already open for profile "${profile.displayName}".`,
+            };
+          }
+        } else {
+          const instances =
+            await this.instanceDetector.detectRunningInstances();
+          if (isProfilePresentInInstances(instances, profileId)) {
+            extensionLog.warn(
+              `[ProfileLauncher] Profile ${profileId} is already running`
+            );
+            return {
+              success: false,
+              error: `Profile "${profile.displayName}" is already running. Close the existing window first.`,
+            };
+          }
         }
       }
 

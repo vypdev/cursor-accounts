@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'child_process';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as fs from 'fs/promises';
-import * as os from 'os';
 import * as path from 'path';
 import { ProfileAuthReader } from '../auth/profileAuthReader';
 import { CURSOR_AUTH_KEYS } from '../auth/cursorPaths';
@@ -50,7 +49,7 @@ describe('ProfileAuthReader', () => {
 
   beforeEach(async () => {
     tempDir = await fs.mkdtemp(
-      path.join(os.homedir(), '.cursor-accounts-auth-reader-')
+      path.join(extensionPath, '.tmp-auth-reader-')
     );
   });
 

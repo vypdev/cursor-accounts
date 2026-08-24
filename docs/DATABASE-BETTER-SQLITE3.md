@@ -1,8 +1,8 @@
 # Database — better-sqlite3 Implementation
 
-**Status**: Milestone 1 complete, integration in progress
+**Status**: Default implementation for agent tracking (since v0.1.35)
 
-This document describes the new persistent connection architecture using `better-sqlite3` as a replacement for the CLI subprocess model.
+This document describes the persistent connection architecture using `better-sqlite3`.
 
 ## Quick Start (Development)
 
@@ -18,23 +18,24 @@ This document describes the new persistent connection architecture using `better
 pnpm install
 
 # Rebuild native modules for current Node.js (for tests)
-npm rebuild better-sqlite3
+pnpm run rebuild:native:node
+
+# Verify the binding, WAL mode, timeout, and foreign-key settings
+pnpm run verify:native:node
 
 # Rebuild for Electron (for extension runtime)
-pnpm run rebuild:native
+pnpm run rebuild:native:electron
 ```
 
-### Enable in Extension
+Node.js and Electron use different native-module ABIs. The workspace binding
+must be rebuilt for the runtime that will execute the code; a Node-compatible
+binding is required by tests, while the Extension Host and packaged extension
+require the Electron-compatible binding. `pnpm run rebuild:native` is the
+Electron-default compatibility alias.
 
-Set in VS Code settings:
+### Usage
 
-```json
-{
-  "cursorAccounts.experimental.useBetterSqlite3": true
-}
-```
-
-Reload window for changes to take effect.
+Agent tracking always uses better-sqlite3. Reload the window after installing or updating the extension if native modules were rebuilt.
 
 ## Architecture
 
@@ -222,12 +223,11 @@ export class BetterSqliteAgentTrackingRepository implements IAgentTrackingReposi
 ### Local Development
 
 ```bash
-# After npm/pnpm install, postinstall hook runs:
-npm run rebuild:native
+# Rebuild for Node.js tests:
+pnpm run rebuild:native:node
 
-# This executes:
-# 1. npm rebuild sqlite3 (legacy CLI)
-# 2. npx electron-rebuild -v <electron-version> -m ./node_modules/better-sqlite3 -f
+# Rebuild for the Electron Extension Host:
+pnpm run rebuild:native:electron
 ```
 
 ### CI/CD (scripts/build.mjs)
@@ -268,7 +268,7 @@ Each platform's binary is built via `electron-rebuild` targeting the correct Ele
 node --import ./out/test/registerVscodeMock.js --test 'out/test/persistence/betterSqliteConnectionManager.test.js'
 ```
 
-**Note**: Tests run in Node.js (not Electron), so `npm rebuild better-sqlite3` must be run first (not electron-rebuild).
+**Note**: Tests run in Node.js (not Electron), so run `pnpm run rebuild:native:node` first. Do not use the Electron rebuild for the test runtime.
 
 ### Test Structure
 
@@ -305,25 +305,21 @@ See `src/test/agentTrackingIntegration.test.ts` for end-to-end tests covering:
 
 ## Migration from Legacy CLI
 
-### Feature Flag Rollout
-
-1. **Milestone 1-3** (current): Implement, test, document
-2. **Milestone 5**: Alpha testing (`useBetterSqlite3: false` default, opt-in)
-3. **Milestone 7**: Beta → default (`useBetterSqlite3: true` default, opt-out)
-4. **Milestone 8**: Remove legacy CLI implementation
+Legacy CLI agent tracking (`AgentTrackingDatabase`) was removed in v0.1.35. Agent tracking now always uses `BetterSqliteAgentTrackingRepository` via `createAgentTrackingRepository()`.
 
 ### Factory Pattern
 
 ```typescript
-// src/services/repositoryFactory.ts
+// src/persistence/agentTrackingRepositoryFactory.ts
 export function createAgentTrackingRepository(
-  config: ExtensionConfig
+  dbPath: string,
+  extensionPath: string
 ): IAgentTrackingRepository {
-  if (config.useBetterSqlite3) {
-    return new BetterSqliteAgentTrackingRepository(connectionManager, dbPath);
-  } else {
-    return new AgentTrackingDatabase(dbPath); // Legacy CLI
-  }
+  return new BetterSqliteAgentTrackingRepository(
+    getConnectionManager(),
+    dbPath,
+    extensionPath
+  );
 }
 ```
 
@@ -341,7 +337,8 @@ export function createAgentTrackingRepository(
 
 **Fix**:
 ```bash
-npm rebuild better-sqlite3
+pnpm run rebuild:native:node
+pnpm run verify:native:node
 ```
 
 ### "Module did not self-register" in extension
@@ -350,7 +347,7 @@ npm rebuild better-sqlite3
 
 **Fix**:
 ```bash
-pnpm run rebuild:native
+pnpm run rebuild:native:electron
 ```
 
 ### "database is locked" errors persist

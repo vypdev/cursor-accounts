@@ -89,6 +89,13 @@ export class DatabaseMigrator {
     }
 
     try {
+      const metadataTable = this.executor.queryRows<{ name: string }>(
+        `SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'database_metadata' LIMIT 1;`
+      );
+      if (metadataTable.length === 0) {
+        return 0;
+      }
+
       const rows = this.executor.queryRows<{ value: string }>(
         `SELECT value FROM database_metadata WHERE key = '${SCHEMA_VERSION_KEY}' LIMIT 1;`
       );

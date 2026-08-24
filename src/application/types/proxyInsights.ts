@@ -32,10 +32,17 @@ export interface ConversationContext {
   includedFiles?: string[];
 }
 
+export interface WorkspaceInfo {
+  workspaceId?: string;
+  workspaceRootPath?: string;
+  relativeWorkspacePath?: string;
+}
+
 export interface ProxyInsights {
   billing?: BillingInfo;
   tokens?: TokenUsageInfo;
   context?: ConversationContext;
+  workspace?: WorkspaceInfo;
   agent?: AgentSessionInfo;
   /** Ordered token_delta frames from RunSSE stream scan (for turn detection). */
   allTokenFrames?: AgentSessionInfo[];

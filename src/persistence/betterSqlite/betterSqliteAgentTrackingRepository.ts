@@ -56,6 +56,7 @@ export class BetterSqliteAgentTrackingRepository implements IAgentTrackingReposi
       'agents',
       'agent_tokens',
       'agent_tokens_delta',
+      'agent_tokens_delta_events',
       'agent_turn_ended',
     ];
     
@@ -137,31 +138,43 @@ export class BetterSqliteAgentTrackingRepository implements IAgentTrackingReposi
 
   async insertTokenSnapshot(tokens: Omit<TokenSnapshotRecord, 'id'>): Promise<void> {
     const conn = await this.connectionManager.getConnection(this.dbPath);
-    
-    // Note: TokenSnapshotRecord doesn't have conversationId, we need to look it up or omit
-    // For now, we'll use a NULL placeholder since the schema may allow it
+
     conn.run(
       `
-      INSERT INTO agent_tokens (
+      INSERT OR IGNORE INTO agent_tokens (
         request_id,
+        token_type,
         streaming_tokens,
         input_tokens,
         output_tokens,
         cache_read_tokens,
         cache_write_tokens,
         total_tokens,
-        recorded_at
+        usage_uuid,
+        recorded_at,
+        model_name,
+        turn_index,
+        http_request_id,
+        minute_bucket,
+        event_key
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       tokens.requestId,
+      tokens.tokenType,
       tokens.streamingTokens ?? null,
       tokens.inputTokens ?? null,
       tokens.outputTokens ?? null,
       tokens.cacheReadTokens ?? null,
       tokens.cacheWriteTokens ?? null,
       tokens.totalTokens ?? null,
-      tokens.recordedAt
+      tokens.usageUuid ?? null,
+      tokens.recordedAt,
+      tokens.modelName ?? null,
+      tokens.turnIndex ?? null,
+      tokens.httpRequestId ?? null,
+      tokens.minuteBucket ?? null,
+      tokens.eventKey ?? null
     );
   }
 
@@ -181,32 +194,74 @@ export class BetterSqliteAgentTrackingRepository implements IAgentTrackingReposi
       return;
     }
     
-    conn.run(
-      `
-      INSERT INTO agent_tokens_delta (
-        request_id,
-        conversation_id,
-        minute_bucket,
-        delta_tokens,
-        delta_cost,
-        context_used,
-        context_max
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT (request_id, minute_bucket) DO UPDATE SET
-        delta_tokens = agent_tokens_delta.delta_tokens + excluded.delta_tokens,
-        delta_cost = agent_tokens_delta.delta_cost + excluded.delta_cost,
-        context_used = COALESCE(excluded.context_used, agent_tokens_delta.context_used),
-        context_max = COALESCE(excluded.context_max, agent_tokens_delta.context_max)
-      `,
-      delta.requestId,
-      agent.conversation_id,
-      delta.minuteBucket,
-      delta.streamingTokens,
-      delta.costCents ?? 0,
-      delta.contextUsedTokens ?? null,
-      delta.contextMaxTokens ?? null
-    );
+    const writeAggregate = (): void => {
+      conn.run(
+        `
+        INSERT INTO agent_tokens_delta (
+          request_id,
+          conversation_id,
+          minute_bucket,
+          delta_tokens,
+          delta_cost,
+          context_used,
+          context_max
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT (request_id, minute_bucket) DO UPDATE SET
+          delta_tokens = agent_tokens_delta.delta_tokens + excluded.delta_tokens,
+          delta_cost = agent_tokens_delta.delta_cost + excluded.delta_cost,
+          context_used = COALESCE(excluded.context_used, agent_tokens_delta.context_used),
+          context_max = COALESCE(excluded.context_max, agent_tokens_delta.context_max)
+        `,
+        delta.requestId,
+        agent.conversation_id,
+        delta.minuteBucket,
+        delta.streamingTokens,
+        delta.costCents ?? 0,
+        delta.contextUsedTokens ?? null,
+        delta.contextMaxTokens ?? null
+      );
+    };
+
+    if (!delta.eventKey) {
+      writeAggregate();
+      return;
+    }
+
+    conn.transaction(() => {
+      // INSERT OR IGNORE is the atomic idempotency gate. The connection-local
+      // changes() result is read immediately, before another statement runs.
+      conn.run(
+        `
+        INSERT OR IGNORE INTO agent_tokens_delta_events (
+          event_key,
+          request_id,
+          conversation_id,
+          minute_bucket,
+          delta_tokens,
+          delta_cost,
+          context_used,
+          context_max,
+          recorded_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        delta.eventKey,
+        delta.requestId,
+        agent.conversation_id,
+        delta.minuteBucket,
+        delta.streamingTokens,
+        delta.costCents ?? 0,
+        delta.contextUsedTokens ?? null,
+        delta.contextMaxTokens ?? null,
+        delta.recordedAt ?? null
+      );
+      const changes = conn.get<{ changes: number }>('SELECT changes() AS changes');
+      if (changes?.changes !== 1) {
+        return;
+      }
+      writeAggregate();
+    });
   }
 
   async insertTurnEnded(turnEnded: Omit<TurnEndedRecord, 'id'>): Promise<void> {
@@ -214,7 +269,7 @@ export class BetterSqliteAgentTrackingRepository implements IAgentTrackingReposi
     
     conn.run(
       `
-      INSERT INTO agent_turn_ended (
+      INSERT OR IGNORE INTO agent_turn_ended (
         request_id,
         input_tokens,
         output_tokens,
@@ -225,9 +280,10 @@ export class BetterSqliteAgentTrackingRepository implements IAgentTrackingReposi
         usage_uuid,
         recorded_at,
         model_name,
-        http_request_id
+        http_request_id,
+        event_key
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       turnEnded.requestId,
       turnEnded.inputTokens,
@@ -239,7 +295,8 @@ export class BetterSqliteAgentTrackingRepository implements IAgentTrackingReposi
       turnEnded.usageUuid ?? null,
       turnEnded.recordedAt,
       turnEnded.modelName ?? null,
-      turnEnded.httpRequestId ?? null
+      turnEnded.httpRequestId ?? null,
+      turnEnded.eventKey ?? null
     );
   }
 
@@ -386,6 +443,7 @@ export class BetterSqliteAgentTrackingRepository implements IAgentTrackingReposi
       recorded_at: number;
       model_name: string | null;
       http_request_id: string | null;
+      event_key: string | null;
     }>(`
       SELECT
         te.id,
@@ -400,6 +458,7 @@ export class BetterSqliteAgentTrackingRepository implements IAgentTrackingReposi
         te.recorded_at,
         te.model_name,
         te.http_request_id
+        ,te.event_key
       FROM agent_turn_ended te
       INNER JOIN agents a ON a.request_id = te.request_id
       WHERE a.conversation_id = ?
@@ -419,6 +478,7 @@ export class BetterSqliteAgentTrackingRepository implements IAgentTrackingReposi
       recordedAt: row.recorded_at,
       modelName: row.model_name ?? undefined,
       httpRequestId: row.http_request_id ?? undefined,
+      eventKey: row.event_key ?? undefined,
     }));
   }
 
@@ -538,14 +598,22 @@ export class BetterSqliteAgentTrackingRepository implements IAgentTrackingReposi
       const conversationIds = conversations.map((c) => c.conversation_id);
       const placeholders = conversationIds.map(() => '?').join(',');
       
-      // Delete tokens (cascades via FK in schema)
+      // Delete snapshots by request_id because agent_tokens has no
+      // conversation_id column.
       conn.run(
-        `DELETE FROM agent_tokens WHERE conversation_id IN (${placeholders})`,
+        `DELETE FROM agent_tokens WHERE request_id IN (
+          SELECT request_id FROM agents WHERE conversation_id IN (${placeholders})
+        )`,
         ...conversationIds
       );
       
       conn.run(
         `DELETE FROM agent_tokens_delta WHERE conversation_id IN (${placeholders})`,
+        ...conversationIds
+      );
+
+      conn.run(
+        `DELETE FROM agent_tokens_delta_events WHERE conversation_id IN (${placeholders})`,
         ...conversationIds
       );
       

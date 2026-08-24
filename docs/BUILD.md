@@ -100,6 +100,12 @@ The extension uses **esbuild** to bundle all TypeScript code into a single file,
 To verify a reproducible build from scratch:
 
 ```bash
+pnpm run build:clean:current
+```
+
+Equivalent manual steps:
+
+```bash
 rm -rf node_modules webview/node_modules packages/types/node_modules packages/shared/node_modules out webview-dist .build-backup
 pnpm install --frozen-lockfile
 pnpm run build:current
@@ -124,7 +130,32 @@ Each matrix job builds and verifies a VSIX, then publishes it to Open VSX.
 | `pnpm run watch` | Watch extension TypeScript |
 | `pnpm run watch:webview` | Watch webview bundle |
 | `pnpm run build:current` | Bundle + package an installable VSIX for your machine (runs `pnpm run bundle` internally) |
+| `pnpm run build:clean:current` | Clean `node_modules`/artifacts, reinstall, then build VSIX for your machine |
 | `pnpm run build:all` | Bundle + package VSIXes for all platforms |
+
+### Native Runtime Selection
+
+Agent tracking uses `better-sqlite3`, which must be compiled for the runtime
+that executes it. Use the Node binding for tests and the Electron binding for
+the Extension Host or packaged extension:
+
+```bash
+pnpm run rebuild:native:node
+pnpm run verify:native:node
+pnpm run rebuild:native:electron
+```
+
+The same workspace binding cannot serve Node.js tests and Electron at the same
+time. Rebuild explicitly when switching runtimes. `pnpm run rebuild:native`
+remains the Electron-default compatibility alias.
+
+For a clean test setup:
+
+```bash
+CI=true pnpm install --frozen-lockfile
+pnpm run rebuild:native:node
+pnpm run verify:native:node
+```
 
 ## Troubleshooting
 

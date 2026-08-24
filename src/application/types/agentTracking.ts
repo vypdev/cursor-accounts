@@ -7,6 +7,8 @@ export interface AgentSessionInfo {
   subagentRequestId?: string;
   appendSeqno?: number;
   pollSeqno?: number;
+  /** Stable position of the decoded event within its HTTP stream. */
+  eventSequence?: number;
   eof?: boolean;
   /** Truncated `data` string from BidiAppend / BidiPoll when present. */
   dataPreview?: string;

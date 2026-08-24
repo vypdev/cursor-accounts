@@ -35,6 +35,8 @@ export interface InstanceInfo {
   pid: number;
   startTime?: number;
   userDataDir: string;
+  /** Project folder or workspace file open in this instance, when detectable. */
+  projectPath?: string;
   detectedAt: number;
 }
 

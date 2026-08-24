@@ -28,6 +28,9 @@ import { buildTrafficSummary } from './trafficSummaryBuilder';
 import { RunSseStreamHandler } from './capture/runSseStreamHandler';
 import { CursorModelPricingProvider } from '../modelEfficiency/cursorModelPricingProvider';
 import { ProxyLiveCostCalculator } from '../domain/services/ProxyLiveCostCalculator';
+import {
+  resolveProfileIdFromAuthorizationHeader,
+} from './jwtProfileResolver';
 import type {
   MitmProxyHandlers,
   ProxyLogEntry,
@@ -56,6 +59,8 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
   private readonly sessionModelIds = new Map<string, string>();
   /** Bidi request_id → conversation_id from runRequest (BidiAppend). */
   private readonly sessionConversationIds = new Map<string, string>();
+  /** Bidi request_id → profileId resolved from JWT (shared proxy mode). */
+  private readonly sessionProfileIds = new Map<string, string>();
   /** Active incremental decoders for RunSSE response streams. */
   private readonly streamingDecoders = new Map<string, StreamingAgentDecoder>();
   private diagnostics: ProxyTrafficDiagnosticsCollector | null = null;
@@ -63,16 +68,19 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
   private readonly liveCostCalculator = new ProxyLiveCostCalculator(
     new CursorModelPricingProvider()
   );
+  private userIdToProfileId: Map<string, string> | undefined;
 
   constructor(
     private readonly certificateManager: CertificateManager,
     private readonly requestLogger: ProxyTrafficLogger,
-    private readonly handlers?: MitmProxyHandlers
+    private readonly handlers?: MitmProxyHandlers,
+    userIdToProfileId?: Map<string, string>
   ) {
     super();
+    this.userIdToProfileId = userIdToProfileId;
     this.runSseHandler = new RunSseStreamHandler(
       (summary) => {
-        this.handlers?.onTraffic?.(summary);
+        this.dispatchTraffic(summary);
       },
       {
         costCalculator: this.liveCostCalculator,
@@ -106,6 +114,9 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
 
     const proxy = this.createMitmProxy();
     this.proxy = proxy;
+    this.userIdToProfileId = config.userIdToProfileId
+      ? new Map(Object.entries(config.userIdToProfileId))
+      : this.userIdToProfileId;
     this.diagnostics = config.trafficDiagnostics
       ? new ProxyTrafficDiagnosticsCollector()
       : null;
@@ -386,6 +397,7 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
     this.requestStartedAt.clear();
     this.sessionModelIds.clear();
     this.sessionConversationIds.clear();
+    this.sessionProfileIds.clear();
     this.streamingDecoders.clear();
     this.diagnostics = null;
     await this.requestLogger.close();
@@ -469,6 +481,60 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
     }
   }
 
+  private trackSessionProfile(summary: ProxyTrafficSummary): void {
+    const agent = summary.insights?.agent;
+    const sessionId = agent?.requestId;
+    if (summary.profileId && sessionId) {
+      this.sessionProfileIds.set(sessionId, summary.profileId);
+    }
+  }
+
+  private extractProfileIdFromHeaders(
+    headers: Record<string, string>
+  ): string | undefined {
+    return resolveProfileIdFromAuthorizationHeader(headers, this.userIdToProfileId);
+  }
+
+  private enrichTrafficSummary(
+    summary: ProxyTrafficSummary,
+    headers?: Record<string, string>
+  ): ProxyTrafficSummary {
+    if (!summary.insights?.agent) {
+      return summary;
+    }
+
+    const profileId =
+      (headers ? this.extractProfileIdFromHeaders(headers) : undefined) ??
+      (summary.insights.agent.requestId
+        ? this.sessionProfileIds.get(summary.insights.agent.requestId)
+        : undefined);
+
+    const workspaceId =
+      summary.insights.workspace?.workspaceId ??
+      summary.workspaceId;
+
+    if (!profileId && !workspaceId) {
+      return summary;
+    }
+
+    return {
+      ...summary,
+      profileId: profileId ?? summary.profileId,
+      workspaceId: workspaceId ?? summary.workspaceId,
+    };
+  }
+
+  private dispatchTraffic(
+    summary: ProxyTrafficSummary,
+    headers?: Record<string, string>
+  ): void {
+    const enriched = this.enrichTrafficSummary(summary, headers);
+    this.trackSessionModel(enriched);
+    this.trackSessionConversation(enriched);
+    this.trackSessionProfile(enriched);
+    this.handlers?.onTraffic?.(enriched);
+  }
+
   private emitTrafficSummary(
     entry: ProxyLogEntry,
     durationMs?: number,
@@ -511,7 +577,7 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
               `incrPersisted=${correlation?.incrementalTurnsAlreadyPersisted === true}\n`
           );
         }
-        this.handlers?.onTraffic?.(summary);
+        this.dispatchTraffic(summary, entry.headers);
       })
       .catch(() => {
         this.handlers?.onTraffic?.(toTrafficSummary(entry, durationMs));

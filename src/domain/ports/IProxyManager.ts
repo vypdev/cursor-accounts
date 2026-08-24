@@ -1,4 +1,4 @@
-import type { ProxyInstallGuide, ProxyStatus } from '@cursor-accounts/types';
+import type { Profile, ProxyInstallGuide, ProxyStatus } from '@cursor-accounts/types';
 
 /** Result of restoring proxy settings across all managed profiles. */
 export interface RestoreAllProfilesResult {
@@ -31,6 +31,8 @@ export interface IProxyManager {
   getProxyServerUrl(profileId: string): Promise<string | null>;
   getAllUsedPorts(): Promise<number[]>;
   ensureProfileProxy(profileId: string): Promise<ProxyStartResult>;
+  ensureSharedProxy(profiles: Profile[]): Promise<ProxyStartResult>;
+  stopAll(): Promise<void>;
   restoreAllProfileProxySettings(): Promise<RestoreAllProfilesResult>;
   onStatusChange(callback: () => void): void;
   ensureOutputTailer(

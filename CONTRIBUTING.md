@@ -38,6 +38,7 @@ Useful scripts:
 | `pnpm run lint` | Typecheck + ESLint (includes layer boundary rules) |
 | `pnpm run validate:l10n` | Ensure all `locales/*.json` keys match `en.json` |
 | `pnpm run build:current` | Build a `.vsix` for your current platform (canonical packaging command) |
+| `pnpm run build:clean:current` | Clean install from scratch, then build a `.vsix` (see [docs/BUILD.md](docs/BUILD.md#clean-build)) |
 | `pnpm run build:all` | Build `.vsix` files for all supported platforms |
 
 ## Project structure

@@ -2,7 +2,7 @@
 
 How this extension structures proxy and tracking code.
 
-**Last reviewed:** 2026-06-04
+**Last reviewed:** 2026-08-24
 
 ---
 
@@ -78,3 +78,10 @@ See [HTTP2-PROXY-IMPLEMENTATION.md](HTTP2-PROXY-IMPLEMENTATION.md) for the full 
 - `RunSseStreamHandler` → builds live/turn summaries from `StreamingAgentDecoder`
 
 Shared DTOs live in `src/application/types/` (`proxyTraffic`, `proxyInsights`, `proxyConfig`). UI presenters moved under `src/ui/presentation/` with re-exports from `src/proxy/` for backward compatibility.
+
+The architecture gate is executable with `pnpm run check:architecture`. It
+checks the documented layer restrictions and static relative-import cycles.
+The gate also keeps `ProxyLogEntry` in the application boundary instead of
+making the domain decoder port depend on `src/proxy/`. The previously detected
+certificate-manager/install-helper cycle was removed by moving the shared CA
+constant to `src/proxy/certificateConstants.ts`.

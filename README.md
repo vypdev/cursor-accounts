@@ -36,7 +36,7 @@ pnpm install
 pnpm run compile
 ```
 
-Press **F5** in Cursor/VS Code to launch an Extension Development Host, or build a VSIX with `pnpm run build:current` and install it via **Extensions → ⋯ → Install from VSIX…**.
+Press **F5** in Cursor/VS Code to launch an Extension Development Host, or build a VSIX with `pnpm run build:current` and install it via **Extensions → ⋯ → Install from VSIX…**. If packaging fails after dependency changes, run `pnpm run build:clean:current` (see [docs/BUILD.md](docs/BUILD.md#clean-build)).
 
 Reload the window if prompted. Status bar items appear automatically on startup—no manual setup.
 
@@ -54,13 +54,7 @@ No additional installation required. See [docs/PLATFORM-SUPPORT.md](docs/PLATFOR
 
 ### Database Engine
 
-**Experimental feature**: The extension now supports `better-sqlite3` with persistent connections as an alternative to the legacy CLI subprocess model. Enable via:
-
-```json
-{
-  "cursorAccounts.experimental.useBetterSqlite3": true
-}
-```
+Agent tracking uses **`better-sqlite3`** with persistent connections (WAL mode). No configuration is required.
 
 **Benefits:**
 - ✅ Eliminates "database is locked" errors (WAL mode + busy_timeout)
@@ -68,7 +62,7 @@ No additional installation required. See [docs/PLATFORM-SUPPORT.md](docs/PLATFOR
 - ✅ Real ACID transactions for batch writes
 - ✅ Concurrent multi-window access (SQLite WAL handles coordination)
 
-See [docs/DATABASE-BETTER-SQLITE3.md](docs/DATABASE-BETTER-SQLITE3.md) for architecture, migration plan, and testing guide.
+See [docs/DATABASE-BETTER-SQLITE3.md](docs/DATABASE-BETTER-SQLITE3.md) for architecture and testing guide.
 
 ## Documentation
 

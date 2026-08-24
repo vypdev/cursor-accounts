@@ -107,6 +107,7 @@ export class StreamingAgentDecoder {
           agent: this.mergeAgentInsight({
             streamingTokens: this.accumulatedTokens,
             usageEvent: 'token_delta',
+            eventSequence: this.messageCount,
           }),
         });
         continue;
@@ -128,6 +129,7 @@ export class StreamingAgentDecoder {
             cacheWriteTokens: insight.cacheWriteTokens,
             totalCents: insight.totalCents,
             usageEvent: 'turn_ended',
+            eventSequence: this.messageCount,
           }),
         });
         this.accumulatedTokens = 0;
@@ -138,7 +140,10 @@ export class StreamingAgentDecoder {
         liveUpdates.push({
           accumulatedTokens: this.accumulatedTokens,
           latestDelta: 0,
-          agent: this.mergeAgentInsight(insight),
+          agent: this.mergeAgentInsight({
+            ...insight,
+            eventSequence: this.messageCount,
+          }),
         });
       }
     }

@@ -51,6 +51,9 @@ describe('extension activate', () => {
       );
     }
 
-    deactivate();
+    await deactivate();
+    for (const subscription of [...context.subscriptions].reverse()) {
+      subscription.dispose();
+    }
   });
 });

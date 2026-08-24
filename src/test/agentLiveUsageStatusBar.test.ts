@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
+import { afterEach, describe, it } from 'node:test';
 import type { ProxyTrafficSummary } from '../proxy/types';
 import { AgentLiveUsageStatusBar } from '../ui/agentLiveUsageStatusBar';
 
@@ -23,9 +23,24 @@ function baseSummary(
   };
 }
 
+const statusBars = new Set<AgentLiveUsageStatusBar>();
+
+function createStatusBar(): AgentLiveUsageStatusBar {
+  const statusBar = new AgentLiveUsageStatusBar(createContext());
+  statusBars.add(statusBar);
+  return statusBar;
+}
+
+afterEach(() => {
+  for (const statusBar of statusBars) {
+    statusBar.dispose();
+  }
+  statusBars.clear();
+});
+
 describe('AgentLiveUsageStatusBar', () => {
   it('ignores batch turn_ended after live turn_ended for the same session', () => {
-    const statusBar = new AgentLiveUsageStatusBar(createContext());
+    const statusBar = createStatusBar();
     const requestId = 'req-ipc-priority';
 
     statusBar.ingest(
@@ -76,7 +91,7 @@ describe('AgentLiveUsageStatusBar', () => {
   });
 
   it('accumulates live cost incrementally from deltaCostCents', () => {
-    const statusBar = new AgentLiveUsageStatusBar(createContext());
+    const statusBar = createStatusBar();
     const requestId = 'req-live-cost';
 
     statusBar.ingest(
@@ -120,7 +135,7 @@ describe('AgentLiveUsageStatusBar', () => {
   });
 
   it('uses server totalCents on turn_ended when provided', () => {
-    const statusBar = new AgentLiveUsageStatusBar(createContext());
+    const statusBar = createStatusBar();
     const requestId = 'req-turn-cost';
 
     statusBar.ingest(
@@ -164,7 +179,7 @@ describe('AgentLiveUsageStatusBar', () => {
   });
 
   it('shows only accumulated tokens and cost without context or in/out on turn_ended', () => {
-    const statusBar = new AgentLiveUsageStatusBar(createContext());
+    const statusBar = createStatusBar();
     const requestId = 'req-display';
 
     statusBar.ingest(

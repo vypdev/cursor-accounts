@@ -37,6 +37,9 @@ interface MockWebview {
 interface MockWebviewPanel {
   webview: MockWebview;
   reveal: () => void;
+  onDidChangeViewState: (
+    callback: (event: { webviewPanel: { visible: boolean } }) => void
+  ) => { dispose: () => void };
   onDidDispose: (callback: () => void) => { dispose: () => void };
 }
 
@@ -54,6 +57,8 @@ function createMockInstanceDetector(): InstanceDetector {
   return {
     detectRunningInstances: async () => new Map(),
     isProfileRunning: async () => false,
+    isProfileProjectRunning: async () => false,
+    getProfileInstances: () => [],
     getLastDetection: () => new Map(),
     startAutoDetection: () => undefined,
     stopAutoDetection: () => undefined,
@@ -115,6 +120,8 @@ function createMockProxyManager(): IProxyManager {
     getProxyServerUrl: async () => null,
     getAllUsedPorts: async () => [],
     ensureProfileProxy: async () => ({ success: true, port: 8080 }),
+    ensureSharedProxy: async () => ({ success: true, port: 8080 }),
+    stopAll: async () => undefined,
     restoreAllProfileProxySettings: async () => ({ restored: 0, errors: [] }),
     onStatusChange: () => undefined,
     ensureOutputTailer: async () => undefined,
@@ -278,6 +285,7 @@ describe('AccountsPanelProvider', () => {
       reveal: () => {
         revealCalled = true;
       },
+      onDidChangeViewState: () => ({ dispose: () => undefined }),
       onDidDispose: () => ({ dispose: () => undefined }),
     };
 

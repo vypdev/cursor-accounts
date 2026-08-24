@@ -1,5 +1,6 @@
 import React from 'react';
 import { useL10n } from '../l10n/context';
+import { isProfileRunning } from '../utils/runningInstances';
 import type {
   EfficiencyStatsMap,
   InstanceInfoMap,
@@ -88,7 +89,7 @@ export const ProfileList: React.FC<ProfileListProps> = ({
           }
           quota={quotas[profile.id]}
           efficiencyStats={efficiencyStats[profile.id]}
-          isRunning={profile.id in runningInstances}
+          isRunning={isProfileRunning(runningInstances, profile.id)}
           proxyTemporary={
             showProxyIndicators && profileProxyTemporary[profile.id] === true
           }

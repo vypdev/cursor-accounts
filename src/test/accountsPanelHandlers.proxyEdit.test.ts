@@ -37,6 +37,7 @@ describe('AccountsPanelHandlers proxy edit', () => {
     const handlers = new AccountsPanelHandlers(
       {
         profileManager: {
+          getProfile: async () => CURRENT_PROFILE,
           updateProfile,
         } as unknown as ProfileManager,
         profileLauncher: {} as never,
@@ -90,6 +91,7 @@ describe('AccountsPanelHandlers proxy edit', () => {
     const handlers = new AccountsPanelHandlers(
       {
         profileManager: {
+          getProfile: async () => CURRENT_PROFILE,
           updateProfile: async () => ({
             ...CURRENT_PROFILE,
             proxyEnabled: true,

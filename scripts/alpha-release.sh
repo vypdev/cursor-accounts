@@ -12,16 +12,13 @@ CURRENT_BRANCH=$(git branch --show-current)
 echo "📍 Current branch: $CURRENT_BRANCH"
 echo ""
 
-# Verify feature flag is still opt-in (default: false)
-echo "🔍 Verifying feature flag is opt-in..."
-FLAG_DEFAULT=$(grep -A 2 "useBetterSqlite3" package.json | grep "default" | grep -o "false\|true")
-if [ "$FLAG_DEFAULT" != "false" ]; then
-  echo "❌ ERROR: Feature flag default should be 'false' for alpha!"
-  echo "   Current value: $FLAG_DEFAULT"
-  echo "   Edit package.json before proceeding."
+# Verify better-sqlite3 is the only agent tracking implementation
+echo "🔍 Verifying better-sqlite3 is default..."
+if grep -q "useBetterSqlite3" package.json 2>/dev/null; then
+  echo "❌ ERROR: useBetterSqlite3 feature flag should be removed!"
   exit 1
 fi
-echo "✅ Feature flag is opt-in (default: false)"
+echo "✅ Legacy feature flag removed; better-sqlite3 is the only implementation"
 echo ""
 
 # Clean build
@@ -124,19 +121,14 @@ Git Branch: $CURRENT_BRANCH
 VSIX File: $ALPHA_VSIX
 SHA256: $CHECKSUM
 
-Feature Flag (default):
-  cursorAccounts.experimental.useBetterSqlite3: false (opt-in)
+Feature Flag:
+  (removed — better-sqlite3 is always used for agent tracking)
 
 Installation Instructions:
 1. Download: $ALPHA_VSIX
 2. In VS Code: Extensions → ⋯ → Install from VSIX...
 3. Select the downloaded .vsix file
 4. Reload VS Code when prompted
-5. Enable feature flag in settings.json:
-   {
-     "cursorAccounts.experimental.useBetterSqlite3": true
-   }
-6. Reload window (Cmd/Ctrl + R)
 
 Verification:
 - Check Output → "Cursor Accounts" for:

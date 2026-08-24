@@ -426,6 +426,41 @@ function pickStringField(
   return typeof value === 'string' && value.length > 0 ? value : undefined;
 }
 
+function extractWorkspaceInfo(
+  decoded: Record<string, unknown>
+): ProxyInsights['workspace'] | null {
+  const privateWorkspace = decoded.private_workspace_identifier as
+    | Record<string, unknown>
+    | undefined;
+  const workspaceId =
+    pickStringField(decoded, 'workspace_id', 'workspaceId') ??
+    (typeof privateWorkspace?.workspace_id === 'string'
+      ? privateWorkspace.workspace_id
+      : typeof privateWorkspace?.workspaceId === 'string'
+        ? privateWorkspace.workspaceId
+        : undefined);
+  const workspaceRootPath = pickStringField(
+    decoded,
+    'workspace_root_path',
+    'workspaceRootPath'
+  );
+  const relativeWorkspacePath = pickStringField(
+    decoded,
+    'relative_workspace_path',
+    'relativeWorkspacePath'
+  );
+
+  if (!workspaceId && !workspaceRootPath && !relativeWorkspacePath) {
+    return null;
+  }
+
+  return {
+    workspaceId,
+    workspaceRootPath,
+    relativeWorkspacePath,
+  };
+}
+
 /** Drop explicit `undefined` entries so spreads/merges never erase populated fields. */
 export function definedAgentFields(
   fields: Partial<AgentSessionInfo>
@@ -696,6 +731,7 @@ export function extractInsightsForRpc(
 
   if (isAgentInteractiveRpc(rpcPath)) {
     insights.agent = extractAgentSessionInfo(decoded) ?? undefined;
+    insights.workspace = extractWorkspaceInfo(decoded) ?? undefined;
   }
 
   const usageUuid =
@@ -709,7 +745,7 @@ export function extractInsightsForRpc(
     });
   }
 
-  if (!insights.billing && !insights.tokens && !insights.context && !insights.agent) {
+  if (!insights.billing && !insights.tokens && !insights.context && !insights.agent && !insights.workspace) {
     return undefined;
   }
 

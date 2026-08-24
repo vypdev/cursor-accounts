@@ -52,10 +52,15 @@ let refreshService: RefreshService | undefined;
 let multiProfileQuotaService: MultiProfileQuotaService | undefined;
 let efficiencyService: EfficiencyService | undefined;
 let instanceDetectorRef: InstanceDetector | undefined;
+let proxyManagerRef: ProxyManager | undefined;
 let proxyOutputPresenterRef: ProxyOutputPresenter | undefined;
 let tokenDetectorPresenterRef: TokenDetectorOutputPresenter | undefined;
+let activationGeneration = 0;
 
 export function activate(context: vscode.ExtensionContext): void {
+  const currentGeneration = ++activationGeneration;
+  const isCurrentActivation = (): boolean =>
+    currentGeneration === activationGeneration;
   const activateTimestamp = lifecycleLog.markActivate();
 
   initL10n({
@@ -111,6 +116,7 @@ export function activate(context: vscode.ExtensionContext): void {
     proxyOutputPresenter,
     tokenDetectorPresenter
   );
+  proxyManagerRef = proxyManager;
 
   const profileLauncher = new ProfileLauncher(
     profileManager,
@@ -220,7 +226,15 @@ export function activate(context: vscode.ExtensionContext): void {
     dispose: () => activeConversationTracker.stop(),
   });
 
-  void proxyManager.ensureTrafficTailer();
+  void (async () => {
+    if (!isCurrentActivation()) {
+      return;
+    }
+    await proxyManager.ensureTrafficTailer();
+    if (!isCurrentActivation()) {
+      proxyManager.dispose();
+    }
+  })();
 
   proxyManager.onStatusChange(() => {
     void accountsPanel.refreshProxyStatus();
@@ -233,45 +247,53 @@ export function activate(context: vscode.ExtensionContext): void {
   });
 
   void profileManager.initialize().then(async () => {
+    if (!isCurrentActivation()) {
+      return;
+    }
     const profiles = await profileManager.getProfiles();
+    if (!isCurrentActivation()) {
+      return;
+    }
     extensionLog.info(
       `[Extension] ProfileManager initialized with ${profiles.length} profile(s)`
     );
 
     await efficiencyService?.initialize();
 
-    for (const profile of profiles) {
-      await proxyManager.connectToExistingProxy(profile.id);
-    }
-
-    const currentProfile = await profileDetector.detectCurrentProfile();
-
-    if (currentProfile === null) {
-      const restoreResult =
-        await proxyManager.restoreAllProfileProxySettings();
-      if (restoreResult.restored > 0) {
-        extensionLog.info(
-          `[Proxy] Restored proxy settings on ${restoreResult.restored} profile(s) (unassigned window)`
-        );
+    const anyProxyEnabled = profiles.some((profile) =>
+      isProfileProxyEnabled(profile)
+    );
+    if (anyProxyEnabled) {
+      if (!isCurrentActivation()) {
+        return;
       }
-      if (restoreResult.errors.length > 0) {
-        extensionLog.warn(
-          `[Proxy] Failed to restore proxy settings on ${restoreResult.errors.length} profile(s)`
-        );
+      const result = await proxyManager.ensureSharedProxy(profiles);
+      if (!isCurrentActivation()) {
+        proxyManager.dispose();
+        return;
       }
-    } else if (isProfileProxyEnabled(currentProfile)) {
-      const result = await proxyManager.ensureProfileProxy(currentProfile.id);
       if (result.success) {
         extensionLog.info(
-          `[Proxy] Ensured proxy for profile ${currentProfile.displayName} on port ${result.port ?? 'unknown'}`
+          `[Proxy] Shared proxy started on port ${result.port ?? 'unknown'}`
         );
         await proxyManager.ensureTrafficTailer();
         void accountsPanel.refreshProxyStatus();
       } else {
         extensionLog.warn(
-          `[Proxy] Failed to ensure proxy for ${currentProfile.displayName}: ${result.error ?? 'unknown'}`
+          `[Proxy] Failed to start shared proxy: ${result.error ?? 'unknown'}`
         );
       }
+    }
+
+    const currentProfile = await profileDetector.detectCurrentProfile();
+
+    if (currentProfile === null) {
+      // Intentionally disabled: unassigned window does not imply no other
+      // profile windows are active; restoring would wipe valid proxy settings.
+      // const restoreResult =
+      //   await proxyManager.restoreAllProfileProxySettings();
+    } else if (isProfileProxyEnabled(currentProfile)) {
+      await proxyManager.connectToExistingProxy(currentProfile.id);
     }
 
     const workspaceOpen = hasActiveWorkspace();
@@ -447,6 +469,11 @@ export function activate(context: vscode.ExtensionContext): void {
 
 export async function deactivate(): Promise<void> {
   extensionLog.info('[Extension] Cursor Accounts deactivated');
+
+  activationGeneration += 1;
+
+  proxyManagerRef?.dispose();
+  proxyManagerRef = undefined;
   
   // Close database connections first (may checkpoint WAL)
   await closeAllConnections();

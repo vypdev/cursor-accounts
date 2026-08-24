@@ -1,4 +1,4 @@
-import type { ProxyLogEntry } from '../../proxy/types';
+import type { ProxyLogEntry } from '../../application/types/proxyLog';
 import type { ProxyInsights } from '../../application/types/proxyInsights';
 import type { ProxyTrafficSummary } from '../../application/types/proxyTraffic';
 

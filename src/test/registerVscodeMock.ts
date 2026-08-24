@@ -66,6 +66,7 @@ const vscodeMock = {
         onDidReceiveMessage: () => ({ dispose: () => undefined }),
       },
       reveal: () => undefined,
+      onDidChangeViewState: () => ({ dispose: () => undefined }),
       onDidDispose: () => ({ dispose: () => undefined }),
     }),
     createOutputChannel: (

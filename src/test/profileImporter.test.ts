@@ -19,6 +19,7 @@ import { first } from './testUtils';
 
 describe('ProfileImporter', () => {
   let tempDir: string;
+  let profileRootDir: string;
   let manager: ProfileManager;
   let exporter: ProfileExporter;
   let importer: ProfileImporter;
@@ -27,8 +28,11 @@ describe('ProfileImporter', () => {
     tempDir = await fs.mkdtemp(
       path.join(os.tmpdir(), 'cursor-accounts-import-test-')
     );
+    profileRootDir = await fs.mkdtemp(
+      path.join(process.cwd(), '.tmp-profile-import-')
+    );
     const storage = new ProfileStorage(tempDir);
-    manager = new ProfileManager(storage);
+    manager = new ProfileManager(storage, profileRootDir);
     await manager.initialize();
     exporter = new ProfileExporter(manager);
     importer = new ProfileImporter(manager);
@@ -36,6 +40,7 @@ describe('ProfileImporter', () => {
 
   afterEach(async () => {
     await fs.rm(tempDir, { recursive: true, force: true });
+    await fs.rm(profileRootDir, { recursive: true, force: true });
   });
 
   function buildExport(
@@ -191,7 +196,8 @@ describe('ProfileImporter', () => {
 
     const exportData = await exporter.exportProfiles([profile.id], true);
     const importManager = new ProfileManager(
-      new ProfileStorage(path.join(tempDir, 'import-config'))
+      new ProfileStorage(path.join(tempDir, 'import-config')),
+      path.join(profileRootDir, 'import-profiles')
     );
     await importManager.initialize();
     const importImporter = new ProfileImporter(importManager);

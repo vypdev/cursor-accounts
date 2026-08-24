@@ -31,9 +31,20 @@ import type {
   ModelPricingDisplayData,
 } from './types';
 import { isProfileProxyEnabled } from './types';
+import { isProfileRunning } from './utils/runningInstances';
 import './App.css';
 
-const AppContent: React.FC = () => {
+interface AppContentProps {
+  setLocale: (locale: string) => void;
+  setMessages: (messages: Record<string, string>) => void;
+  messages: Record<string, string>;
+}
+
+const AppContent: React.FC<AppContentProps> = ({
+  setLocale,
+  setMessages,
+  messages,
+}) => {
   const { t } = useL10n();
   const persisted = vscodeApi.getState();
 
@@ -123,6 +134,8 @@ const AppContent: React.FC = () => {
             'react.init-received',
             `profiles=${message.data.profiles.length}`
           );
+          setLocale(message.data.locale);
+          setMessages(message.data.messages);
           setProfiles(message.data.profiles);
           setCurrentProfile(message.data.currentProfile);
           setQuotas(message.data.quotas ?? {});
@@ -315,7 +328,7 @@ const AppContent: React.FC = () => {
       window.clearTimeout(fallbackTimer);
       unsubscribe();
     };
-  }, [storageProfileId, t]);
+  }, [setLocale, setMessages, storageProfileId, t]);
 
   useEffect(() => {
     if (proxyStatus?.caCertificateInstalled === true && error) {
@@ -573,7 +586,9 @@ const AppContent: React.FC = () => {
     return (
       <div className="loading">
         <div className="spinner" aria-hidden="true" />
-        <p>{t('app.loadingProfiles')}</p>
+        {messages['app.loadingProfiles'] ? (
+          <p>{messages['app.loadingProfiles']}</p>
+        ) : null}
       </div>
     );
   }
@@ -740,7 +755,7 @@ const AppContent: React.FC = () => {
         <StorageManagementModal
           profile={storageProfile}
           isCurrent={storageProfile.id === currentProfile?.id}
-          isRunning={storageProfile.id in runningInstances}
+          isRunning={isProfileRunning(runningInstances, storageProfile.id)}
           storageInfo={storageInfo}
           storageLoading={storageLoading}
           cleanupInProgress={cleanupInProgress}
@@ -767,20 +782,13 @@ export const App: React.FC = () => {
   const [locale, setLocale] = useState('en');
   const [messages, setMessages] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    const unsubscribe = vscodeApi.onMessage((message: ToWebviewMessage) => {
-      if (message.type === 'init') {
-        setLocale(message.data.locale);
-        setMessages(message.data.messages);
-      }
-    });
-
-    return unsubscribe;
-  }, []);
-
   return (
     <L10nProvider locale={locale} messages={messages}>
-      <AppContent />
+      <AppContent
+        setLocale={setLocale}
+        setMessages={setMessages}
+        messages={messages}
+      />
     </L10nProvider>
   );
 };

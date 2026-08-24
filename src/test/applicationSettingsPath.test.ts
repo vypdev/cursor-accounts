@@ -10,7 +10,7 @@ describe('resolveProfileSettingsPaths', () => {
 
   before(async () => {
     tempRoot = await fs.mkdtemp(
-      path.join(os.homedir(), '.cursor-accounts-test-app-settings-')
+      path.join(os.tmpdir(), 'cursor-accounts-test-app-settings-')
     );
   });
 

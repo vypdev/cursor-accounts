@@ -3,17 +3,37 @@ import { afterEach, describe, it } from 'node:test';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
-import { AgentTrackingDatabase } from '../persistence/agentTrackingDatabase';
-import { SqliteExecutor } from '../persistence/sqliteExecutor';
+import type { IDatabaseConnectionManager } from '../domain/ports/IDatabaseConnectionManager';
+import type { IAgentTrackingRepository } from '../domain/ports/IAgentTrackingRepository';
+import { BetterSqliteAgentTrackingRepository } from '../persistence/betterSqlite/betterSqliteAgentTrackingRepository';
+import { BetterSqliteConnectionManager } from '../persistence/betterSqlite/betterSqliteConnectionManager';
 import { AgentTrackingService } from '../services/agentTrackingService';
 import type { ProxyTrafficSummary } from '../proxy/types';
 
 const extensionPath = path.join(__dirname, '..', '..');
 
+async function createRepository(
+  dbPath: string,
+  connectionManager: IDatabaseConnectionManager
+): Promise<IAgentTrackingRepository> {
+  const repo = new BetterSqliteAgentTrackingRepository(
+    connectionManager,
+    dbPath,
+    extensionPath
+  );
+  await repo.initialize();
+  return repo;
+}
+
 describe('AgentTracking integration', () => {
   let tempDir = '';
+  let connectionManager: BetterSqliteConnectionManager | undefined;
 
   afterEach(async () => {
+    if (connectionManager) {
+      await connectionManager.closeAllConnections();
+      connectionManager = undefined;
+    }
     if (tempDir) {
       await fs.rm(tempDir, { recursive: true, force: true });
       tempDir = '';
@@ -22,8 +42,9 @@ describe('AgentTracking integration', () => {
 
   it('end-to-end ingest and query conversation totals', async () => {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-integration-'));
+    connectionManager = new BetterSqliteConnectionManager();
     const dbPath = path.join(tempDir, 'efficiency.db');
-    const repo = new AgentTrackingDatabase(dbPath, extensionPath);
+    const repo = await createRepository(dbPath, connectionManager);
     const service = new AgentTrackingService(repo, 'prof-1');
     await service.initialize();
 
@@ -79,8 +100,9 @@ describe('AgentTracking integration', () => {
 
   it('end-to-end parent-child subagent tree', async () => {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-integration-'));
+    connectionManager = new BetterSqliteConnectionManager();
     const dbPath = path.join(tempDir, 'efficiency.db');
-    const repo = new AgentTrackingDatabase(dbPath, extensionPath);
+    const repo = await createRepository(dbPath, connectionManager);
     const service = new AgentTrackingService(repo, 'prof-1');
     await service.initialize();
 
@@ -142,10 +164,110 @@ describe('AgentTracking integration', () => {
     assert.deepEqual(childIds, ['req-sub1', 'req-sub2']);
   });
 
+  it('does not double-count replayed live deltas or completed turns', async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-integration-'));
+    connectionManager = new BetterSqliteConnectionManager();
+    const dbPath = path.join(tempDir, 'efficiency.db');
+    const repo = await createRepository(dbPath, connectionManager);
+    const service = new AgentTrackingService(repo, 'prof-1');
+    await service.initialize();
+
+    const liveSummary = {
+      timestamp: new Date(1_000_000).toISOString(),
+      kind: 'response',
+      url: 'https://agent.api5.cursor.sh/agent.v1.AgentService/RunSSE',
+      host: 'agent.api5.cursor.sh',
+      endpoint: '/agent.v1.AgentService/RunSSE',
+      httpRequestId: 'http-replay-test',
+      isLiveTokenUpdate: true,
+      liveTokenData: {
+        accumulatedTokens: 100,
+        latestDelta: 100,
+      },
+      insights: {
+        agent: {
+          requestId: 'req-replay',
+          conversationId: 'conv-replay',
+          usageEvent: 'token_delta',
+          eventSequence: 3,
+        },
+      },
+    } satisfies ProxyTrafficSummary;
+
+    await service.ingestTraffic(liveSummary);
+    await service.ingestTraffic(liveSummary);
+
+    await service.ingestTraffic({
+      ...liveSummary,
+      liveTokenData: {
+        accumulatedTokens: 150,
+        latestDelta: 50,
+      },
+      insights: {
+        agent: {
+          requestId: 'req-replay',
+          conversationId: 'conv-replay',
+          usageEvent: 'token_delta',
+          eventSequence: 4,
+        },
+      },
+    });
+
+    await service.ingestTraffic({
+      ...liveSummary,
+      isLiveTokenUpdate: false,
+      isTurnEnded: true,
+      liveTokenData: undefined,
+      insights: {
+        agent: {
+          requestId: 'req-replay',
+          conversationId: 'conv-replay',
+          usageEvent: 'turn_ended',
+          inputTokens: 50,
+          outputTokens: 75,
+          eventSequence: 5,
+          eof: true,
+        },
+      },
+    });
+    await service.ingestTraffic({
+      ...liveSummary,
+      isLiveTokenUpdate: false,
+      isTurnEnded: true,
+      liveTokenData: undefined,
+      insights: {
+        agent: {
+          requestId: 'req-replay',
+          conversationId: 'conv-replay',
+          usageEvent: 'turn_ended',
+          inputTokens: 50,
+          outputTokens: 75,
+          eventSequence: 5,
+          eof: true,
+        },
+      },
+    });
+
+    const totals = await service.getConversationTokens('conv-replay');
+    assert.equal(totals.totalDeltaTokens, 150);
+    assert.equal(totals.totalInputTokens, 50);
+    assert.equal(totals.totalOutputTokens, 75);
+
+    const completedTurns = await service.getConversationTurnEnded('conv-replay');
+    assert.equal(completedTurns.length, 1);
+
+    const conn = await connectionManager.getConnection(dbPath);
+    const eventRows = conn.get<{ count: number }>(
+      'SELECT COUNT(*) AS count FROM agent_tokens_delta_events'
+    );
+    assert.equal(eventRows?.count, 2);
+  });
+
   it('persists multiple RunSSE turns with turn_index', async () => {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-integration-'));
+    connectionManager = new BetterSqliteConnectionManager();
     const dbPath = path.join(tempDir, 'efficiency.db');
-    const repo = new AgentTrackingDatabase(dbPath, extensionPath);
+    const repo = await createRepository(dbPath, connectionManager);
     const { TokenTurnDetectionService } = await import(
       '../domain/services/tokenTurnDetectionService'
     );
@@ -180,17 +302,17 @@ describe('AgentTracking integration', () => {
     assert.ok(breakdown);
     assert.equal(breakdown?.peakStreamingTokens, 300);
 
-    const executor = new SqliteExecutor(dbPath, extensionPath);
-    const rows = executor.queryRows<{
+    const conn = await connectionManager.getConnection(dbPath);
+    const rows = conn.all<{
       turn_index: number | null;
       streaming_tokens: number | null;
       http_request_id: string | null;
     }>(`
 SELECT turn_index, streaming_tokens, http_request_id
 FROM agent_tokens
-WHERE request_id = 'req-runsse'
+WHERE request_id = ?
 ORDER BY turn_index ASC;
-`);
+`, 'req-runsse');
 
     assert.equal(rows.length, 2);
     assert.equal(rows[0]?.turn_index, 0);
@@ -202,8 +324,9 @@ ORDER BY turn_index ASC;
 
   it('persists live token_delta into one minute bucket and turn_ended separately', async () => {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-integration-'));
+    connectionManager = new BetterSqliteConnectionManager();
     const dbPath = path.join(tempDir, 'efficiency.db');
-    const repo = new AgentTrackingDatabase(dbPath, extensionPath);
+    const repo = await createRepository(dbPath, connectionManager);
     const service = new AgentTrackingService(repo, 'prof-1');
     await service.initialize();
 
@@ -257,26 +380,26 @@ ORDER BY turn_index ASC;
       },
     } satisfies ProxyTrafficSummary);
 
-    const executor = new SqliteExecutor(dbPath, extensionPath);
-    const deltaRows = executor.queryRows<{
-      streaming_tokens: number | null;
+    const conn = await connectionManager.getConnection(dbPath);
+    const deltaRows = conn.all<{
+      delta_tokens: number | null;
       minute_bucket: number | null;
     }>(`
-SELECT streaming_tokens, minute_bucket
-FROM agent_tokens
-WHERE request_id = 'req-runsse' AND token_type = 'delta';
-`);
-    const turnRows = executor.queryRows<{
+SELECT delta_tokens, minute_bucket
+FROM agent_tokens_delta
+WHERE request_id = ?;
+`, 'req-runsse');
+    const turnRows = conn.all<{
       input_tokens: number | null;
       output_tokens: number | null;
     }>(`
 SELECT input_tokens, output_tokens
 FROM agent_turn_ended
-WHERE request_id = 'req-runsse';
-`);
+WHERE request_id = ?;
+`, 'req-runsse');
 
     assert.equal(deltaRows.length, 1);
-    assert.equal(deltaRows[0]?.streaming_tokens, 250);
+    assert.equal(deltaRows[0]?.delta_tokens, 250);
     assert.equal(turnRows.length, 1);
     assert.equal(turnRows[0]?.input_tokens, 800);
     assert.equal(turnRows[0]?.output_tokens, 150);
@@ -284,8 +407,9 @@ WHERE request_id = 'req-runsse';
 
   it('aggregates 100 live token_delta events into 5 minute buckets', async () => {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-integration-'));
+    connectionManager = new BetterSqliteConnectionManager();
     const dbPath = path.join(tempDir, 'efficiency.db');
-    const repo = new AgentTrackingDatabase(dbPath, extensionPath);
+    const repo = await createRepository(dbPath, connectionManager);
     const service = new AgentTrackingService(repo, 'prof-1');
     await service.initialize();
 
@@ -331,26 +455,26 @@ WHERE request_id = 'req-runsse';
       }
     }
 
-    const executor = new SqliteExecutor(dbPath, extensionPath);
-    const deltaRows = executor.queryRows<{
+    const conn = await connectionManager.getConnection(dbPath);
+    const deltaRows = conn.all<{
       minute_bucket: number | null;
-      streaming_tokens: number | null;
-      cost_cents: number | null;
+      delta_tokens: number | null;
+      delta_cost: number | null;
     }>(`
-SELECT minute_bucket, streaming_tokens, cost_cents
-FROM agent_tokens
-WHERE request_id = 'req-live' AND token_type = 'delta'
+SELECT minute_bucket, delta_tokens, delta_cost
+FROM agent_tokens_delta
+WHERE request_id = ?
 ORDER BY minute_bucket ASC;
-`);
+`, 'req-live');
 
     assert.equal(deltaRows.length, 5);
     assert.deepEqual(
-      deltaRows.map((row) => row.streaming_tokens),
+      deltaRows.map((row) => row.delta_tokens),
       perMinute.map((count) => count * 5)
     );
     for (let i = 0; i < perMinute.length; i++) {
       assert.ok(
-        Math.abs((deltaRows[i]?.cost_cents ?? 0) - perMinute[i]! * 0.1) < 0.0001
+        Math.abs((deltaRows[i]?.delta_cost ?? 0) - perMinute[i]! * 0.1) < 0.0001
       );
     }
 

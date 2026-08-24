@@ -1,4 +1,4 @@
-import type { ProxyLogEntry } from '../../proxy/types';
+import type { ProxyLogEntry } from '../types/proxyLog';
 import type {
   DecodeResult,
   IStreamDecoder,

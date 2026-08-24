@@ -7,6 +7,11 @@ export interface IInstanceDetector {
   ): void;
   detectRunningInstances(): Promise<Map<string, InstanceInfo>>;
   isProfileRunning(profileId: string): Promise<boolean>;
+  isProfileProjectRunning(
+    profileId: string,
+    projectPath: string
+  ): Promise<boolean>;
+  getProfileInstances(profileId: string): InstanceInfo[];
   findProcessByUserDataDir(userDataDir: string): Promise<
     | {
         pid: number;

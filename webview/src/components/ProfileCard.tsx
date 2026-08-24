@@ -765,9 +765,9 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
                   type="button"
                   className={`btn-open-project${isProjectOpen ? ' is-open' : ''}`}
                   onClick={() => handleOpenProject(workspace.path)}
-                  disabled={isCurrent ? isProjectOpen : isRunning}
+                  disabled={isProjectOpen}
                 >
-                  {isCurrent && isProjectOpen
+                  {isProjectOpen
                     ? t('profileCard.projectAlreadyOpen')
                     : t('profileCard.openProject')}
                 </button>

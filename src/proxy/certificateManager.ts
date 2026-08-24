@@ -2,11 +2,14 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as forge from 'node-forge';
 import { DEFAULT_ALPN_PROTOCOLS } from '../domain/types/httpProtocol';
+import { CA_COMMON_NAME } from './certificateConstants';
+
+export { CA_COMMON_NAME } from './certificateConstants';
 
 export const CA_CERT_FILE = 'ca-cert.pem';
 export const CA_KEY_FILE = 'ca-key.pem';
+export const CA_PUBLIC_KEY_FILE = 'ca-public.key';
 
-export const CA_COMMON_NAME = 'Cursor Accounts MITM Proxy CA';
 const CA_VALIDITY_YEARS = 10;
 
 /**
@@ -22,6 +25,10 @@ export class CertificateManager {
 
   getKeyPath(): string {
     return path.join(this.storageDir, CA_KEY_FILE);
+  }
+
+  getPublicKeyPath(): string {
+    return path.join(this.storageDir, CA_PUBLIC_KEY_FILE);
   }
 
   /**
@@ -49,14 +56,17 @@ export class CertificateManager {
 
     const mitmCaPath = path.join(mitmCertsDir, 'ca.pem');
     const mitmKeyPath = path.join(keysDir, 'ca.private.key');
+    const mitmPublicKeyPath = path.join(keysDir, 'ca.public.key');
 
     const certPem = await fs.readFile(this.getCertificatePath(), 'utf8');
     const keyPem = await fs.readFile(this.getKeyPath(), 'utf8');
+    const publicKeyPem = await fs.readFile(this.getPublicKeyPath(), 'utf8');
 
     const replaceHostCerts = await this.shouldReplaceMitmCa(mitmCaPath, certPem);
 
     await fs.writeFile(mitmCaPath, certPem, { mode: 0o600 });
     await fs.writeFile(mitmKeyPath, keyPem, { mode: 0o600 });
+    await fs.writeFile(mitmPublicKeyPath, publicKeyPem, { mode: 0o600 });
 
     // Legacy mistaken path from an earlier layout.
     await fs.rm(path.join(this.storageDir, 'ca.pem'), { force: true });
@@ -108,10 +118,24 @@ export class CertificateManager {
 
     const certPath = this.getCertificatePath();
     const keyPath = this.getKeyPath();
+    const publicKeyPath = this.getPublicKeyPath();
 
     try {
-      await fs.access(certPath);
-      await fs.access(keyPath);
+      const [certPem, keyPem] = await Promise.all([
+        fs.readFile(certPath, 'utf8'),
+        fs.readFile(keyPath, 'utf8'),
+      ]);
+      try {
+        await fs.access(publicKeyPath);
+      } catch {
+        const cert = forge.pki.certificateFromPem(certPem);
+        await fs.writeFile(
+          publicKeyPath,
+          forge.pki.publicKeyToPem(cert.publicKey),
+          { mode: 0o600 }
+        );
+      }
+      void keyPem;
       return certPath;
     } catch {
       // generate below
@@ -141,9 +165,11 @@ export class CertificateManager {
 
     const certPem = forge.pki.certificateToPem(cert);
     const keyPem = forge.pki.privateKeyToPem(keys.privateKey);
+    const publicKeyPem = forge.pki.publicKeyToPem(keys.publicKey);
 
     await fs.writeFile(certPath, certPem, { mode: 0o600 });
     await fs.writeFile(keyPath, keyPem, { mode: 0o600 });
+    await fs.writeFile(publicKeyPath, publicKeyPem, { mode: 0o600 });
 
     return certPath;
   }

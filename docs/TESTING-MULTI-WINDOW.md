@@ -4,25 +4,18 @@ This guide walks through manual testing of the better-sqlite3 implementation wit
 
 ## Prerequisites
 
-1. **Enable feature flag** in User Settings or Workspace Settings:
-   ```json
-   {
-     "cursorAccounts.experimental.useBetterSqlite3": true
-   }
-   ```
-
-2. **Rebuild native modules** for Electron (not Node.js):
+1. **Rebuild native modules** for the Electron Extension Host:
    ```bash
    cd /path/to/cursor-accounts
-   pnpm run rebuild:native
+   pnpm run rebuild:native:electron
    ```
 
-3. **Compile and package** the extension:
+2. **Compile and package** the extension:
    ```bash
    pnpm run compile
    ```
 
-4. **Launch Extension Development Host** (F5) or install VSIX locally.
+3. **Launch Extension Development Host** (F5) or install VSIX locally.
 
 ---
 
@@ -80,8 +73,8 @@ Verify that WAL mode eliminates "database is locked" errors when two VS Code win
 
 | Issue | Cause | Fix |
 |-------|-------|-----|
-| "database is locked" errors | Feature flag not enabled | Check settings.json |
-| Module not found | Native module not rebuilt for Electron | Run `pnpm run rebuild:native` |
+| "database is locked" errors | WAL or connection settings are incorrect | Verify WAL and `busy_timeout` in logs |
+| Module not found | Native module not rebuilt for Electron | Run `pnpm run rebuild:native:electron` |
 | No WAL files | Database in legacy mode | Verify logs show `WAL=wal` |
 
 ---
@@ -194,27 +187,19 @@ Ensure WAL mode + concurrent access does not corrupt the database.
 
 ---
 
-## Test 5: Performance Comparison (Optional)
+## Test 5: Performance Baseline (Optional)
 
 ### Objective
-Compare performance between legacy CLI and better-sqlite3.
+Verify agent tracking ingest performance with better-sqlite3 under load.
 
 ### Steps
 
-1. **Baseline (legacy CLI)**:
-   - Disable feature flag: `"cursorAccounts.experimental.useBetterSqlite3": false`
-   - Reload extension
-   - Trigger 100 agent token upserts
-   - Note time in logs (if instrumented) or manually
-
-2. **With better-sqlite3**:
-   - Enable feature flag: `"cursorAccounts.experimental.useBetterSqlite3": true`
-   - Reload extension
-   - Trigger same 100 agent token upserts
-   - Compare time
+1. Trigger 100 agent token upserts (e.g. via proxy traffic or integration tests)
+2. Check Output → "Cursor Accounts" for `[AgentTrackingFactory] Using better-sqlite3`
+3. Confirm no "database is locked" errors
 
 ### Expected Result
-✅ **better-sqlite3 is 10-100x faster** than CLI subprocess
+✅ **Stable performance** with WAL mode under concurrent access
 ✅ **No regressions in data correctness**
 
 ---
@@ -342,17 +327,8 @@ pnpm test -- --test-name-pattern='ProxyApiServer|multi-window'
 
 If issues occur during manual testing:
 
-1. **Disable feature flag**:
-   ```json
-   {
-     "cursorAccounts.experimental.useBetterSqlite3": false
-   }
-   ```
-
-2. **Reload VS Code windows**
-   - Extension will revert to legacy CLI subprocess implementation
-
-3. **Report issue** with:
+1. **Restore a database backup** (if you created one before testing)
+2. **Report issue** with:
    - Extension logs (Output → "Cursor Accounts")
    - SQLite database path
    - OS and VS Code version
