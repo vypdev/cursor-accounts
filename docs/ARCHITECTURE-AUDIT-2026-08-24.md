@@ -505,14 +505,14 @@ baseline, but it is not presented as a completed final audit.
 
 ### Verified improvements
 
-- The extension-host suite passes 739/739 tests with loopback and temporary
+- The extension-host suite passes 741/741 tests with loopback and temporary
   filesystem access available.
 - The webview suite passes 18/18 tests with explicit DOM cleanup.
 - Localization validation passes for 26 locales with 428 keys each.
 - The architecture checker resolves relative imports, fails closed on
   unresolved imports, rejects domain/application violations, detects cycles,
   and passes valid, boundary, cycle, and unresolved-import fixtures across
-  399 TypeScript files.
+  401 TypeScript files.
 - Domain-owned proxy and tracking contracts now live under
   `src/domain/types`; application re-exports are compatibility-only.
 - Proxy traffic ingress, bus, cost enrichment, health polling, and presenter
@@ -530,7 +530,7 @@ baseline, but it is not presented as a completed final audit.
   receive only the capability ports they use.
 - Status-bar quota presentation was extracted into a tested module. The new
   presentation module reaches 98.79% line coverage in the current run, while
-  the remaining manager coverage is 69.82% and remains a UI-state follow-up.
+  the remaining manager coverage is 71.71% and remains a UI-state follow-up.
 - A deterministic documentation-link gate now validates 43 Markdown files and
   corrected stale references to the former application-layer proxy ingress
   path before being added to `pnpm run audit`.
@@ -560,7 +560,7 @@ baseline, but it is not presented as a completed final audit.
 - Persisted and in-memory proxy status reconciliation now lives in
   `ProxyStatusCoordinator`; stale process and port state cleanup is covered by
   focused tests. It reaches 98.51% line and 100% function coverage, while
-  `ProxyManager` reaches 69.82% line coverage after the extraction.
+  `ProxyManager` reaches 71.71% line coverage after the extraction.
 - Shared, persisted, in-memory, and profile fallback discovery for API/JSONL
   tailers now lives in `ProxyTrafficTailerCoordinator`; output-tail options and
   capability-token forwarding are covered by focused tests. It reaches 97.34%
@@ -572,11 +572,15 @@ baseline, but it is not presented as a completed final audit.
 - Child process ownership cleanup, PID fallback, SIGTERM/SIGKILL escalation,
   and process detach now live in `ProxyChildProcessStopCoordinator`; it reaches
   100% line, branch, and function coverage.
+- Child-process configuration assembly now lives in
+  `ProxyServerConfigurationBuilder`; defaults, overrides, body-size clamping,
+  and logging/diagnostics settings are covered by focused tests. It reaches
+  100% line and function coverage.
 
 ### Updated Repowise and Graphify signals
 
 Repowise and Graphify were re-run after the status and tailer extractions.
-The graph now contains 4,642 nodes and 10,804 edges; nine SQL files remain
+The graph now contains 4,651 nodes and 10,827 edges; nine SQL files remain
 unparsed because
 the installed Graphify environment does not include `tree_sitter_sql`. The
 largest remaining source-level hubs are `ProxyManager`, `ProfileManager`,

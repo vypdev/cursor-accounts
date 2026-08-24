@@ -138,10 +138,10 @@ The audit baseline is commit `9a116cf` on branch
 The implementation state after the completed slices is tracked separately from
 that historical baseline:
 
-- the latest full extension-host checkpoint passed 739 tests;
+- the latest full extension-host checkpoint passed 741 tests;
 - the webview suite has 18 passing tests;
 - localization has 26 locales with 428 keys each;
-- the architecture gate checks 399 TypeScript files, with valid, boundary,
+- the architecture gate checks 401 TypeScript files, with valid, boundary,
   cycle, and unresolved-import fixtures passing;
 - current-target packaging produced and verified
   `cursor-accounts-darwin-arm64-0.1.34.vsix`; stale artifacts are excluded by
@@ -155,7 +155,7 @@ that historical baseline:
 - Documentation validation covers 43 Markdown files and caught stale links to
   the former application-layer proxy ingress path before the gate was enabled.
 - Graphify was refreshed after the status and tailer extractions; the graph
-  now contains 4,642 nodes and 10,804 edges. Repowise reports zero safe-only dead-code
+  now contains 4,651 nodes and 10,827 edges. Repowise reports zero safe-only dead-code
   findings; its 29 medium-confidence candidates remain retained pending
   runtime/public-contract evidence.
 - `ProxyTrafficUsageCoordinator` now owns agent-traffic classification,
@@ -185,6 +185,9 @@ that historical baseline:
 - `ProxyChildProcessStopCoordinator` now owns child ownership cleanup, PID
   fallback, SIGTERM/SIGKILL escalation, and process detach. Its focused tests
   cover absent runtimes, persisted PIDs, escalation, and clean termination.
+- `ProxyServerConfigurationBuilder` now owns child-process configuration
+  assembly, defaults, overrides, body-size clamping, and diagnostics/logging
+  settings. Its focused tests cover the complete configuration shape.
 
 ### 3.2 Target state
 
@@ -700,7 +703,7 @@ pure function where appropriate, characterization tests, and a rollback path.
 
 ### W4.1 `ProxyManager` decomposition
 
-Current risk: 759 lines and Graphify degree 66, combining
+Current risk: 746 lines and Graphify degree 66, combining
 profile lifecycle, shared proxy coordination, state persistence, certificate
 operations, traffic ingress, agent tracking, output/tailing, and notifications.
 
