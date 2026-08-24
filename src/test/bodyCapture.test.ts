@@ -33,6 +33,22 @@ describe('bodyCapture', () => {
     assert.ok(restored?.equals(large));
   });
 
+  it('does not allow a spill key to escape the bodies directory', async () => {
+    const outsidePath = path.join(
+      tempDir,
+      '..',
+      `${path.basename(tempDir)}-outside.bin`
+    );
+    const result = captureBodyForLog(Buffer.alloc(20_000, 0x01), 'application/proto', {
+      maxInlineBytes: 4096,
+      logDir: tempDir,
+      spillKey: '../outside',
+    });
+    assert.equal(result.bodyFile, undefined);
+    assert.equal(result.bodyTruncated, true);
+    await assert.rejects(fs.access(outsidePath));
+  });
+
   it('keeps small bodies inline as base64', () => {
     const raw = Buffer.from([1, 2, 3]);
     const formatted = captureBodyForLog(raw, 'application/proto', {
@@ -58,5 +74,28 @@ describe('bodyCapture', () => {
 
     const restored = bodyBufferFromLogEntry(formatted, tempDir);
     assert.ok(restored?.equals(raw));
+  });
+
+  it('rejects absolute and traversal sidecar paths', () => {
+    assert.equal(
+      bodyBufferFromLogEntry({ bodyFile: '/etc/passwd' }, tempDir),
+      null
+    );
+    assert.equal(
+      bodyBufferFromLogEntry({ bodyFile: '../outside.bin' }, tempDir),
+      null
+    );
+  });
+
+  it('redacts credential fields in persisted JSON bodies', () => {
+    const formatted = captureBodyForLog(
+      JSON.stringify({ access_token: 'secret', usage: { total: 42 } }),
+      'application/json',
+      { maxInlineBytes: 4096, redactJsonFields: true }
+    );
+    assert.equal(
+      formatted.body,
+      JSON.stringify({ access_token: '[REDACTED]', usage: { total: 42 } })
+    );
   });
 });

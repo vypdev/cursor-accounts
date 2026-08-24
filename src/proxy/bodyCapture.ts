@@ -22,6 +22,8 @@ export interface BodyCaptureOptions {
   spillLargeBodies?: boolean;
   logDir?: string;
   spillKey?: string;
+  /** Redact known credential fields when persisting JSON bodies. */
+  redactJsonFields?: boolean;
 }
 
 function isBinaryContentType(contentType: string | undefined): boolean {
@@ -49,6 +51,9 @@ function defaultSpillKey(): string {
 }
 
 function writeSpillFile(logDir: string, spillKey: string, buffer: Buffer): string {
+  if (!/^[A-Za-z0-9._-]+$/.test(spillKey)) {
+    throw new Error('Invalid spill key');
+  }
   ensureBodiesDir(logDir);
   const fileName = `${spillKey}.bin`;
   const relPath = path.join('bodies', fileName);
@@ -59,9 +64,9 @@ function writeSpillFile(logDir: string, spillKey: string, buffer: Buffer): strin
 function formatInline(
   buffer: Buffer,
   contentType: string | undefined,
-  maxInlineBytes: number
+  maxInlineBytes: number,
+  rawBytes = buffer.length
 ): FormattedBody {
-  const rawBytes = buffer.length;
   const binary = isBinaryContentType(contentType);
 
   if (binary) {
@@ -100,6 +105,35 @@ function formatInline(
   };
 }
 
+const SENSITIVE_JSON_KEY_PATTERN = /^(authorization|proxy_?authorization|cookie|set_?cookie|api_?key|x-api-key|access_?token|refresh_?token|id_?token|client_?secret|password|secret)$/i;
+
+function redactJsonValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(redactJsonValue);
+  }
+  if (value == null || typeof value !== 'object') {
+    return value;
+  }
+  return Object.fromEntries(
+    Object.entries(value).map(([key, child]) => [
+      key,
+      SENSITIVE_JSON_KEY_PATTERN.test(key) ? '[REDACTED]' : redactJsonValue(child),
+    ])
+  );
+}
+
+function redactJsonBody(buffer: Buffer, contentType: string | undefined): Buffer {
+  if (!contentType?.toLowerCase().includes('json')) {
+    return buffer;
+  }
+  try {
+    const parsed = JSON.parse(buffer.toString('utf8')) as unknown;
+    return Buffer.from(JSON.stringify(redactJsonValue(parsed)), 'utf8');
+  } catch {
+    return buffer;
+  }
+}
+
 /**
  * Capture request/response body for JSONL: inline up to maxInlineBytes, else spill to disk.
  */
@@ -112,9 +146,12 @@ export function captureBodyForLog(
     return {};
   }
 
-  const buffer =
+  const sourceBuffer =
     typeof body === 'string' ? Buffer.from(body, 'utf8') : Buffer.from(body);
-  const rawBytes = buffer.length;
+  const rawBytes = sourceBuffer.length;
+  const buffer = options.redactJsonFields
+    ? redactJsonBody(sourceBuffer, contentType)
+    : sourceBuffer;
   const maxInlineBytes = options.maxInlineBytes ?? DEFAULT_MAX_BODY_LOG_BYTES;
   const spill =
     options.spillLargeBodies !== false &&
@@ -135,7 +172,7 @@ export function captureBodyForLog(
     }
   }
 
-  return formatInline(buffer, contentType, maxInlineBytes);
+  return formatInline(buffer, contentType, maxInlineBytes, rawBytes);
 }
 
 /**
@@ -152,10 +189,22 @@ export function bodyBufferFromLogEntry(
 ): Buffer | null {
   if (entry.bodyFile && logDir) {
     try {
-      const fullPath = path.isAbsolute(entry.bodyFile)
-        ? entry.bodyFile
-        : path.join(logDir, entry.bodyFile);
-      return fs.readFileSync(fullPath);
+      if (path.isAbsolute(entry.bodyFile)) {
+        return null;
+      }
+      const logRoot = path.resolve(logDir);
+      const fullPath = path.resolve(logRoot, entry.bodyFile);
+      const relative = path.relative(logRoot, fullPath);
+      if (relative.startsWith('..') || path.isAbsolute(relative)) {
+        return null;
+      }
+      const realRoot = fs.realpathSync(logRoot);
+      const realPath = fs.realpathSync(fullPath);
+      const realRelative = path.relative(realRoot, realPath);
+      if (realRelative.startsWith('..') || path.isAbsolute(realRelative)) {
+        return null;
+      }
+      return fs.readFileSync(realPath);
     } catch {
       return null;
     }

@@ -183,6 +183,7 @@ ON CONFLICT(key) DO UPDATE SET
   }
 
   async validate(): Promise<ValidationResult> {
+    await Promise.resolve();
     const expectedTables = [...EXPECTED_SCHEMA_TABLES];
 
     try {

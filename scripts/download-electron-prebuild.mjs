@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-import { execSync } from 'child_process';
-import { existsSync, mkdirSync } from 'fs';
+import { execFileSync } from 'child_process';
+import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -28,11 +28,33 @@ try {
     mkdirSync(buildPath, { recursive: true });
   }
 
-  // Download and extract prebuild
-  execSync(
-    `curl -L "${prebuildUrl}" | tar -xz -C "${betterSqlitePath}"`,
-    { stdio: 'inherit' }
-  );
+  // Download and extract in separate, fail-closed steps. A shell pipeline can
+  // mask a failed curl when tar exits successfully on an existing directory.
+  const tempDir = mkdtempSync(path.join(root, '.tmp', 'electron-prebuild-'));
+  const archivePath = path.join(tempDir, 'better-sqlite3.tar.gz');
+  try {
+    execFileSync(
+      'curl',
+      [
+        '--fail',
+        '--show-error',
+        '--location',
+        '--retry',
+        '3',
+        '--connect-timeout',
+        '20',
+        '--output',
+        archivePath,
+        prebuildUrl,
+      ],
+      { stdio: 'inherit' }
+    );
+    execFileSync('tar', ['-xzf', archivePath, '-C', betterSqlitePath], {
+      stdio: 'inherit',
+    });
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
 
   if (existsSync(bindingPath)) {
     console.log(`[download-electron-prebuild] ✓ Successfully installed Electron ${ELECTRON_ABI} prebuild`);

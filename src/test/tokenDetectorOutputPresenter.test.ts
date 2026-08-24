@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   formatTokenDetectorLine,
-} from '../proxy/tokenDetectorOutputPresenter';
+} from '../ui/presentation/tokenDetectorOutputPresenter';
 import type { ProxyTrafficSummary } from '../proxy/types';
 
 describe('tokenDetectorOutputPresenter', () => {

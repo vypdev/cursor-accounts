@@ -1,5 +1,5 @@
-import type { ProxyTrafficSummary } from '../types/proxyTraffic';
-import { estimateTokenCostUsd } from '../../proxy/proxyInsightExtractor';
+import type { ProxyTrafficSummary } from '../application/types/proxyTraffic';
+import { estimateTokenCostUsd } from './proxyInsightExtractor';
 
 export function createProxyCostEnricher(
   getRate: () => number

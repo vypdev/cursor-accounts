@@ -47,7 +47,7 @@ function decodeWithType(type: Type, raw: Buffer): Record<string, unknown> | null
         arrays: true,
         objects: true,
         oneofs: true,
-      }) as Record<string, unknown>;
+      });
     } catch {
       // try next framing candidate
     }

@@ -14,6 +14,7 @@ import {
   isConnectRpcContentType,
   isCursorHost,
   normalizeHeaders,
+  redactHeadersForLog,
 } from './utils/proxyRequestMetadata';
 import type { ProxyTrafficLogger } from './nullLogger';
 import { isAgentIncrementalStreamUrl } from './agentStreamUrls';
@@ -37,10 +38,6 @@ import type {
   ProxyServerConfig,
   ProxyTrafficSummary,
 } from './types';
-
-export interface MitmProxyServerEvents {
-  error: (error: Error) => void;
-}
 
 /**
  * HTTP/HTTPS MITM proxy using http-mitm-proxy.
@@ -164,7 +161,7 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
       }
 
       const headers = normalizeHeaders(
-        ctx.clientToProxyRequest.headers as Record<string, string | string[] | undefined>
+        ctx.clientToProxyRequest.headers
       );
       const contentType = headers['content-type'];
       const requestId = extractRequestId(headers);
@@ -178,7 +175,8 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
         cb(null, chunk);
       });
 
-      ctx.onRequestEnd(async (_ctx, endCallback) => {
+      ctx.onRequestEnd((_ctx, endCallback) => {
+        void (() => {
         const rawBody = Buffer.concat(bodyChunks);
         this.statistics.bytesTransferred += rawBody.length;
         const contentEncoding = headers['content-encoding'];
@@ -200,7 +198,7 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
           method: ctx.clientToProxyRequest.method,
           url,
           host,
-          headers,
+          headers: redactHeadersForLog(headers),
           ...formatted,
           bodyDecompressed: decompressed || undefined,
           isConnectRpc: isConnectRpcContentType(contentType),
@@ -217,7 +215,8 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
           protocolVersion: entry.protocolVersion,
         });
         this.emitTrafficSummary(entry);
-        endCallback();
+          endCallback();
+        })();
       });
 
       callback();
@@ -226,15 +225,13 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
     proxy.onResponse((ctx, callback) => {
       const host = ctx.clientToProxyRequest.headers.host ?? '';
       const headers = normalizeHeaders(
-        ctx.serverToProxyResponse?.headers as
-          | Record<string, string | string[] | undefined>
-          | undefined ?? {}
+        ctx.serverToProxyResponse?.headers ?? {}
       );
       const contentType = headers['content-type'];
       const url = this.buildRequestUrl(ctx);
       const statusCode = ctx.serverToProxyResponse?.statusCode;
       const requestHeaders = normalizeHeaders(
-        ctx.clientToProxyRequest.headers as Record<string, string | string[] | undefined>
+        ctx.clientToProxyRequest.headers
       );
       const requestId = extractRequestId(requestHeaders);
       const bidiRequestId = bidiRequestIdFromRunSseHeaders(requestHeaders);
@@ -281,7 +278,8 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
         cb(null, chunk);
       });
 
-      ctx.onResponseEnd(async (_ctx, endCallback) => {
+      ctx.onResponseEnd((_ctx, endCallback) => {
+        void (async () => {
         this.statistics.activeConnections = Math.max(
           0,
           this.statistics.activeConnections - 1
@@ -334,7 +332,7 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
           url,
           host,
           statusCode,
-          headers,
+          headers: redactHeadersForLog(headers),
           ...formatted,
           bodyDecompressed: decompressed || undefined,
           isConnectRpc: isConnectRpcContentType(contentType),
@@ -355,7 +353,8 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
           httpRequestId: requestId,
           incrementalTurnsAlreadyPersisted,
         });
-        endCallback();
+          endCallback();
+        })();
       });
 
       callback();

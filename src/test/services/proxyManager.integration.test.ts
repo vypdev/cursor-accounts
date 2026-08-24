@@ -4,9 +4,9 @@ import type { ProxyTrafficSummary } from '../../proxy/types';
 import type { RestoreAllProfilesResult } from '../../domain/ports/IProxyManager';
 import type { IProfileManager } from '../../domain/ports/IProfileManager';
 import type { IProxyStateStore } from '../../domain/ports/IProxyStateStore';
-import { ProxyTrafficBus } from '../../application/services/proxyTrafficBus';
-import { createProxyCostEnricher } from '../../application/services/proxyCostEnricher';
-import { ProxyTrafficIngress } from '../../application/services/proxyTrafficIngress';
+import { ProxyTrafficBus } from '../../proxy/proxyTrafficBus';
+import { createProxyCostEnricher } from '../../proxy/proxyCostEnricher';
+import { ProxyTrafficIngress } from '../../proxy/proxyTrafficIngress';
 import type { ProxySettingsService } from '../../services/proxySettingsService';
 
 function sampleTraffic(): ProxyTrafficSummary {

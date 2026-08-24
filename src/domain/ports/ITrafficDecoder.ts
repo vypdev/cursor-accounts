@@ -1,6 +1,6 @@
-import type { ProxyLogEntry } from '../../application/types/proxyLog';
-import type { ProxyInsights } from '../../application/types/proxyInsights';
-import type { ProxyTrafficSummary } from '../../application/types/proxyTraffic';
+import type { ProxyLogEntry } from '../types/proxyLog';
+import type { ProxyInsights } from '../types/proxyInsights';
+import type { ProxyTrafficSummary } from '../types/proxyTraffic';
 
 export interface DecodeResult {
   summary: ProxyTrafficSummary;

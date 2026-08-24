@@ -102,10 +102,6 @@ export function getLocale(): SupportedLocale {
   return activeLocale;
 }
 
-export function getMessages(): LocaleMessages {
-  return { ...activeMessages };
-}
-
 export function getWebviewMessages(): LocaleMessages {
   return Object.fromEntries(
     Object.entries(activeMessages)

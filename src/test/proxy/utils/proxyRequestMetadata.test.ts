@@ -5,6 +5,7 @@ import {
   isConnectRpcContentType,
   isCursorHost,
   normalizeHeaders,
+  redactHeadersForLog,
 } from '../../../proxy/utils/proxyRequestMetadata';
 
 describe('proxyRequestMetadata', () => {
@@ -16,6 +17,17 @@ describe('proxyRequestMetadata', () => {
   it('isCursorHost matches cursor suffixes', () => {
     assert.equal(isCursorHost('api2.cursor.sh'), true);
     assert.equal(isCursorHost('example.com'), false);
+  });
+
+  it('redacts credentials before headers are persisted', () => {
+    const headers = redactHeadersForLog({
+      authorization: 'Bearer secret',
+      cookie: 'session=secret',
+      'x-request-id': 'request-1',
+    });
+    assert.equal(headers.authorization, '[REDACTED]');
+    assert.equal(headers.cookie, '[REDACTED]');
+    assert.equal(headers['x-request-id'], 'request-1');
   });
 
   it('isConnectRpcContentType detects connect proto', () => {

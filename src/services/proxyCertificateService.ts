@@ -4,7 +4,7 @@ import type { IProfileManager } from '../domain/ports/IProfileManager';
 import type { IProxyCertificateService } from '../domain/ports/IProxyCertificateService';
 import type { IProxyStateStore } from '../domain/ports/IProxyStateStore';
 import { buildProxyInstallGuide } from '../proxy/buildProxyInstallGuide';
-import { CertificateManager } from '../proxy/certificateManager';
+import type { CertificateManager } from '../proxy/certificateManager';
 import { verifyCaCertificateInstalled } from '../proxy/installCaCertificate';
 
 export class ProxyCertificateService implements IProxyCertificateService {

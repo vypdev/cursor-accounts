@@ -21,7 +21,15 @@ function formatDetails(details?: Record<string, unknown>): string {
         return `${key}=[object]`;
       }
     }
-    return `${key}=${String(value)}`;
+    if (
+      typeof value === 'string' ||
+      typeof value === 'number' ||
+      typeof value === 'boolean' ||
+      typeof value === 'bigint'
+    ) {
+      return `${key}=${value}`;
+    }
+    return `${key}=${JSON.stringify(value)}`;
   });
 
   return ` ${parts.join(' ')}`;
@@ -45,26 +53,11 @@ export function sinceActivateMs(): number {
   return Date.now() - activateTimestamp;
 }
 
-export function getActivateTimestamp(): number {
-  return activateTimestamp;
-}
-
 export function lifecycle(
   phase: string,
   details?: Record<string, unknown>
 ): void {
   extensionLog.info(`${LOG_PREFIX} phase=${phase}${formatDetails(details)}`);
-}
-
-export function lifecycleDebug(
-  phase: string,
-  details?: Record<string, unknown>
-): void {
-  if (!isVerboseEnabled()) {
-    return;
-  }
-
-  extensionLog.debug(`${LOG_PREFIX} phase=${phase}${formatDetails(details)}`);
 }
 
 export function fromWebview(
@@ -83,9 +76,4 @@ export function fromWebview(
   if (isVerboseEnabled()) {
     extensionLog.debug(line);
   }
-}
-
-/** Reset timing state (for tests). */
-export function resetLifecycleTimingForTests(): void {
-  activateTimestamp = 0;
 }

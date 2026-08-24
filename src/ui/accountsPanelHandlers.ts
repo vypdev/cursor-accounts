@@ -24,7 +24,9 @@ import type { ProfileDetector } from '../profiles/profileDetector';
 import { resolveRecentProjectLaunch } from '../profiles/recentProjectLaunchRouter';
 import type { ProfileWorkspaceService } from '../services/profileWorkspaceService';
 import type { IProfileSettingsManager } from '../domain/ports/IProfileSettingsManager';
-import type { IProxyManager } from '../domain/ports/IProxyManager';
+import type { IProxyCertificate } from '../domain/ports/IProxyCertificate';
+import type { IProxyLifecycle } from '../domain/ports/IProxyLifecycle';
+import type { IProxyOutput } from '../domain/ports/IProxyOutput';
 import { isProfileProxyEnabled, isProfileProxyJsonlLoggingEnabled } from '@cursor-accounts/types';
 import { saveCaCertificateAs } from '../proxy/saveCaCertificate';
 import { getOpenWorkspacePaths } from '../services/activeWorkspaceService';
@@ -51,7 +53,7 @@ export interface AccountsPanelHandlerDeps {
   storageCleanupService: IStorageCleanupService;
   storageAnalyzer: IProfileStorageAnalyzer;
   profileWorkspaceService: ProfileWorkspaceService;
-  proxyManager: IProxyManager;
+  proxyManager: IProxyLifecycle & IProxyCertificate & IProxyOutput;
   profileSettingsManager?: IProfileSettingsManager;
 }
 

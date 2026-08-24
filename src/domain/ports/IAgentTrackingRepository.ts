@@ -6,7 +6,7 @@ import type {
   TokenDeltaMinuteRecord,
   TokenSnapshotRecord,
   TurnEndedRecord,
-} from '../../application/types/agentPersistence';
+} from '../types/agentPersistence';
 
 /**
  * Repository interface for agent tracking persistence.

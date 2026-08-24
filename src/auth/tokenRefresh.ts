@@ -38,19 +38,34 @@ export class TokenService implements IRefreshableTokenProvider {
     const fromDb = await readAuthFromStateDb(stateDbPath, this.extensionPath);
     if (!fromDb?.accessToken) {
       const fromSecrets = await this.readFromSecrets(profileSecrets);
-      if (fromSecrets?.accessToken) {
+      if (
+        fromSecrets?.accessToken &&
+        !isTokenExpired(fromSecrets.accessToken)
+      ) {
         extensionLog.debug(
-          '[TokenService] Using access token from profile-scoped secrets (no DB tokens)'
+          '[TokenService] Using valid access token from profile-scoped secrets (no DB tokens)'
         );
         return fromSecrets;
       }
 
       const legacySecrets = await this.readFromSecrets(SECRETS_KEYS);
-      if (legacySecrets?.accessToken && !isTokenExpired(legacySecrets.accessToken)) {
+      if (
+        legacySecrets?.accessToken &&
+        !isTokenExpired(legacySecrets.accessToken)
+      ) {
         extensionLog.debug(
           '[TokenService] Using access token from legacy global secrets'
         );
         return legacySecrets;
+      }
+
+      const refreshToken =
+        fromSecrets?.refreshToken ?? legacySecrets?.refreshToken;
+      if (refreshToken) {
+        extensionLog.debug(
+          '[TokenService] Profile/legacy access token expired; refreshing via OAuth'
+        );
+        return this.refreshTokens(refreshToken, profileSecrets, signal);
       }
 
       throw new Error(

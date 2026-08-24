@@ -3,7 +3,7 @@ import type {
   ProxyApiEvent,
   ProxyApiServerOptions,
   ProxyApiStatusResponse,
-} from '../../application/types/proxyApi';
+} from '../types/proxyApi';
 
 /** Port for the localhost HTTP/WebSocket control plane exposed by the proxy child process. */
 export interface IProxyApiServer {

@@ -3,8 +3,8 @@ import { describe, it } from 'node:test';
 import type { IProxyStateStore } from '../../domain/ports/IProxyStateStore';
 import type { IProfileManager } from '../../domain/ports/IProfileManager';
 import type { Profile } from '@cursor-accounts/types';
-import { ProxyTrafficBus } from '../../application/services/proxyTrafficBus';
-import { ProxyTrafficIngress } from '../../application/services/proxyTrafficIngress';
+import { ProxyTrafficBus } from '../../proxy/proxyTrafficBus';
+import { ProxyTrafficIngress } from '../../proxy/proxyTrafficIngress';
 import { SHARED_PROXY_RUNTIME_KEY } from '../../proxy/types';
 
 describe('ProxyManager shared proxy', () => {

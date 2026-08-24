@@ -1,6 +1,6 @@
 import type { IInstanceDetector } from '../domain/ports/IInstanceDetector';
 import type { IProfileManager } from '../domain/ports/IProfileManager';
-import type { RestoreAllProfilesResult } from '../domain/ports/IProxyManager';
+import type { RestoreAllProfilesResult } from '../domain/ports/IProxyLifecycle';
 import type {
   IProfileSettingsManager,
   ProxyBackupInfo,

@@ -10,8 +10,11 @@ import { registerProfileCommands } from './commands/profileCommands';
 import { registerProxyCommands } from './commands/proxyCommands';
 import { ProxyStateFileStore } from './proxy/proxyStateFileStore';
 import { getSharedProxyStorageDir } from './proxy/sharedProxyPaths';
-import { ProxyOutputPresenter } from './proxy/proxyOutputPresenter';
-import { TokenDetectorOutputPresenter } from './proxy/tokenDetectorOutputPresenter';
+import {
+  ProxyOutputPresenter,
+  getProxyOutputConfig,
+} from './ui/presentation/proxyOutputPresenter';
+import { TokenDetectorOutputPresenter } from './ui/presentation/tokenDetectorOutputPresenter';
 import { ProxyManager } from './services/proxyManager';
 import { affectsCursorAccountsConfig } from './config';
 import { initL10n, t } from './l10n';
@@ -114,7 +117,9 @@ export function activate(context: vscode.ExtensionContext): void {
     proxySettingsService,
     profileSettingsManager,
     proxyOutputPresenter,
-    tokenDetectorPresenter
+    tokenDetectorPresenter,
+    undefined,
+    getProxyOutputConfig
   );
   proxyManagerRef = proxyManager;
 
@@ -234,7 +239,11 @@ export function activate(context: vscode.ExtensionContext): void {
     if (!isCurrentActivation()) {
       proxyManager.dispose();
     }
-  })();
+  })().catch((error: unknown) => {
+    extensionLog.debug(
+      `[Extension] Initial traffic ingress unavailable: ${extensionLog.formatError(error)}`
+    );
+  });
 
   proxyManager.onStatusChange(() => {
     void accountsPanel.refreshProxyStatus();

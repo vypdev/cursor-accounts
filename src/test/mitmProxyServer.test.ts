@@ -59,7 +59,7 @@ describe('MitmProxyServer forwarding', () => {
 
     backendServer = http.createServer((req, res) => {
       const chunks: Buffer[] = [];
-      req.on('data', (chunk) => chunks.push(chunk));
+      req.on('data', (chunk) => chunks.push(Buffer.from(chunk as Uint8Array)));
       req.on('end', () => {
         const body = Buffer.concat(chunks).toString('utf8');
         received.push({ method: req.method, body });
@@ -111,7 +111,7 @@ describe('MitmProxyServer forwarding', () => {
         },
         (res) => {
           const chunks: Buffer[] = [];
-          res.on('data', (chunk) => chunks.push(chunk));
+          res.on('data', (chunk) => chunks.push(Buffer.from(chunk as Uint8Array)));
           res.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
         }
       );

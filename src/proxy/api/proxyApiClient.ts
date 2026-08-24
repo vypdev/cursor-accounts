@@ -17,6 +17,7 @@ export interface ProxyApiClientOptions {
   connectTimeoutMs?: number;
   reconnect?: boolean;
   maxReconnectAttempts?: number;
+  apiToken?: string;
 }
 
 /**
@@ -38,7 +39,14 @@ export class ProxyApiClient implements IProxyApiClient {
 
   async connect(): Promise<void> {
     this.intentionalDisconnect = false;
-    await this.connectWebSocket();
+    try {
+      await this.connectWebSocket();
+    } catch (error) {
+      // A failed initial connection must not leave an orphaned reconnect loop
+      // when the caller does not retain the client instance.
+      this.disconnect();
+      throw error;
+    }
   }
 
   disconnect(): void {
@@ -57,7 +65,9 @@ export class ProxyApiClient implements IProxyApiClient {
   }
 
   async getStatus(): Promise<ProxyApiStatusResponse> {
-    const response = await fetch(`${this.baseUrl}${PROXY_API_PATHS.status}`);
+    const response = await fetch(`${this.baseUrl}${PROXY_API_PATHS.status}`, {
+      headers: this.authHeaders(),
+    });
     if (!response.ok) {
       throw new Error(`Proxy API status failed: HTTP ${response.status}`);
     }
@@ -65,7 +75,9 @@ export class ProxyApiClient implements IProxyApiClient {
   }
 
   async getStats(): Promise<ProxyStatistics> {
-    const response = await fetch(`${this.baseUrl}${PROXY_API_PATHS.stats}`);
+    const response = await fetch(`${this.baseUrl}${PROXY_API_PATHS.stats}`, {
+      headers: this.authHeaders(),
+    });
     if (!response.ok) {
       throw new Error(`Proxy API stats failed: HTTP ${response.status}`);
     }
@@ -75,6 +87,7 @@ export class ProxyApiClient implements IProxyApiClient {
   async shutdown(): Promise<void> {
     const response = await fetch(`${this.baseUrl}${PROXY_API_PATHS.shutdown}`, {
       method: 'POST',
+      headers: this.authHeaders(),
     });
     if (!response.ok) {
       throw new Error(`Proxy API shutdown failed: HTTP ${response.status}`);
@@ -93,7 +106,9 @@ export class ProxyApiClient implements IProxyApiClient {
     const timeoutMs = this.options.connectTimeoutMs ?? DEFAULT_CONNECT_TIMEOUT_MS;
 
     await new Promise<void>((resolve, reject) => {
-      const ws = new WebSocket(wsUrl);
+      const ws = new WebSocket(wsUrl, {
+        headers: this.authHeaders(),
+      });
       this.ws = ws;
 
       const timeout = setTimeout(() => {
@@ -114,7 +129,12 @@ export class ProxyApiClient implements IProxyApiClient {
 
       ws.on('message', (data) => {
         try {
-          const event = JSON.parse(String(data)) as ProxyApiEvent;
+          const payload = Buffer.isBuffer(data)
+            ? data.toString('utf8')
+            : typeof data === 'string'
+              ? data
+              : JSON.stringify(data);
+          const event = JSON.parse(payload) as ProxyApiEvent;
           for (const listener of this.listeners) {
             listener(event);
           }
@@ -128,6 +148,12 @@ export class ProxyApiClient implements IProxyApiClient {
         this.scheduleReconnect();
       });
     });
+  }
+
+  private authHeaders(): Record<string, string> {
+    return this.options.apiToken
+      ? { authorization: `Bearer ${this.options.apiToken}` }
+      : {};
   }
 
   private scheduleReconnect(): void {

@@ -381,7 +381,7 @@ flowchart TB
 | API client | `src/proxy/api/proxyApiClient.ts` (`IProxyApiClient`) | Extension-side HTTP/WS consumer (multi-window) |
 | Certificates | `src/services/proxyCertificateService.ts` | CA trust and install guide |
 | Traffic bus | `src/application/services/proxyTrafficBus.ts` | Pub/sub for `ProxyTrafficSummary` |
-| Traffic ingress | `src/application/services/proxyTrafficIngress.ts` | WebSocket API attach + optional JSONL tail |
+| Traffic ingress | `src/proxy/proxyTrafficIngress.ts` | WebSocket API attach + optional JSONL tail |
 | MITM | `src/proxy/polyglotMitmProxyServer.ts` | HTTP/1.x + HTTP/2 capture (`IProxyServer`) |
 | DB pool | `src/persistence/betterSqlite/sqliteAgentTrackingDbPool.ts` (`IAgentTrackingDbPool`) | Per-profile better-sqlite3 connections in shared proxy child |
 | Agent ingress | `src/proxy/proxyAgentTrackingIngress.ts` | Filters agent metrics; persists via pool in child |

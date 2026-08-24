@@ -1,9 +1,9 @@
-import type { ProxyTrafficSummary } from '../types/proxyTraffic';
+import type { ProxyTrafficSummary } from '../application/types/proxyTraffic';
 import type {
   IProxyTrafficBus,
   TrafficListener,
-} from '../../domain/ports/IProxyTrafficBus';
-import * as extensionLog from '../../logging/extensionLog';
+} from '../domain/ports/IProxyTrafficBus';
+import * as extensionLog from '../logging/extensionLog';
 
 export class ProxyTrafficBus implements IProxyTrafficBus {
   private readonly listeners: TrafficListener[] = [];

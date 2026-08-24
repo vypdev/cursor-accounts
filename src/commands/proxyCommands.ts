@@ -1,13 +1,34 @@
 import * as vscode from 'vscode';
-import type { IProxyManager } from '../domain/ports/IProxyManager';
+import type { IProxyCertificate } from '../domain/ports/IProxyCertificate';
+import type { IProxyLifecycle } from '../domain/ports/IProxyLifecycle';
+import type { IProxyOutput } from '../domain/ports/IProxyOutput';
+import type { IProxyStatus } from '../domain/ports/IProxyStatus';
 import type { ProfileDetector } from '../profiles/profileDetector';
 import { isProfileProxyEnabled } from '@cursor-accounts/types';
 import { t } from '../l10n';
 import { saveCaCertificateAs } from '../proxy/saveCaCertificate';
 
+type DetectedProfile = NonNullable<
+  Awaited<ReturnType<ProfileDetector['detectCurrentProfile']>>
+>;
+
+async function getEnabledCurrentProfile(
+  profileDetector: ProfileDetector
+): Promise<DetectedProfile | null> {
+  const currentProfile = await profileDetector.detectCurrentProfile();
+  if (!currentProfile || !isProfileProxyEnabled(currentProfile)) {
+    vscode.window.showWarningMessage(t('commands.proxy.requiresProfile'));
+    return null;
+  }
+  return currentProfile;
+}
+
 export function registerProxyCommands(
   context: vscode.ExtensionContext,
-  proxyManager: IProxyManager,
+  proxyManager: IProxyLifecycle &
+    IProxyStatus &
+    IProxyCertificate &
+    IProxyOutput,
   profileDetector: ProfileDetector,
   onStatusChanged?: () => void
 ): void {
@@ -17,9 +38,8 @@ export function registerProxyCommands(
 
   context.subscriptions.push(
     vscode.commands.registerCommand('cursorAccounts.proxy.start', async () => {
-      const currentProfile = await profileDetector.detectCurrentProfile();
-      if (!currentProfile || !isProfileProxyEnabled(currentProfile)) {
-        vscode.window.showWarningMessage(t('commands.proxy.requiresProfile'));
+      const currentProfile = await getEnabledCurrentProfile(profileDetector);
+      if (!currentProfile) {
         return;
       }
 
@@ -38,9 +58,8 @@ export function registerProxyCommands(
     }),
 
     vscode.commands.registerCommand('cursorAccounts.proxy.stop', async () => {
-      const currentProfile = await profileDetector.detectCurrentProfile();
-      if (!currentProfile || !isProfileProxyEnabled(currentProfile)) {
-        vscode.window.showWarningMessage(t('commands.proxy.requiresProfile'));
+      const currentProfile = await getEnabledCurrentProfile(profileDetector);
+      if (!currentProfile) {
         return;
       }
 
@@ -56,10 +75,37 @@ export function registerProxyCommands(
       );
     }),
 
+    vscode.commands.registerCommand(
+      'cursorAccounts.proxy.clearLogs',
+      async () => {
+        const confirmation = await vscode.window.showWarningMessage(
+          t('commands.proxy.logsDeleteConfirm'),
+          { modal: true },
+          t('commands.proxy.logsDeleteConfirmAction')
+        );
+        if (confirmation !== t('commands.proxy.logsDeleteConfirmAction')) {
+          return;
+        }
+        try {
+          const result = await proxyManager.clearLogFiles();
+          vscode.window.showInformationMessage(
+            t('commands.proxy.logsDeleted', {
+              count: String(result.deletedFiles),
+            })
+          );
+        } catch (error) {
+          vscode.window.showErrorMessage(
+            t('commands.proxy.logsDeleteFailed', {
+              error: error instanceof Error ? error.message : String(error),
+            })
+          );
+        }
+      }
+    ),
+
     vscode.commands.registerCommand('cursorAccounts.proxy.showOutput', async () => {
-      const currentProfile = await profileDetector.detectCurrentProfile();
-      if (!currentProfile || !isProfileProxyEnabled(currentProfile)) {
-        vscode.window.showWarningMessage(t('commands.proxy.requiresProfile'));
+      const currentProfile = await getEnabledCurrentProfile(profileDetector);
+      if (!currentProfile) {
         return;
       }
 
@@ -72,7 +118,7 @@ export function registerProxyCommands(
 
     vscode.commands.registerCommand(
       'cursorAccounts.proxy.showTokenDetector',
-      async () => {
+      () => {
         proxyManager.showTokenDetectorChannel();
       }
     ),

@@ -378,7 +378,8 @@ const AppContent: React.FC<AppContentProps> = ({
         vscodeApi.toggleEfficiency(profileId, updates.efficiencyAnalysisEnabled);
       }
 
-      const { efficiencyAnalysisEnabled: _efficiency, ...otherUpdates } = updates;
+      const otherUpdates = { ...updates };
+      delete otherUpdates.efficiencyAnalysisEnabled;
 
       if (Object.keys(otherUpdates).length > 0) {
         vscodeApi.editProfile(profileId, otherUpdates);

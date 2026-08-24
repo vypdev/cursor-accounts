@@ -1,4 +1,4 @@
-import type { ProxyTrafficSummary } from '../../application/types/proxyTraffic';
+import type { ProxyTrafficSummary } from '../types/proxyTraffic';
 
 export type TrafficListener = (
   summary: ProxyTrafficSummary,

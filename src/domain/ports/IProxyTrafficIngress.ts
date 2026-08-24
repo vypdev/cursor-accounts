@@ -15,6 +15,7 @@ export interface IProxyTrafficIngress {
       tailFromStart?: boolean;
       forceRestart?: boolean;
       apiPort?: number;
+      apiToken?: string;
     }
   ): Promise<void>;
   stop(profileId: string): void;

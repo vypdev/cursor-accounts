@@ -4,7 +4,8 @@ import type { Server as HttpsServer } from 'https';
 import * as tls from 'tls';
 import type { TlsOptions } from 'tls';
 import type { Proxy } from 'http-mitm-proxy';
-import WebSocket, { WebSocketServer } from 'ws';
+import type WebSocket from 'ws';
+import { WebSocketServer } from 'ws';
 import type { AddressInfo } from 'net';
 import { DEFAULT_ALPN_PROTOCOLS } from '../domain/types/httpProtocol';
 

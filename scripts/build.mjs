@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { cleanProductionDeps } from './clean-production-deps.mjs';
 import { prepareSdkForTarget } from './prepare-sdk-for-target.mjs';
+import { sanitizeVsix } from './sanitize-vsix.mjs';
 import { convertToProduction, restoreState, saveState } from './workspace-state.mjs';
 
 const ALL_TARGETS = [
@@ -169,14 +170,45 @@ function packageTarget(target) {
     `--target ${target}`,
     '--allow-missing-repository',
     '--allow-star-activation',
+    '--dependencies',
+    '--follow-symlinks',
     '--no-rewrite-relative-links',
   ].join(' ');
 
+  const shimDirectory = path.join(root, '.tmp', 'vsce-bin');
+  const shimName = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+  const shimPath = path.join(shimDirectory, shimName);
+  fs.mkdirSync(shimDirectory, { recursive: true });
+  if (process.platform === 'win32') {
+    fs.writeFileSync(
+      shimPath,
+      `@node "${path.join(root, 'scripts', 'vsce-pnpm-npm-shim.mjs')}" %*\r\n`
+    );
+  } else {
+    fs.copyFileSync(
+      path.join(root, 'scripts', 'vsce-pnpm-npm-shim.mjs'),
+      shimPath
+    );
+    fs.chmodSync(shimPath, 0o755);
+  }
+  const realNpm = process.platform === 'win32' ? 'npm.cmd' : execSync('command -v npm', { encoding: 'utf8' }).trim();
+
   run(`${vsceArgs}`, {
-    env: { ...process.env, SKIP_PREPUBLISH: '1' },
+    env: {
+      ...process.env,
+      PATH: `${shimDirectory}${path.delimiter}${process.env.PATH ?? ''}`,
+      VSCE_REAL_NPM: realNpm,
+      SKIP_PREPUBLISH: '1',
+    },
   });
 
   run('node scripts/restore-bin.mjs');
+  const version = JSON.parse(
+    fs.readFileSync(path.join(root, 'package.json'), 'utf8')
+  ).version;
+  sanitizeVsix(
+    path.join(root, `cursor-accounts-${target}-${version}.vsix`)
+  );
 }
 
 function verifyVsix(target) {
@@ -202,12 +234,34 @@ function verifyVsix(target) {
       label: '@cursor/sdk',
       pattern: 'extension/node_modules/@cursor/sdk/package.json',
     },
-    { label: 'undici', pattern: 'extension/node_modules/undici/package.json' },
-    { label: 'bindings', pattern: 'extension/node_modules/bindings/package.json' },
+    {
+      label: 'undici',
+      pattern: 'extension/node_modules/.pnpm/undici@.*/node_modules/undici/package.json',
+    },
+    {
+      label: 'bindings',
+      pattern: 'extension/node_modules/.pnpm/bindings@.*/node_modules/bindings/package.json',
+    },
     {
       label: 'efficiency SQL migrations',
       pattern: 'extension/out/persistence/migrations/001_initial_schema.sql',
     },
+  ];
+
+  const forbiddenPatterns = [
+    'extension/.repowise/',
+    'extension/graphify-out/',
+    'extension/coverage/',
+    'extension/webview/src/',
+    'extension/webview/node_modules/',
+    'extension/.build-backup/',
+    'extension/.tmp-proto-test/',
+    'extension/packages/',
+    'extension/docs/',
+    'extension/scripts/',
+  ];
+  const forbiddenRegexPatterns = [
+    'extension/node_modules/.*/(docs|coverage|tests?|scripts|gyp|testdata)/',
   ];
 
   const sdkPackage = PLATFORM_SDK_PACKAGE[target];
@@ -231,6 +285,38 @@ function verifyVsix(target) {
       throw new Error(`VSIX verification failed: missing ${label}`);
     }
   }
+
+  for (const pattern of forbiddenPatterns) {
+    try {
+      execSync(`unzip -l "${vsixPath}" | grep -F "${pattern}"`, {
+        cwd: root,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      throw new Error(`VSIX verification failed: forbidden artifact ${pattern}`);
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith('VSIX verification failed:')) {
+        throw error;
+      }
+      // The forbidden pattern was not found.
+    }
+  }
+
+  for (const pattern of forbiddenRegexPatterns) {
+    try {
+      execSync(`unzip -l "${vsixPath}" | grep -E "${pattern}"`, {
+        cwd: root,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      throw new Error(`VSIX verification failed: forbidden artifact ${pattern}`);
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith('VSIX verification failed:')) {
+        throw error;
+      }
+      // The forbidden pattern was not found.
+    }
+  }
 }
 
 async function main() {
@@ -243,9 +329,9 @@ async function main() {
     await preparePackage();
 
     saveState();
+    packagingPrepared = true;
     convertToProduction();
     cleanProductionDeps();
-    packagingPrepared = true;
 
     for (const target of args.targets) {
       packageTarget(target);

@@ -1,17 +1,27 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as vscode from 'vscode';
+import { randomBytes } from 'node:crypto';
 import type {
   ProxyStartResult,
   IProxyManager,
   RestoreAllProfilesResult,
 } from '../domain/ports/IProxyManager';
+import type {
+  ConversationUsagePersistedListener,
+  ProxyTrafficListener,
+} from '../domain/ports/IProxyTraffic';
 import type { IProfileManager } from '../domain/ports/IProfileManager';
 import type { IProfileSettingsManager } from '../domain/ports/IProfileSettingsManager';
 import type { IProxyCertificateService } from '../domain/ports/IProxyCertificateService';
 import type { IProxyProcess } from '../domain/ports/IProxyProcess';
 import type { IProxyTrafficBus, TrafficListener } from '../domain/ports/IProxyTrafficBus';
 import type { IProxyTrafficIngress } from '../domain/ports/IProxyTrafficIngress';
+import type {
+  IProxyOutputPresenter,
+  ITokenDetectorOutputPresenter,
+  ProxyOutputSettings,
+} from '../domain/ports/IProxyOutputPresenter';
 import type { IProxyStateStore } from '../domain/ports/IProxyStateStore';
 import type { IProfileAuthReader } from '../domain/ports/IProfileAuthReader';
 import {
@@ -24,13 +34,10 @@ import {
   type Profile,
 } from '@cursor-accounts/types';
 import type { ProxyServerConfig } from '../application/types/proxyConfig';
-import { createProxyCostEnricher } from '../application/services/proxyCostEnricher';
-import { ProxyTrafficBus } from '../application/services/proxyTrafficBus';
-import { ProxyTrafficIngress } from '../application/services/proxyTrafficIngress';
+import { createProxyCostEnricher } from '../proxy/proxyCostEnricher';
+import { ProxyTrafficBus } from '../proxy/proxyTrafficBus';
+import { ProxyTrafficIngress } from '../proxy/proxyTrafficIngress';
 import { formatDiagnosticsSummaryLines } from '../proxy/proxyTrafficDiagnostics';
-import { getProxyOutputConfig } from '../proxy/proxyOutputPresenter';
-import type { ProxyOutputPresenter } from '../proxy/proxyOutputPresenter';
-import type { TokenDetectorOutputPresenter } from '../proxy/tokenDetectorOutputPresenter';
 import * as extensionLog from '../logging/extensionLog';
 import { CertificateManager } from '../proxy/certificateManager';
 import { getSharedProxyStorageDir } from '../proxy/sharedProxyPaths';
@@ -40,10 +47,8 @@ import {
   ProxyApiClient,
   resolveProxyApiPort,
 } from '../proxy/api/proxyApiClient';
-import {
-  PROXY_API_PATHS,
-  type ProxyApiHealthResponse,
-} from '../application/types/proxyApi';
+import { pollProxyHealth } from '../proxy/proxyHealthPoller';
+import { clearProxyLogDirectory } from '../proxy/proxyLogCleanup';
 import { isPortAvailable, isProcessAlive } from '../proxy/portUtils';
 import {
   getAllUsedProxyPorts,
@@ -57,28 +62,16 @@ import {
 } from '../proxy/types';
 import { decodeJwtPayload } from '../auth/tokenReader';
 import { ProfileAuthReader } from '../auth/profileAuthReader';
-import { createAgentTrackingRepository } from '../persistence/agentTrackingRepositoryFactory';
 import { getEfficiencyDbPath } from '../persistence/efficiencyDatabase';
-import { ProxyLiveCostCalculator } from '../domain/services/ProxyLiveCostCalculator';
-import { TokenTurnDetectionService } from '../domain/services/tokenTurnDetectionService';
-import { CursorModelPricingProvider } from '../modelEfficiency/cursorModelPricingProvider';
-import { AgentTrackingService } from './agentTrackingService';
+import type { AgentTrackingService } from './agentTrackingService';
+import { ProxyAgentTrackingCoordinator } from './proxyAgentTrackingCoordinator';
+import { ProxyTrafficIngressCoordinator } from './proxyTrafficIngressCoordinator';
 import { ProxyCertificateService } from './proxyCertificateService';
 import type { ProxySettingsService } from './proxySettingsService';
 
-export type ProxyTrafficListener = TrafficListener;
-
-export interface ConversationUsagePersistedEvent {
-  conversationId: string;
-  profileId: string;
-}
-
-export type ConversationUsagePersistedListener = (
-  event: ConversationUsagePersistedEvent
-) => void;
+export type { ConversationUsagePersistedEvent, ConversationUsagePersistedListener, ProxyTrafficListener } from '../domain/ports/IProxyTraffic';
 
 const PROXY_START_TIMEOUT_MS = 15_000;
-const PROXY_HEALTH_POLL_MS = 200;
 const PROXY_STOP_GRACE_MS = 500;
 
 interface ProfileProxyRuntime {
@@ -86,6 +79,7 @@ interface ProfileProxyRuntime {
   port: number;
   apiPort: number;
   userDataDir: string;
+  apiToken?: string;
 }
 
 export interface ProxyManagerDependencies {
@@ -104,11 +98,13 @@ export class ProxyManager implements IProxyManager {
   private readonly statusCallbacks: Array<() => void> = [];
   private readonly usagePersistedListeners: ConversationUsagePersistedListener[] =
     [];
-  private readonly agentTrackingServices = new Map<string, AgentTrackingService>();
+  private readonly agentTrackingCoordinator: ProxyAgentTrackingCoordinator;
+  private readonly trafficIngressCoordinator: ProxyTrafficIngressCoordinator;
   private readonly storageDir: string;
   private readonly logDir: string;
   private lastDiagnosticsOutputAt = 0;
   private readonly deps: ProxyManagerDependencies;
+  private readonly getOutputConfig: () => ProxyOutputSettings;
 
   constructor(
     private readonly stateStore: IProxyStateStore,
@@ -117,9 +113,10 @@ export class ProxyManager implements IProxyManager {
     storageDir: string = getSharedProxyStorageDir(),
     private readonly proxySettingsService?: ProxySettingsService,
     private readonly profileSettingsManager?: IProfileSettingsManager,
-    private readonly outputPresenter?: ProxyOutputPresenter,
-    private readonly tokenDetectorPresenter?: TokenDetectorOutputPresenter,
-    deps?: ProxyManagerDependencies
+    private readonly outputPresenter?: IProxyOutputPresenter,
+    private readonly tokenDetectorPresenter?: ITokenDetectorOutputPresenter,
+    deps?: ProxyManagerDependencies,
+    getOutputConfig?: () => ProxyOutputSettings
   ) {
     this.storageDir = storageDir;
     this.logDir = path.join(this.storageDir, 'logs');
@@ -130,6 +127,35 @@ export class ProxyManager implements IProxyManager {
         this.logDir,
         context.extensionPath
       );
+    this.getOutputConfig =
+      getOutputConfig ??
+      (() => {
+        const config = vscode.workspace.getConfiguration('cursorAccounts.proxy');
+        return {
+          logTrafficToOutput: config.get<boolean>('logTrafficToOutput', true),
+          autoShowOutputChannel: config.get<boolean>('autoShowOutputChannel', false),
+          outputCursorHostsOnly: config.get<boolean>('outputCursorHostsOnly', false),
+        };
+      });
+    this.agentTrackingCoordinator = new ProxyAgentTrackingCoordinator(
+      context.extensionPath,
+      () =>
+        vscode.workspace
+          .getConfiguration('cursorAccounts.proxy')
+          .get<number>('estimatedDollarsPerMillionTokens', 4),
+      {
+        onInitialized: (profileId) =>
+          this.tokenDetectorPresenter?.appendInitialized(profileId),
+      }
+    );
+    this.trafficIngressCoordinator = new ProxyTrafficIngressCoordinator({
+      profileManager: this.profileManager,
+      trafficIngress: this.deps.trafficIngress,
+      outputPresenter: this.outputPresenter,
+      getOutputConfig: this.getOutputConfig,
+      hasRuntime: (profileId) => this.runtimes.has(profileId),
+      sharedRuntimeKey: SHARED_PROXY_RUNTIME_KEY,
+    });
     this.deps.trafficBus.subscribe((summary, profileId) => {
       void this.handleTraffic(summary, profileId);
     });
@@ -293,7 +319,7 @@ export class ProxyManager implements IProxyManager {
           SHARED_PROXY_RUNTIME_KEY,
           existing.port,
           existing.apiPort,
-          { forceRestart: false }
+          { forceRestart: false, apiToken: existing.apiToken }
         );
       }
       return { success: true, port: existing.port };
@@ -303,16 +329,13 @@ export class ProxyManager implements IProxyManager {
     if (sharedState?.running && sharedState.port != null) {
       const apiPort = this.resolveApiPort(sharedState.port, sharedState.apiPort);
       try {
-        const probe = new ProxyApiClient({
-          baseUrl: buildProxyApiBaseUrl(apiPort),
-          reconnect: false,
-        });
+        const probe = this.createApiClient(apiPort, sharedState.apiToken);
         const status = await probe.getStatus();
         if (status.running) {
           for (const profile of enabledProfiles) {
             await this.applyProxySettingsForProfile(
               profile.userDataDir,
-              sharedState.port!
+              sharedState.port
             );
             await this.ensureAgentTracking(profile.id, profile.userDataDir);
           }
@@ -320,7 +343,7 @@ export class ProxyManager implements IProxyManager {
             SHARED_PROXY_RUNTIME_KEY,
             sharedState.port,
             apiPort,
-            { forceRestart: true }
+            { forceRestart: true, apiToken: sharedState.apiToken }
           );
           this.notifyStatusChange();
           return { success: true, port: sharedState.port };
@@ -374,14 +397,15 @@ export class ProxyManager implements IProxyManager {
     });
 
     const runtime = await proxyProcess.start(serverConfig);
-    const ready = await this.pollProxyHealth(
+    const ready = await pollProxyHealth(
       serverConfig.apiPort,
       PROXY_START_TIMEOUT_MS,
       {
         getStderr: () => stderrLines.join('\n'),
         isProcessAlive: () =>
           runtime.pid != null && proxyProcess.isAlive(runtime.pid),
-      }
+      },
+      serverConfig.apiToken
     );
     if (!ready.success) {
       await proxyProcess.stop(runtime.pid, 'SIGKILL');
@@ -396,6 +420,7 @@ export class ProxyManager implements IProxyManager {
       port,
       apiPort: serverConfig.apiPort,
       userDataDir: this.storageDir,
+      apiToken: serverConfig.apiToken,
     });
 
     const state: ProxyStateFile = {
@@ -404,6 +429,7 @@ export class ProxyManager implements IProxyManager {
       running: true,
       port,
       apiPort: serverConfig.apiPort,
+      apiToken: serverConfig.apiToken,
       pid: runtime.pid,
       startedAt: new Date().toISOString(),
       caCertificatePath: caPath,
@@ -425,10 +451,10 @@ export class ProxyManager implements IProxyManager {
       SHARED_PROXY_RUNTIME_KEY,
       port,
       serverConfig.apiPort,
-      { forceRestart: true }
+      { forceRestart: true, apiToken: serverConfig.apiToken }
     );
 
-    if (getProxyOutputConfig().autoShowOutputChannel) {
+    if (this.getOutputConfig().autoShowOutputChannel) {
       this.outputPresenter?.show();
     }
 
@@ -446,10 +472,7 @@ export class ProxyManager implements IProxyManager {
 
     if (apiPort != null) {
       try {
-        await new ProxyApiClient({
-          baseUrl: buildProxyApiBaseUrl(apiPort),
-          reconnect: false,
-        }).shutdown();
+        await this.createApiClient(apiPort, runtime?.apiToken).shutdown();
         await new Promise((resolve) => setTimeout(resolve, PROXY_STOP_GRACE_MS));
       } catch (error) {
         extensionLog.debug(
@@ -501,7 +524,7 @@ export class ProxyManager implements IProxyManager {
     if (effectiveProfileId && effectiveProfileId !== SHARED_PROXY_RUNTIME_KEY) {
       if (!this.isSharedProxyActive()) {
         await this.ensureAgentTrackingForProfile(effectiveProfileId);
-        const tracking = this.agentTrackingServices.get(effectiveProfileId);
+        const tracking = this.agentTrackingCoordinator.get(effectiveProfileId);
         if (!tracking && isAgentTraffic) {
           extensionLog.warn(
             `[AgentTracking] no AgentTrackingService for profile=${effectiveProfileId}`
@@ -565,7 +588,7 @@ export class ProxyManager implements IProxyManager {
       );
     }
     this.tokenDetectorPresenter?.appendTraffic(summary, effectiveProfileId);
-    if (getProxyOutputConfig().logTrafficToOutput) {
+    if (this.getOutputConfig().logTrafficToOutput) {
       this.outputPresenter?.appendTraffic(summary);
     }
   }
@@ -585,7 +608,7 @@ export class ProxyManager implements IProxyManager {
   }
 
   getAgentTrackingService(profileId: string): AgentTrackingService | undefined {
-    return this.agentTrackingServices.get(profileId);
+    return this.agentTrackingCoordinator.get(profileId);
   }
 
   private isProfileJsonlLogging(profile: Profile): boolean {
@@ -606,6 +629,14 @@ export class ProxyManager implements IProxyManager {
     );
   }
 
+  private createApiClient(apiPort: number, apiToken?: string): ProxyApiClient {
+    return new ProxyApiClient({
+      baseUrl: buildProxyApiBaseUrl(apiPort),
+      reconnect: false,
+      apiToken,
+    });
+  }
+
   private async ensureTrafficIngress(
     profileId: string,
     mitmPort: number,
@@ -613,33 +644,14 @@ export class ProxyManager implements IProxyManager {
     options?: {
       forceRestart?: boolean;
       tailFromStart?: boolean;
+      apiToken?: string;
     }
   ): Promise<void> {
-    let jsonlTail = false;
-    if (profileId === SHARED_PROXY_RUNTIME_KEY) {
-      const profiles = await this.profileManager.getProfiles();
-      jsonlTail = profiles.some((profile) => this.isProfileJsonlLogging(profile));
-    } else {
-      const profile = await this.profileManager.getProfile(profileId);
-      jsonlTail = profile ? this.isProfileJsonlLogging(profile) : false;
-    }
-
-    const attached =
-      !this.runtimes.has(profileId) || options?.forceRestart === true;
-    if (attached && getProxyOutputConfig().logTrafficToOutput) {
-      this.outputPresenter?.appendAttached(mitmPort);
-    }
-
-    await this.deps.trafficIngress.start(
+    await this.trafficIngressCoordinator.ensure(
       profileId,
       mitmPort,
-      { api: true, jsonlTail },
-      {
-        apiPort,
-        attached,
-        tailFromStart: options?.tailFromStart,
-        forceRestart: options?.forceRestart,
-      }
+      apiPort,
+      options
     );
   }
 
@@ -653,10 +665,7 @@ export class ProxyManager implements IProxyManager {
     if (sharedState?.running && sharedState.port != null) {
       const apiPort = this.resolveApiPort(sharedState.port, sharedState.apiPort);
       try {
-        const probe = new ProxyApiClient({
-          baseUrl: buildProxyApiBaseUrl(apiPort),
-          reconnect: false,
-        });
+        const probe = this.createApiClient(apiPort, sharedState.apiToken);
         const status = await probe.getStatus();
         if (status.running) {
           await this.ensureAgentTracking(profileId, profile.userDataDir).catch(
@@ -676,7 +685,7 @@ export class ProxyManager implements IProxyManager {
             SHARED_PROXY_RUNTIME_KEY,
             sharedState.port,
             apiPort,
-            { forceRestart: true }
+            { forceRestart: true, apiToken: sharedState.apiToken }
           );
           this.notifyStatusChange();
           return;
@@ -694,10 +703,7 @@ export class ProxyManager implements IProxyManager {
     const apiPort = this.resolveApiPort(state.port, state.apiPort);
 
     try {
-      const probe = new ProxyApiClient({
-        baseUrl: buildProxyApiBaseUrl(apiPort),
-        reconnect: false,
-      });
+      const probe = this.createApiClient(apiPort, state.apiToken);
       const status = await probe.getStatus();
       if (!status.running) {
         await this.stateStore.clear(profile.userDataDir);
@@ -716,6 +722,7 @@ export class ProxyManager implements IProxyManager {
       await this.applyProxySettingsForProfile(profile.userDataDir, state.port);
       await this.ensureTrafficIngress(profileId, state.port, apiPort, {
         forceRestart: true,
+        apiToken: state.apiToken,
       });
       this.notifyStatusChange();
     } catch (error) {
@@ -781,10 +788,7 @@ export class ProxyManager implements IProxyManager {
 
       if (apiPort != null) {
         try {
-          await new ProxyApiClient({
-            baseUrl: buildProxyApiBaseUrl(apiPort),
-            reconnect: false,
-          }).shutdown();
+          await this.createApiClient(apiPort, state?.apiToken).shutdown();
           await new Promise((resolve) => setTimeout(resolve, PROXY_STOP_GRACE_MS));
         } catch (error) {
           extensionLog.debug(
@@ -936,6 +940,7 @@ export class ProxyManager implements IProxyManager {
   }
 
   async isCurrentWindowUsingProxy(): Promise<boolean> {
+    await Promise.resolve();
     const hasProxyArg = process.argv.some((arg) =>
       arg.includes('--proxy-server')
     );
@@ -945,12 +950,42 @@ export class ProxyManager implements IProxyManager {
     return hasProxyArg || hasCaCert;
   }
 
+  private async getApiToken(profileId: string): Promise<string | undefined> {
+    const runtime = this.runtimes.get(profileId);
+    if (runtime?.apiToken) {
+      return runtime.apiToken;
+    }
+    const sharedRuntime = this.runtimes.get(SHARED_PROXY_RUNTIME_KEY);
+    if (sharedRuntime?.apiToken) {
+      return sharedRuntime.apiToken;
+    }
+    const sharedState = await this.readSharedProxyState();
+    if (sharedState?.apiToken) {
+      return sharedState.apiToken;
+    }
+    const profile = await this.profileManager.getProfile(profileId);
+    if (!profile) {
+      return undefined;
+    }
+    return (await this.stateStore.read(profile.userDataDir))?.apiToken;
+  }
+
   async getCertificatePath(): Promise<string | null> {
     return this.deps.certService.getCertificatePath();
   }
 
   getLogDirectory(): string {
     return this.logDir;
+  }
+
+  async clearLogFiles(): Promise<{
+    deletedFiles: number;
+    deletedBytes: number;
+  }> {
+    if (this.runtimes.size > 0) {
+      throw new Error('Stop the proxy before deleting its logs');
+    }
+    return clearProxyLogDirectory(this.logDir);
   }
 
   showTokenDetectorChannel(): void {
@@ -970,6 +1005,7 @@ export class ProxyManager implements IProxyManager {
     await this.ensureTrafficIngress(profileId, status.port, apiPort, {
       forceRestart: options?.forceRestart,
       tailFromStart: options?.tailFromStart,
+      apiToken: await this.getApiToken(profileId),
     });
   }
 
@@ -980,7 +1016,7 @@ export class ProxyManager implements IProxyManager {
         SHARED_PROXY_RUNTIME_KEY,
         sharedRuntime.port,
         sharedRuntime.apiPort,
-        { forceRestart: false }
+        { forceRestart: false, apiToken: sharedRuntime.apiToken }
       );
       return;
     }
@@ -992,7 +1028,7 @@ export class ProxyManager implements IProxyManager {
         SHARED_PROXY_RUNTIME_KEY,
         sharedState.port,
         apiPort,
-        { forceRestart: false }
+        { forceRestart: false, apiToken: sharedState.apiToken }
       );
       return;
     }
@@ -1000,6 +1036,7 @@ export class ProxyManager implements IProxyManager {
     for (const [profileId, runtime] of this.runtimes) {
       await this.ensureTrafficIngress(profileId, runtime.port, runtime.apiPort, {
         forceRestart: false,
+        apiToken: runtime.apiToken,
       });
       return;
     }
@@ -1014,6 +1051,7 @@ export class ProxyManager implements IProxyManager {
         const apiPort = this.resolveApiPort(status.port, status.apiPort);
         await this.ensureTrafficIngress(profile.id, status.port, apiPort, {
           forceRestart: false,
+          apiToken: await this.getApiToken(profile.id),
         });
         return;
       }
@@ -1021,7 +1059,7 @@ export class ProxyManager implements IProxyManager {
   }
 
   showOutputChannel(): void {
-    const settings = getProxyOutputConfig();
+    const settings = this.getOutputConfig();
     this.outputPresenter?.show();
     if (!settings.logTrafficToOutput) {
       this.outputPresenter?.appendLogDisabled();
@@ -1092,6 +1130,7 @@ export class ProxyManager implements IProxyManager {
     return {
       port,
       apiPort: port + apiPortOffset,
+      apiToken: randomBytes(32).toString('hex'),
       profileId: profile.id,
       storageDir: this.storageDir,
       logDir: this.logDir,
@@ -1129,52 +1168,17 @@ export class ProxyManager implements IProxyManager {
   }
 
   private async ensureAgentTrackingForProfile(profileId: string): Promise<void> {
-    if (this.agentTrackingServices.has(profileId)) {
-      return;
-    }
-    const profile = await this.profileManager.getProfile(profileId);
-    if (!profile) {
-      return;
-    }
-    await this.ensureAgentTracking(profileId, profile.userDataDir);
+    await this.agentTrackingCoordinator.ensureForProfile(
+      profileId,
+      this.profileManager
+    );
   }
 
   private async ensureAgentTracking(
     profileId: string,
     userDataDir: string
   ): Promise<void> {
-    if (this.agentTrackingServices.has(profileId)) {
-      return;
-    }
-
-    try {
-      const dbPath = getEfficiencyDbPath(userDataDir);
-      const repository = createAgentTrackingRepository(
-        dbPath,
-        this.context.extensionPath
-      );
-      const turnDetectionService = new TokenTurnDetectionService();
-      const liveCostCalculator = new ProxyLiveCostCalculator(
-        new CursorModelPricingProvider(),
-        () =>
-          vscode.workspace
-            .getConfiguration('cursorAccounts.proxy')
-            .get<number>('estimatedDollarsPerMillionTokens', 4)
-      );
-      const service = new AgentTrackingService(
-        repository,
-        profileId,
-        turnDetectionService,
-        liveCostCalculator
-      );
-      await service.initialize();
-      this.agentTrackingServices.set(profileId, service);
-      this.tokenDetectorPresenter?.appendInitialized(profileId);
-    } catch (error) {
-      extensionLog.error(
-        `[AgentTracking] Failed to initialize for ${profileId}: ${extensionLog.formatError(error)}`
-      );
-    }
+    await this.agentTrackingCoordinator.ensure(profileId, userDataDir);
   }
 
   private async applyProxySettingsForProfile(
@@ -1210,56 +1214,10 @@ export class ProxyManager implements IProxyManager {
     }
   }
 
-  private async pollProxyHealth(
-    apiPort: number,
-    timeoutMs: number,
-    options?: {
-      getStderr?: () => string;
-      isProcessAlive?: () => boolean;
-    }
-  ): Promise<{ success: boolean; error?: string }> {
-    const baseUrl = buildProxyApiBaseUrl(apiPort);
-    const deadline = Date.now() + timeoutMs;
-
-    while (Date.now() < deadline) {
-      if (options?.isProcessAlive && !options.isProcessAlive()) {
-        const stderr = options.getStderr?.().trim();
-        return {
-          success: false,
-          error: stderr
-            ? `Proxy process exited before API was ready: ${stderr}`
-            : 'Proxy process exited before API was ready',
-        };
-      }
-
-      try {
-        const response = await fetch(`${baseUrl}${PROXY_API_PATHS.health}`);
-        if (response.ok) {
-          const body = (await response.json()) as ProxyApiHealthResponse;
-          if (body.ok) {
-            return { success: true };
-          }
-        }
-      } catch {
-        // API not ready yet.
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, PROXY_HEALTH_POLL_MS));
-    }
-
-    const stderr = options?.getStderr?.().trim();
-    return {
-      success: false,
-      error: stderr
-        ? `Proxy did not become ready within ${timeoutMs}ms: ${stderr}`
-        : `Proxy did not become ready within ${timeoutMs}ms`,
-    };
-  }
-
   private async forceStopChild(profileId: string): Promise<void> {
     const runtime = this.runtimes.get(profileId);
     this.runtimes.delete(profileId);
-    this.agentTrackingServices.delete(profileId);
+    this.agentTrackingCoordinator.delete(profileId);
 
     if (!runtime) {
       return;

@@ -38,6 +38,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Check architecture boundaries
+        run: pnpm run check:architecture
+
+      - name: Test architecture checker
+        run: pnpm run test:architecture
+
       - name: Lint
         run: pnpm run lint
 

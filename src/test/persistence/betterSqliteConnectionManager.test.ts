@@ -27,7 +27,7 @@ describe('BetterSqliteConnectionManager', () => {
     // Cleanup temp directory
     try {
       fs.rmSync(tempDir, { recursive: true, force: true });
-    } catch (e) {
+    } catch {
       // Ignore cleanup errors
     }
   });

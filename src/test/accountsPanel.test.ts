@@ -105,6 +105,7 @@ function createMockProxyManager(): IProxyManager {
     isCurrentWindowUsingProxy: async () => false,
     getCertificatePath: async () => null,
     getLogDirectory: () => '/tmp/proxy-logs',
+    clearLogFiles: async () => ({ deletedFiles: 0, deletedBytes: 0 }),
     getProxyInstallGuide: async () => ({
       platform: 'darwin',
       certAvailable: true,

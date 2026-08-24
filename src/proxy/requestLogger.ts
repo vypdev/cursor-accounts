@@ -42,7 +42,7 @@ export class RequestLogger {
     await fs.mkdir(this.logDir, { recursive: true });
     await fs.mkdir(path.join(this.logDir, 'bodies'), { recursive: true });
     await this.rotateIfNeeded();
-    await this.openNewLogFile();
+    this.openNewLogFile();
   }
 
   /**
@@ -52,7 +52,7 @@ export class RequestLogger {
     const line = `${JSON.stringify(entry)}\n`;
     this.writeChain = this.writeChain.then(async () => {
       if (!this.writeStream) {
-        await this.openNewLogFile();
+        this.openNewLogFile();
       }
       await new Promise<void>((resolve, reject) => {
         if (!this.writeStream) {
@@ -96,6 +96,7 @@ export class RequestLogger {
     return captureBodyForLog(body, contentType, {
       maxInlineBytes: this.maxBodyLogBytes,
       spillLargeBodies: this.spillLargeBodies,
+      redactJsonFields: true,
       logDir: this.logDir,
       spillKey,
     });
@@ -116,7 +117,7 @@ export class RequestLogger {
   static isConnectRpcContentType = isConnectRpcContentType;
   static isCursorHost = isCursorHost;
 
-  private async openNewLogFile(): Promise<void> {
+  private openNewLogFile(): void {
     const date = new Date().toISOString().slice(0, 10);
     const fileName = `${LOG_FILE_PREFIX}${date}-${Date.now()}${LOG_FILE_EXT}`;
     this.currentLogPath = path.join(this.logDir, fileName);

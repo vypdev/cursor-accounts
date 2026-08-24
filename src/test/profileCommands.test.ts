@@ -7,15 +7,15 @@ import type { Profile } from '../profiles/types';
 
 const registeredHandlers = new Map<string, () => Promise<void>>();
 
-const originalRegister = vscode.commands.registerCommand;
+type RegisterCommand = typeof vscode.commands.registerCommand;
 
 beforeEach(() => {
   registeredHandlers.clear();
-  (vscode.commands as { registerCommand: typeof originalRegister }).registerCommand =
+  (vscode.commands as { registerCommand: RegisterCommand }).registerCommand =
     ((command: string, callback: () => Promise<void>) => {
       registeredHandlers.set(command, callback);
       return { dispose: () => registeredHandlers.delete(command) };
-    }) as typeof originalRegister;
+    }) as RegisterCommand;
 });
 
 function createMockProfile(overrides: Partial<Profile> = {}): Profile {

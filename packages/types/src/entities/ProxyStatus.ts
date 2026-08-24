@@ -57,6 +57,8 @@ export interface ProxyStateFile {
   port?: number;
   /** Localhost HTTP/WebSocket control-plane port (separate from MITM port). */
   apiPort?: number;
+  /** Capability token for the localhost proxy control plane. */
+  apiToken?: string;
   pid?: number;
   startedAt?: string;
   caCertificatePath?: string;

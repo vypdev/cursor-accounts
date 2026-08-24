@@ -10,11 +10,12 @@ import {
 } from '@cursor-accounts/types';
 import * as extensionLog from '../logging/extensionLog';
 import { DatabaseMigrator } from './databaseMigrations';
+import type {
+  SqliteExecutor} from './sqliteExecutor';
 import {
   escapeSqlString,
   sqlLiteral,
-  sqlNumber,
-  SqliteExecutor,
+  sqlNumber
 } from './sqliteExecutor';
 import type {
   PromptEventRecord,
@@ -238,6 +239,7 @@ INSERT INTO prompt_events (
   }
 
   async getAggregatedStats(profileId: string): Promise<EfficiencyStats> {
+    await Promise.resolve();
     const pid = escapeSqlString(profileId);
     const threshold = EFFICIENCY_SCORE_THRESHOLD;
 
@@ -360,6 +362,7 @@ GROUP BY repository_path, branch_name;
       limit?: number;
     }
   ): Promise<PromptEventRecord[]> {
+    await Promise.resolve();
     const pid = escapeSqlString(profileId);
     const clauses = [`profile_id = '${pid}'`];
 
@@ -416,6 +419,7 @@ ORDER BY timestamp DESC${limitClause};
     minPercent: number,
     maxPercent: number
   ): Promise<QuotaEfficiencyAggregate> {
+    await Promise.resolve();
     const pid = escapeSqlString(profileId);
     const rows = this.executor.queryRows<{
       avg_efficiency: number;
@@ -442,6 +446,7 @@ WHERE profile_id = '${pid}'
     profileId: string,
     bucketSize = 10
   ): Promise<QuotaBucketAggregate[]> {
+    await Promise.resolve();
     const pid = escapeSqlString(profileId);
     const size = Math.max(1, bucketSize);
 

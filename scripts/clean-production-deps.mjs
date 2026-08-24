@@ -7,42 +7,21 @@ const root = process.cwd();
 const nodeModulesDir = path.join(root, 'node_modules');
 
 function collectExtraneousPaths() {
-  let output = '';
-
-  try {
-    execSync('npm list --production --parseable --depth=99999 --loglevel=error', {
-      cwd: root,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    return [];
-  } catch (error) {
-    output = `${error.stdout ?? ''}${error.stderr ?? ''}`;
-  }
-
-  const paths = new Set();
-  for (const line of output.split('\n')) {
-    const match = line.match(/^npm error extraneous: [^ ]+ (.+)$/);
-    if (match?.[1]) {
-      paths.add(match[1].trim());
-    }
-  }
-
-  return [...paths];
+  // pnpm owns this workspace's dependency graph. npm list interprets pnpm's
+  // hoisted and virtual-store layout as invalid and reports false extraneous
+  // and missing-peer errors, so there is no reliable npm path list here.
+  return [];
 }
 
 function collectProductionPaths() {
-  let output = '';
-
-  try {
-    output = execSync('npm list --production --parseable --depth=99999 --loglevel=silent', {
+  const output = execSync(
+    'pnpm list --prod --parseable --depth=99999 --filter . --loglevel silent',
+    {
       cwd: root,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
-    });
-  } catch (error) {
-    output = `${error.stdout ?? ''}${error.stderr ?? ''}`;
-  }
+    }
+  );
 
   const paths = new Set();
   for (const line of output.split('\n')) {
@@ -70,6 +49,9 @@ function listTopLevelPackages() {
   const packages = [];
 
   for (const entry of fs.readdirSync(nodeModulesDir, { withFileTypes: true })) {
+    if (entry.name === '.bin') {
+      continue;
+    }
     if (!entry.isDirectory()) {
       continue;
     }
@@ -109,9 +91,18 @@ function readRootDevDependencyNames() {
   return Object.keys(packageJson.devDependencies ?? {});
 }
 
+function readRootDependencyNames() {
+  const packageJsonPath = path.join(root, 'package.json');
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+  return Object.keys(packageJson.dependencies ?? {});
+}
+
 function pruneNonProductionTopLevelPackages() {
   const productionPaths = collectProductionPaths();
   const allowedTopLevel = new Set(readRootDevDependencyNames());
+  for (const dependencyName of readRootDependencyNames()) {
+    allowedTopLevel.add(dependencyName);
+  }
 
   for (const productionPath of productionPaths) {
     const relativePath = path.relative(nodeModulesDir, productionPath);
@@ -142,24 +133,9 @@ function pruneNonProductionTopLevelPackages() {
 }
 
 function assertProductionTreeValid() {
-  try {
-    execSync('npm list --production --parseable --depth=99999 --loglevel=error', {
-      cwd: root,
-      stdio: 'pipe',
-    });
-    return;
-  } catch (error) {
-    const remaining = collectExtraneousPaths();
-    if (remaining.length > 0) {
-      throw new Error(
-        `Production dependency tree still invalid after cleanup (${remaining.length} extraneous packages remain)`
-      );
-    }
-
-    const message = `${error.stdout ?? ''}${error.stderr ?? ''}`;
-    if (message.includes('npm error invalid:')) {
-      throw new Error('Production dependency tree still invalid after cleanup');
-    }
+  const productionPaths = collectProductionPaths();
+  if (productionPaths.size === 0) {
+    throw new Error('Production dependency tree could not be resolved by pnpm');
   }
 }
 

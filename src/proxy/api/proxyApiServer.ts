@@ -7,7 +7,10 @@ import type {
   ProxyApiServerOptions,
   ProxyApiStatusResponse,
 } from '../../application/types/proxyApi';
-import { localhostOnly } from './middleware/localhostValidator';
+import {
+  apiTokenRequired,
+  localhostOnly,
+} from './middleware/localhostValidator';
 import { apiErrorHandler } from './middleware/errorHandler';
 import { registerProxyApiRoutes } from './proxyApiRoutes';
 import { ProxyWebSocketHandler } from './proxyWebSocketHandler';
@@ -34,12 +37,13 @@ export class ProxyApiServer implements IProxyApiServer {
     this.app = express();
     this.app.use(express.json({ limit: '256kb' }));
     this.app.use(localhostOnly);
+    this.app.use(apiTokenRequired(options.apiToken));
 
     this.routeContext = registerProxyApiRoutes(this.app, options);
     this.app.use(apiErrorHandler);
 
     this.httpServer = http.createServer(this.app);
-    this.wsHandler = new ProxyWebSocketHandler(this.httpServer);
+    this.wsHandler = new ProxyWebSocketHandler(this.httpServer, options.apiToken);
 
     await new Promise<void>((resolve, reject) => {
       this.httpServer?.once('error', reject);

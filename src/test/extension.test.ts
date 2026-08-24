@@ -42,6 +42,7 @@ describe('extension activate', () => {
       'cursorAccounts.efficiency.restartDetector',
       'cursorAccounts.addProfile',
       'cursorAccounts.launchProfile',
+      'cursorAccounts.proxy.clearLogs',
     ];
 
     for (const command of expected) {

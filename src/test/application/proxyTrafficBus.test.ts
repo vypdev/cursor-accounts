@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { ProxyTrafficBus } from '../../application/services/proxyTrafficBus';
+import { ProxyTrafficBus } from '../../proxy/proxyTrafficBus';
 import type { ProxyTrafficSummary } from '../../application/types/proxyTraffic';
 
 function sample(): ProxyTrafficSummary {

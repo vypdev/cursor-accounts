@@ -84,4 +84,76 @@ describe('ProxyApiServer', () => {
       await server.stop();
     }
   });
+
+  it('requires the configured capability token for HTTP control-plane access', async () => {
+    const apiPort = 19_081;
+    const apiToken = 'a'.repeat(64);
+    const server = new ProxyApiServer();
+    await server.start({
+      apiPort,
+      mitmPort: 8081,
+      apiToken,
+      startedAt: new Date().toISOString(),
+      getStatistics: () => ({
+        totalRequests: 0,
+        cursorRequests: 0,
+        bytesTransferred: 0,
+        activeConnections: 0,
+      }),
+    });
+
+    try {
+      const unauthorized = await fetch(
+        `http://127.0.0.1:${apiPort}${PROXY_API_PATHS.health}`
+      );
+      assert.equal(unauthorized.status, 401);
+
+      const authorized = await fetch(
+        `http://127.0.0.1:${apiPort}${PROXY_API_PATHS.health}`,
+        { headers: { authorization: `Bearer ${apiToken}` } }
+      );
+      assert.equal(authorized.status, 200);
+
+      await new Promise<void>((resolve, reject) => {
+        const ws = new WebSocket(
+          `ws://127.0.0.1:${apiPort}${PROXY_API_PATHS.ws}`
+        );
+        const timeout = setTimeout(() => {
+          ws.close();
+          reject(new Error('unauthorized WebSocket was not rejected'));
+        }, 3000);
+        ws.once('open', () => {
+          clearTimeout(timeout);
+          ws.close();
+          reject(new Error('unauthorized WebSocket was accepted'));
+        });
+        ws.once('error', () => {
+          clearTimeout(timeout);
+          resolve();
+        });
+      });
+
+      await new Promise<void>((resolve, reject) => {
+        const ws = new WebSocket(
+          `ws://127.0.0.1:${apiPort}${PROXY_API_PATHS.ws}`,
+          { headers: { authorization: `Bearer ${apiToken}` } }
+        );
+        const timeout = setTimeout(() => {
+          ws.close();
+          reject(new Error('authorized WebSocket did not connect'));
+        }, 3000);
+        ws.once('open', () => {
+          clearTimeout(timeout);
+          ws.close();
+          resolve();
+        });
+        ws.once('error', (error) => {
+          clearTimeout(timeout);
+          reject(error);
+        });
+      });
+    } finally {
+      await server.stop();
+    }
+  });
 });

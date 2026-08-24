@@ -8,7 +8,9 @@ import type { IInstanceDetector } from '../domain/ports/IInstanceDetector';
 import type { IProfileLauncher } from '../domain/ports/IProfileLauncher';
 import type { IProfileManager } from '../domain/ports/IProfileManager';
 import type { IProfileSettingsManager } from '../domain/ports/IProfileSettingsManager';
-import type { IProxyManager } from '../domain/ports/IProxyManager';
+import type { IProxyCertificate } from '../domain/ports/IProxyCertificate';
+import type { IProxyLifecycle } from '../domain/ports/IProxyLifecycle';
+import type { IProxyRouting } from '../domain/ports/IProxyRouting';
 import { isProfilePresentInInstances } from './instanceDetector';
 import type { Profile } from './types';
 
@@ -115,7 +117,8 @@ export class ProfileLauncher implements IProfileLauncher {
   constructor(
     private readonly profileManager: IProfileManager,
     private readonly instanceDetector?: IInstanceDetector,
-    private readonly proxyManager?: IProxyManager,
+    private readonly proxyManager?:
+      IProxyLifecycle & IProxyRouting & IProxyCertificate,
     private readonly profileSettingsManager?: IProfileSettingsManager
   ) {}
 
@@ -483,7 +486,6 @@ export class ProfileLauncher implements IProfileLauncher {
           proc = spawn(execPath, args, {
             detached: true,
             stdio: 'ignore',
-            shell: true,
             env: spawnEnv,
           });
         } else {

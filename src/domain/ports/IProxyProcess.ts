@@ -1,4 +1,4 @@
-import type { ProxyServerConfig } from '../../application/types/proxyConfig';
+import type { ProxyServerConfig } from '../types/proxyConfig';
 
 export interface ProxyProcessRuntime {
   port: number;

@@ -1,13 +1,33 @@
 import fs from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
-const root = process.cwd();
-const sourceRoots = [
-  path.join(root, 'src'),
-  path.join(root, 'packages', 'types', 'src'),
-  path.join(root, 'packages', 'shared', 'src'),
-];
+const repositoryRoot = path.dirname(fileURLToPath(import.meta.url));
+const defaultRoot = path.resolve(repositoryRoot, '..');
+
+const DOMAIN_EXTERNAL_PACKAGES = new Set([
+  '@cursor-accounts/shared',
+  '@cursor-accounts/types',
+]);
+
+const APPLICATION_INFRASTRUCTURE_LAYERS = new Set([
+  'api',
+  'auth',
+  'commands',
+  'composition',
+  'cursor',
+  'logging',
+  'migrations',
+  'modelEfficiency',
+  'persistence',
+  'profiles',
+  'proxy',
+  'services',
+  'storage',
+  'ui',
+]);
 
 async function collectTypeScriptFiles(directory) {
   const entries = await fs.readdir(directory, { withFileTypes: true });
@@ -26,7 +46,7 @@ async function collectTypeScriptFiles(directory) {
   return files;
 }
 
-function layerOf(filePath) {
+function layerOf(root, filePath) {
   const relative = path.relative(root, filePath).split(path.sep);
   if (relative[0] === 'src') return relative[1] ?? 'src';
   if (relative[0] === 'packages') return `packages/${relative[1] ?? 'unknown'}`;
@@ -35,9 +55,16 @@ function layerOf(filePath) {
 
 function resolveRelativeImport(filePath, specifier) {
   if (!specifier.startsWith('.')) return undefined;
-  const base = path.resolve(path.dirname(filePath), specifier);
-  const candidates = [base, `${base}.ts`, `${base}.tsx`, path.join(base, 'index.ts')];
-  return candidates.find((candidate) => candidate.endsWith('.ts') || candidate.endsWith('.tsx'));
+  const sourceSpecifier = specifier.replace(/\.(?:c|m)?js$/, '');
+  const base = path.resolve(path.dirname(filePath), sourceSpecifier);
+  const candidates = [
+    base,
+    `${base}.ts`,
+    `${base}.tsx`,
+    path.join(base, 'index.ts'),
+    path.join(base, 'index.tsx'),
+  ];
+  return candidates.find((candidate) => existsSync(candidate));
 }
 
 function extractImports(source) {
@@ -49,76 +76,138 @@ function extractImports(source) {
   return imports;
 }
 
+function isPackageLayer(layer) {
+  return layer?.startsWith('packages/');
+}
+
 function isForbidden(sourceLayer, targetLayer, specifier) {
   if (sourceLayer === 'domain') {
-    return (
-      ['api', 'ui', 'profiles', 'services', 'commands', 'proxy', 'persistence', 'auth', 'storage'].includes(targetLayer) ||
-      ['vscode', 'http-mitm-proxy', 'httpolyglot'].includes(specifier)
-    );
+    if (!targetLayer) {
+      return !DOMAIN_EXTERNAL_PACKAGES.has(specifier);
+    }
+    return targetLayer !== 'domain' && !isPackageLayer(targetLayer);
   }
-  if (['api', 'profiles', 'services', 'auth', 'storage', 'persistence'].includes(sourceLayer)) {
+
+  if (sourceLayer === 'application') {
+    return APPLICATION_INFRASTRUCTURE_LAYERS.has(targetLayer);
+  }
+
+  if (sourceLayer === 'proxy') {
     return targetLayer === 'ui';
   }
-  if (sourceLayer === 'packages/types' || sourceLayer === 'packages/shared') {
-    return specifier === 'vscode' || specifier.startsWith('node:');
+
+  if (isPackageLayer(sourceLayer)) {
+    return (
+      specifier === 'vscode' ||
+      specifier.startsWith('node:') ||
+      Boolean(targetLayer && targetLayer === 'src')
+    );
   }
+
   return false;
 }
 
-const files = (await Promise.all(sourceRoots.map(collectTypeScriptFiles))).flat();
-const graph = new Map();
-const violations = [];
+export async function runArchitectureCheck({
+  root = defaultRoot,
+  sourceRoots = [
+    path.join(root, 'src'),
+    path.join(root, 'packages', 'types', 'src'),
+    path.join(root, 'packages', 'shared', 'src'),
+  ],
+} = {}) {
+  const files = (await Promise.all(sourceRoots.map(collectTypeScriptFiles))).flat();
+  const fileSet = new Set(files);
+  const graph = new Map();
+  const violations = [];
 
-for (const filePath of files) {
-  const source = await fs.readFile(filePath, 'utf8');
-  const sourceLayer = layerOf(filePath);
-  const edges = [];
-  for (const specifier of extractImports(source)) {
-    const targetPath = resolveRelativeImport(filePath, specifier);
-    if (!targetPath) continue;
-    const targetLayer = layerOf(targetPath);
-    edges.push(targetPath);
-    if (isForbidden(sourceLayer, targetLayer, specifier)) {
-      violations.push(`${path.relative(root, filePath)} -> ${specifier}`);
+  for (const filePath of files) {
+    const source = await fs.readFile(filePath, 'utf8');
+    const sourceLayer = layerOf(root, filePath);
+    const edges = [];
+
+    for (const specifier of extractImports(source)) {
+      const targetPath = resolveRelativeImport(filePath, specifier);
+      const targetLayer = targetPath ? layerOf(root, targetPath) : undefined;
+      if (!targetPath && specifier.startsWith('.')) {
+        violations.push({
+          file: path.relative(root, filePath),
+          specifier,
+          sourceLayer,
+          targetLayer,
+          rule: 'unresolved-relative-import',
+        });
+        continue;
+      }
+      if (targetPath && fileSet.has(targetPath)) {
+        edges.push(targetPath);
+      }
+      if (isForbidden(sourceLayer, targetLayer, specifier)) {
+        violations.push({
+          file: path.relative(root, filePath),
+          specifier,
+          sourceLayer,
+          targetLayer,
+        });
+      }
+    }
+
+    graph.set(filePath, edges);
+  }
+
+  const cycles = [];
+  const visiting = new Set();
+  const visited = new Set();
+  const stack = [];
+
+  function visit(filePath) {
+    if (visiting.has(filePath)) {
+      const start = stack.indexOf(filePath);
+      cycles.push([...stack.slice(start), filePath].map((item) => path.relative(root, item)).join(' -> '));
+      return;
+    }
+    if (visited.has(filePath)) return;
+
+    visiting.add(filePath);
+    stack.push(filePath);
+    for (const dependency of graph.get(filePath) ?? []) visit(dependency);
+    stack.pop();
+    visiting.delete(filePath);
+    visited.add(filePath);
+  }
+
+  for (const filePath of files) visit(filePath);
+
+  return {
+    files,
+    violations,
+    cycles: [...new Set(cycles)],
+  };
+}
+
+async function main() {
+  const result = await runArchitectureCheck();
+
+  if (result.violations.length > 0) {
+    console.error('Architecture boundary violations:');
+    for (const violation of result.violations) {
+      const target = violation.targetLayer ? ` [${violation.targetLayer}]` : '';
+      console.error(`- ${violation.file} -> ${violation.specifier}${target}`);
     }
   }
-  graph.set(filePath, edges.filter((edge) => files.includes(edge)));
-}
 
-const cycles = [];
-const visiting = new Set();
-const visited = new Set();
-const stack = [];
+  if (result.cycles.length > 0) {
+    console.error('Import cycles:');
+    for (const cycle of result.cycles) console.error(`- ${cycle}`);
+  }
 
-function visit(filePath) {
-  if (visiting.has(filePath)) {
-    const start = stack.indexOf(filePath);
-    cycles.push([...stack.slice(start), filePath].map((item) => path.relative(root, item)).join(' -> '));
+  if (result.violations.length > 0 || result.cycles.length > 0) {
+    process.exitCode = 1;
     return;
   }
-  if (visited.has(filePath)) return;
-  visiting.add(filePath);
-  stack.push(filePath);
-  for (const dependency of graph.get(filePath) ?? []) visit(dependency);
-  stack.pop();
-  visiting.delete(filePath);
-  visited.add(filePath);
+
+  console.log(`Architecture checks passed for ${result.files.length} TypeScript files.`);
 }
 
-for (const filePath of files) visit(filePath);
-
-if (violations.length > 0) {
-  console.error('Architecture boundary violations:');
-  for (const violation of violations) console.error(`- ${violation}`);
-  process.exitCode = 1;
-}
-
-if (cycles.length > 0) {
-  console.error('Import cycles:');
-  for (const cycle of [...new Set(cycles)]) console.error(`- ${cycle}`);
-  process.exitCode = 1;
-}
-
-if (violations.length === 0 && cycles.length === 0) {
-  console.log(`Architecture checks passed for ${files.length} TypeScript files.`);
+if (process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url) {
+  await main();
 }

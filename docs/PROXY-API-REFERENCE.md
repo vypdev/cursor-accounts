@@ -133,7 +133,7 @@ All messages are JSON objects:
 |-----------|------|
 | [`ProxyApiServer`](../src/proxy/api/proxyApiServer.ts) | Runs inside the proxy child; broadcasts events |
 | [`ProxyApiClient`](../src/proxy/api/proxyApiClient.ts) | Used by each extension host window |
-| [`ProxyTrafficIngress`](../src/application/services/proxyTrafficIngress.ts) | Connects WebSocket + optional JSONL tail |
+| [`ProxyTrafficIngress`](../src/proxy/proxyTrafficIngress.ts) | Connects WebSocket + optional JSONL tail |
 | [`ProxyManager.connectToExistingProxy()`](../src/services/proxyManager.ts) | Attaches a new window to a running proxy |
 
 On extension activation, every window calls `connectToExistingProxy()` for all profiles, then ensures the proxy for the active profile if enabled.

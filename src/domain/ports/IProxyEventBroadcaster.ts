@@ -1,4 +1,4 @@
-import type { ProxyApiEvent } from '../../application/types/proxyApi';
+import type { ProxyApiEvent } from '../types/proxyApi';
 
 export type ProxyEventListener = (event: ProxyApiEvent) => void;
 

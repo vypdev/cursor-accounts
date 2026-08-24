@@ -7,6 +7,8 @@ export default tseslint.config(
   {
     ignores: [
       'out/**',
+      '.tmp/**',
+      'docs/api/**',
       'webview-dist/**',
       'node_modules/**',
       'packages/types/dist/**',

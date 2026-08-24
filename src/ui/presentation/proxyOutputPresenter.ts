@@ -5,12 +5,12 @@ import {
   PROXY_TRAFFIC_TAG,
 } from '../../proxy/proxyTrafficFormat';
 import type { ProxyTrafficSummary } from '../../application/types/proxyTraffic';
+import type {
+  IProxyOutputPresenter,
+  ProxyOutputSettings,
+} from '../../domain/ports/IProxyOutputPresenter';
 
-export interface ProxyOutputConfig {
-  logTrafficToOutput: boolean;
-  autoShowOutputChannel: boolean;
-  outputCursorHostsOnly: boolean;
-}
+export type ProxyOutputConfig = ProxyOutputSettings;
 
 export function getProxyOutputConfig(): ProxyOutputConfig {
   const cfg = vscode.workspace.getConfiguration('cursorAccounts.proxy');
@@ -24,7 +24,7 @@ export function getProxyOutputConfig(): ProxyOutputConfig {
 /**
  * Dedicated Output channel for live MITM proxy traffic ([ProxyTraffic] tag).
  */
-export class ProxyOutputPresenter {
+export class ProxyOutputPresenter implements IProxyOutputPresenter {
   private readonly channel: vscode.OutputChannel;
   private autoShowPending = false;
 

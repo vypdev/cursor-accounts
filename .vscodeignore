@@ -16,9 +16,30 @@ pnpm-lock.yaml
 docs/**
 scripts/**
 .tmp/**
+.tmp-proto-test/**
+.repowise/**
+graphify-out/**
+coverage/**
+.build-backup/**
 .bin-all-backup/**
-webview/node_modules/**
+webview/**
 packages/**
+**/test/**
+**/tests/**
+**/example/**
+**/examples/**
+**/README*
+**/CHANGELOG*
+**/*.md
+**/*.markdown
+**/*.map
+:memory:*
+*.db
+*.db-*
+typedoc.json
+skills-lock.json
+pnpm-workspace.yaml
+eslint.config.mjs
 # Production node_modules included in full (@cursor/sdk and all transitive deps)
 # Root devDependencies stay on disk for build but are excluded from the VSIX
 node_modules/@eslint/**
@@ -39,9 +60,11 @@ node_modules/jsdom/**
 # Ensure bundled SQLite binaries are included in the VSIX
 !bin/**
 # Webview bundle (Phase 3)
-!webview-dist/**
+!webview-dist/bundle.js
+!webview-dist/bundle.css
+webview-dist/*.map
 # Protobuf schemas for MITM decode (runtime + packaged extension)
-!proto/**
+proto/**
 # Extension icons only (README screenshots stay out of the VSIX)
 images/**
 !images/icon.png

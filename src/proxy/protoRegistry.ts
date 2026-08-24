@@ -64,7 +64,7 @@ export class ProtoRegistry {
     const visit = (obj: { nestedArray: unknown[] }): void => {
       for (const item of obj.nestedArray) {
         if (item instanceof ServiceCtor) {
-          const svc = item as Service;
+          const svc = item;
           for (const method of svc.methodsArray) {
             const serviceName = svc.fullName.replace(/^\./, '');
             const rpcPath = `/${serviceName}/${method.name}`;
@@ -88,7 +88,7 @@ export class ProtoRegistry {
       }
     };
 
-    visit(this.root as unknown as { nestedArray: unknown[] });
+    visit(this.root);
   }
 
   getRpcTypes(rpcPath: string): RpcTypeInfo | undefined {
@@ -116,7 +116,7 @@ export class ProtoRegistry {
       arrays: true,
       objects: true,
       oneofs: true,
-    }) as Record<string, unknown>;
+    });
   }
 
   getRpcPathCount(): number {

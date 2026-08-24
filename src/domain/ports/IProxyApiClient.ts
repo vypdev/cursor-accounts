@@ -2,7 +2,7 @@ import type { ProxyStatistics } from '@cursor-accounts/types';
 import type {
   ProxyApiEvent,
   ProxyApiStatusResponse,
-} from '../../application/types/proxyApi';
+} from '../types/proxyApi';
 
 /** Port for extension-side consumption of the proxy localhost API. */
 export interface IProxyApiClient {

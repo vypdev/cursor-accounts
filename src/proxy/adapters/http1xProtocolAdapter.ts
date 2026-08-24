@@ -26,7 +26,7 @@ abstract class Http1xProtocolAdapterBase implements IProtocolAdapter {
   buildRequestInfo(raw: unknown): RequestInfo {
     const req = raw as IncomingMessage;
     const headers = this.extractHeaders(
-      req.headers as Record<string, string | string[] | undefined>
+      req.headers
     );
     const host = firstHeader(req.headers, 'host') ?? 'unknown';
     const pathPart = req.url ?? '/';

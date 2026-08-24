@@ -76,7 +76,7 @@ describe('PricesModal', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Reasoning/i }));
     fireEvent.click(screen.getByRole('option', { name: 'extended' }));
-    fireEvent.click(screen.getByRole('button', { name: /Fast: true/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Fast' }));
     fireEvent.click(screen.getByRole('option', { name: 'false' }));
 
     expect(

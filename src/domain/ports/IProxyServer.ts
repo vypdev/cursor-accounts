@@ -1,11 +1,10 @@
-import type { EventEmitter } from 'events';
 import type { ProxyStatistics } from '@cursor-accounts/types';
-import type { ProxyServerConfig } from '../../application/types/proxyConfig';
+import type { ProxyServerConfig } from '../types/proxyConfig';
 
 /**
  * MITM proxy lifecycle (Infrastructure implementations).
  */
-export interface IProxyServer extends EventEmitter {
+export interface IProxyServer {
   start(config: ProxyServerConfig): Promise<void>;
   stop(): Promise<void>;
   getStatistics(): ProxyStatistics;

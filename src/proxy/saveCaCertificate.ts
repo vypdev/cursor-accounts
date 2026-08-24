@@ -2,7 +2,7 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
 import * as vscode from 'vscode';
-import type { IProxyManager } from '../domain/ports/IProxyManager';
+import type { IProxyCertificate } from '../domain/ports/IProxyCertificate';
 import { t } from '../l10n';
 
 export interface SaveCaCertificateResult {
@@ -16,7 +16,7 @@ export interface SaveCaCertificateResult {
  * Prompts the user to pick a destination and copies the proxy CA certificate there.
  */
 export async function saveCaCertificateAs(
-  proxyManager: IProxyManager
+  proxyManager: IProxyCertificate
 ): Promise<SaveCaCertificateResult> {
   const sourcePath = await proxyManager.getCertificatePath();
   if (!sourcePath) {

@@ -1,4 +1,4 @@
-import type { ActiveConversationState } from '../../application/types/activeConversation';
+import type { ActiveConversationState } from '../types/activeConversation';
 
 /**
  * Port for reading which Composer chat tab is focused in the active window.

@@ -18,6 +18,7 @@
   "commands.proxy.start.title": "Cursor Accounts: Start MITM Proxy",
   "commands.proxy.stop.title": "Cursor Accounts: Stop MITM Proxy",
   "commands.proxy.showLogs.title": "Cursor Accounts: Open Proxy Logs",
+  "commands.proxy.clearLogs.title": "Cursor Accounts: Delete Proxy Logs",
   "commands.proxy.showOutput.title": "Cursor Accounts: Show MITM Proxy Traffic",
   "commands.proxy.showTokenDetector.title": "Cursor Accounts: Show Token Detector Output",
   "commands.proxy.saveCertificate.title": "Cursor Accounts: Save Proxy CA Certificate…",

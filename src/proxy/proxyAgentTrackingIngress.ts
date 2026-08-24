@@ -38,8 +38,7 @@ export class ProxyAgentTrackingIngress {
     }
 
     const previous = this.profileTails.get(profileId) ?? Promise.resolve();
-    let current: Promise<void>;
-    current = previous
+    const current = previous
       .catch(() => undefined)
       .then(async () => {
         const service = await this.getOrCreateService(profileId);

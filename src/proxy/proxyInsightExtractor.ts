@@ -287,7 +287,7 @@ function dataBinaryByteLength(value: unknown): number | undefined {
     return value.length;
   }
   if (typeof value === 'object' && value !== null && 'length' in value) {
-    const n = Number((value as { length: unknown }).length);
+    const n = Number((value).length);
     return Number.isFinite(n) ? n : undefined;
   }
   return undefined;

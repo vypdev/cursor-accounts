@@ -1,4 +1,5 @@
 import { captureBodyForLog } from './bodyCapture';
+import type { RequestLogger } from './requestLogger';
 import { DEFAULT_MAX_BODY_LOG_BYTES, type ProxyLogEntry } from './types';
 import {
   isConnectRpcContentType,
@@ -37,6 +38,6 @@ export class NullLogger {
 }
 
 export type ProxyTrafficLogger = Pick<
-  import('./requestLogger').RequestLogger,
+  RequestLogger,
   'initialize' | 'log' | 'close' | 'formatBody' | 'getLogDirectory'
 >;

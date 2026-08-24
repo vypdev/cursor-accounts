@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { t } from '../../l10n';
 import type { AgentSessionInfo } from '../../application/types/agentTracking';
 import type { ProxyTrafficSummary } from '../../application/types/proxyTraffic';
+import type { ITokenDetectorOutputPresenter } from '../../domain/ports/IProxyOutputPresenter';
 
 export const TOKEN_DETECTOR_TAG = '[TokenDetector]';
 
@@ -162,7 +163,7 @@ export function formatTokenDetectorLine(
 /**
  * Output channel for live agent/token detection from proxy API (no JSONL tail required).
  */
-export class TokenDetectorOutputPresenter {
+export class TokenDetectorOutputPresenter implements ITokenDetectorOutputPresenter {
   private readonly channel: vscode.OutputChannel;
   private autoShowPending = false;
 

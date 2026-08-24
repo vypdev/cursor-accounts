@@ -32,7 +32,7 @@ function createHandlers(deps: {
   onExecuteCommand?: (...args: unknown[]) => Promise<unknown>;
 }) {
   let refreshCalled = false;
-  let executeCommandImpl = deps.onExecuteCommand;
+  const executeCommandImpl = deps.onExecuteCommand;
 
   const handlers = new AccountsPanelHandlers(
     {
@@ -72,11 +72,10 @@ function createHandlers(deps: {
         start: async () => ({ success: true, port: 8080 }),
         stop: async () => undefined,
         restartProfileProxy: async () => ({ success: true, port: 8080 }),
-        getStatus: async () => ({ running: false }),
         isRunning: async () => false,
-        isCurrentWindowUsingProxy: async () => false,
         getCertificatePath: async () => null,
         getLogDirectory: () => '/tmp',
+        clearLogFiles: async () => ({ deletedFiles: 0, deletedBytes: 0 }),
         getProxyInstallGuide: async () => ({
           platform: 'darwin',
           certAvailable: false,
@@ -88,13 +87,10 @@ function createHandlers(deps: {
         uninstallCertificate: async () => ({ success: true }),
         checkCertificateInstalled: async () => false,
         getCachedCertificateInstalled: () => undefined,
-        getProxyServerUrl: async () => null,
-        getAllUsedPorts: async () => [],
         ensureProfileProxy: async () => ({ success: true, port: 8080 }),
         ensureSharedProxy: async () => ({ success: true, port: 8080 }),
         stopAll: async () => undefined,
         restoreAllProfileProxySettings: async () => ({ restored: 0, errors: [] }),
-        onStatusChange: () => undefined,
         ensureOutputTailer: async () => undefined,
         ensureTrafficTailer: async () => undefined,
         connectToExistingProxy: async () => undefined,

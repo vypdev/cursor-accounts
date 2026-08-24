@@ -31,6 +31,9 @@ function writeJson(filePath, data) {
 function copyDirectory(source, destination) {
   fs.mkdirSync(destination, { recursive: true });
   for (const entry of fs.readdirSync(source, { withFileTypes: true })) {
+    if (entry.name === 'node_modules') {
+      continue;
+    }
     const sourcePath = path.join(source, entry.name);
     const destinationPath = path.join(destination, entry.name);
     if (entry.isDirectory()) {

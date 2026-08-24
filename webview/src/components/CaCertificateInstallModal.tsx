@@ -117,7 +117,9 @@ export const CaCertificateInstallModal: React.FC<CaCertificateInstallModalProps>
                             <button
                               type="button"
                               className="btn-secondary cert-install-copy-btn"
-                              onClick={() => handleCopy(step.code!, index)}
+                              onClick={() => {
+                                void handleCopy(step.code!, index);
+                              }}
                             >
                               {copiedIndex === index
                                 ? t('proxy.install.copied')

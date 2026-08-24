@@ -1,4 +1,4 @@
-import type { AgentSessionInfo } from '../../application/types/agentTracking';
+import type { AgentSessionInfo } from '../types/agentTracking';
 import type {
   DetectedTurn,
   ITokenTurnDetectionService,

@@ -38,7 +38,7 @@ export class Http2ProtocolAdapter implements IProtocolAdapter {
       normalized.host = normalized[':authority'];
     }
     return normalizeHeaders(
-      normalized as Record<string, string | string[] | undefined>
+      normalized
     );
   }
 

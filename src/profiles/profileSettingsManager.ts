@@ -45,13 +45,25 @@ export class ProfileSettingsManager implements IProfileSettingsManager {
       const content = await fs.readFile(resolvedPath, 'utf-8');
       // Use jsonc-parser to handle comments and trailing commas (same as VS Code)
       const errors: ParseError[] = [];
-      const parsed = parseJsonc(content, errors, { allowTrailingComma: true });
+      const parsed: unknown = parseJsonc(
+        content,
+        errors,
+        { allowTrailingComma: true }
+      );
       
       // Check for parse errors after allowing trailing commas
       if (errors.length > 0) {
         throw new Error(`Invalid JSON: ${errors.length} parse error(s)`);
       }
-      
+
+      if (
+        parsed === null ||
+        typeof parsed !== 'object' ||
+        Array.isArray(parsed)
+      ) {
+        throw new Error('Invalid JSON: expected an object');
+      }
+
       return parsed as Record<string, unknown>;
     } catch (error) {
       if (this.isENOENT(error)) {

@@ -38,6 +38,7 @@ export class BetterSqliteConnectionManager implements IDatabaseConnectionManager
    * @throws {DatabaseError} If connection fails to open
    */
   async getConnection(dbPath: string): Promise<IDatabaseConnection> {
+    await Promise.resolve();
     // Return cached connection if still open
     const existingConn = this.connections.get(dbPath);
     if (existingConn?.isOpen) {
@@ -84,7 +85,7 @@ export class BetterSqliteConnectionManager implements IDatabaseConnectionManager
       db.pragma('temp_store = MEMORY');       // Temp tables in memory
       
       extensionLog.info(
-        `[BetterSqlite] Connection configured: WAL=${db.pragma('journal_mode', { simple: true })}`
+        `[BetterSqlite] Connection configured: WAL=${JSON.stringify(db.pragma('journal_mode', { simple: true }))}`
       );
       
       const conn = new BetterSqliteConnection(db, dbPath);
@@ -105,6 +106,7 @@ export class BetterSqliteConnectionManager implements IDatabaseConnectionManager
    * @remarks Idempotent - safe to call even if connection doesn't exist
    */
   async closeConnection(dbPath: string): Promise<void> {
+    await Promise.resolve();
     const conn = this.connections.get(dbPath);
     if (conn) {
       try {
@@ -128,6 +130,7 @@ export class BetterSqliteConnectionManager implements IDatabaseConnectionManager
    * gracefully, logging any errors but continuing to close remaining connections.
    */
   async closeAllConnections(): Promise<void> {
+    await Promise.resolve();
     extensionLog.info(`[BetterSqlite] Closing all connections (${this.connections.size} open)`);
     
     const errors: Array<{ dbPath: string; error: unknown }> = [];

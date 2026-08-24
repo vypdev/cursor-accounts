@@ -7,30 +7,73 @@
  * host window can consume traffic and control lifecycle without IPC.
  */
 import * as path from 'path';
+import { z } from 'zod';
 import { CertificateManager } from './certificateManager';
 import { PolyglotMitmProxyServer } from './polyglotMitmProxyServer';
 import { RequestLogger } from './requestLogger';
 import { NullLogger } from './nullLogger';
 import type { ProxyTrafficLogger } from './nullLogger';
 import type { ProxyServerConfig } from './types';
+import type { MitmProxyHandlers } from './types';
 import { ProxyApiServer } from './api/proxyApiServer';
 import type { ProxyApiEvent } from '../application/types/proxyApi';
 import { SqliteAgentTrackingDbPool } from '../persistence/betterSqlite/sqliteAgentTrackingDbPool';
 import { ProxyAgentTrackingIngress } from './proxyAgentTrackingIngress';
 import { SHARED_PROXY_RUNTIME_KEY } from './types';
 
+const proxyServerConfigSchema = z.object({
+  port: z.number().int().min(1).max(65_535),
+  apiPort: z.number().int().min(1).max(65_535),
+  apiToken: z.string().min(32).optional(),
+  profileId: z.string().min(1),
+  storageDir: z.string().min(1),
+  logDir: z.string().min(1),
+  maxLogSizeMb: z.number().finite().positive(),
+  maxBodyLogBytes: z.number().int().positive(),
+  spillLargeBodies: z.boolean(),
+  developmentMode: z.boolean(),
+  trafficDiagnostics: z.boolean(),
+  diagnosticsIntervalMs: z.number().int().positive(),
+  userIdToProfileId: z.record(z.string(), z.string()).optional(),
+  profileDbPaths: z.record(z.string(), z.string()).optional(),
+  extensionPath: z.string().min(1).optional(),
+});
+
+export function parseProxyServerConfig(raw: string): ProxyServerConfig {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw) as unknown;
+  } catch (error) {
+    throw new Error(
+      `CURSOR_ACCOUNTS_PROXY_CONFIG is not valid JSON: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+  }
+
+  const result = proxyServerConfigSchema.safeParse(parsed);
+  if (!result.success) {
+    throw new Error(
+      `CURSOR_ACCOUNTS_PROXY_CONFIG is invalid: ${result.error.issues
+        .map((issue) => `${issue.path.join('.') || '<root>'}: ${issue.message}`)
+        .join('; ')}`
+    );
+  }
+  return result.data;
+}
+
 function parseConfig(): ProxyServerConfig {
   const raw = process.env.CURSOR_ACCOUNTS_PROXY_CONFIG;
   if (!raw) {
     throw new Error('CURSOR_ACCOUNTS_PROXY_CONFIG environment variable is required');
   }
-  return JSON.parse(raw) as ProxyServerConfig;
+  return parseProxyServerConfig(raw);
 }
 
 function emitTrafficEvent(
   apiServer: ProxyApiServer,
   config: ProxyServerConfig,
-  summary: Parameters<NonNullable<import('./types').MitmProxyHandlers['onTraffic']>>[0]
+  summary: Parameters<NonNullable<MitmProxyHandlers['onTraffic']>>[0]
 ): void {
   const sanitized = {
     ...summary,
@@ -115,13 +158,19 @@ async function main(): Promise<void> {
     userIdMapping
   );
 
-  server.on('error', (err) => {
-    process.stderr.write(`[proxy] ${err.message}\n`);
+  server.on('error', (err: unknown) => {
+    const message =
+      err instanceof Error
+        ? err.message
+        : typeof err === 'string'
+          ? err
+          : JSON.stringify(err) ?? 'Unknown proxy error';
+    process.stderr.write(`[proxy] ${message}\n`);
     apiServer.broadcast({
       type: 'error',
       timestamp: new Date().toISOString(),
       profileId: config.profileId,
-      data: { message: err.message, kind: 'PROXY_ERROR' },
+      data: { message, kind: 'PROXY_ERROR' },
     });
   });
 
@@ -161,6 +210,7 @@ async function main(): Promise<void> {
   try {
     await apiServer.start({
       apiPort: config.apiPort,
+      apiToken: config.apiToken,
       mitmPort: config.port,
       profileId: config.profileId,
       pid: process.pid,
@@ -190,4 +240,6 @@ async function main(): Promise<void> {
   }
 }
 
-void main();
+if (require.main === module) {
+  void main();
+}

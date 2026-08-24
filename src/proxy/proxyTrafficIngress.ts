@@ -1,17 +1,17 @@
 import type { ProxyStatistics } from '@cursor-accounts/types';
-import type { ProxyTrafficSummary } from '../types/proxyTraffic';
+import type { ProxyTrafficSummary } from '../application/types/proxyTraffic';
 import type {
   IProxyTrafficIngress,
   TrafficIngressMode,
-} from '../../domain/ports/IProxyTrafficIngress';
-import type { IProxyTrafficBus } from '../../domain/ports/IProxyTrafficBus';
-import type { IProxyApiClient } from '../../domain/ports/IProxyApiClient';
-import type { ProxyApiEvent } from '../types/proxyApi';
-import { ProxyLogTailer } from '../../proxy/proxyLogTailer';
+} from '../domain/ports/IProxyTrafficIngress';
+import type { IProxyTrafficBus } from '../domain/ports/IProxyTrafficBus';
+import type { IProxyApiClient } from '../domain/ports/IProxyApiClient';
+import type { ProxyApiEvent } from '../application/types/proxyApi';
+import { ProxyLogTailer } from './proxyLogTailer';
 import {
   ProxyApiClient,
   buildProxyApiBaseUrl,
-} from '../../proxy/api/proxyApiClient';
+} from './api/proxyApiClient';
 
 export interface ProxyTrafficIngressCallbacks {
   onLogFileResolved?: (filePath: string | null) => void;
@@ -26,6 +26,7 @@ export interface ProxyTrafficIngressStartOptions {
   forceRestart?: boolean;
   /** Required when mode.api is true. */
   apiPort?: number;
+  apiToken?: string;
 }
 
 export class ProxyTrafficIngress implements IProxyTrafficIngress {
@@ -55,7 +56,12 @@ export class ProxyTrafficIngress implements IProxyTrafficIngress {
           `[ProxyTrafficIngress] apiPort is required when mode.api is enabled`
         );
       }
-      await this.ensureApiClient(profileId, apiPort, options?.forceRestart === true);
+      await this.ensureApiClient(
+        profileId,
+        apiPort,
+        options?.forceRestart === true,
+        options?.apiToken
+      );
     } else {
       this.stopApiClient(profileId);
     }
@@ -131,7 +137,8 @@ export class ProxyTrafficIngress implements IProxyTrafficIngress {
   private async ensureApiClient(
     profileId: string,
     apiPort: number,
-    forceRestart: boolean
+    forceRestart: boolean,
+    apiToken?: string
   ): Promise<void> {
     const existing = this.apiClients.get(profileId);
     if (existing?.isConnected() && !forceRestart) {
@@ -143,6 +150,7 @@ export class ProxyTrafficIngress implements IProxyTrafficIngress {
     const client = new ProxyApiClient({
       baseUrl: buildProxyApiBaseUrl(apiPort),
       reconnect: true,
+      apiToken,
     });
 
     const unsubscribe = client.onEvent((event) => {

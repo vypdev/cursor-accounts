@@ -1,4 +1,4 @@
-import type { AgentSessionInfo } from '../../application/types/agentTracking';
+import type { AgentSessionInfo } from '../types/agentTracking';
 
 export interface DetectedTurn {
   streamingTokens: number;

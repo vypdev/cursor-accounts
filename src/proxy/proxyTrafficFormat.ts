@@ -140,6 +140,15 @@ export function formatTrafficLine(
   }
 
   const status = summary.statusCode ?? '?';
+  const meta = formatResponseMetadata(summary);
+  return `[${time}] ${PROXY_TRAFFIC_TAG} ← ${status} ${target}${meta}`;
+}
+
+function formatResponseMetadata(summary: ProxyTrafficSummary): string {
+  if (!summary.bodyKind) {
+    return '';
+  }
+
   const size =
     summary.bodyBytes != null && summary.bodyBytes > 0
       ? `${summary.bodyBytes} B`
@@ -147,11 +156,12 @@ export function formatTrafficLine(
   const duration =
     summary.durationMs != null ? `, ${summary.durationMs} ms` : '';
   const insightHint = formatInsightHint(summary);
-  const decodeHint = summary.decodeError ? ', decode-err' : summary.bodyDecoded ? ', decoded' : '';
-  const meta = summary.bodyKind
-    ? ` (${size}, ${summary.bodyKind}${duration}${decodeHint}${insightHint})`
-    : '';
-  return `[${time}] ${PROXY_TRAFFIC_TAG} ← ${status} ${target}${meta}`;
+  const decodeHint = summary.decodeError
+    ? ', decode-err'
+    : summary.bodyDecoded
+      ? ', decoded'
+      : '';
+  return ` (${size}, ${summary.bodyKind}${duration}${decodeHint}${insightHint})`;
 }
 
 function formatInsightHint(summary: ProxyTrafficSummary): string {

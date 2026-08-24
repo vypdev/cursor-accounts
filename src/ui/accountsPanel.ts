@@ -770,7 +770,12 @@ export class AccountsPanelProvider {
     window.__cursorAccountsReportScriptError = function() {
       var root = document.getElementById('root');
       if (root) {
-        root.innerHTML = '<p style="padding:12px;color:var(--vscode-errorForeground,#88);">${t('panel.scriptLoadFailed')}</p>';
+        root.textContent = '';
+        var error = document.createElement('p');
+        error.style.padding = '12px';
+        error.style.color = 'var(--vscode-errorForeground, #88)';
+        error.textContent = ${JSON.stringify(t('panel.scriptLoadFailed'))};
+        root.appendChild(error);
       }
     };
     (function() {
