@@ -49,7 +49,7 @@ import {
 } from '../proxy/api/proxyApiClient';
 import { clearProxyLogDirectory } from '../proxy/proxyLogCleanup';
 import { SharedProxyStateStore } from '../proxy/sharedProxyStateStore';
-import { isPortAvailable, isProcessAlive } from '../proxy/portUtils';
+import { isPortAvailable } from '../proxy/portUtils';
 import {
   getAllUsedProxyPorts,
 } from '../proxy/resolvePortForProfile';
@@ -73,6 +73,7 @@ import {
   SharedProxyLifecycleCoordinator,
   type SharedProxyRuntime,
 } from './sharedProxyLifecycleCoordinator';
+import { ProxyStatusCoordinator } from './proxyStatusCoordinator';
 import { ProxyCertificateService } from './proxyCertificateService';
 import type { ProxySettingsService } from './proxySettingsService';
 
@@ -101,6 +102,7 @@ export class ProxyManager implements IProxyManager {
   private readonly trafficUsageCoordinator: ProxyTrafficUsageCoordinator;
   private readonly sharedProxyLifecycleCoordinator: SharedProxyLifecycleCoordinator;
   private readonly profileLifecycleCoordinator: ProxyProfileLifecycleCoordinator;
+  private readonly statusCoordinator: ProxyStatusCoordinator;
   private readonly sharedProxyStateStore: SharedProxyStateStore;
   private readonly storageDir: string;
   private readonly logDir: string;
@@ -234,6 +236,28 @@ export class ProxyManager implements IProxyManager {
         : undefined,
       appendStopped: () => this.outputPresenter?.appendStopped(),
       notifyStatusChange: () => this.notifyStatusChange(),
+    });
+    this.statusCoordinator = new ProxyStatusCoordinator({
+      profileManager: this.profileManager,
+      stateStore: this.stateStore,
+      logDirectory: this.logDir,
+      getRuntime: (profileId) => this.runtimes.get(profileId),
+      readSharedState: () => this.readSharedProxyState(),
+      resolveApiPort: (mitmPort, persistedApiPort) =>
+        this.resolveApiPort(mitmPort, persistedApiPort),
+      getRuntimePid: (runtime) =>
+        runtime.process instanceof NodeProxyProcess
+          ? runtime.process.getChild()?.pid
+          : null,
+      isProcessAlive: (pid) => {
+        try {
+          process.kill(pid, 0);
+          return true;
+        } catch {
+          return false;
+        }
+      },
+      isPortAvailable: (port) => isPortAvailable(port),
     });
     this.deps.trafficBus.subscribe((summary, profileId) => {
       void this.handleTraffic(summary, profileId);
@@ -498,95 +522,7 @@ export class ProxyManager implements IProxyManager {
   }
 
   async getStatus(profileId: string): Promise<ProxyStatus | null> {
-    const profile = await this.profileManager.getProfile(profileId);
-    if (!profile) {
-      return { running: false, logDirectory: this.logDir };
-    }
-
-    if (isProfileProxyEnabled(profile)) {
-      const sharedRuntime = this.runtimes.get(SHARED_PROXY_RUNTIME_KEY);
-      const sharedState = await this.readSharedProxyState();
-      const port = sharedRuntime?.port ?? sharedState?.port;
-      const apiPort =
-        sharedRuntime?.apiPort ??
-        (port != null ? this.resolveApiPort(port, sharedState?.apiPort) : undefined);
-      const pid =
-        sharedRuntime?.process instanceof NodeProxyProcess
-          ? sharedRuntime.process.getChild()?.pid
-          : sharedState?.pid;
-
-      if (port != null && (sharedRuntime || sharedState?.running)) {
-        const alive = pid != null && isProcessAlive(pid);
-        if (alive) {
-          return {
-            running: true,
-            port,
-            apiPort,
-            pid,
-            startedAt: sharedState?.startedAt
-              ? new Date(sharedState.startedAt).getTime()
-              : undefined,
-            caCertificatePath: sharedState?.caCertificatePath,
-            logDirectory: this.logDir,
-          };
-        }
-      }
-    }
-
-    const state = await this.stateStore.read(profile.userDataDir);
-    const runtime = this.runtimes.get(profileId);
-
-    if (!state) {
-      if (runtime) {
-        return {
-          running: true,
-          port: runtime.port,
-          apiPort: runtime.apiPort,
-          pid: runtime.process instanceof NodeProxyProcess
-            ? runtime.process.getChild()?.pid
-            : undefined,
-          logDirectory: this.logDir,
-        };
-      }
-      return { running: false, logDirectory: this.logDir };
-    }
-
-    const alive = state.pid != null && isProcessAlive(state.pid);
-    if (!alive) {
-      if (state.running) {
-        await this.stateStore.clear(profile.userDataDir);
-      }
-      return {
-        running: false,
-        logDirectory: this.logDir,
-        caCertificatePath: state.caCertificatePath,
-      };
-    }
-
-    const port = state.port;
-    const portListening =
-      port != null ? !(await isPortAvailable(port)) : false;
-
-    if (!portListening && state.running) {
-      await this.stateStore.clear(profile.userDataDir);
-      return {
-        running: false,
-        logDirectory: this.logDir,
-        caCertificatePath: state.caCertificatePath,
-      };
-    }
-
-    return {
-      running: true,
-      port: state.port,
-      apiPort: state.apiPort ?? (port != null ? this.resolveApiPort(port) : undefined),
-      pid: state.pid,
-      startedAt: state.startedAt
-        ? new Date(state.startedAt).getTime()
-        : undefined,
-      caCertificatePath: state.caCertificatePath,
-      logDirectory: this.logDir,
-    };
+    return this.statusCoordinator.getStatus(profileId);
   }
 
   async isRunning(profileId: string): Promise<boolean> {
