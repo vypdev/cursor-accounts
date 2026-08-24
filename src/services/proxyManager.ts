@@ -58,9 +58,7 @@ import {
   SHARED_PROXY_RUNTIME_KEY,
   SHARED_PROXY_STATE_FILE_NAME,
 } from '../proxy/types';
-import { decodeJwtPayload } from '../auth/tokenReader';
 import { ProfileAuthReader } from '../auth/profileAuthReader';
-import { getEfficiencyDbPath } from '../persistence/efficiencyDatabase';
 import type { AgentTrackingService } from './agentTrackingService';
 import { ProxyAgentTrackingCoordinator } from './proxyAgentTrackingCoordinator';
 import { ProxyTrafficIngressCoordinator } from './proxyTrafficIngressCoordinator';
@@ -78,6 +76,7 @@ import {
   ProxyTrafficTailerCoordinator,
   type ProxyTrafficTailerOptions,
 } from './proxyTrafficTailerCoordinator';
+import { ProxyProfileRoutingConfiguration } from './proxyProfileRoutingConfiguration';
 import { ProxyCertificateService } from './proxyCertificateService';
 import type { ProxySettingsService } from './proxySettingsService';
 
@@ -108,6 +107,7 @@ export class ProxyManager implements IProxyManager {
   private readonly profileLifecycleCoordinator: ProxyProfileLifecycleCoordinator;
   private readonly statusCoordinator: ProxyStatusCoordinator;
   private readonly trafficTailerCoordinator: ProxyTrafficTailerCoordinator;
+  private readonly profileRoutingConfiguration: ProxyProfileRoutingConfiguration;
   private readonly sharedProxyStateStore: SharedProxyStateStore;
   private readonly storageDir: string;
   private readonly logDir: string;
@@ -277,6 +277,9 @@ export class ProxyManager implements IProxyManager {
       ensureTrafficIngress: (profileId, mitmPort, apiPort, options) =>
         this.ensureTrafficIngress(profileId, mitmPort, apiPort, options),
     });
+    this.profileRoutingConfiguration = new ProxyProfileRoutingConfiguration({
+      authReader: this.deps.authReader,
+    });
     this.deps.trafficBus.subscribe((summary, profileId) => {
       void this.handleTraffic(summary, profileId);
     });
@@ -349,51 +352,11 @@ export class ProxyManager implements IProxyManager {
   private async buildUserIdMapping(
     profiles: Profile[]
   ): Promise<Map<string, string>> {
-    const mapping = new Map<string, string>();
-    const authReader = this.deps.authReader;
-    if (!authReader) {
-      return mapping;
-    }
-
-    for (const profile of profiles) {
-      if (!isProfileProxyEnabled(profile)) {
-        continue;
-      }
-      try {
-        const tokens = await authReader.readTokens(profile.userDataDir);
-        if (!tokens?.accessToken) {
-          continue;
-        }
-        const payload = decodeJwtPayload(tokens.accessToken);
-        const sub = payload?.sub;
-        if (typeof sub !== 'string' || !sub) {
-          continue;
-        }
-        const userId = sub.includes('|') ? sub.split('|').pop()! : sub;
-        mapping.set(userId, profile.id);
-        extensionLog.info(
-          `[Proxy] Mapped user ${userId.slice(0, 8)}… → profile ${profile.displayName}`
-        );
-      } catch (error) {
-        extensionLog.warn(
-          `[Proxy] Failed to map user for profile ${profile.displayName}: ${
-            error instanceof Error ? error.message : String(error)
-          }`
-        );
-      }
-    }
-
-    return mapping;
+    return this.profileRoutingConfiguration.buildUserIdMapping(profiles);
   }
 
   private buildProfileDbPaths(profiles: Profile[]): Record<string, string> {
-    const profileDbPaths: Record<string, string> = {};
-    for (const profile of profiles) {
-      if (isProfileProxyEnabled(profile)) {
-        profileDbPaths[profile.id] = getEfficiencyDbPath(profile.userDataDir);
-      }
-    }
-    return profileDbPaths;
+    return this.profileRoutingConfiguration.buildProfileDbPaths(profiles);
   }
 
   async ensureSharedProxy(profiles: Profile[]): Promise<ProxyStartResult> {

@@ -138,10 +138,10 @@ The audit baseline is commit `9a116cf` on branch
 The implementation state after the completed slices is tracked separately from
 that historical baseline:
 
-- the latest full extension-host checkpoint passed 709 tests;
+- the latest full extension-host checkpoint passed 736 tests;
 - the webview suite has 18 passing tests;
 - localization has 26 locales with 428 keys each;
-- the architecture gate checks 391 TypeScript files, with valid, boundary,
+- the architecture gate checks 397 TypeScript files, with valid, boundary,
   cycle, and unresolved-import fixtures passing;
 - current-target packaging produced and verified
   `cursor-accounts-darwin-arm64-0.1.34.vsix`; stale artifacts are excluded by
@@ -154,8 +154,8 @@ that historical baseline:
   the current-target VSIX was rebuilt, sanitized, and verified again.
 - Documentation validation covers 43 Markdown files and caught stale links to
   the former application-layer proxy ingress path before the gate was enabled.
-- Graphify was refreshed after the per-profile lifecycle extraction; the graph
-  now contains 4,581 nodes and 10,639 edges. Repowise reports zero safe-only dead-code
+- Graphify was refreshed after the status and tailer extractions; the graph
+  now contains 4,628 nodes and 10,769 edges. Repowise reports zero safe-only dead-code
   findings; its 29 medium-confidence candidates remain retained pending
   runtime/public-contract evidence.
 - `ProxyTrafficUsageCoordinator` now owns agent-traffic classification,
@@ -171,6 +171,17 @@ that historical baseline:
 - `ProxyProfileLifecycleCoordinator` now owns per-profile attach, API shutdown,
   child cleanup, ingress stop, settings restore, and state deletion. Its
   focused tests preserve shared and multi-window behavior.
+- `ProxyStatusCoordinator` now owns persisted/in-memory status reconciliation,
+  liveness checks, and stale-state cleanup. Its focused tests cover unknown
+  profiles, shared state, local runtimes, dead processes, and unavailable ports.
+- `ProxyTrafficTailerCoordinator` now owns output-tail and traffic-tail
+  discovery across shared runtime, persisted shared state, in-memory profile
+  runtime, and profile-status fallbacks. Its focused tests cover each route and
+  option/token forwarding.
+- `ProxyProfileRoutingConfiguration` now owns JWT subject mapping and
+  per-profile efficiency database routing for shared proxy configuration. Its
+  focused tests cover disabled profiles, missing auth, malformed JWT data, and
+  namespaced subjects.
 
 ### 3.2 Target state
 
@@ -686,7 +697,7 @@ pure function where appropriate, characterization tests, and a rollback path.
 
 ### W4.1 `ProxyManager` decomposition
 
-Current risk: approximately 1,019 lines and Graphify degree 62, combining
+Current risk: 760 lines and Graphify degree 65, combining
 profile lifecycle, shared proxy coordination, state persistence, certificate
 operations, traffic ingress, agent tracking, output/tailing, and notifications.
 
@@ -715,8 +726,10 @@ Completed in this phase:
   `SharedProxyLifecycleCoordinator`;
 - per-profile attach and stop cleanup are implemented by
   `ProxyProfileLifecycleCoordinator`;
-- the remaining lifecycle extraction is profile status and routing behavior,
-  which must be characterized before moving it.
+- profile status reconciliation and traffic-tail routing are implemented by
+  `ProxyStatusCoordinator` and `ProxyTrafficTailerCoordinator`; the next
+  candidates are configuration assembly and the remaining facade-level listener
+  and process-cleanup helpers.
 
 Execution order:
 
