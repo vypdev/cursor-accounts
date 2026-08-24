@@ -512,7 +512,7 @@ baseline, but it is not presented as a completed final audit.
 - The architecture checker resolves relative imports, fails closed on
   unresolved imports, rejects domain/application violations, detects cycles,
   and passes valid, boundary, cycle, and unresolved-import fixtures across
-  389 TypeScript files.
+  391 TypeScript files.
 - Domain-owned proxy and tracking contracts now live under
   `src/domain/types`; application re-exports are compatibility-only.
 - Proxy traffic ingress, bus, cost enrichment, health polling, and presenter
@@ -553,11 +553,17 @@ baseline, but it is not presented as a completed final audit.
   process, settings, and ingress callbacks. The coordinator reaches 80.37%
   line and 85.71% function coverage, while `ProxyManager` falls to 51.81%
   line coverage after the extraction.
+- Per-profile attach, API shutdown, child cleanup, ingress stop, settings
+  restore, and state deletion now live in
+  `ProxyProfileLifecycleCoordinator`; its focused tests preserve shared and
+  multi-window behavior. The coordinator reaches 77.72% line and 100% function
+  coverage, while `ProxyManager` reaches 58.79% line coverage.
 
 ### Updated Repowise and Graphify signals
 
-Repowise and Graphify were re-run after the shared-lifecycle extraction. The graph
-now contains 4,555 nodes and 10,581 edges; nine SQL files remain unparsed because
+Repowise and Graphify were re-run after the per-profile lifecycle extraction.
+The graph now contains 4,581 nodes and 10,639 edges; nine SQL files remain
+unparsed because
 the installed Graphify environment does not include `tree_sitter_sql`. The
 largest remaining source-level hubs are `ProxyManager`, `ProfileManager`,
 `InstanceDetector`, `AccountsPanelProvider`, `AccountsPanelHandlers`, and

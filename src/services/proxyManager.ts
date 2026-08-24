@@ -66,6 +66,10 @@ import { ProxyAgentTrackingCoordinator } from './proxyAgentTrackingCoordinator';
 import { ProxyTrafficIngressCoordinator } from './proxyTrafficIngressCoordinator';
 import { ProxyTrafficUsageCoordinator } from './proxyTrafficUsageCoordinator';
 import {
+  PROXY_STOP_GRACE_MS,
+  ProxyProfileLifecycleCoordinator,
+} from './proxyProfileLifecycleCoordinator';
+import {
   SharedProxyLifecycleCoordinator,
   type SharedProxyRuntime,
 } from './sharedProxyLifecycleCoordinator';
@@ -73,8 +77,6 @@ import { ProxyCertificateService } from './proxyCertificateService';
 import type { ProxySettingsService } from './proxySettingsService';
 
 export type { ConversationUsagePersistedEvent, ConversationUsagePersistedListener, ProxyTrafficListener } from '../domain/ports/IProxyTraffic';
-
-const PROXY_STOP_GRACE_MS = 500;
 
 type ProfileProxyRuntime = SharedProxyRuntime;
 
@@ -98,6 +100,7 @@ export class ProxyManager implements IProxyManager {
   private readonly trafficIngressCoordinator: ProxyTrafficIngressCoordinator;
   private readonly trafficUsageCoordinator: ProxyTrafficUsageCoordinator;
   private readonly sharedProxyLifecycleCoordinator: SharedProxyLifecycleCoordinator;
+  private readonly profileLifecycleCoordinator: ProxyProfileLifecycleCoordinator;
   private readonly sharedProxyStateStore: SharedProxyStateStore;
   private readonly storageDir: string;
   private readonly logDir: string;
@@ -207,6 +210,31 @@ export class ProxyManager implements IProxyManager {
         shouldAutoShowOutput: () => this.getOutputConfig().autoShowOutputChannel,
         notifyStatusChange: () => this.notifyStatusChange(),
       });
+    this.profileLifecycleCoordinator = new ProxyProfileLifecycleCoordinator({
+      profileManager: this.profileManager,
+      stateStore: this.stateStore,
+      sharedStateStore: this.sharedProxyStateStore,
+      trafficIngress: this.deps.trafficIngress,
+      getRuntime: (profileId) => this.runtimes.get(profileId),
+      isSharedProxyActive: () => this.isSharedProxyActive(),
+      createApiClient: (apiPort, apiToken) =>
+        this.createApiClient(apiPort, apiToken),
+      resolveApiPort: (mitmPort, persistedApiPort) =>
+        this.resolveApiPort(mitmPort, persistedApiPort),
+      ensureAgentTracking: (profileId, userDataDir) =>
+        this.ensureAgentTracking(profileId, userDataDir),
+      applyProxySettings: (userDataDir, port) =>
+        this.applyProxySettingsForProfile(userDataDir, port),
+      ensureTrafficIngress: (profileId, port, apiPort, options) =>
+        this.ensureTrafficIngress(profileId, port, apiPort, options),
+      forceStopChild: (profileId) => this.forceStopChild(profileId),
+      restoreProxySettings: this.profileSettingsManager
+        ? (userDataDir) =>
+            this.profileSettingsManager!.restoreProxySettings(userDataDir)
+        : undefined,
+      appendStopped: () => this.outputPresenter?.appendStopped(),
+      notifyStatusChange: () => this.notifyStatusChange(),
+    });
     this.deps.trafficBus.subscribe((summary, profileId) => {
       void this.handleTraffic(summary, profileId);
     });
@@ -274,10 +302,6 @@ export class ProxyManager implements IProxyManager {
 
   private async readSharedProxyState(): Promise<ProxyStateFile | null> {
     return this.sharedProxyStateStore.read();
-  }
-
-  private async clearSharedProxyState(): Promise<void> {
-    await this.sharedProxyStateStore.clear();
   }
 
   private async buildUserIdMapping(
@@ -432,84 +456,7 @@ export class ProxyManager implements IProxyManager {
   }
 
   async connectToExistingProxy(profileId: string): Promise<void> {
-    const profile = await this.profileManager.getProfile(profileId);
-    if (!profile || !isProfileProxyEnabled(profile)) {
-      return;
-    }
-
-    const sharedState = await this.readSharedProxyState();
-    if (sharedState?.running && sharedState.port != null) {
-      const apiPort = this.resolveApiPort(sharedState.port, sharedState.apiPort);
-      try {
-        const probe = this.createApiClient(apiPort, sharedState.apiToken);
-        const status = await probe.getStatus();
-        if (status.running) {
-          await this.ensureAgentTracking(profileId, profile.userDataDir).catch(
-            (error) => {
-              extensionLog.warn(
-                `[Proxy:${profileId}] Agent tracking init failed during attach: ${
-                  error instanceof Error ? error.message : String(error)
-                }`
-              );
-            }
-          );
-          await this.applyProxySettingsForProfile(
-            profile.userDataDir,
-            sharedState.port
-          );
-          await this.ensureTrafficIngress(
-            SHARED_PROXY_RUNTIME_KEY,
-            sharedState.port,
-            apiPort,
-            { forceRestart: true, apiToken: sharedState.apiToken }
-          );
-          this.notifyStatusChange();
-          return;
-        }
-      } catch {
-        await this.clearSharedProxyState();
-      }
-    }
-
-    const state = await this.stateStore.read(profile.userDataDir);
-    if (!state?.running || state.port == null) {
-      return;
-    }
-
-    const apiPort = this.resolveApiPort(state.port, state.apiPort);
-
-    try {
-      const probe = this.createApiClient(apiPort, state.apiToken);
-      const status = await probe.getStatus();
-      if (!status.running) {
-        await this.stateStore.clear(profile.userDataDir);
-        return;
-      }
-
-      await this.ensureAgentTracking(profileId, profile.userDataDir).catch(
-        (error) => {
-          extensionLog.warn(
-            `[Proxy:${profileId}] Agent tracking init failed during attach: ${
-              error instanceof Error ? error.message : String(error)
-            }`
-          );
-        }
-      );
-      await this.applyProxySettingsForProfile(profile.userDataDir, state.port);
-      await this.ensureTrafficIngress(profileId, state.port, apiPort, {
-        forceRestart: true,
-        apiToken: state.apiToken,
-      });
-      this.notifyStatusChange();
-    } catch (error) {
-      extensionLog.warn(
-        `[Proxy:${profileId}] Failed to attach to existing proxy API: ${
-          error instanceof Error ? error.message : String(error)
-        }`
-      );
-      await this.stateStore.clear(profile.userDataDir);
-      this.notifyStatusChange();
-    }
+    await this.profileLifecycleCoordinator.connectToExistingProxy(profileId);
   }
 
   async start(profileId: string): Promise<ProxyStartResult> {
@@ -530,75 +477,7 @@ export class ProxyManager implements IProxyManager {
     profileId: string,
     options?: { restoreSettings?: boolean }
   ): Promise<void> {
-    const restoreSettings = options?.restoreSettings !== false;
-    try {
-      const profile = await this.profileManager.getProfile(profileId);
-      if (!profile) {
-        return;
-      }
-
-      if (this.isSharedProxyActive()) {
-        if (restoreSettings && this.profileSettingsManager) {
-          try {
-            await this.profileSettingsManager.restoreProxySettings(
-              profile.userDataDir
-            );
-          } catch (error) {
-            extensionLog.warn(
-              `[Proxy:${profileId}] Failed to restore profile settings: ${
-                error instanceof Error ? error.message : String(error)
-              }`
-            );
-          }
-        }
-        return;
-      }
-
-      const runtime = this.runtimes.get(profileId);
-      const state = await this.stateStore.read(profile.userDataDir);
-      const apiPort =
-        runtime?.apiPort ??
-        (state?.port != null
-          ? this.resolveApiPort(state.port, state.apiPort)
-          : undefined);
-
-      if (apiPort != null) {
-        try {
-          await this.createApiClient(apiPort, state?.apiToken).shutdown();
-          await new Promise((resolve) => setTimeout(resolve, PROXY_STOP_GRACE_MS));
-        } catch (error) {
-          extensionLog.debug(
-            `[Proxy:${profileId}] API shutdown failed, falling back to process stop: ${
-              error instanceof Error ? error.message : String(error)
-            }`
-          );
-        }
-      }
-
-      await this.forceStopChild(profileId);
-      this.deps.trafficIngress.stop(profileId);
-
-      if (restoreSettings && this.profileSettingsManager) {
-        try {
-          await this.profileSettingsManager.restoreProxySettings(profile.userDataDir);
-        } catch (error) {
-          extensionLog.warn(
-            `[Proxy:${profileId}] Failed to restore profile settings: ${
-              error instanceof Error ? error.message : String(error)
-            }`
-          );
-        }
-      }
-
-      await this.stateStore.clear(profile.userDataDir);
-      extensionLog.info(`[Proxy:${profileId}] Stopped`);
-      this.outputPresenter?.appendStopped();
-      this.notifyStatusChange();
-    } catch (error) {
-      extensionLog.error(
-        `[Proxy] stop failed: ${error instanceof Error ? error.message : String(error)}`
-      );
-    }
+    await this.profileLifecycleCoordinator.stop(profileId, options);
   }
 
   async restartProfileProxy(profileId: string): Promise<ProxyStartResult> {

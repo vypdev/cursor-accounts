@@ -141,7 +141,7 @@ that historical baseline:
 - the latest full extension-host checkpoint passed 709 tests;
 - the webview suite has 18 passing tests;
 - localization has 26 locales with 428 keys each;
-- the architecture gate checks 389 TypeScript files, with valid, boundary,
+- the architecture gate checks 391 TypeScript files, with valid, boundary,
   cycle, and unresolved-import fixtures passing;
 - current-target packaging produced and verified
   `cursor-accounts-darwin-arm64-0.1.34.vsix`; stale artifacts are excluded by
@@ -154,8 +154,8 @@ that historical baseline:
   the current-target VSIX was rebuilt, sanitized, and verified again.
 - Documentation validation covers 43 Markdown files and caught stale links to
   the former application-layer proxy ingress path before the gate was enabled.
-- Graphify was refreshed after the shared-lifecycle extraction; the graph now
-  contains 4,555 nodes and 10,581 edges. Repowise reports zero safe-only dead-code
+- Graphify was refreshed after the per-profile lifecycle extraction; the graph
+  now contains 4,581 nodes and 10,639 edges. Repowise reports zero safe-only dead-code
   findings; its 29 medium-confidence candidates remain retained pending
   runtime/public-contract evidence.
 - `ProxyTrafficUsageCoordinator` now owns agent-traffic classification,
@@ -168,6 +168,9 @@ that historical baseline:
   ownership recovery, health polling, exit cleanup, and shutdown. Its focused
   lifecycle tests pass; `ProxyManager` remains a facade with the remaining
   status, routing, and per-profile lifecycle concerns still open.
+- `ProxyProfileLifecycleCoordinator` now owns per-profile attach, API shutdown,
+  child cleanup, ingress stop, settings restore, and state deletion. Its
+  focused tests preserve shared and multi-window behavior.
 
 ### 3.2 Target state
 
@@ -683,7 +686,7 @@ pure function where appropriate, characterization tests, and a rollback path.
 
 ### W4.1 `ProxyManager` decomposition
 
-Current risk: approximately 1,168 lines and Graphify degree 62, combining
+Current risk: approximately 1,019 lines and Graphify degree 62, combining
 profile lifecycle, shared proxy coordination, state persistence, certificate
 operations, traffic ingress, agent tracking, output/tailing, and notifications.
 
@@ -710,8 +713,10 @@ Completed in this phase:
 - shared child startup, persisted ownership recovery, health polling, exit
   cleanup, and shared shutdown are implemented by
   `SharedProxyLifecycleCoordinator`;
-- the remaining lifecycle extraction is per-profile stop/status and routing
-  behavior, which must be characterized before moving it.
+- per-profile attach and stop cleanup are implemented by
+  `ProxyProfileLifecycleCoordinator`;
+- the remaining lifecycle extraction is profile status and routing behavior,
+  which must be characterized before moving it.
 
 Execution order:
 
