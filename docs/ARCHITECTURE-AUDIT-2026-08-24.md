@@ -512,7 +512,7 @@ baseline, but it is not presented as a completed final audit.
 - The architecture checker resolves relative imports, fails closed on
   unresolved imports, rejects domain/application violations, detects cycles,
   and passes valid, boundary, cycle, and unresolved-import fixtures across
-  383 TypeScript files.
+  385 TypeScript files.
 - Domain-owned proxy and tracking contracts now live under
   `src/domain/types`; application re-exports are compatibility-only.
 - Proxy traffic ingress, bus, cost enrichment, health polling, and presenter
@@ -542,11 +542,16 @@ baseline, but it is not presented as a completed final audit.
   live in `ProxyTrafficIngressCoordinator`; `ProxyManager` delegates ingress
   setup while retaining lifecycle ownership. The coordinator reaches 100% line
   coverage in the current run.
+- Agent-traffic classification, shared/per-profile ingestion decisions, and
+  persisted-usage notifications now live in
+  `ProxyTrafficUsageCoordinator`; `ProxyManager` retains only presentation and
+  listener dispatch at that boundary. The coordinator reaches 99.1% line and
+  100% function coverage in the current run.
 
 ### Updated Repowise and Graphify signals
 
-Repowise and Graphify were re-run after the boundary migration. The graph now
-contains 4,499 nodes and 10,422 edges; nine SQL files remain unparsed because
+Repowise and Graphify were re-run after the traffic-usage extraction. The graph
+now contains 4,514 nodes and 10,469 edges; nine SQL files remain unparsed because
 the installed Graphify environment does not include `tree_sitter_sql`. The
 largest remaining source-level hubs are `ProxyManager`, `ProfileManager`,
 `InstanceDetector`, `AccountsPanelProvider`, `AccountsPanelHandlers`, and
@@ -569,8 +574,8 @@ confidence cleanup candidates retained for further evidence.
 The dependency advisory register is still open for transitive `tar`, `undici`,
 `uuid`, and optional dependency paths. Initial local floors now protect body
 redaction, loopback validation, token refresh, and log cleanup; broader floors
-for orchestration and UI modules remain open. The largest orchestration and UI hubs still require decomposition,
-documentation link checks are not yet a required gate, and the complete
+for orchestration and UI modules remain open. The largest orchestration and UI
+hubs still require decomposition, and the complete
 release-platform VSIX matrix plus installed-extension acceptance test remain
 open. These items are intentionally carried forward rather than hidden by the
 improved global metrics.

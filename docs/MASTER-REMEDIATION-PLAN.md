@@ -141,7 +141,7 @@ that historical baseline:
 - the latest full extension-host checkpoint passed 709 tests;
 - the webview suite has 18 passing tests;
 - localization has 26 locales with 428 keys each;
-- the architecture gate checks 383 TypeScript files, with valid, boundary,
+- the architecture gate checks 385 TypeScript files, with valid, boundary,
   cycle, and unresolved-import fixtures passing;
 - current-target packaging produced and verified
   `cursor-accounts-darwin-arm64-0.1.34.vsix`; stale artifacts are excluded by
@@ -154,10 +154,13 @@ that historical baseline:
   the current-target VSIX was rebuilt, sanitized, and verified again.
 - Documentation validation covers 43 Markdown files and caught stale links to
   the former application-layer proxy ingress path before the gate was enabled.
-- Graphify was refreshed after the tracking extraction; the graph now contains
-  4,499 nodes and 10,422 edges. Repowise reports zero safe-only dead-code
+- Graphify was refreshed after the traffic-usage extraction; the graph now
+  contains 4,514 nodes and 10,469 edges. Repowise reports zero safe-only dead-code
   findings; its 29 medium-confidence candidates remain retained pending
   runtime/public-contract evidence.
+- `ProxyTrafficUsageCoordinator` now owns agent-traffic classification,
+  shared/per-profile ingestion decisions, and persisted-usage notifications;
+  its focused tests pass and coverage is 99.1% lines / 100% functions.
 
 ### 3.2 Target state
 
@@ -673,7 +676,7 @@ pure function where appropriate, characterization tests, and a rollback path.
 
 ### W4.1 `ProxyManager` decomposition
 
-Current risk: approximately 1,285 lines and Graphify degree 54, combining
+Current risk: approximately 1,243 lines and Graphify degree 59, combining
 profile lifecycle, shared proxy coordination, state persistence, certificate
 operations, traffic ingress, agent tracking, output/tailing, and notifications.
 
@@ -686,6 +689,9 @@ Proposed seams:
    allocation, and attach/detach behavior.
 4. `ProxyTrafficSubscriptionCoordinator` — traffic bus, cost enrichment,
    tracking ingress, and listener lifecycle.
+   `ProxyTrafficUsageCoordinator` now implements the tracking-ingress portion
+   with focused tests; the remaining bus/subscription concerns stay in the
+   facade until their ownership is characterized.
 5. `ProxyOutputCoordinator` — JSONL tailers, output channels, and diagnostics
    presentation.
 6. `ProxyCertificateFacade` — only if the existing certificate service does not

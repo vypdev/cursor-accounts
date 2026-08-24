@@ -8,6 +8,7 @@ import type {
   RestoreAllProfilesResult,
 } from '../domain/ports/IProxyManager';
 import type {
+  ConversationUsagePersistedEvent,
   ConversationUsagePersistedListener,
   ProxyTrafficListener,
 } from '../domain/ports/IProxyTraffic';
@@ -66,6 +67,7 @@ import { getEfficiencyDbPath } from '../persistence/efficiencyDatabase';
 import type { AgentTrackingService } from './agentTrackingService';
 import { ProxyAgentTrackingCoordinator } from './proxyAgentTrackingCoordinator';
 import { ProxyTrafficIngressCoordinator } from './proxyTrafficIngressCoordinator';
+import { ProxyTrafficUsageCoordinator } from './proxyTrafficUsageCoordinator';
 import { ProxyCertificateService } from './proxyCertificateService';
 import type { ProxySettingsService } from './proxySettingsService';
 
@@ -100,6 +102,7 @@ export class ProxyManager implements IProxyManager {
     [];
   private readonly agentTrackingCoordinator: ProxyAgentTrackingCoordinator;
   private readonly trafficIngressCoordinator: ProxyTrafficIngressCoordinator;
+  private readonly trafficUsageCoordinator: ProxyTrafficUsageCoordinator;
   private readonly storageDir: string;
   private readonly logDir: string;
   private lastDiagnosticsOutputAt = 0;
@@ -155,6 +158,14 @@ export class ProxyManager implements IProxyManager {
       getOutputConfig: this.getOutputConfig,
       hasRuntime: (profileId) => this.runtimes.has(profileId),
       sharedRuntimeKey: SHARED_PROXY_RUNTIME_KEY,
+    });
+    this.trafficUsageCoordinator = new ProxyTrafficUsageCoordinator({
+      isSharedProxyActive: () => this.isSharedProxyActive(),
+      ensureAgentTracking: (profileId) =>
+        this.ensureAgentTrackingForProfile(profileId),
+      getAgentTrackingService: (profileId) =>
+        this.agentTrackingCoordinator.get(profileId),
+      onUsagePersisted: (event) => this.notifyUsagePersisted(event),
     });
     this.deps.trafficBus.subscribe((summary, profileId) => {
       void this.handleTraffic(summary, profileId);
@@ -498,95 +509,10 @@ export class ProxyManager implements IProxyManager {
     summary: Parameters<TrafficListener>[0],
     profileId?: string
   ): Promise<void> {
-    const effectiveProfileId = summary.profileId ?? profileId;
-    const agent = summary.insights?.agent;
-    const isAgentTraffic =
-      summary.isLiveTokenUpdate === true ||
-      summary.isTurnEnded === true ||
-      agent?.usageEvent != null ||
-      (summary.insights?.allTokenFrames?.length ?? 0) > 0;
-
-    if (isAgentTraffic) {
-      const bidi = agent?.requestId;
-      const conv =
-        agent?.conversationId ?? summary.insights?.context?.conversationId;
-      extensionLog.info(
-        `[AgentTracking] proxy recv profile=${effectiveProfileId ?? '(none)'} ` +
-          `live=${summary.isLiveTokenUpdate === true} turnEnded=${summary.isTurnEnded === true} ` +
-          `bidi=${bidi ? `${bidi.slice(0, 8)}…` : '(none)'} ` +
-          `conv=${conv ? `${conv.slice(0, 8)}…` : '(none)'} ` +
-          `usage=${agent?.usageEvent ?? '(none)'} ` +
-          `delta=${summary.liveTokenData?.latestDelta ?? '(none)'} ` +
-          `endpoint=${summary.endpoint ?? summary.url}`
-      );
-    }
-
-    if (effectiveProfileId && effectiveProfileId !== SHARED_PROXY_RUNTIME_KEY) {
-      if (!this.isSharedProxyActive()) {
-        await this.ensureAgentTrackingForProfile(effectiveProfileId);
-        const tracking = this.agentTrackingCoordinator.get(effectiveProfileId);
-        if (!tracking && isAgentTraffic) {
-          extensionLog.warn(
-            `[AgentTracking] no AgentTrackingService for profile=${effectiveProfileId}`
-          );
-        }
-        const result = await tracking?.ingestTraffic(summary);
-        if (isAgentTraffic) {
-          extensionLog.info(
-            `[AgentTracking] ingest result profile=${effectiveProfileId} ` +
-              `delta=${result?.deltaPersisted === true} ` +
-              `turnEnded=${result?.turnEndedPersisted === true} ` +
-              `context=${result?.contextPersisted === true} ` +
-              `conv=${result?.conversationId ? `${result.conversationId.slice(0, 8)}…` : '(none)'}`
-          );
-        }
-        if (
-          result &&
-          (result.deltaPersisted ||
-            result.turnEndedPersisted ||
-            result.contextPersisted)
-        ) {
-          for (const listener of this.usagePersistedListeners) {
-            try {
-              listener({
-                conversationId: result.conversationId,
-                profileId: effectiveProfileId,
-              });
-            } catch (error) {
-              extensionLog.debug(
-                `[Proxy] usage persisted listener error: ${extensionLog.formatError(error)}`
-              );
-            }
-          }
-        }
-      } else if (isAgentTraffic) {
-        const conversationId =
-          agent?.conversationId ?? summary.insights?.context?.conversationId;
-        if (
-          conversationId &&
-          (summary.isLiveTokenUpdate ||
-            summary.isTurnEnded ||
-            agent?.usageEvent === 'token_details')
-        ) {
-          for (const listener of this.usagePersistedListeners) {
-            try {
-              listener({
-                conversationId,
-                profileId: effectiveProfileId,
-              });
-            } catch (error) {
-              extensionLog.debug(
-                `[Proxy] usage persisted listener error: ${extensionLog.formatError(error)}`
-              );
-            }
-          }
-        }
-      }
-    } else if (isAgentTraffic) {
-      extensionLog.warn(
-        '[AgentTracking] agent traffic without profileId — ingest skipped'
-      );
-    }
+    const effectiveProfileId = await this.trafficUsageCoordinator.handle(
+      summary,
+      profileId
+    );
     this.tokenDetectorPresenter?.appendTraffic(summary, effectiveProfileId);
     if (this.getOutputConfig().logTrafficToOutput) {
       this.outputPresenter?.appendTraffic(summary);
@@ -605,6 +531,18 @@ export class ProxyManager implements IProxyManager {
     listener: ConversationUsagePersistedListener
   ): void {
     this.usagePersistedListeners.push(listener);
+  }
+
+  private notifyUsagePersisted(event: ConversationUsagePersistedEvent): void {
+    for (const listener of this.usagePersistedListeners) {
+      try {
+        listener(event);
+      } catch (error) {
+        extensionLog.debug(
+          `[Proxy] usage persisted listener error: ${extensionLog.formatError(error)}`
+        );
+      }
+    }
   }
 
   getAgentTrackingService(profileId: string): AgentTrackingService | undefined {
