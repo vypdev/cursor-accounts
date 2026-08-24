@@ -141,7 +141,7 @@ that historical baseline:
 - the latest full extension-host checkpoint passed 709 tests;
 - the webview suite has 18 passing tests;
 - localization has 26 locales with 428 keys each;
-- the architecture gate checks 385 TypeScript files, with valid, boundary,
+- the architecture gate checks 387 TypeScript files, with valid, boundary,
   cycle, and unresolved-import fixtures passing;
 - current-target packaging produced and verified
   `cursor-accounts-darwin-arm64-0.1.34.vsix`; stale artifacts are excluded by
@@ -150,17 +150,20 @@ that historical baseline:
 - `body-parser` and `protobufjs` advisory paths were addressed, while the
   remaining dependency paths are recorded in
   [`DEPENDENCY-ADVISORY-REGISTER.md`](DEPENDENCY-ADVISORY-REGISTER.md).
-- `pnpm run audit` passes after the latest status-bar and proxy-port changes;
+- `pnpm run audit` passes after the latest proxy coordination changes;
   the current-target VSIX was rebuilt, sanitized, and verified again.
 - Documentation validation covers 43 Markdown files and caught stale links to
   the former application-layer proxy ingress path before the gate was enabled.
-- Graphify was refreshed after the traffic-usage extraction; the graph now
-  contains 4,514 nodes and 10,469 edges. Repowise reports zero safe-only dead-code
+- Graphify was refreshed after the shared-state extraction; the graph now
+  contains 4,524 nodes and 10,491 edges. Repowise reports zero safe-only dead-code
   findings; its 29 medium-confidence candidates remain retained pending
   runtime/public-contract evidence.
 - `ProxyTrafficUsageCoordinator` now owns agent-traffic classification,
   shared/per-profile ingestion decisions, and persisted-usage notifications;
   its focused tests pass and coverage is 99.1% lines / 100% functions.
+- `SharedProxyStateStore` now owns the shared-runtime state file's read, write,
+  and idempotent clear behavior; its tests cover private-file persistence,
+  malformed/absent state, and repeated cleanup.
 
 ### 3.2 Target state
 

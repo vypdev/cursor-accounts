@@ -512,7 +512,7 @@ baseline, but it is not presented as a completed final audit.
 - The architecture checker resolves relative imports, fails closed on
   unresolved imports, rejects domain/application violations, detects cycles,
   and passes valid, boundary, cycle, and unresolved-import fixtures across
-  385 TypeScript files.
+  387 TypeScript files.
 - Domain-owned proxy and tracking contracts now live under
   `src/domain/types`; application re-exports are compatibility-only.
 - Proxy traffic ingress, bus, cost enrichment, health polling, and presenter
@@ -550,8 +550,8 @@ baseline, but it is not presented as a completed final audit.
 
 ### Updated Repowise and Graphify signals
 
-Repowise and Graphify were re-run after the traffic-usage extraction. The graph
-now contains 4,514 nodes and 10,469 edges; nine SQL files remain unparsed because
+Repowise and Graphify were re-run after the shared-state extraction. The graph
+now contains 4,524 nodes and 10,491 edges; nine SQL files remain unparsed because
 the installed Graphify environment does not include `tree_sitter_sql`. The
 largest remaining source-level hubs are `ProxyManager`, `ProfileManager`,
 `InstanceDetector`, `AccountsPanelProvider`, `AccountsPanelHandlers`, and

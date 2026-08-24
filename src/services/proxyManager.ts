@@ -50,6 +50,7 @@ import {
 } from '../proxy/api/proxyApiClient';
 import { pollProxyHealth } from '../proxy/proxyHealthPoller';
 import { clearProxyLogDirectory } from '../proxy/proxyLogCleanup';
+import { SharedProxyStateStore } from '../proxy/sharedProxyStateStore';
 import { isPortAvailable, isProcessAlive } from '../proxy/portUtils';
 import {
   getAllUsedProxyPorts,
@@ -103,6 +104,7 @@ export class ProxyManager implements IProxyManager {
   private readonly agentTrackingCoordinator: ProxyAgentTrackingCoordinator;
   private readonly trafficIngressCoordinator: ProxyTrafficIngressCoordinator;
   private readonly trafficUsageCoordinator: ProxyTrafficUsageCoordinator;
+  private readonly sharedProxyStateStore: SharedProxyStateStore;
   private readonly storageDir: string;
   private readonly logDir: string;
   private lastDiagnosticsOutputAt = 0;
@@ -123,6 +125,9 @@ export class ProxyManager implements IProxyManager {
   ) {
     this.storageDir = storageDir;
     this.logDir = path.join(this.storageDir, 'logs');
+    this.sharedProxyStateStore = new SharedProxyStateStore(
+      path.join(this.storageDir, SHARED_PROXY_STATE_FILE_NAME)
+    );
     this.deps =
       deps ??
       this.createDefaultDependencies(
@@ -232,34 +237,16 @@ export class ProxyManager implements IProxyManager {
     return this.runtimes.has(SHARED_PROXY_RUNTIME_KEY);
   }
 
-  private getSharedStatePath(): string {
-    return path.join(this.storageDir, SHARED_PROXY_STATE_FILE_NAME);
-  }
-
   private async readSharedProxyState(): Promise<ProxyStateFile | null> {
-    try {
-      const content = await fs.readFile(this.getSharedStatePath(), 'utf-8');
-      return JSON.parse(content) as ProxyStateFile;
-    } catch {
-      return null;
-    }
+    return this.sharedProxyStateStore.read();
   }
 
   private async writeSharedProxyState(state: ProxyStateFile): Promise<void> {
-    const statePath = this.getSharedStatePath();
-    await fs.mkdir(path.dirname(statePath), { recursive: true });
-    await fs.writeFile(statePath, JSON.stringify(state, null, 2), {
-      encoding: 'utf-8',
-      mode: 0o600,
-    });
+    await this.sharedProxyStateStore.write(state);
   }
 
   private async clearSharedProxyState(): Promise<void> {
-    try {
-      await fs.unlink(this.getSharedStatePath());
-    } catch {
-      // ignore missing file
-    }
+    await this.sharedProxyStateStore.clear();
   }
 
   private async buildUserIdMapping(
