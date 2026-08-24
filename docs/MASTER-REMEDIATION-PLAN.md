@@ -156,7 +156,7 @@ that historical baseline:
   the former application-layer proxy ingress path before the gate was enabled.
 - Graphify was refreshed after the status and tailer extractions; the graph
   now contains 4,651 nodes and 10,827 edges. Repowise reports zero safe-only dead-code
-  findings; its 29 medium-confidence candidates remain retained pending
+  findings; its 30 medium-confidence candidates remain retained pending
   runtime/public-contract evidence.
 - `ProxyTrafficUsageCoordinator` now owns agent-traffic classification,
   shared/per-profile ingestion decisions, and persisted-usage notifications;

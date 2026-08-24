@@ -596,7 +596,7 @@ VS Code state transitions remain a separate target. It
 also reports duplicate-helper candidates in `ProxyManager`, profile handling,
 panel handlers, and proxy decoding. The six safe-only unused exports identified
 in the previous checkpoint were removed after source and test reference review;
-the current dead-code scan reports zero safe-only findings and 29 medium-
+the current dead-code scan reports zero safe-only findings and 30 medium-
 confidence cleanup candidates retained for further evidence.
 
 ### Remaining findings
