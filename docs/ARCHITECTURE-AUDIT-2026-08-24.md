@@ -589,7 +589,7 @@ baseline, but it is not presented as a completed final audit.
 ### Updated Repowise and Graphify signals
 
 Repowise and Graphify were re-run after the latest proxy and Accounts Panel
-extractions. The graph now contains 4,708 nodes and 11,020 edges; nine SQL files remain
+extractions. The graph now contains 4,719 nodes and 11,039 edges; nine SQL files remain
 unparsed because
 the installed Graphify environment does not include `tree_sitter_sql`. The
 largest remaining source-level hubs are `ProxyManager`, `ProfileManager`,
@@ -601,8 +601,8 @@ The Accounts Panel extraction now separates profile CRUD/import/export into
 `AccountsPanelProfileHandlers` and GitHub token actions into
 `AccountsPanelGithubHandlers`. Their focused tests cover successful operations,
 refresh orchestration, cancellation, missing profiles, and import/export
-serialization. The full extension-host checkpoint passed 756/756 tests, the
-webview suite passed 18/18 tests, and the architecture gate passed for 410
+serialization. The full extension-host checkpoint passed 760/760 tests, the
+webview suite passed 18/18 tests, and the architecture gate passed for 412
 TypeScript files.
 
 The provider's read-model and refresh responsibilities now live behind
@@ -610,8 +610,16 @@ The provider's read-model and refresh responsibilities now live behind
 Graphify degree 29. The refresher has Graphify degree 19 and 60.41% line
 coverage; its direct tests cover inactive-webview short-circuiting, initial
 read-model publication, secondary refresh coordination, and proxy-state
-publication. The latest full extension-host checkpoint is 756/756 tests and
-the architecture gate covers 410 TypeScript files.
+publication. The latest full extension-host checkpoint is 760/760 tests and
+the architecture gate covers 412 TypeScript files.
+
+The MITM proxy extraction now separates session correlation and traffic
+enrichment into `ProxyTrafficSessionCoordinator`, reducing
+`MitmProxyServer` to 541 lines and Graphify degree 19. The coordinator has
+Graphify degree 15 and 96.55% line coverage; its direct tests cover model and
+conversation correlation, profile/workspace enrichment, unchanged summaries,
+and cleanup on shutdown. The latest full extension-host checkpoint passed
+760/760 tests.
 
 Repowise still identifies low-coverage or high-coupling targets including
 `proxyDecode`, `ProxyManager`, `efficiencyAnalyzer`, `efficiencyService`,
