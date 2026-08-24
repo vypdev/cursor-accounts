@@ -18,8 +18,6 @@ import type {
   Profile,
   ToWebviewMessage,
 } from '../profiles/types';
-import type { StorageCleanupOptions } from '@cursor-accounts/types';
-import { createEmptyStorageBreakdown } from '@cursor-accounts/types';
 import type { ProfileDetector } from '../profiles/profileDetector';
 import { resolveRecentProjectLaunch } from '../profiles/recentProjectLaunchRouter';
 import type { ProfileWorkspaceService } from '../services/profileWorkspaceService';
@@ -31,6 +29,7 @@ import { isProfileProxyEnabled, isProfileProxyJsonlLoggingEnabled } from '@curso
 import { getOpenWorkspacePaths } from '../services/activeWorkspaceService';
 import { buildSuggestedProfileResponse } from './suggestedProfile';
 import { AccountsPanelProxyHandlers } from './accountsPanelProxyHandlers';
+import { AccountsPanelStorageHandlers } from './accountsPanelStorageHandlers';
 
 /** Callbacks the panel provides for webview messaging and refresh orchestration. */
 export interface AccountsPanelHandlerCallbacks {
@@ -64,6 +63,7 @@ export interface AccountsPanelHandlerDeps {
 export class AccountsPanelHandlers {
   private readonly launchInFlight = new Set<string>();
   private readonly proxyHandlers: AccountsPanelProxyHandlers;
+  private readonly storageHandlers: AccountsPanelStorageHandlers;
 
   constructor(
     private readonly deps: AccountsPanelHandlerDeps,
@@ -77,6 +77,16 @@ export class AccountsPanelHandlers {
       {
         postMessage: (message) => callbacks.postMessage(message),
         refreshProxyStatus: (options) => callbacks.refreshProxyStatus(options),
+      }
+    );
+    this.storageHandlers = new AccountsPanelStorageHandlers(
+      {
+        profileManager: deps.profileManager,
+        storageAnalyzer: deps.storageAnalyzer,
+        storageCleanupService: deps.storageCleanupService,
+      },
+      {
+        postMessage: (message) => callbacks.postMessage(message),
       }
     );
   }
@@ -120,11 +130,11 @@ export class AccountsPanelHandlers {
         break;
 
       case 'requestStorageInfo':
-        await this.handleRequestStorageInfo(message.profileId);
+        await this.storageHandlers.requestInfo(message.profileId);
         break;
 
       case 'cleanStorage':
-        await this.handleCleanStorage(message.profileId, message.options);
+        await this.storageHandlers.clean(message.profileId, message.options);
         break;
 
       case 'configureGithubToken':
@@ -418,70 +428,6 @@ export class AccountsPanelHandlers {
           type: 'suggestedProfile',
           email: undefined,
           displayName: undefined,
-        });
-      }
-    }
-  }
-
-  private async getStorageBreakdown(profileId: string, userDataDir: string) {
-    return this.deps.storageAnalyzer.calculateProfileStorageSize(
-      profileId,
-      userDataDir
-    );
-  }
-
-  private async handleRequestStorageInfo(profileId: string): Promise<void> {
-    const profile = await this.deps.profileManager.getProfile(profileId);
-    if (!profile) {
-      await this.callbacks.postMessage({
-        type: 'storageInfo',
-        data: createEmptyStorageBreakdown(
-          profileId,
-          t('errors.profileNotFound')
-        ),
-      });
-      return;
-    }
-
-    const breakdown = await this.getStorageBreakdown(
-      profileId,
-      profile.userDataDir
-    );
-
-    await this.callbacks.postMessage({
-      type: 'storageInfo',
-      data: breakdown,
-    });
-  }
-
-  private async handleCleanStorage(
-    profileId: string,
-    options: StorageCleanupOptions
-  ): Promise<void> {
-    extensionLog.info(
-      `[AccountsPanel] Storage cleanup requested for ${profileId}: ${options.action}`
-    );
-
-    const result = await this.deps.storageCleanupService.cleanProfileStorage(
-      profileId,
-      options
-    );
-
-    await this.callbacks.postMessage({
-      type: 'storageCleanupResult',
-      data: result,
-    });
-
-    if (result.success) {
-      const profile = await this.deps.profileManager.getProfile(profileId);
-      if (profile) {
-        const breakdown = await this.getStorageBreakdown(
-          profileId,
-          profile.userDataDir
-        );
-        await this.callbacks.postMessage({
-          type: 'storageInfo',
-          data: breakdown,
         });
       }
     }
