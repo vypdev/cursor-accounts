@@ -589,13 +589,21 @@ baseline, but it is not presented as a completed final audit.
 ### Updated Repowise and Graphify signals
 
 Repowise and Graphify were re-run after the latest proxy and Accounts Panel
-extractions. The graph now contains 4,667 nodes and 10,885 edges; nine SQL files remain
+extractions. The graph now contains 4,690 nodes and 10,965 edges; nine SQL files remain
 unparsed because
 the installed Graphify environment does not include `tree_sitter_sql`. The
 largest remaining source-level hubs are `ProxyManager`, `ProfileManager`,
 `InstanceDetector`, `AccountsPanelProvider`, `AccountsPanelHandlers`, and
 `MitmProxyServer`. These are decomposition priorities, not evidence that the
 graph tool's generic god-node score is itself a defect.
+
+The Accounts Panel extraction now separates profile CRUD/import/export into
+`AccountsPanelProfileHandlers` and GitHub token actions into
+`AccountsPanelGithubHandlers`. Their focused tests cover successful operations,
+refresh orchestration, cancellation, missing profiles, and import/export
+serialization. The full extension-host checkpoint passed 753/753 tests, the
+webview suite passed 18/18 tests, and the architecture gate passed for 408
+TypeScript files.
 
 Repowise still identifies low-coverage or high-coupling targets including
 `proxyDecode`, `ProxyManager`, `efficiencyAnalyzer`, `efficiencyService`,
