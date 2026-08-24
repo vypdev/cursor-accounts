@@ -64,7 +64,6 @@ import { ProxyAgentTrackingCoordinator } from './proxyAgentTrackingCoordinator';
 import { ProxyTrafficIngressCoordinator } from './proxyTrafficIngressCoordinator';
 import { ProxyTrafficUsageCoordinator } from './proxyTrafficUsageCoordinator';
 import {
-  PROXY_STOP_GRACE_MS,
   ProxyProfileLifecycleCoordinator,
 } from './proxyProfileLifecycleCoordinator';
 import {
@@ -77,6 +76,7 @@ import {
   type ProxyTrafficTailerOptions,
 } from './proxyTrafficTailerCoordinator';
 import { ProxyProfileRoutingConfiguration } from './proxyProfileRoutingConfiguration';
+import { ProxyChildProcessStopCoordinator } from './proxyChildProcessStopCoordinator';
 import { ProxyCertificateService } from './proxyCertificateService';
 import type { ProxySettingsService } from './proxySettingsService';
 
@@ -108,6 +108,7 @@ export class ProxyManager implements IProxyManager {
   private readonly statusCoordinator: ProxyStatusCoordinator;
   private readonly trafficTailerCoordinator: ProxyTrafficTailerCoordinator;
   private readonly profileRoutingConfiguration: ProxyProfileRoutingConfiguration;
+  private readonly childProcessStopCoordinator: ProxyChildProcessStopCoordinator;
   private readonly sharedProxyStateStore: SharedProxyStateStore;
   private readonly storageDir: string;
   private readonly logDir: string;
@@ -279,6 +280,25 @@ export class ProxyManager implements IProxyManager {
     });
     this.profileRoutingConfiguration = new ProxyProfileRoutingConfiguration({
       authReader: this.deps.authReader,
+    });
+    this.childProcessStopCoordinator = new ProxyChildProcessStopCoordinator({
+      getRuntime: (profileId) => this.runtimes.get(profileId),
+      deleteRuntime: (profileId) => this.runtimes.delete(profileId),
+      deleteAgentTracking: (profileId) =>
+        this.agentTrackingCoordinator.delete(profileId),
+      stateStore: this.stateStore,
+      getChildPid: (runtime) =>
+        runtime.process instanceof NodeProxyProcess
+          ? runtime.process.getChild()?.pid
+          : undefined,
+      detach: (runtime) => {
+        if (runtime.process instanceof NodeProxyProcess) {
+          runtime.process.detach();
+        }
+      },
+      gracePeriodMs: 500,
+      wait: (milliseconds) =>
+        new Promise((resolve) => setTimeout(resolve, milliseconds)),
     });
     this.deps.trafficBus.subscribe((summary, profileId) => {
       void this.handleTraffic(summary, profileId);
@@ -732,28 +752,7 @@ export class ProxyManager implements IProxyManager {
   }
 
   private async forceStopChild(profileId: string): Promise<void> {
-    const runtime = this.runtimes.get(profileId);
-    this.runtimes.delete(profileId);
-    this.agentTrackingCoordinator.delete(profileId);
-
-    if (!runtime) {
-      return;
-    }
-
-    const nodeProcess =
-      runtime.process instanceof NodeProxyProcess
-        ? runtime.process
-        : null;
-    const pid =
-      nodeProcess?.getChild()?.pid ??
-      (await this.stateStore.read(runtime.userDataDir))?.pid;
-
-    await runtime.process.stop(pid, 'SIGTERM');
-    await new Promise((resolve) => setTimeout(resolve, PROXY_STOP_GRACE_MS));
-    if (pid != null && runtime.process.isAlive(pid)) {
-      await runtime.process.stop(pid, 'SIGKILL');
-    }
-    nodeProcess?.detach();
+    await this.childProcessStopCoordinator.stop(profileId);
   }
 }
 
