@@ -141,7 +141,7 @@ that historical baseline:
 - the latest full extension-host checkpoint passed 745 tests;
 - the webview suite has 18 passing tests;
 - localization has 26 locales with 428 keys each;
-- the architecture gate checks 403 TypeScript files, with valid, boundary,
+- the architecture gate checks 404 TypeScript files, with valid, boundary,
   cycle, and unresolved-import fixtures passing;
 - current-target packaging produced and verified
   `cursor-accounts-darwin-arm64-0.1.34.vsix`; stale artifacts are excluded by
@@ -155,7 +155,7 @@ that historical baseline:
 - Documentation validation covers 43 Markdown files and caught stale links to
   the former application-layer proxy ingress path before the gate was enabled.
 - Graphify was refreshed after the latest proxy and Accounts Panel extractions;
-  the graph now contains 4,661 nodes and 10,864 edges. Repowise reports zero safe-only dead-code
+  the graph now contains 4,667 nodes and 10,885 edges. Repowise reports zero safe-only dead-code
   findings; its 30 medium-confidence candidates remain retained pending
   runtime/public-contract evidence.
 - `ProxyTrafficUsageCoordinator` now owns agent-traffic classification,
@@ -192,6 +192,9 @@ that historical baseline:
   the general panel handler delegates through capability-oriented ports. Its
   focused tests cover profile guards, start/stop, install-guide, and certificate
   result flows.
+- `AccountsPanelStorageHandlers` now owns storage inspection and cleanup
+  actions; missing profiles, cleanup failures, and refreshed post-cleanup
+  breakdowns remain covered by the existing handler tests.
 
 ### 3.2 Target state
 

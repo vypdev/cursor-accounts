@@ -581,11 +581,15 @@ baseline, but it is not presented as a completed final audit.
   certificate, log, traffic, and install-guide actions through capability
   ports. Its focused tests cover enabled/absent profiles, start/stop, guide,
   and certificate flows.
+- Storage inspection and cleanup now live in `AccountsPanelStorageHandlers`;
+  missing profiles, cleanup failures, and refreshed post-cleanup breakdowns
+  remain covered by the existing handler tests. The extracted module reaches
+  97.53% line and 100% function coverage.
 
 ### Updated Repowise and Graphify signals
 
 Repowise and Graphify were re-run after the latest proxy and Accounts Panel
-extractions. The graph now contains 4,661 nodes and 10,864 edges; nine SQL files remain
+extractions. The graph now contains 4,667 nodes and 10,885 edges; nine SQL files remain
 unparsed because
 the installed Graphify environment does not include `tree_sitter_sql`. The
 largest remaining source-level hubs are `ProxyManager`, `ProfileManager`,
