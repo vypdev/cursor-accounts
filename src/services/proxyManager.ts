@@ -1,6 +1,5 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { randomBytes } from 'node:crypto';
 import type {
   ProxyStartResult,
   IProxyManager,
@@ -26,7 +25,6 @@ import type { IProxyStateStore } from '../domain/ports/IProxyStateStore';
 import type { IProfileAuthReader } from '../domain/ports/IProfileAuthReader';
 import {
   isProfileProxyEnabled,
-  isProfileProxyJsonlLoggingEnabled,
   type ProxyInstallGuide,
   type ProxyStateFile,
   type ProxyStatus,
@@ -77,6 +75,7 @@ import {
 } from './proxyTrafficTailerCoordinator';
 import { ProxyProfileRoutingConfiguration } from './proxyProfileRoutingConfiguration';
 import { ProxyChildProcessStopCoordinator } from './proxyChildProcessStopCoordinator';
+import { ProxyServerConfigurationBuilder } from './proxyServerConfigurationBuilder';
 import { ProxyCertificateService } from './proxyCertificateService';
 import type { ProxySettingsService } from './proxySettingsService';
 
@@ -109,6 +108,7 @@ export class ProxyManager implements IProxyManager {
   private readonly trafficTailerCoordinator: ProxyTrafficTailerCoordinator;
   private readonly profileRoutingConfiguration: ProxyProfileRoutingConfiguration;
   private readonly childProcessStopCoordinator: ProxyChildProcessStopCoordinator;
+  private readonly serverConfigurationBuilder: ProxyServerConfigurationBuilder;
   private readonly sharedProxyStateStore: SharedProxyStateStore;
   private readonly storageDir: string;
   private readonly logDir: string;
@@ -150,6 +150,15 @@ export class ProxyManager implements IProxyManager {
           outputCursorHostsOnly: config.get<boolean>('outputCursorHostsOnly', false),
         };
       });
+    this.serverConfigurationBuilder = new ProxyServerConfigurationBuilder({
+      storageDir: this.storageDir,
+      logDir: this.logDir,
+      getConfig: (key, fallback) =>
+        vscode.workspace
+          .getConfiguration('cursorAccounts.proxy')
+          .get(key, fallback),
+      isJsonlLoggingEnabled: (profile) => profile.proxyJsonlLoggingEnabled === true,
+    });
     this.agentTrackingCoordinator = new ProxyAgentTrackingCoordinator(
       context.extensionPath,
       () =>
@@ -436,10 +445,6 @@ export class ProxyManager implements IProxyManager {
     return this.agentTrackingCoordinator.get(profileId);
   }
 
-  private isProfileJsonlLogging(profile: Profile): boolean {
-    return isProfileProxyJsonlLoggingEnabled(profile);
-  }
-
   private getApiPortOffset(): number {
     return vscode.workspace
       .getConfiguration('cursorAccounts.proxy')
@@ -660,25 +665,7 @@ export class ProxyManager implements IProxyManager {
     profile: Profile,
     overrides?: Partial<ProxyServerConfig>
   ): ProxyServerConfig {
-    const config = vscode.workspace.getConfiguration('cursorAccounts.proxy');
-    const maxLogSizeMb = config.get<number>('maxLogSizeMB', 500);
-    const maxBodyLogMb = config.get<number>('maxBodyLogMB', 4);
-    const apiPortOffset = config.get<number>('apiPortOffset', 10_000);
-    return {
-      port,
-      apiPort: port + apiPortOffset,
-      apiToken: randomBytes(32).toString('hex'),
-      profileId: profile.id,
-      storageDir: this.storageDir,
-      logDir: this.logDir,
-      maxLogSizeMb,
-      maxBodyLogBytes: Math.max(1, Math.floor(maxBodyLogMb * 1024 * 1024)),
-      spillLargeBodies: config.get<boolean>('spillLargeBodies', true),
-      developmentMode: this.isProfileJsonlLogging(profile),
-      trafficDiagnostics: config.get<boolean>('trafficDiagnostics', true),
-      diagnosticsIntervalMs: config.get<number>('diagnosticsIntervalMs', 30_000),
-      ...overrides,
-    };
+    return this.serverConfigurationBuilder.build(port, profile, overrides);
   }
 
   private maybeEmitDiagnosticsSummary(
