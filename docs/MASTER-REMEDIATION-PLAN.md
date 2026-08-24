@@ -138,10 +138,10 @@ The audit baseline is commit `9a116cf` on branch
 The implementation state after the completed slices is tracked separately from
 that historical baseline:
 
-- the latest full extension-host checkpoint passed 741 tests;
+- the latest full extension-host checkpoint passed 745 tests;
 - the webview suite has 18 passing tests;
 - localization has 26 locales with 428 keys each;
-- the architecture gate checks 401 TypeScript files, with valid, boundary,
+- the architecture gate checks 403 TypeScript files, with valid, boundary,
   cycle, and unresolved-import fixtures passing;
 - current-target packaging produced and verified
   `cursor-accounts-darwin-arm64-0.1.34.vsix`; stale artifacts are excluded by
@@ -154,8 +154,8 @@ that historical baseline:
   the current-target VSIX was rebuilt, sanitized, and verified again.
 - Documentation validation covers 43 Markdown files and caught stale links to
   the former application-layer proxy ingress path before the gate was enabled.
-- Graphify was refreshed after the status and tailer extractions; the graph
-  now contains 4,651 nodes and 10,827 edges. Repowise reports zero safe-only dead-code
+- Graphify was refreshed after the latest proxy and Accounts Panel extractions;
+  the graph now contains 4,661 nodes and 10,864 edges. Repowise reports zero safe-only dead-code
   findings; its 30 medium-confidence candidates remain retained pending
   runtime/public-contract evidence.
 - `ProxyTrafficUsageCoordinator` now owns agent-traffic classification,
@@ -166,8 +166,8 @@ that historical baseline:
   malformed/absent state, and repeated cleanup.
 - `SharedProxyLifecycleCoordinator` now owns shared child startup, persisted
   ownership recovery, health polling, exit cleanup, and shutdown. Its focused
-  lifecycle tests pass; `ProxyManager` remains a facade with the remaining
-  status, routing, and per-profile lifecycle concerns still open.
+  lifecycle tests pass; `ProxyManager` remains a compatibility facade with
+  configuration assembly, status, routing, and cleanup seams delegated.
 - `ProxyProfileLifecycleCoordinator` now owns per-profile attach, API shutdown,
   child cleanup, ingress stop, settings restore, and state deletion. Its
   focused tests preserve shared and multi-window behavior.
@@ -188,6 +188,10 @@ that historical baseline:
 - `ProxyServerConfigurationBuilder` now owns child-process configuration
   assembly, defaults, overrides, body-size clamping, and diagnostics/logging
   settings. Its focused tests cover the complete configuration shape.
+- `AccountsPanelProxyHandlers` now owns proxy and certificate webview actions;
+  the general panel handler delegates through capability-oriented ports. Its
+  focused tests cover profile guards, start/stop, install-guide, and certificate
+  result flows.
 
 ### 3.2 Target state
 

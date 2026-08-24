@@ -576,11 +576,16 @@ baseline, but it is not presented as a completed final audit.
   `ProxyServerConfigurationBuilder`; defaults, overrides, body-size clamping,
   and logging/diagnostics settings are covered by focused tests. It reaches
   100% line and function coverage.
+- Proxy and certificate webview actions now live in
+  `AccountsPanelProxyHandlers`; the general panel handler delegates lifecycle,
+  certificate, log, traffic, and install-guide actions through capability
+  ports. Its focused tests cover enabled/absent profiles, start/stop, guide,
+  and certificate flows.
 
 ### Updated Repowise and Graphify signals
 
-Repowise and Graphify were re-run after the status and tailer extractions.
-The graph now contains 4,651 nodes and 10,827 edges; nine SQL files remain
+Repowise and Graphify were re-run after the latest proxy and Accounts Panel
+extractions. The graph now contains 4,661 nodes and 10,864 edges; nine SQL files remain
 unparsed because
 the installed Graphify environment does not include `tree_sitter_sql`. The
 largest remaining source-level hubs are `ProxyManager`, `ProfileManager`,
