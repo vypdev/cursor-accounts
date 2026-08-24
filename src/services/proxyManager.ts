@@ -1,4 +1,3 @@
-import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { randomBytes } from 'node:crypto';
@@ -48,7 +47,6 @@ import {
   ProxyApiClient,
   resolveProxyApiPort,
 } from '../proxy/api/proxyApiClient';
-import { pollProxyHealth } from '../proxy/proxyHealthPoller';
 import { clearProxyLogDirectory } from '../proxy/proxyLogCleanup';
 import { SharedProxyStateStore } from '../proxy/sharedProxyStateStore';
 import { isPortAvailable, isProcessAlive } from '../proxy/portUtils';
@@ -56,9 +54,7 @@ import {
   getAllUsedProxyPorts,
 } from '../proxy/resolvePortForProfile';
 import {
-  PROXY_STATE_SCHEMA_VERSION,
   PROXY_STATE_FILE_NAME,
-  DEFAULT_PROXY_PORT,
   SHARED_PROXY_RUNTIME_KEY,
   SHARED_PROXY_STATE_FILE_NAME,
 } from '../proxy/types';
@@ -69,21 +65,18 @@ import type { AgentTrackingService } from './agentTrackingService';
 import { ProxyAgentTrackingCoordinator } from './proxyAgentTrackingCoordinator';
 import { ProxyTrafficIngressCoordinator } from './proxyTrafficIngressCoordinator';
 import { ProxyTrafficUsageCoordinator } from './proxyTrafficUsageCoordinator';
+import {
+  SharedProxyLifecycleCoordinator,
+  type SharedProxyRuntime,
+} from './sharedProxyLifecycleCoordinator';
 import { ProxyCertificateService } from './proxyCertificateService';
 import type { ProxySettingsService } from './proxySettingsService';
 
 export type { ConversationUsagePersistedEvent, ConversationUsagePersistedListener, ProxyTrafficListener } from '../domain/ports/IProxyTraffic';
 
-const PROXY_START_TIMEOUT_MS = 15_000;
 const PROXY_STOP_GRACE_MS = 500;
 
-interface ProfileProxyRuntime {
-  process: IProxyProcess;
-  port: number;
-  apiPort: number;
-  userDataDir: string;
-  apiToken?: string;
-}
+type ProfileProxyRuntime = SharedProxyRuntime;
 
 export interface ProxyManagerDependencies {
   certService: IProxyCertificateService;
@@ -104,6 +97,7 @@ export class ProxyManager implements IProxyManager {
   private readonly agentTrackingCoordinator: ProxyAgentTrackingCoordinator;
   private readonly trafficIngressCoordinator: ProxyTrafficIngressCoordinator;
   private readonly trafficUsageCoordinator: ProxyTrafficUsageCoordinator;
+  private readonly sharedProxyLifecycleCoordinator: SharedProxyLifecycleCoordinator;
   private readonly sharedProxyStateStore: SharedProxyStateStore;
   private readonly storageDir: string;
   private readonly logDir: string;
@@ -172,6 +166,47 @@ export class ProxyManager implements IProxyManager {
         this.agentTrackingCoordinator.get(profileId),
       onUsagePersisted: (event) => this.notifyUsagePersisted(event),
     });
+    this.sharedProxyLifecycleCoordinator =
+      new SharedProxyLifecycleCoordinator({
+        storageDir: this.storageDir,
+        logDir: this.logDir,
+        stateStore: this.sharedProxyStateStore,
+        certService: this.deps.certService,
+        createProcess: this.deps.createProcess,
+        isPortAvailable: (port) => isPortAvailable(port),
+        createApiClient: (apiPort, apiToken) =>
+          this.createApiClient(apiPort, apiToken),
+        resolveApiPort: (mitmPort, persistedApiPort) =>
+          this.resolveApiPort(mitmPort, persistedApiPort),
+        buildServerConfig: (port, profile, overrides) =>
+          this.buildServerConfig(port, profile, {
+            ...overrides,
+            extensionPath: this.context.extensionPath,
+          }),
+        buildUserIdMapping: (profiles) => this.buildUserIdMapping(profiles),
+        buildProfileDbPaths: (profiles) => this.buildProfileDbPaths(profiles),
+        prepareProfile: async (profile, port) => {
+          await this.ensureAgentTracking(profile.id, profile.userDataDir);
+          await this.applyProxySettingsForProfile(profile.userDataDir, port);
+        },
+        ensureTrafficIngress: (port, apiPort, options) =>
+          this.ensureTrafficIngress(
+            SHARED_PROXY_RUNTIME_KEY,
+            port,
+            apiPort,
+            options
+          ),
+        stopTrafficIngress: () => this.deps.trafficIngress.stopAll(),
+        getRuntime: () => this.runtimes.get(SHARED_PROXY_RUNTIME_KEY),
+        setRuntime: (runtime) =>
+          this.runtimes.set(SHARED_PROXY_RUNTIME_KEY, runtime),
+        deleteRuntime: () => this.runtimes.delete(SHARED_PROXY_RUNTIME_KEY),
+        stopRuntime: () => this.forceStopChild(SHARED_PROXY_RUNTIME_KEY),
+        appendStarted: (port) => this.outputPresenter?.appendStarted(port),
+        showOutput: () => this.outputPresenter?.show(),
+        shouldAutoShowOutput: () => this.getOutputConfig().autoShowOutputChannel,
+        notifyStatusChange: () => this.notifyStatusChange(),
+      });
     this.deps.trafficBus.subscribe((summary, profileId) => {
       void this.handleTraffic(summary, profileId);
     });
@@ -241,10 +276,6 @@ export class ProxyManager implements IProxyManager {
     return this.sharedProxyStateStore.read();
   }
 
-  private async writeSharedProxyState(state: ProxyStateFile): Promise<void> {
-    await this.sharedProxyStateStore.write(state);
-  }
-
   private async clearSharedProxyState(): Promise<void> {
     await this.sharedProxyStateStore.clear();
   }
@@ -300,191 +331,11 @@ export class ProxyManager implements IProxyManager {
   }
 
   async ensureSharedProxy(profiles: Profile[]): Promise<ProxyStartResult> {
-    const enabledProfiles = profiles.filter(isProfileProxyEnabled);
-    if (enabledProfiles.length === 0) {
-      return { success: false, error: 'No profiles with proxy enabled' };
-    }
-
-    const existing = this.runtimes.get(SHARED_PROXY_RUNTIME_KEY);
-    if (existing) {
-      for (const profile of enabledProfiles) {
-        await this.applyProxySettingsForProfile(
-          profile.userDataDir,
-          existing.port
-        );
-        await this.ensureAgentTracking(profile.id, profile.userDataDir);
-        await this.ensureTrafficIngress(
-          SHARED_PROXY_RUNTIME_KEY,
-          existing.port,
-          existing.apiPort,
-          { forceRestart: false, apiToken: existing.apiToken }
-        );
-      }
-      return { success: true, port: existing.port };
-    }
-
-    const sharedState = await this.readSharedProxyState();
-    if (sharedState?.running && sharedState.port != null) {
-      const apiPort = this.resolveApiPort(sharedState.port, sharedState.apiPort);
-      try {
-        const probe = this.createApiClient(apiPort, sharedState.apiToken);
-        const status = await probe.getStatus();
-        if (status.running) {
-          for (const profile of enabledProfiles) {
-            await this.applyProxySettingsForProfile(
-              profile.userDataDir,
-              sharedState.port
-            );
-            await this.ensureAgentTracking(profile.id, profile.userDataDir);
-          }
-          await this.ensureTrafficIngress(
-            SHARED_PROXY_RUNTIME_KEY,
-            sharedState.port,
-            apiPort,
-            { forceRestart: true, apiToken: sharedState.apiToken }
-          );
-          this.notifyStatusChange();
-          return { success: true, port: sharedState.port };
-        }
-      } catch {
-        await this.clearSharedProxyState();
-      }
-    }
-
-    const port = DEFAULT_PROXY_PORT;
-    if (!(await isPortAvailable(port))) {
-      return {
-        success: false,
-        error: `Shared proxy port ${port} is not available`,
-      };
-    }
-
-    await fs.mkdir(this.storageDir, { recursive: true });
-    await fs.mkdir(this.logDir, { recursive: true });
-
-    const caPath = await this.deps.certService.ensureCaCertificate();
-    const anchorProfile = enabledProfiles[0]!;
-    const userIdToProfileId = await this.buildUserIdMapping(enabledProfiles);
-    const profileDbPaths = this.buildProfileDbPaths(enabledProfiles);
-    const serverConfig = this.buildServerConfig(port, anchorProfile, {
-      profileId: SHARED_PROXY_RUNTIME_KEY,
-      userIdToProfileId: Object.fromEntries(userIdToProfileId),
-      profileDbPaths,
-      extensionPath: this.context.extensionPath,
-    });
-
-    const proxyProcess = this.deps.createProcess();
-    const stderrLines: string[] = [];
-    proxyProcess.onStderr((line) => {
-      stderrLines.push(line);
-      if (line.includes('[AgentTracking]') || line.includes('[DbPool]')) {
-        extensionLog.info(`[Proxy:shared] ${line}`);
-      } else {
-        extensionLog.debug(`[Proxy:shared] ${line}`);
-      }
-    });
-
-    proxyProcess.onExit((code) => {
-      extensionLog.warn(
-        `[Proxy:shared] Child process exited with code ${code ?? 'unknown'}`
-      );
-      this.runtimes.delete(SHARED_PROXY_RUNTIME_KEY);
-      void this.clearSharedProxyState();
-      this.deps.trafficIngress.stopAll();
-      this.notifyStatusChange();
-    });
-
-    const runtime = await proxyProcess.start(serverConfig);
-    const ready = await pollProxyHealth(
-      serverConfig.apiPort,
-      PROXY_START_TIMEOUT_MS,
-      {
-        getStderr: () => stderrLines.join('\n'),
-        isProcessAlive: () =>
-          runtime.pid != null && proxyProcess.isAlive(runtime.pid),
-      },
-      serverConfig.apiToken
-    );
-    if (!ready.success) {
-      await proxyProcess.stop(runtime.pid, 'SIGKILL');
-      if (proxyProcess instanceof NodeProxyProcess) {
-        proxyProcess.detach();
-      }
-      return { success: false, error: ready.error };
-    }
-
-    this.runtimes.set(SHARED_PROXY_RUNTIME_KEY, {
-      process: proxyProcess,
-      port,
-      apiPort: serverConfig.apiPort,
-      userDataDir: this.storageDir,
-      apiToken: serverConfig.apiToken,
-    });
-
-    const state: ProxyStateFile = {
-      version: PROXY_STATE_SCHEMA_VERSION,
-      profileId: SHARED_PROXY_RUNTIME_KEY,
-      running: true,
-      port,
-      apiPort: serverConfig.apiPort,
-      apiToken: serverConfig.apiToken,
-      pid: runtime.pid,
-      startedAt: new Date().toISOString(),
-      caCertificatePath: caPath,
-      lastUpdatedAt: new Date().toISOString(),
-    };
-    await this.writeSharedProxyState(state);
-
-    extensionLog.info(
-      `[Proxy:shared] Started MITM on 127.0.0.1:${port}, API on 127.0.0.1:${serverConfig.apiPort} (pid ${runtime.pid})`
-    );
-    this.outputPresenter?.appendStarted(port);
-
-    for (const profile of enabledProfiles) {
-      await this.ensureAgentTracking(profile.id, profile.userDataDir);
-      await this.applyProxySettingsForProfile(profile.userDataDir, port);
-    }
-
-    await this.ensureTrafficIngress(
-      SHARED_PROXY_RUNTIME_KEY,
-      port,
-      serverConfig.apiPort,
-      { forceRestart: true, apiToken: serverConfig.apiToken }
-    );
-
-    if (this.getOutputConfig().autoShowOutputChannel) {
-      this.outputPresenter?.show();
-    }
-
-    this.notifyStatusChange();
-    return { success: true, port };
+    return this.sharedProxyLifecycleCoordinator.ensure(profiles);
   }
 
   async stopAll(): Promise<void> {
-    if (!this.isSharedProxyActive()) {
-      return;
-    }
-
-    const runtime = this.runtimes.get(SHARED_PROXY_RUNTIME_KEY);
-    const apiPort = runtime?.apiPort;
-
-    if (apiPort != null) {
-      try {
-        await this.createApiClient(apiPort, runtime?.apiToken).shutdown();
-        await new Promise((resolve) => setTimeout(resolve, PROXY_STOP_GRACE_MS));
-      } catch (error) {
-        extensionLog.debug(
-          `[Proxy:shared] API shutdown failed: ${
-            error instanceof Error ? error.message : String(error)
-          }`
-        );
-      }
-    }
-
-    await this.forceStopChild(SHARED_PROXY_RUNTIME_KEY);
-    this.deps.trafficIngress.stopAll();
-    await this.clearSharedProxyState();
-    this.notifyStatusChange();
+    await this.sharedProxyLifecycleCoordinator.stop();
   }
 
   /** Stop extension-host traffic ingress without stopping an externally owned proxy. */
