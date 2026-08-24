@@ -8,14 +8,10 @@ import { t } from '../l10n';
 import type { EfficiencyService } from '../modelEfficiency/efficiencyService';
 import { getEfficiencyWrongWindowMessage } from '../modelEfficiency/efficiencyService';
 import type { InstanceDetector } from '../profiles/instanceDetector';
-import { ProfileExporter } from '../profiles/profileExporter';
-import { ProfileImporter } from '../profiles/profileImporter';
 import type { ProfileLauncher } from '../profiles/profileLauncher';
 import type { ProfileManager } from '../profiles/profileManager';
 import type {
   FromWebviewMessage,
-  ImportOptions,
-  Profile,
   ToWebviewMessage,
 } from '../profiles/types';
 import type { ProfileDetector } from '../profiles/profileDetector';
@@ -25,11 +21,12 @@ import type { IProfileSettingsManager } from '../domain/ports/IProfileSettingsMa
 import type { IProxyCertificate } from '../domain/ports/IProxyCertificate';
 import type { IProxyLifecycle } from '../domain/ports/IProxyLifecycle';
 import type { IProxyOutput } from '../domain/ports/IProxyOutput';
-import { isProfileProxyEnabled, isProfileProxyJsonlLoggingEnabled } from '@cursor-accounts/types';
 import { getOpenWorkspacePaths } from '../services/activeWorkspaceService';
 import { buildSuggestedProfileResponse } from './suggestedProfile';
 import { AccountsPanelProxyHandlers } from './accountsPanelProxyHandlers';
 import { AccountsPanelStorageHandlers } from './accountsPanelStorageHandlers';
+import { AccountsPanelProfileHandlers } from './accountsPanelProfileHandlers';
+import { AccountsPanelGithubHandlers } from './accountsPanelGithubHandlers';
 
 /** Callbacks the panel provides for webview messaging and refresh orchestration. */
 export interface AccountsPanelHandlerCallbacks {
@@ -64,6 +61,8 @@ export class AccountsPanelHandlers {
   private readonly launchInFlight = new Set<string>();
   private readonly proxyHandlers: AccountsPanelProxyHandlers;
   private readonly storageHandlers: AccountsPanelStorageHandlers;
+  private readonly profileHandlers: AccountsPanelProfileHandlers;
+  private readonly githubHandlers: AccountsPanelGithubHandlers;
 
   constructor(
     private readonly deps: AccountsPanelHandlerDeps,
@@ -89,6 +88,27 @@ export class AccountsPanelHandlers {
         postMessage: (message) => callbacks.postMessage(message),
       }
     );
+    this.profileHandlers = new AccountsPanelProfileHandlers(
+      {
+        profileManager: deps.profileManager,
+        profileDetector: deps.profileDetector,
+        instanceDetector: deps.instanceDetector,
+        proxyManager: deps.proxyManager,
+        profileSettingsManager: deps.profileSettingsManager,
+      },
+      {
+        postMessage: (message) => callbacks.postMessage(message),
+        refresh: () => callbacks.refresh(),
+        refreshProxyStatus: (options) => callbacks.refreshProxyStatus(options),
+      }
+    );
+    this.githubHandlers = new AccountsPanelGithubHandlers(
+      { profileManager: deps.profileManager },
+      {
+        postMessage: (message) => callbacks.postMessage(message),
+        refreshGithubSummaries: () => callbacks.refreshGithubSummaries(),
+      }
+    );
   }
 
   async handle(message: FromWebviewMessage): Promise<void> {
@@ -98,15 +118,15 @@ export class AccountsPanelHandlers {
         break;
 
       case 'add':
-        await this.handleAdd(message);
+        await this.profileHandlers.add(message);
         break;
 
       case 'edit':
-        await this.handleEdit(message.profileId, message.updates);
+        await this.profileHandlers.edit(message.profileId, message.updates);
         break;
 
       case 'delete':
-        await this.handleDelete(message.profileId);
+        await this.profileHandlers.delete(message.profileId);
         break;
 
       case 'showInExplorer':
@@ -114,11 +134,14 @@ export class AccountsPanelHandlers {
         break;
 
       case 'export':
-        await this.handleExport(message.profileIds, message.includeSettings);
+        await this.profileHandlers.exportProfiles(
+          message.profileIds,
+          message.includeSettings
+        );
         break;
 
       case 'import':
-        await this.handleImport(message.data, message.options);
+        await this.profileHandlers.importProfiles(message.data, message.options);
         break;
 
       case 'requestSuggestedProfile':
@@ -138,11 +161,11 @@ export class AccountsPanelHandlers {
         break;
 
       case 'configureGithubToken':
-        await this.handleConfigureGithubToken(message.profileId);
+        await this.githubHandlers.configure(message.profileId);
         break;
 
       case 'clearGithubToken':
-        await this.handleClearGithubToken(message.profileId);
+        await this.githubHandlers.clear(message.profileId);
         break;
 
       case 'startProxy':
@@ -285,88 +308,6 @@ export class AccountsPanelHandlers {
     }
   }
 
-  private async handleAdd(
-    data: Extract<FromWebviewMessage, { type: 'add' }>
-  ): Promise<void> {
-    extensionLog.info(`[AccountsPanel] Add profile requested (${data.email})`);
-    const profile = await this.deps.profileManager.createProfile({
-      email: data.email,
-      displayName: data.displayName,
-      theme: data.theme,
-      color: data.color,
-      emoji: data.emoji,
-    });
-
-    await this.callbacks.postMessage({
-      type: 'success',
-      message: t('panel.profileCreated', { name: profile.displayName }),
-    });
-    await this.callbacks.refresh();
-  }
-
-  private async handleEdit(
-    profileId: string,
-    updates: Partial<Profile>
-  ): Promise<void> {
-    const previousProfile = await this.deps.profileManager.getProfile(profileId);
-    const profile = await this.deps.profileManager.updateProfile(
-      profileId,
-      updates
-    );
-
-    const jsonlLoggingChanged =
-      'proxyJsonlLoggingEnabled' in updates &&
-      previousProfile != null &&
-      isProfileProxyJsonlLoggingEnabled(previousProfile) !==
-        isProfileProxyJsonlLoggingEnabled(profile);
-
-    if (updates.proxyEnabled === false) {
-      await this.deps.proxyManager.stop(profileId);
-      if (this.deps.profileSettingsManager) {
-        await this.deps.profileSettingsManager.restoreProxySettings(
-          profile.userDataDir
-        );
-      }
-    } else if (updates.proxyEnabled === true) {
-      const current = await this.deps.profileDetector.detectCurrentProfile();
-      if (current?.id === profileId && isProfileProxyEnabled(profile)) {
-        await this.deps.proxyManager.ensureProfileProxy(profileId);
-      }
-    } else if (
-      jsonlLoggingChanged &&
-      isProfileProxyEnabled(profile) &&
-      (await this.deps.proxyManager.isRunning(profileId))
-    ) {
-      await this.deps.proxyManager.restartProfileProxy(profileId);
-    }
-
-    await this.callbacks.postMessage({
-      type: 'success',
-      message: t('panel.profileUpdated', { name: profile.displayName }),
-    });
-    await this.callbacks.refresh();
-    await this.callbacks.refreshProxyStatus({ checkCertificate: true });
-  }
-
-  private async handleDelete(profileId: string): Promise<void> {
-    extensionLog.info(
-      `[AccountsPanel] Delete profile requested (${profileId})`
-    );
-    const profile = await this.deps.profileManager.getProfile(profileId);
-    const displayName = profile?.displayName ?? t('panel.unknownProfile');
-
-    await this.deps.profileManager.deleteProfile(
-      profileId,
-      this.deps.instanceDetector
-    );
-
-    await this.callbacks.postMessage({
-      type: 'success',
-      message: t('panel.profileDeleted', { name: displayName }),
-    });
-    await this.callbacks.refresh();
-  }
-
   private async handleShowInExplorer(profileId: string): Promise<void> {
     const profile = await this.deps.profileManager.getProfile(profileId);
     if (!profile) {
@@ -431,121 +372,6 @@ export class AccountsPanelHandlers {
         });
       }
     }
-  }
-
-  private async handleExport(
-    profileIds: string[],
-    includeSettings: boolean
-  ): Promise<void> {
-    extensionLog.info(
-      `[AccountsPanel] Export requested (${profileIds.length} profile(s), settings=${includeSettings})`
-    );
-    const exporter = new ProfileExporter(this.deps.profileManager);
-    const exportData = await exporter.exportProfiles(
-      profileIds,
-      includeSettings
-    );
-    const json = JSON.stringify(exportData, null, 2);
-    const timestamp = new Date().toISOString().slice(0, 10);
-
-    await this.callbacks.postMessage({
-      type: 'exportData',
-      data: json,
-      filename: `cursor-profiles-export-${timestamp}.json`,
-    });
-
-    await this.callbacks.postMessage({
-      type: 'success',
-      message: t('panel.exported', { count: exportData.profiles.length }),
-    });
-  }
-
-  private async handleImport(
-    json: string,
-    options: ImportOptions
-  ): Promise<void> {
-    extensionLog.info('[AccountsPanel] Import requested');
-    const importer = new ProfileImporter(this.deps.profileManager);
-    const result = await importer.importFromString(json, options);
-
-    const messages: string[] = [];
-    if (result.imported.length > 0) {
-      messages.push(t('panel.imported', { count: result.imported.length }));
-    }
-    if (result.skipped.length > 0) {
-      messages.push(t('panel.importSkipped', { count: result.skipped.length }));
-    }
-    if (result.errors.length > 0) {
-      messages.push(t('panel.importErrors', { count: result.errors.length }));
-    }
-
-    if (result.imported.length > 0 || result.skipped.length > 0) {
-      await this.callbacks.refresh();
-    }
-
-    if (result.success) {
-      await this.callbacks.postMessage({
-        type: 'success',
-        message: messages.join(', ') || t('panel.importCompleted'),
-      });
-    } else {
-      await this.callbacks.postMessage({
-        type: 'error',
-        message:
-          messages.join(', ') || t('panel.importCompletedWithErrors'),
-      });
-    }
-  }
-
-  private async handleConfigureGithubToken(profileId: string): Promise<void> {
-    const profile = await this.deps.profileManager.getProfile(profileId);
-    if (!profile) {
-      await this.callbacks.postMessage({
-        type: 'error',
-        message: t('errors.profileNotFound'),
-      });
-      return;
-    }
-
-    const selection = await vscode.window.showOpenDialog({
-      canSelectFiles: true,
-      canSelectFolders: false,
-      canSelectMany: false,
-      openLabel: t('panel.githubTokenSelectFile'),
-      title: t('panel.githubTokenDialogTitle'),
-    });
-
-    if (!selection?.[0]) {
-      return;
-    }
-
-    const tokenPath = selection[0].fsPath;
-    await this.deps.profileManager.updateProfile(profileId, {
-      githubTokenPath: tokenPath,
-    });
-
-    await this.callbacks.postMessage({
-      type: 'success',
-      message: t('panel.githubTokenConfigured', { name: profile.displayName }),
-    });
-    await this.callbacks.refreshGithubSummaries();
-  }
-
-  private async handleClearGithubToken(profileId: string): Promise<void> {
-    const profile = await this.deps.profileManager.getProfile(profileId);
-    if (!profile) {
-      return;
-    }
-
-    await this.deps.profileManager.updateProfile(profileId, {
-      githubTokenPath: undefined,
-    });
-
-    await this.callbacks.postMessage({
-      type: 'success',
-      message: t('panel.githubTokenCleared', { name: profile.displayName }),
-    });
-    await this.callbacks.refreshGithubSummaries();
   }
 
 }

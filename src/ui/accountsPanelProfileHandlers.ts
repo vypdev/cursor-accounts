@@ -1,0 +1,175 @@
+import { isProfileProxyEnabled, isProfileProxyJsonlLoggingEnabled } from '@cursor-accounts/types';
+import * as extensionLog from '../logging/extensionLog';
+import { t } from '../l10n';
+import type { IInstanceDetector } from '../domain/ports/IInstanceDetector';
+import type { IProfileDetector } from '../domain/ports/IProfileDetector';
+import type { IProfileManager } from '../domain/ports/IProfileManager';
+import type { IProfileSettingsManager } from '../domain/ports/IProfileSettingsManager';
+import type { IProxyLifecycle } from '../domain/ports/IProxyLifecycle';
+import { ProfileExporter } from '../profiles/profileExporter';
+import { ProfileImporter } from '../profiles/profileImporter';
+import type {
+  CreateProfileOptions,
+  FromWebviewMessage,
+  ImportOptions,
+  Profile,
+  ToWebviewMessage,
+} from '../profiles/types';
+
+export interface AccountsPanelProfileHandlerDependencies {
+  profileManager: IProfileManager;
+  profileDetector: IProfileDetector;
+  instanceDetector: IInstanceDetector;
+  proxyManager: IProxyLifecycle;
+  profileSettingsManager?: IProfileSettingsManager;
+}
+
+export interface AccountsPanelProfileHandlerCallbacks {
+  postMessage(message: ToWebviewMessage): Promise<void>;
+  refresh(): Promise<void>;
+  refreshProxyStatus(options?: { checkCertificate?: boolean }): Promise<void>;
+}
+
+/** Handles profile CRUD and profile import/export actions from the panel. */
+export class AccountsPanelProfileHandlers {
+  constructor(
+    private readonly dependencies: AccountsPanelProfileHandlerDependencies,
+    private readonly callbacks: AccountsPanelProfileHandlerCallbacks
+  ) {}
+
+  async add(data: Extract<FromWebviewMessage, { type: 'add' }>): Promise<void> {
+    extensionLog.info(`[AccountsPanel] Add profile requested (${data.email})`);
+    const options: CreateProfileOptions = {
+      email: data.email,
+      displayName: data.displayName,
+      theme: data.theme,
+      color: data.color,
+      emoji: data.emoji,
+    };
+    const profile = await this.dependencies.profileManager.createProfile(options);
+
+    await this.callbacks.postMessage({
+      type: 'success',
+      message: t('panel.profileCreated', { name: profile.displayName }),
+    });
+    await this.callbacks.refresh();
+  }
+
+  async edit(profileId: string, updates: Partial<Profile>): Promise<void> {
+    const previousProfile = await this.dependencies.profileManager.getProfile(profileId);
+    const profile = await this.dependencies.profileManager.updateProfile(
+      profileId,
+      updates
+    );
+
+    const jsonlLoggingChanged =
+      'proxyJsonlLoggingEnabled' in updates &&
+      previousProfile != null &&
+      isProfileProxyJsonlLoggingEnabled(previousProfile) !==
+        isProfileProxyJsonlLoggingEnabled(profile);
+
+    if (updates.proxyEnabled === false) {
+      await this.dependencies.proxyManager.stop(profileId);
+      if (this.dependencies.profileSettingsManager) {
+        await this.dependencies.profileSettingsManager.restoreProxySettings(
+          profile.userDataDir
+        );
+      }
+    } else if (updates.proxyEnabled === true) {
+      const current = await this.dependencies.profileDetector.detectCurrentProfile();
+      if (current?.id === profileId && isProfileProxyEnabled(profile)) {
+        await this.dependencies.proxyManager.ensureProfileProxy(profileId);
+      }
+    } else if (
+      jsonlLoggingChanged &&
+      isProfileProxyEnabled(profile) &&
+      (await this.dependencies.proxyManager.isRunning(profileId))
+    ) {
+      await this.dependencies.proxyManager.restartProfileProxy(profileId);
+    }
+
+    await this.callbacks.postMessage({
+      type: 'success',
+      message: t('panel.profileUpdated', { name: profile.displayName }),
+    });
+    await this.callbacks.refresh();
+    await this.callbacks.refreshProxyStatus({ checkCertificate: true });
+  }
+
+  async delete(profileId: string): Promise<void> {
+    extensionLog.info(
+      `[AccountsPanel] Delete profile requested (${profileId})`
+    );
+    const profile = await this.dependencies.profileManager.getProfile(profileId);
+    const displayName = profile?.displayName ?? t('panel.unknownProfile');
+
+    await this.dependencies.profileManager.deleteProfile(
+      profileId,
+      this.dependencies.instanceDetector
+    );
+
+    await this.callbacks.postMessage({
+      type: 'success',
+      message: t('panel.profileDeleted', { name: displayName }),
+    });
+    await this.callbacks.refresh();
+  }
+
+  async exportProfiles(
+    profileIds: string[],
+    includeSettings: boolean
+  ): Promise<void> {
+    extensionLog.info(
+      `[AccountsPanel] Export requested (${profileIds.length} profile(s), settings=${includeSettings})`
+    );
+    const exporter = new ProfileExporter(this.dependencies.profileManager);
+    const exportData = await exporter.exportProfiles(profileIds, includeSettings);
+    const json = JSON.stringify(exportData, null, 2);
+    const timestamp = new Date().toISOString().slice(0, 10);
+
+    await this.callbacks.postMessage({
+      type: 'exportData',
+      data: json,
+      filename: `cursor-profiles-export-${timestamp}.json`,
+    });
+
+    await this.callbacks.postMessage({
+      type: 'success',
+      message: t('panel.exported', { count: exportData.profiles.length }),
+    });
+  }
+
+  async importProfiles(json: string, options: ImportOptions): Promise<void> {
+    extensionLog.info('[AccountsPanel] Import requested');
+    const importer = new ProfileImporter(this.dependencies.profileManager);
+    const result = await importer.importFromString(json, options);
+
+    const messages: string[] = [];
+    if (result.imported.length > 0) {
+      messages.push(t('panel.imported', { count: result.imported.length }));
+    }
+    if (result.skipped.length > 0) {
+      messages.push(t('panel.importSkipped', { count: result.skipped.length }));
+    }
+    if (result.errors.length > 0) {
+      messages.push(t('panel.importErrors', { count: result.errors.length }));
+    }
+
+    if (result.imported.length > 0 || result.skipped.length > 0) {
+      await this.callbacks.refresh();
+    }
+
+    if (result.success) {
+      await this.callbacks.postMessage({
+        type: 'success',
+        message: messages.join(', ') || t('panel.importCompleted'),
+      });
+    } else {
+      await this.callbacks.postMessage({
+        type: 'error',
+        message:
+          messages.join(', ') || t('panel.importCompletedWithErrors'),
+      });
+    }
+  }
+}
