@@ -28,9 +28,9 @@ import type { IProxyCertificate } from '../domain/ports/IProxyCertificate';
 import type { IProxyLifecycle } from '../domain/ports/IProxyLifecycle';
 import type { IProxyOutput } from '../domain/ports/IProxyOutput';
 import { isProfileProxyEnabled, isProfileProxyJsonlLoggingEnabled } from '@cursor-accounts/types';
-import { saveCaCertificateAs } from '../proxy/saveCaCertificate';
 import { getOpenWorkspacePaths } from '../services/activeWorkspaceService';
 import { buildSuggestedProfileResponse } from './suggestedProfile';
+import { AccountsPanelProxyHandlers } from './accountsPanelProxyHandlers';
 
 /** Callbacks the panel provides for webview messaging and refresh orchestration. */
 export interface AccountsPanelHandlerCallbacks {
@@ -63,11 +63,23 @@ export interface AccountsPanelHandlerDeps {
  */
 export class AccountsPanelHandlers {
   private readonly launchInFlight = new Set<string>();
+  private readonly proxyHandlers: AccountsPanelProxyHandlers;
 
   constructor(
     private readonly deps: AccountsPanelHandlerDeps,
     private readonly callbacks: AccountsPanelHandlerCallbacks
-  ) {}
+  ) {
+    this.proxyHandlers = new AccountsPanelProxyHandlers(
+      {
+        profileDetector: deps.profileDetector,
+        proxyManager: deps.proxyManager,
+      },
+      {
+        postMessage: (message) => callbacks.postMessage(message),
+        refreshProxyStatus: (options) => callbacks.refreshProxyStatus(options),
+      }
+    );
+  }
 
   async handle(message: FromWebviewMessage): Promise<void> {
     switch (message.type) {
@@ -124,35 +136,35 @@ export class AccountsPanelHandlers {
         break;
 
       case 'startProxy':
-        await this.handleStartProxy();
+        await this.proxyHandlers.start();
         break;
 
       case 'stopProxy':
-        await this.handleStopProxy();
+        await this.proxyHandlers.stop();
         break;
 
       case 'showProxyLogs':
-        await this.handleShowProxyLogs();
+        await this.proxyHandlers.showLogs();
         break;
 
       case 'showProxyTraffic':
-        await this.handleShowProxyTraffic();
+        await this.proxyHandlers.showTraffic();
         break;
 
       case 'getProxyInstallGuide':
-        await this.handleGetProxyInstallGuide();
+        await this.proxyHandlers.getInstallGuide();
         break;
 
       case 'installProxyCertificate':
-        await this.handleInstallProxyCertificate();
+        await this.proxyHandlers.installCertificate();
         break;
 
       case 'uninstallProxyCertificate':
-        await this.handleUninstallProxyCertificate();
+        await this.proxyHandlers.uninstallCertificate();
         break;
 
       case 'saveProxyCertificate':
-        await this.handleSaveProxyCertificate();
+        await this.proxyHandlers.saveCertificate();
         break;
 
       case 'refreshProxyStatus':
@@ -590,118 +602,4 @@ export class AccountsPanelHandlers {
     await this.callbacks.refreshGithubSummaries();
   }
 
-  private async handleStartProxy(): Promise<void> {
-    const currentProfile = await this.deps.profileDetector.detectCurrentProfile();
-    if (!currentProfile || !isProfileProxyEnabled(currentProfile)) {
-      await this.callbacks.postMessage({
-        type: 'error',
-        message: t('commands.proxy.requiresProfile'),
-      });
-      return;
-    }
-
-    const result = await this.deps.proxyManager.start(currentProfile.id);
-    if (result.success) {
-      await this.callbacks.postMessage({
-        type: 'success',
-        message: t('commands.proxy.started', {
-          port: String(result.port ?? ''),
-        }),
-      });
-    } else {
-      await this.callbacks.postMessage({
-        type: 'error',
-        message: t('commands.proxy.startFailed', {
-          error: result.error ?? t('errors.unknown'),
-        }),
-      });
-    }
-    await this.callbacks.refreshProxyStatus({ checkCertificate: true });
-  }
-
-  private async handleStopProxy(): Promise<void> {
-    const currentProfile = await this.deps.profileDetector.detectCurrentProfile();
-    if (!currentProfile || !isProfileProxyEnabled(currentProfile)) {
-      await this.callbacks.postMessage({
-        type: 'error',
-        message: t('commands.proxy.requiresProfile'),
-      });
-      return;
-    }
-
-    await this.deps.proxyManager.stop(currentProfile.id);
-    await this.callbacks.postMessage({
-      type: 'success',
-      message: t('commands.proxy.stopped'),
-    });
-    await this.callbacks.refreshProxyStatus();
-  }
-
-  private async handleShowProxyLogs(): Promise<void> {
-    const logDir = this.deps.proxyManager.getLogDirectory();
-    await vscode.commands.executeCommand(
-      'revealFileInOS',
-      vscode.Uri.file(logDir)
-    );
-  }
-
-  private async handleShowProxyTraffic(): Promise<void> {
-    await vscode.commands.executeCommand('cursorAccounts.proxy.showOutput');
-  }
-
-  private async handleGetProxyInstallGuide(): Promise<void> {
-    const guide = await this.deps.proxyManager.getProxyInstallGuide();
-    await this.callbacks.postMessage({
-      type: 'proxyInstallGuide',
-      data: guide,
-    });
-  }
-
-  private async handleInstallProxyCertificate(): Promise<void> {
-    const result = await this.deps.proxyManager.installCertificate();
-    const installed = await this.deps.proxyManager.checkCertificateInstalled();
-    const success = result.success || installed;
-    await this.callbacks.postMessage({
-      type: 'certificateInstallResult',
-      success,
-      error: success ? undefined : result.error,
-    });
-    await this.callbacks.refreshProxyStatus({ checkCertificate: true });
-  }
-
-  private async handleUninstallProxyCertificate(): Promise<void> {
-    const result = await this.deps.proxyManager.uninstallCertificate();
-    const installed = await this.deps.proxyManager.checkCertificateInstalled();
-    const success = result.success && !installed;
-    await this.callbacks.postMessage({
-      type: 'certificateUninstallResult',
-      success,
-      error: success ? undefined : result.error,
-    });
-    await this.callbacks.refreshProxyStatus({ checkCertificate: true });
-  }
-
-  private async handleSaveProxyCertificate(): Promise<void> {
-    const result = await saveCaCertificateAs(this.deps.proxyManager);
-
-    if (result.cancelled) {
-      return;
-    }
-
-    if (result.saved && result.path) {
-      await this.callbacks.postMessage({
-        type: 'success',
-        message: t('commands.proxy.saveCertificate.saved', { path: result.path }),
-      });
-      return;
-    }
-
-    await this.callbacks.postMessage({
-      type: 'error',
-      message: t('commands.proxy.saveCertificate.failed', {
-        error:
-          result.error ?? t('commands.proxy.saveCertificate.notFound'),
-      }),
-    });
-  }
 }
