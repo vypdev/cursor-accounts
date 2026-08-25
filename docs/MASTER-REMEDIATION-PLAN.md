@@ -138,10 +138,10 @@ The audit baseline is commit `9a116cf` on branch
 The implementation state after the completed slices is tracked separately from
 that historical baseline:
 
-- the latest full extension-host checkpoint passed 768 tests;
+- the latest full extension-host checkpoint passed 772 tests;
 - the webview suite has 18 passing tests;
 - localization has 26 locales with 428 keys each;
-- the architecture gate checks 417 TypeScript files, with valid, boundary,
+- the architecture gate checks 419 TypeScript files, with valid, boundary,
   cycle, and unresolved-import fixtures passing;
 - current-target packaging produced and verified
   `cursor-accounts-darwin-arm64-0.1.34.vsix`; stale artifacts are excluded by
@@ -155,7 +155,7 @@ that historical baseline:
 - Documentation validation covers 43 Markdown files and caught stale links to
   the former application-layer proxy ingress path before the gate was enabled.
 - Graphify was refreshed after the latest proxy and Accounts Panel extractions;
-  the graph now contains 4,748 nodes and 11,116 edges. Repowise reports zero safe-only dead-code
+  the graph now contains 4,750 nodes and 11,140 edges. Repowise reports zero safe-only dead-code
   findings; its 30 medium-confidence candidates remain retained pending
   runtime/public-contract evidence.
 - `ProxyTrafficUsageCoordinator` now owns agent-traffic classification,
@@ -218,6 +218,11 @@ that historical baseline:
   providers, Linux/macOS parsing, and Windows PowerShell-to-wmic fallback.
   `InstanceDetector` is now 276 lines with 85.14% line coverage, while the
   scanner has 79.41% line coverage and Graphify degree 11.
+- `proxyInsightEnricher` now owns Bidi/RunSSE session and token insight
+  enrichment, leaving `proxyDecode` as the body/type-resolution orchestrator.
+  Its focused tests cover completed and streaming token projections, unchanged
+  insights, and unsupported directions; `proxyDecode` is now 173 lines with
+  Graphify degree 29.
 - `ProxyTrafficSessionCoordinator` now owns model/conversation/profile session
   correlation, JWT profile enrichment, and traffic dispatch. Its focused tests
   cover correlation, enrichment, unchanged summaries, and state cleanup; it
