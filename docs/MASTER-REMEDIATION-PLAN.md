@@ -138,7 +138,7 @@ The audit baseline is commit `9a116cf` on branch
 The implementation state after the completed slices is tracked separately from
 that historical baseline:
 
-- the latest full extension-host checkpoint passed 782 tests;
+- the latest full extension-host checkpoint passed 784 tests;
 - the webview suite has 18 passing tests;
 - localization has 26 locales with 428 keys each;
 - the architecture gate checks 425 TypeScript files, with valid, boundary,
@@ -174,6 +174,10 @@ that historical baseline:
   scheduling in the poller. Its focused tests cover text and rich-text
   prompts, timestamp fallbacks, non-user/empty/pre-enabled bubbles, and
   malformed timestamps.
+- `EfficiencyService` activation safety now has focused coverage for consent
+  cancellation and missing access tokens; the service reaches 69.61% line and
+  73.07% branch coverage, while the complete extension-host checkpoint passes
+  784/784 tests.
 - `ProxyTrafficUsageCoordinator` now owns agent-traffic classification,
   shared/per-profile ingestion decisions, and persisted-usage notifications;
   its focused tests pass and coverage is 99.1% lines / 100% functions.

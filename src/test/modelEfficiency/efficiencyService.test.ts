@@ -1,11 +1,27 @@
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
+import { afterEach, describe, it } from 'node:test';
+import * as vscode from 'vscode';
 import {
   getEfficiencyWrongWindowMessage,
   EfficiencyService,
 } from '../../modelEfficiency/efficiencyService';
+import { t } from '../../l10n';
 import { createMockEfficiencyStatsStorage } from './mockEfficiencyStatsStorage';
 import type { Profile } from '../../profiles/types';
+
+const originalShowInformationMessage = (
+  vscode.window as unknown as {
+    showInformationMessage?: (...args: unknown[]) => unknown;
+  }
+).showInformationMessage;
+
+afterEach(() => {
+  (
+    vscode.window as unknown as {
+      showInformationMessage?: (...args: unknown[]) => unknown;
+    }
+  ).showInformationMessage = originalShowInformationMessage;
+});
 
 function makeProfile(overrides: Partial<Profile> = {}): Profile {
   return {
@@ -20,6 +36,63 @@ function makeProfile(overrides: Partial<Profile> = {}): Profile {
 }
 
 describe('EfficiencyService.setEfficiencyEnabled', () => {
+  it('does not create credentials when activation consent is cancelled', async () => {
+    let authRead = false;
+    (
+      vscode.window as unknown as {
+        showInformationMessage: (...args: unknown[]) => Promise<undefined>;
+      }
+    ).showInformationMessage = async () => undefined;
+    const profile = makeProfile();
+    const service = new EfficiencyService(
+      createContext(),
+      {
+        getProfile: async () => profile,
+        getProfiles: async () => [profile],
+        updateProfile: async () => profile,
+      } as never,
+      { detectCurrentProfile: async () => profile } as never,
+      {
+        readTokens: async () => {
+          authRead = true;
+          return { accessToken: 'token' };
+        },
+      },
+      createMockEfficiencyStatsStorage(),
+      { getCachedQuota: () => undefined } as never
+    );
+
+    await assert.rejects(() => service.setEfficiencyEnabled(profile.id, true));
+    assert.equal(authRead, false);
+    service.dispose();
+  });
+
+  it('rejects activation when the current profile has no access token', async () => {
+    (
+      vscode.window as unknown as {
+        showInformationMessage: (...args: unknown[]) => Promise<{ title: string }>;
+      }
+    ).showInformationMessage = async () => ({
+      title: t('efficiency.consent.confirm'),
+    });
+    const profile = makeProfile();
+    const service = new EfficiencyService(
+      createContext(),
+      {
+        getProfile: async () => profile,
+        getProfiles: async () => [profile],
+        updateProfile: async () => profile,
+      } as never,
+      { detectCurrentProfile: async () => profile } as never,
+      { readTokens: async () => null },
+      createMockEfficiencyStatsStorage(),
+      { getCachedQuota: () => undefined } as never
+    );
+
+    await assert.rejects(() => service.setEfficiencyEnabled(profile.id, true));
+    service.dispose();
+  });
+
   it('rejects toggle when profile is not the current window', async () => {
     const profileA = makeProfile({ id: 'profile-a' });
     const profileB = makeProfile({
