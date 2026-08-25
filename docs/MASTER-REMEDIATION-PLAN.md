@@ -138,10 +138,10 @@ The audit baseline is commit `9a116cf` on branch
 The implementation state after the completed slices is tracked separately from
 that historical baseline:
 
-- the latest full extension-host checkpoint passed 784 tests;
+- the latest full extension-host checkpoint passed 785 tests;
 - the webview suite has 18 passing tests;
 - localization has 26 locales with 428 keys each;
-- the architecture gate checks 425 TypeScript files, with valid, boundary,
+- the architecture gate checks 426 TypeScript files, with valid, boundary,
   cycle, and unresolved-import fixtures passing;
 - current-target packaging produced and verified
   `cursor-accounts-darwin-arm64-0.1.34.vsix`; stale artifacts are excluded by
@@ -155,7 +155,7 @@ that historical baseline:
 - Documentation validation covers 43 Markdown files and caught stale links to
   the former application-layer proxy ingress path before the gate was enabled.
 - Graphify was refreshed after the latest proxy, Accounts Panel, and model-efficiency
-  extractions; the graph now contains 4,776 nodes and 9,614 edges. Repowise reports zero safe-only dead-code
+  extractions; the graph now contains 4,777 nodes and 9,624 edges. Repowise reports zero safe-only dead-code
   findings; its 30 medium-confidence candidates remain retained pending
   runtime/public-contract evidence.
 - `EfficiencyAnalyzer` now delegates scheduling to `EfficiencyAnalysisQueue`
@@ -177,7 +177,13 @@ that historical baseline:
 - `EfficiencyService` activation safety now has focused coverage for consent
   cancellation and missing access tokens; the service reaches 69.61% line and
   73.07% branch coverage, while the complete extension-host checkpoint passes
-  784/784 tests.
+  785/785 tests.
+- `composerPollerState` now owns empty-state creation and bounded FIFO
+  deduplication for seen Composer bubbles. It has 100% line and function
+  coverage, 88.88% branch coverage, and direct tests for duplicate detection,
+  membership checks, and eviction at the configured cap. `ComposerDbPoller`
+  remains responsible for persistence, SQLite reads, watermark handling, and
+  scheduling.
 - `ProxyTrafficUsageCoordinator` now owns agent-traffic classification,
   shared/per-profile ingestion decisions, and persisted-usage notifications;
   its focused tests pass and coverage is 99.1% lines / 100% functions.

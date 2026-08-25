@@ -11,6 +11,11 @@ import {
   parseComposerHeaders,
 } from './composerDbParse';
 import { buildPromptMetadata } from './composerPromptMetadata';
+import {
+  createEmptyPollerState,
+  isBubbleSeen,
+  markBubbleSeen,
+} from './composerPollerState';
 import type { EfficiencyAnalyzer } from './efficiencyAnalyzer';
 import { GitBranchDetector } from './gitBranchDetector';
 import type {
@@ -33,7 +38,6 @@ import type {
 } from './types';
 import {
   DB_POLLER_STATE_KEY,
-  SEEN_BUBBLES_CAP_PER_COMPOSER,
 } from './types';
 
 const DEFAULT_POLL_INTERVAL_SECONDS = 10;
@@ -51,13 +55,6 @@ function getPollIntervalMs(): number {
     Math.max(MIN_POLL_INTERVAL_SECONDS, seconds)
   );
   return clamped * 1000;
-}
-
-function emptyPollerState(): DbPollerState {
-  return {
-    seenBubbleIds: {},
-    lastUpdatedAtByComposer: {},
-  };
 }
 
 export class ComposerDbPoller {
@@ -105,36 +102,12 @@ export class ComposerDbPoller {
   private loadState(): DbPollerState {
     return (
       this.context.globalState.get<DbPollerState>(DB_POLLER_STATE_KEY) ??
-      emptyPollerState()
+      createEmptyPollerState()
     );
   }
 
   private async saveState(state: DbPollerState): Promise<void> {
     await this.context.globalState.update(DB_POLLER_STATE_KEY, state);
-  }
-
-  private markBubbleSeen(
-    state: DbPollerState,
-    composerId: string,
-    bubbleId: string
-  ): void {
-    const list = state.seenBubbleIds[composerId] ?? [];
-    if (list.includes(bubbleId)) {
-      return;
-    }
-    list.push(bubbleId);
-    if (list.length > SEEN_BUBBLES_CAP_PER_COMPOSER) {
-      list.splice(0, list.length - SEEN_BUBBLES_CAP_PER_COMPOSER);
-    }
-    state.seenBubbleIds[composerId] = list;
-  }
-
-  private isBubbleSeen(
-    state: DbPollerState,
-    composerId: string,
-    bubbleId: string
-  ): boolean {
-    return (state.seenBubbleIds[composerId] ?? []).includes(bubbleId);
   }
 
   private async tick(): Promise<void> {
@@ -216,7 +189,7 @@ export class ComposerDbPoller {
       );
       const data = parseComposerData(dataRaw);
       for (const bubbleHeader of getUserBubbleHeaders(data)) {
-        this.markBubbleSeen(state, composerId, bubbleHeader.bubbleId);
+        markBubbleSeen(state, composerId, bubbleHeader.bubbleId);
       }
 
       if (typeof header.lastUpdatedAt === 'number') {
@@ -276,11 +249,11 @@ export class ComposerDbPoller {
 
     for (const bubbleHeader of getUserBubbleHeaders(data)) {
       const bubbleId = bubbleHeader.bubbleId;
-      if (this.isBubbleSeen(state, composerId, bubbleId)) {
+      if (isBubbleSeen(state, composerId, bubbleId)) {
         continue;
       }
 
-      this.markBubbleSeen(state, composerId, bubbleId);
+      markBubbleSeen(state, composerId, bubbleId);
 
       const bubbleRaw = await readCursorDiskKV(
         dbPath,

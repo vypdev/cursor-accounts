@@ -233,6 +233,7 @@ Scoped submodule under `src/modelEfficiency/`:
 - `ApiKeyManager` — creates Cursor API key via session
 - `ComposerDbPoller` — polls active profile `state.vscdb` for new user bubbles
 - `composerPromptMetadata` — pure eligibility and `PromptMetadata` mapping for Composer bubbles
+- `composerPollerState` — pure seen-bubble state and FIFO-cap operations
 - `EfficiencyAnalyzer` — thin queue/workflow facade for prompt analysis
 - `EfficiencyAnalysisQueue` — bounded concurrency and prompt deduplication
 - `EfficiencyAnalysisWorkflow` / `SdkClassifier` — profile resolution and `@cursor/sdk` classification
