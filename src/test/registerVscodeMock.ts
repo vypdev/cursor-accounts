@@ -123,6 +123,11 @@ const vscodeMock = {
   ThemeColor: class ThemeColor {
     constructor(public readonly id: string) {}
   },
+  MarkdownString: class MarkdownString {
+    public isTrusted = false;
+
+    constructor(public readonly value = '') {}
+  },
   ViewColumn: {
     Active: -1,
     Beside: -2,

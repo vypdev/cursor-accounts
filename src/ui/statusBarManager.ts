@@ -101,10 +101,10 @@ export class StatusBarManager {
     this.quotaItem.command = 'cursorAccounts.openAccounts';
 
     if (!this.activeProfile) {
-      this.quotaItem.text = `$(account) ${t('statusBar.selectAccount')}`;
-      this.quotaItem.tooltip = t('statusBar.selectAccountTooltip');
-      this.quotaItem.backgroundColor = undefined;
-      this.quotaItem.show();
+      this.showItem(
+        `$(account) ${t('statusBar.selectAccount')}`,
+        t('statusBar.selectAccountTooltip')
+      );
       return;
     }
 
@@ -118,34 +118,20 @@ export class StatusBarManager {
     }
 
     if (!showQuota) {
-      this.quotaItem.text = `$(account) ${profileName}`;
-      this.quotaItem.tooltip = this.buildProfileTooltip(this.activeProfile);
-      this.quotaItem.backgroundColor = undefined;
-      this.quotaItem.show();
+      this.showItem(
+        `$(account) ${profileName}`,
+        this.buildProfileTooltip(this.activeProfile)
+      );
       return;
     }
 
     if (this.quotaLoading) {
-      const base = isEnterprise
-        ? t('statusBar.loadingMonthlyUsage')
-        : t('statusBar.loadingUsage');
-      this.quotaItem.text = appendProfileSuffix(base, profileName, showProfileName);
-      this.quotaItem.tooltip = isEnterprise
-        ? t('statusBar.loadingMonthlyUsageTooltip')
-        : t('statusBar.loadingUsageTooltip');
-      this.quotaItem.backgroundColor = undefined;
-      this.quotaItem.show();
+      this.showLoadingState(isEnterprise, profileName, showProfileName);
       return;
     }
 
     if (this.quotaError) {
-      const base = t('statusBar.quotaUnavailable');
-      this.quotaItem.text = appendProfileSuffix(base, profileName, showProfileName);
-      this.quotaItem.tooltip = this.quotaError;
-      this.quotaItem.backgroundColor = new vscode.ThemeColor(
-        'statusBarItem.warningBackground'
-      );
-      this.quotaItem.show();
+      this.showErrorState(profileName, showProfileName);
       return;
     }
 
@@ -154,9 +140,50 @@ export class StatusBarManager {
       return;
     }
 
+    this.showQuota(cached, profileName, showProfileName, cfg.showAccountEmail);
+  }
+
+  private showLoadingState(
+    isEnterprise: boolean,
+    profileName: string | undefined,
+    showProfileName: boolean
+  ): void {
+    const base = isEnterprise
+      ? t('statusBar.loadingMonthlyUsage')
+      : t('statusBar.loadingUsage');
+    const tooltip = isEnterprise
+      ? t('statusBar.loadingMonthlyUsageTooltip')
+      : t('statusBar.loadingUsageTooltip');
+    this.showItem(
+      appendProfileSuffix(base, profileName, showProfileName),
+      tooltip
+    );
+  }
+
+  private showErrorState(
+    profileName: string | undefined,
+    showProfileName: boolean
+  ): void {
+    this.showItem(
+      appendProfileSuffix(
+        t('statusBar.quotaUnavailable'),
+        profileName,
+        showProfileName
+      ),
+      this.quotaError ?? '',
+      new vscode.ThemeColor('statusBarItem.warningBackground')
+    );
+  }
+
+  private showQuota(
+    cached: QuotaUsage,
+    profileName: string | undefined,
+    showProfileName: boolean,
+    showAccountEmail: boolean
+  ): void {
     this.quotaItem.text = buildQuotaText(cached, profileName, showProfileName);
     const tooltip = new vscode.MarkdownString(
-      buildQuotaTooltip(cached, cfg.showAccountEmail),
+      buildQuotaTooltip(cached, showAccountEmail),
       true
     );
     tooltip.isTrusted = true;
@@ -167,6 +194,17 @@ export class StatusBarManager {
     this.quotaItem.backgroundColor = background
       ? new vscode.ThemeColor(`statusBarItem.${background}Background`)
       : undefined;
+    this.quotaItem.show();
+  }
+
+  private showItem(
+    text: string,
+    tooltip: string | vscode.MarkdownString,
+    backgroundColor?: vscode.ThemeColor
+  ): void {
+    this.quotaItem.text = text;
+    this.quotaItem.tooltip = tooltip;
+    this.quotaItem.backgroundColor = backgroundColor;
     this.quotaItem.show();
   }
 
