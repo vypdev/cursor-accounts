@@ -22,13 +22,13 @@ acceptance criteria and evidence are recorded.
 | ID | Area | Status | Current evidence | Next required action |
 |---|---|---|---|---|
 | QA-0 | Baseline and finding reclassification | COMPLETE | pnpm run audit passes; current Graphify/Repowise/dependency evidence captured on 2026-08-25 | Keep this baseline immutable and update it after every cross-cutting change |
-| QA-1 | CI, tests, localization, lint | PARTIAL | Repeated full audit passes with loopback access; current c8 totals are 79.66% lines, 74.03% branches, and 78.34% functions; localization is 26 locales/428 keys and webview is 18/18 | Add repeated host-run evidence and review generated-artifact/source-lint policy |
+| QA-1 | CI, tests, localization, lint | PARTIAL | Repeated full audit passes with loopback access; current c8 totals are 79.68% lines, 74.12% branches, and 78.53% functions; localization is 26 locales/428 keys and webview is 18/18 | Add repeated host-run evidence and review generated-artifact/source-lint policy |
 | QA-2 | Dependencies and supply chain | PARTIAL | SDK `1.0.28`, legacy npm `sqlite3` removed, targeted `uuid@11.1.1` and `undici@6.28.0` overrides resolve; `pnpm audit --prod` reports 0 advisories and signatures remain valid | Add clean-room shipped-tree scan, package-size review, and independent compatibility evidence before marking complete |
 | QA-3 | Native runtime and packaging | PARTIAL | Current-target clean build passes with dynamic Electron ABI 128, official SHA-256 validation, sanitized runtime native tree, and VSIX verification | Execute clean-room install from an empty store/workspace and expand evidence across the supported target matrix |
 | QA-4 | Token and cost correctness | PARTIAL | Accounting contract, authoritative server-cost precedence, model-aware fallback calculation, non-finite input guards, and SQLite replay golden test are implemented | Expand coverage across all decoder shapes, pricing refresh/versioning, rounding policy, and unknown/cache-rate reconciliation |
 | QA-5 | Clean Architecture enforcement | PARTIAL | TypeScript-AST resolver-backed checker passes for 295 production files; negative fixtures cover domain/application/package/cycle cases; current Graphify/Repowise hotspots remain | Refactor the highest-risk low-coverage infrastructure modules without weakening the contract, then add characterization and failure-path tests |
 | QA-6 | Security and privacy | PARTIAL | Threat model recorded; API error details are generic; loopback/token parity, redaction, sidecar safety, text-safe webview rendering, certificate platform validation, injected certificate-process failure tests, bounded certificate-process timeout/kill escalation, and Repowise history scan are evidenced | Complete retention/disk-full/WAL tests, native privileged command execution review on supported OS runners, protocol-specific redaction, and the legacy optional-token decision |
-| QA-7 | Reliability and lifecycle | PARTIAL | Tracking ingress shutdown is idempotent; proxy startup failures now attempt MITM/ingress/API cleanup; direct `SIGTERM`/`SIGINT` uses graceful shutdown; focused lifecycle/entrypoint/process/runtime tests pass 21/21 | Add multi-process/WAL, failure-injection, migration-recovery, disk-lifecycle, and child-process hang tests |
+| QA-7 | Reliability and lifecycle | PARTIAL | Tracking ingress shutdown is idempotent; proxy startup failures now attempt MITM/ingress/API cleanup; direct `SIGTERM`/`SIGINT` uses graceful shutdown; focused lifecycle/entrypoint/process/runtime tests pass 22/22 | Add multi-process/WAL, failure-injection, migration-recovery, disk-lifecycle, and child-process hang tests |
 | QA-8 | Local test confidence | PARTIAL | `proxyDecode.ts` has 91.7% c8 lines and 100% c8 branches with 22 focused tests; certificate process/platform boundaries have 16/16 focused tests; `nodeProxyProcess.ts` has 103/113 c8 lines, 21/25 branches, and 10/10 functions with 5 focused tests; `ProxyServerRuntime` has 132/147 c8 lines, 15/17 branches, and 7/11 functions with 3 focused tests; the ProfileLauncher slice adds 33 focused tests, with current c8 lines at 86.51% for `profileLauncher.ts`, 89.08% for its process adapter, and 94.66% for its proxy coordinator; `proxyManager.ts` is at 72.07% c8 lines; `proxyCommands.ts` is at 94.59% lines, 75% branches, and 100% functions with 8 focused tests; the proxy process slice covers `proxyServer.ts` at 87.5% lines, `proxyServerConfigParser.ts` at 100% lines/functions, and `proxyServerProcess.ts` at 89.33% lines; `statusBarManager.ts` now has 94.59% lines, 84.44% branches, and 93.33% functions with 6 focused tests; Repowise still identifies remaining hotspots | Reconcile static-analysis coverage ingestion, add risk-based floors, and cover the next proxy/profile/process hotspots |
 | QA-9 | Documentation and operations | PARTIAL | Plan, audit links, dependency inventory, advisory register, and English docs are synchronized for this slice | Add task/decision records, reproducible audit artifact output, and runbooks |
 | QA-10 | Independent final audit and release rehearsal | OPEN | Not started | Run only after QA-1 through QA-9 have current evidence |
@@ -40,7 +40,7 @@ acceptance criteria and evidence are recorded.
 | Item | Value |
 |---|---|
 | Branch | feature/3-mitm-proxy |
-| Latest implementation commit | a3dc6ae |
+| Latest implementation commit | ce00ac0 |
 | Latest documentation commit | Current register update commit |
 | Node | v22.23.1 |
 | pnpm | 11.19.0 |
@@ -54,7 +54,7 @@ acceptance criteria and evidence are recorded.
 pnpm run audit passed on 2026-08-25 with:
 
 - extension-host tests: passed across the compiled host test suite;
-- coverage: 79.66% lines, 74.03% branches, 78.34% functions;
+- coverage: 79.68% lines, 74.12% branches, 78.53% functions;
 - architecture rules and fixtures: passed;
 - localization: 26 locales with 428 keys each;
 - webview tests: 5 files and 18 tests passed;
@@ -66,7 +66,7 @@ matrix; those remain QA-3 work.
 
 ### Graphify
 
-The latest code-only graph contains 5,190 nodes and 12,112 edges. The highest
+The latest code-only graph contains 5,191 nodes and 12,115 edges. The highest
 relevant hotspots include:
 
 - ProxyManager: degree 67;
@@ -88,7 +88,7 @@ policy and state it explicitly.
   installCaCertificate.ts, statusBarManager.ts, efficiencyService.ts,
   profileCommands.ts, IProxyManager.ts, and high-fan-out type barrels.
 
-The latest Repowise index contains 4,037 nodes and 11,604 edges. Its current
+The latest Repowise index contains 4,037 nodes and 11,607 edges. Its current
 health scores are 4.3/10 for `src/profiles/profileLauncher.ts`, 3.13/10 for
 `src/services/proxyManager.ts`, 3.6/10 for `src/commands/proxyCommands.ts`,
 3.3/10 for `src/proxy/proxyServer.ts`, 3.2/10 for
@@ -357,6 +357,30 @@ Graphify now contains 5,190 nodes and 12,112 edges; SQL remains explicitly
 excluded because `tree_sitter_sql` is not installed. No coverage exclusion or
 architecture rule was weakened.
 
+## QA-7.8 and QA-8.8 compiled proxy-entrypoint checkpoint — 2026-08-25
+
+The process boundary now has one real child-process characterization in
+addition to the injectable unit tests:
+
+- `ce00ac0` executes the compiled `out/proxy/proxyServer.js` entry point with
+  malformed `CURSOR_ACCOUNTS_PROXY_CONFIG`, and verifies the sanitized startup
+  diagnostic and exit status `1`.
+- The focused proxy process suite now passes 5/5 tests; the combined proxy
+  configuration/process characterization boundary passes 13/13.
+- The repeated full audit passes with c8 global totals of 79.68% lines,
+  74.12% branches, and 78.53% functions. Child-process coverage now records
+  `proxyServer.ts` at 100% lines, branches, and functions; the process adapter
+  is at 92% lines, 90.91% branches, and 75% functions.
+- The first audit attempt after adding the harness was transiently non-zero;
+  the immediate diagnostic rerun passed completely, and the focused suite plus
+  the remote workflow for `ce00ac0` are green. Repeated-run stability remains
+  tracked under QA-1 rather than being hidden.
+
+The remaining proxy-process work is deliberately integration-oriented:
+successful listener startup/shutdown, native SQLite pool behavior, migration
+recovery, disk-full handling, and child-process hang/crash recovery require
+dedicated environment-controlled tests and are not simulated by this harness.
+
 ## QA-6 security checkpoint — 2026-08-25
 
 Commit `c7c28a8` closes a concrete disclosure path in the local proxy API:
@@ -594,6 +618,7 @@ The following historical findings are reclassified from the current baseline:
 | 2026-08-25 | QA-7.6/QA-8.5 proxy command facade slice | d5f0d10, ace8c5d | Split command registration into focused helpers; 8/8 focused tests; c8 `proxyCommands.ts` coverage 94.59% lines/75% branches/100% functions; Repowise 2.7→3.6 and maximum CCN 11→4; repeated full audit pass; remote workflow green |
 | 2026-08-25 | QA-7.7/QA-8.6 proxy process composition slice | f35f835 | Extracted configuration parsing, infrastructure composition, and injectable process lifecycle; focused proxy suites 12/12; c8 `proxyServer.ts` 87.5% lines, parser 100% lines/functions, process adapter 89.33% lines; full audit pass; remote workflow green |
 | 2026-08-25 | QA-5.6/QA-8.7 status-bar rendering slice | a3dc6ae | Added 6/6 StatusBarManager characterization tests, extracted named rendering states and shared status-item presentation, c8 94.59% lines/84.44% branches/93.33% functions, Repowise 2.6→3.2 and CCN 14→11, full audit pass, remote workflow green |
+| 2026-08-25 | QA-7.8/QA-8.8 compiled proxy-entrypoint slice | ce00ac0 | Added child-process characterization for malformed configuration; focused process suite 5/5 and combined proxy boundary 13/13; c8 `proxyServer.ts` 100% lines/branches/functions and process adapter 92% lines/90.91% branches/75% functions; full audit rerun pass; remote workflow green |
 
 This register must be updated in the same commit as each task's implementation
 or evidence change.
