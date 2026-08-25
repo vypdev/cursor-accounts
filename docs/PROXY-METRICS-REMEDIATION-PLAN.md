@@ -318,8 +318,11 @@ Rules to verify before considering each phase complete:
 9. Every god-service extraction must first preserve the observable contract and add characterization tests; refactoring must not change attribution or billing semantics.
 
 These rules are now automated by `scripts/check-architecture.mjs`, exposed as
-`pnpm run check:architecture`. The current gate scans 359 TypeScript files and
-passes with no boundary violations or static relative-import cycles.
+`pnpm run check:architecture`. The current gate uses the TypeScript AST and
+module resolver, excludes test/generated output from the production graph,
+scans 282 production TypeScript files, and passes with no boundary violations
+or static import cycles. Its independent negative fixtures run through
+`pnpm run test:architecture`.
 
 ## 4. Questions to resolve before implementation
 

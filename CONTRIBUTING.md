@@ -36,6 +36,8 @@ Useful scripts:
 | `pnpm run docs:api` | Generate Typedoc HTML under `docs/api/` |
 | `pnpm run test:types-sync` | Validate webview ↔ shared types alignment |
 | `pnpm run lint` | Typecheck + ESLint (includes layer boundary rules) |
+| `pnpm run check:architecture` | Check the production import graph and Clean Architecture boundaries |
+| `pnpm run test:architecture` | Test the architecture checker with legal and illegal fixtures |
 | `pnpm run validate:l10n` | Ensure all `locales/*.json` keys match `en.json` |
 | `pnpm run build:current` | Build a `.vsix` for your current platform (canonical packaging command) |
 | `pnpm run build:clean:current` | Clean install from scratch, then build a `.vsix` (see [docs/BUILD.md](docs/BUILD.md#clean-build)) |
@@ -69,6 +71,8 @@ cursor-accounts/
 ```
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for module relationships and data flows.
+See [docs/ARCHITECTURE-CONTRACT.md](docs/ARCHITECTURE-CONTRACT.md) before
+adding a cross-layer import.
 
 ## Code style
 
@@ -78,6 +82,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for module relationships and da
 - **Logging** — use `src/logging/extensionLog.ts`; avoid `console.log` in `src/`
 - **i18n** — add keys to `locales/en.json` first, then run `pnpm run validate:l10n` and update other locale files (or use the project’s l10n workflow)
 - **Secrets** — never store tokens in `~/.cursor-accounts/config.json`; read `state.vscdb` read-only; persist refreshed tokens in VS Code Secret Storage only
+- **Architecture** — keep domain code independent of infrastructure, keep application code independent of concrete adapters, and assemble implementations only in `src/extension.ts` or `src/composition/`. Run both architecture commands before opening a pull request.
 
 ## Testing
 

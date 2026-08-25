@@ -10,7 +10,7 @@ async function checkFixture(name, expected) {
   const root = path.join(fixturesDirectory, name);
   const result = await runArchitectureCheck({
     root,
-    sourceRoots: [path.join(root, 'src')],
+    sourceRoots: expected.sourceRoots ?? [path.join(root, 'src')],
   });
 
   assert.equal(
@@ -23,10 +23,42 @@ async function checkFixture(name, expected) {
     expected.cycle,
     `${name}: unexpected cycle result`
   );
+  if (expected.rule) {
+    assert.ok(
+      result.violations.some((violation) => violation.rule === expected.rule),
+      `${name}: expected rule ${expected.rule}`
+    );
+  }
 }
 
 await checkFixture('valid', { boundaryViolation: false, cycle: false });
-await checkFixture('invalid-boundary', { boundaryViolation: true, cycle: false });
+await checkFixture('invalid-boundary', {
+  boundaryViolation: true,
+  cycle: false,
+  rule: 'domain-depends-outward',
+});
 await checkFixture('invalid-cycle', { boundaryViolation: false, cycle: true });
-await checkFixture('invalid-unresolved', { boundaryViolation: true, cycle: false });
+await checkFixture('invalid-unresolved', {
+  boundaryViolation: true,
+  cycle: false,
+  rule: 'unresolved-relative-import',
+});
+await checkFixture('invalid-application-boundary', {
+  boundaryViolation: true,
+  cycle: false,
+  rule: 'application-depends-on-infrastructure',
+});
+await checkFixture('invalid-external', {
+  boundaryViolation: true,
+  cycle: false,
+  rule: 'domain-external-dependency',
+});
+await checkFixture('valid-workspace-package', {
+  boundaryViolation: false,
+  cycle: false,
+  sourceRoots: [
+    path.join(fixturesDirectory, 'valid-workspace-package', 'src'),
+    path.join(fixturesDirectory, 'valid-workspace-package', 'packages', 'contracts', 'src'),
+  ],
+});
 console.log('Architecture checker fixtures passed.');

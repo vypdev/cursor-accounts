@@ -2,7 +2,10 @@
 
 How this extension structures proxy and tracking code.
 
-**Last reviewed:** 2026-08-24
+**Last reviewed:** 2026-08-25
+
+The complete executable layer matrix is maintained in
+[ARCHITECTURE-CONTRACT.md](ARCHITECTURE-CONTRACT.md).
 
 ---
 
@@ -80,8 +83,13 @@ See [HTTP2-PROXY-IMPLEMENTATION.md](HTTP2-PROXY-IMPLEMENTATION.md) for the full 
 Shared DTOs live in `src/application/types/` (`proxyTraffic`, `proxyInsights`, `proxyConfig`). UI presenters moved under `src/ui/presentation/` with re-exports from `src/proxy/` for backward compatibility.
 
 The architecture gate is executable with `pnpm run check:architecture`. It
-checks the documented layer restrictions and static relative-import cycles.
-The gate also keeps `ProxyLogEntry` in the application boundary instead of
-making the domain decoder port depend on `src/proxy/`. The previously detected
+uses the TypeScript AST and module resolver, checks type and runtime imports,
+resolves workspace package entrypoints, reports line-level rule identifiers,
+fails closed on unresolved relative imports, excludes tests/generated output
+from the production graph, and detects static cycles. The independent fixture
+suite is `pnpm run test:architecture`.
+
+The gate keeps `ProxyLogEntry` in the application boundary instead of making
+the domain decoder port depend on `src/proxy/`. The previously detected
 certificate-manager/install-helper cycle was removed by moving the shared CA
 constant to `src/proxy/certificateConstants.ts`.

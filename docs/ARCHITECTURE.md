@@ -2,7 +2,12 @@
 
 This document describes how the extension is structured, how data flows, and why key decisions were made. For API and quota research, see [RESEARCH.md](RESEARCH.md). For multi-profile product behavior, see [FEATURE-MULTI-PROFILE.md](FEATURE-MULTI-PROFILE.md).
 
-**Last reviewed:** 2026-08-24
+**Last reviewed:** 2026-08-25
+
+The executable dependency contract is documented in
+[ARCHITECTURE-CONTRACT.md](ARCHITECTURE-CONTRACT.md). This document provides
+the broader module map and runtime data flows; the contract is authoritative
+for import direction.
 
 ## Overview
 
@@ -132,24 +137,34 @@ graph TB
 - **TokenProvider strategy**: `TokenService` for active window; `StaticTokenProvider` per profile when reading other `userDataDir` trees via `IProfileAuthReader`
 - **Service composition**: `RefreshService` and `MultiProfileQuotaService` depend on domain ports; `extension.ts` wires concrete adapters (`QuotaClient`, `UserClient`, `ActivityLeaderboardService`)
 
-## Dependency rules (enforced by ESLint)
+## Dependency rules
 
 | Layer | May import from |
 |-------|-----------------|
 | `packages/types` | TypeScript only |
 | `packages/shared` | TypeScript only |
-| `src/domain` | `@cursor-accounts/types`, local ports |
-| `src/api`, `src/auth`, `src/profiles` | `domain`, `@cursor-accounts/types`, `@cursor-accounts/shared`, utilities |
-| `src/services`, `src/ui` | `domain`, infrastructure modules, `@cursor-accounts/types`, `@cursor-accounts/shared` |
-| `extension.ts` | All layers (composition root) |
+| `src/domain` | Domain modules and `@cursor-accounts/types` / `@cursor-accounts/shared` |
+| `src/application` | Application, domain, and shared-kernel modules |
+| Infrastructure and interface adapters | Domain, application, shared kernel, and approved external libraries |
+| `src/extension.ts`, `src/composition` | All implementation layers (composition root) |
 
-**Not allowed:** `api` → `ui`; `profiles` → `ui`; `domain` → outer layers.
+**Not allowed:** domain → outer layers; application → concrete infrastructure;
+shared kernel → extension runtime; proxy infrastructure → UI presenters; and
+any non-root production module → the composition root.
 
-ESLint enforces import boundaries for `domain`, `api`, `profiles`, and `services`. The reproducible `pnpm run check:architecture` gate also scans relative imports, rejects forbidden inward-boundary violations, and fails on static import cycles. `ui/` relies on convention and code review.
+`pnpm run check:architecture` uses the TypeScript AST and module resolver,
+reports line-level diagnostics, resolves workspace packages, fails closed on
+unresolved relative imports, and detects static import cycles. Tests are
+excluded from the production graph by default and are covered independently by
+the test runner. `pnpm run test:architecture` exercises the checker with
+positive and negative fixtures.
 
 ## Structural migration (2026-06)
 
-Earlier refactors introduced a short-lived `src/application/` layer (mappers and profile models). That layer was removed in favor of:
+Earlier refactors removed a short-lived mapper/model arrangement, but the
+current `src/application/` layer is active and owns agent-tracking use-case
+services and cross-layer application records. The historical mapper/model
+locations were replaced by:
 
 | Former location | Current location |
 |-----------------|------------------|
@@ -157,7 +172,11 @@ Earlier refactors introduced a short-lived `src/application/` layer (mappers and
 | `src/application/models/profileModels.ts` | `@cursor-accounts/types` entities + `src/profiles/types.ts` re-exports |
 | `packages/types/src/messages/webviewMessages.ts` | `packages/types/src/contracts/webviewMessages.ts` |
 
-There is **no** `src/application/` directory. DTO mappers live alongside HTTP clients in `src/api/`. Runtime services in `src/services/` orchestrate workflows and receive port implementations from `extension.ts`.
+DTO mappers live alongside HTTP clients in `src/api/`. Runtime services in
+`src/services/` remain infrastructure-facing coordinators and receive port
+implementations from `extension.ts`; application services in
+`src/application/services/` own use-case policies that must remain independent
+from concrete persistence.
 
 ## Two quota pipelines
 
