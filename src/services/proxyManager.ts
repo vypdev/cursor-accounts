@@ -12,17 +12,13 @@ import type {
 } from '../domain/ports/IProxyTraffic';
 import type { IProfileReader } from '../domain/ports/IProfileReader';
 import type { IProfileSettingsManager } from '../domain/ports/IProfileSettingsManager';
-import type { IProxyCertificateService } from '../domain/ports/IProxyCertificateService';
-import type { IProxyProcess } from '../domain/ports/IProxyProcess';
-import type { IProxyTrafficBus, TrafficListener } from '../domain/ports/IProxyTrafficBus';
-import type { IProxyTrafficIngress } from '../domain/ports/IProxyTrafficIngress';
+import type { TrafficListener } from '../domain/ports/IProxyTrafficBus';
 import type {
   IProxyOutputPresenter,
   ITokenDetectorOutputPresenter,
   ProxyOutputSettings,
 } from '../domain/ports/IProxyOutputPresenter';
 import type { IProxyStateStore } from '../domain/ports/IProxyStateStore';
-import type { IProfileAuthReader } from '../domain/ports/IProfileAuthReader';
 import {
   isProfileProxyEnabled,
   type ProxyInstallGuide,
@@ -32,12 +28,8 @@ import {
   type Profile,
 } from '@cursor-accounts/types';
 import type { ProxyServerConfig } from '../application/types/proxyConfig';
-import { createProxyCostEnricher } from '../proxy/proxyCostEnricher';
-import { ProxyTrafficBus } from '../proxy/proxyTrafficBus';
-import { ProxyTrafficIngress } from '../proxy/proxyTrafficIngress';
 import { formatDiagnosticsSummaryLines } from '../proxy/proxyTrafficDiagnostics';
 import * as extensionLog from '../logging/extensionLog';
-import { CertificateManager } from '../proxy/certificateManager';
 import { getSharedProxyStorageDir } from '../proxy/sharedProxyPaths';
 import { NodeProxyProcess } from '../proxy/nodeProxyProcess';
 import {
@@ -55,8 +47,11 @@ import {
   SHARED_PROXY_RUNTIME_KEY,
   SHARED_PROXY_STATE_FILE_NAME,
 } from '../proxy/types';
-import { ProfileAuthReader } from '../auth/profileAuthReader';
 import type { AgentTrackingService } from './agentTrackingService';
+import {
+  createDefaultProxyManagerDependencies,
+  type ProxyManagerDependencies,
+} from './proxyManagerDefaultDependencies';
 import { ProxyAgentTrackingCoordinator } from './proxyAgentTrackingCoordinator';
 import { ProxyTrafficIngressCoordinator } from './proxyTrafficIngressCoordinator';
 import { ProxyTrafficUsageCoordinator } from './proxyTrafficUsageCoordinator';
@@ -75,7 +70,6 @@ import {
 import { ProxyProfileRoutingConfiguration } from './proxyProfileRoutingConfiguration';
 import { ProxyChildProcessStopCoordinator } from './proxyChildProcessStopCoordinator';
 import { ProxyServerConfigurationBuilder } from './proxyServerConfigurationBuilder';
-import { ProxyCertificateService } from './proxyCertificateService';
 import { ProxyManagerOutputCoordinator } from './proxyManagerOutputCoordinator';
 import type { ProxySettingsService } from './proxySettingsService';
 
@@ -83,13 +77,7 @@ export type { ConversationUsagePersistedEvent, ConversationUsagePersistedListene
 
 type ProfileProxyRuntime = SharedProxyRuntime;
 
-export interface ProxyManagerDependencies {
-  certService: IProxyCertificateService;
-  trafficBus: IProxyTrafficBus;
-  trafficIngress: IProxyTrafficIngress;
-  createProcess: () => IProxyProcess;
-  authReader?: IProfileAuthReader;
-}
+export type { ProxyManagerDependencies } from './proxyManagerDefaultDependencies';
 
 /**
  * Facade for per-profile MITM proxy lifecycle, certificates, and traffic distribution.
@@ -136,11 +124,25 @@ export class ProxyManager implements IProxyManager {
     );
     this.deps =
       deps ??
-      this.createDefaultDependencies(
+      createDefaultProxyManagerDependencies({
         storageDir,
-        this.logDir,
-        context.extensionPath
-      );
+        logDir: this.logDir,
+        extensionPath: context.extensionPath,
+        context,
+        stateStore,
+        profileManager,
+        outputPresenter,
+        getEstimatedDollarsPerMillionTokens: () =>
+          vscode.workspace
+            .getConfiguration('cursorAccounts.proxy')
+            .get<number>('estimatedDollarsPerMillionTokens', 4),
+        getTailFromStart: () =>
+          vscode.workspace
+            .getConfiguration('cursorAccounts.proxy')
+            .get<boolean>('outputTailFromStart', false),
+        onDiagnostics: (diagnostics) =>
+          this.maybeEmitDiagnosticsSummary(diagnostics),
+      });
     this.getOutputConfig =
       getOutputConfig ??
       (() => {
@@ -323,62 +325,6 @@ export class ProxyManager implements IProxyManager {
     this.deps.trafficBus.subscribe((summary, profileId) => {
       void this.handleTraffic(summary, profileId);
     });
-  }
-
-  private createDefaultDependencies(
-    storageDir: string,
-    logDir: string,
-    extensionPath: string
-  ): ProxyManagerDependencies {
-    const certManager = new CertificateManager(path.join(storageDir, 'certs'));
-    const trafficBus = new ProxyTrafficBus(
-      createProxyCostEnricher(() =>
-        vscode.workspace
-          .getConfiguration('cursorAccounts.proxy')
-          .get<number>('estimatedDollarsPerMillionTokens', 4)
-      )
-    );
-
-    const trafficIngress = new ProxyTrafficIngress(
-      logDir,
-      trafficBus,
-      () =>
-        vscode.workspace
-          .getConfiguration('cursorAccounts.proxy')
-          .get<boolean>('outputTailFromStart', false),
-      {
-        onLogFileResolved: (filePath) => {
-          if (filePath) {
-            this.outputPresenter?.appendTailing(filePath);
-          }
-        },
-        onTailerError: (profileId, summary) => {
-          extensionLog.warn(
-            `[Proxy:${profileId}] ${summary.errorKind ?? 'PROXY_ERROR'}: ${summary.errorMessage ?? 'unknown error'}`
-          );
-        },
-        onStats: (_profileId, stats) => {
-          this.maybeEmitDiagnosticsSummary(stats.diagnostics);
-        },
-        onDiagnostics: (_profileId, lines) => {
-          this.outputPresenter?.appendDiagnostics(lines);
-        },
-      }
-    );
-
-    const scriptPath = path.join(extensionPath, 'out', 'proxy', 'proxyServer.js');
-
-    return {
-      certService: new ProxyCertificateService(
-        certManager,
-        this.stateStore,
-        this.profileManager
-      ),
-      trafficBus,
-      trafficIngress,
-      createProcess: () => new NodeProxyProcess(scriptPath, extensionPath),
-      authReader: new ProfileAuthReader(this.context),
-    };
   }
 
   private isSharedProxyActive(): boolean {
