@@ -141,7 +141,7 @@ that historical baseline:
 - the latest full extension-host checkpoint passed 764 tests;
 - the webview suite has 18 passing tests;
 - localization has 26 locales with 428 keys each;
-- the architecture gate checks 414 TypeScript files, with valid, boundary,
+- the architecture gate checks 415 TypeScript files, with valid, boundary,
   cycle, and unresolved-import fixtures passing;
 - current-target packaging produced and verified
   `cursor-accounts-darwin-arm64-0.1.34.vsix`; stale artifacts are excluded by
@@ -155,7 +155,7 @@ that historical baseline:
 - Documentation validation covers 43 Markdown files and caught stale links to
   the former application-layer proxy ingress path before the gate was enabled.
 - Graphify was refreshed after the latest proxy and Accounts Panel extractions;
-  the graph now contains 4,733 nodes and 11,095 edges. Repowise reports zero safe-only dead-code
+  the graph now contains 4,740 nodes and 11,103 edges. Repowise reports zero safe-only dead-code
   findings; its 30 medium-confidence candidates remain retained pending
   runtime/public-contract evidence.
 - `ProxyTrafficUsageCoordinator` now owns agent-traffic classification,
@@ -204,6 +204,10 @@ that historical baseline:
   guards. Its focused tests cover inactive webviews, account projections,
   GitHub/quota publication, and lock release after failures; it reaches
   88.11% line coverage and Graphify degree 11.
+- `IProxyPanelRead` now gives the Accounts panel a five-method read port for
+  status, certificate state, and proxy routing. `AccountsPanelDataRefresher`
+  no longer depends on the broad `IProxyManager` facade; Graphify gives the
+  new port degree 8.
 - `ProxyTrafficSessionCoordinator` now owns model/conversation/profile session
   correlation, JWT profile enrichment, and traffic dispatch. Its focused tests
   cover correlation, enrichment, unchanged summaries, and state cleanup; it

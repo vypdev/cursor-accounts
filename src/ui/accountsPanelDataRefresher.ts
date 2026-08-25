@@ -12,7 +12,7 @@ import { getLocale, getWebviewMessages, t } from '../l10n';
 import type { IInstanceDetector } from '../domain/ports/IInstanceDetector';
 import type { IProfileDetector } from '../domain/ports/IProfileDetector';
 import type { IProfileManager } from '../domain/ports/IProfileManager';
-import type { IProxyManager } from '../domain/ports/IProxyManager';
+import type { IProxyPanelRead } from '../domain/ports/IProxyPanelRead';
 import type { EfficiencyService } from '../modelEfficiency/efficiencyService';
 import type { AccountsPanelBackgroundRefreshCoordinator } from './accountsPanelBackgroundRefreshCoordinator';
 import {
@@ -39,7 +39,7 @@ export interface AccountsPanelDataRefresherDependencies {
   instanceDetector: IInstanceDetector;
   profileWorkspaceService: ProfileWorkspaceService;
   efficiencyService: EfficiencyService;
-  proxyManager: IProxyManager;
+  proxyManager: IProxyPanelRead;
   proxySettingsService?: ProxySettingsService;
 }
 

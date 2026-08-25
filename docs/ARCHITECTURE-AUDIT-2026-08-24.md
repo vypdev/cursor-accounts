@@ -589,7 +589,7 @@ baseline, but it is not presented as a completed final audit.
 ### Updated Repowise and Graphify signals
 
 Repowise and Graphify were re-run after the latest proxy and Accounts Panel
-extractions. The graph now contains 4,733 nodes and 11,095 edges; nine SQL files remain
+extractions. The graph now contains 4,740 nodes and 11,103 edges; nine SQL files remain
 unparsed because
 the installed Graphify environment does not include `tree_sitter_sql`. The
 largest remaining source-level hubs are `ProxyManager`, `ProfileManager`,
@@ -602,7 +602,7 @@ The Accounts Panel extraction now separates profile CRUD/import/export into
 `AccountsPanelGithubHandlers`. Their focused tests cover successful operations,
 refresh orchestration, cancellation, missing profiles, and import/export
 serialization. The full extension-host checkpoint passed 764/764 tests, the
-webview suite passed 18/18 tests, and the architecture gate passed for 414
+webview suite passed 18/18 tests, and the architecture gate passed for 415
 TypeScript files.
 
 The provider's read-model and refresh responsibilities now live behind
@@ -611,7 +611,7 @@ Graphify degree 29. The refresher is now 341 lines, has Graphify degree 19 and
 55.13% line coverage, and its direct tests cover inactive-webview
 short-circuiting, initial read-model publication, secondary refresh
 coordination, and proxy-state publication. The latest full extension-host
-checkpoint is 764/764 tests and the architecture gate covers 414 TypeScript
+checkpoint is 764/764 tests and the architecture gate covers 415 TypeScript
 files.
 
 The remote account, GitHub, and quota refreshes now live in
@@ -622,13 +622,21 @@ after a failed account fetch. The provider constructs this coordinator at the
 composition boundary while the data refresher remains a compatibility facade
 for existing panel actions and event subscriptions.
 
+The Accounts panel no longer depends on the broad `IProxyManager` facade for
+read-only proxy data. The new `IProxyPanelRead` port exposes only status,
+certificate-state, and proxy-routing reads required by the panel; Graphify
+reports degree 8 for the port and the architecture gate covers 415 TypeScript
+files after the change. The concrete `ProxyManager` remains the composition
+root implementation through structural typing, so runtime behavior is
+unchanged.
+
 The MITM proxy extraction now separates session correlation and traffic
 enrichment into `ProxyTrafficSessionCoordinator`, reducing
 `MitmProxyServer` to 541 lines and Graphify degree 19. The coordinator has
 Graphify degree 15 and 96.55% line coverage; its direct tests cover model and
 conversation correlation, profile/workspace enrichment, unchanged summaries,
 and cleanup on shutdown. The latest full extension-host checkpoint passed
-760/760 tests.
+764/764 tests.
 
 Repowise still identifies low-coverage or high-coupling targets including
 `proxyDecode`, `ProxyManager`, `efficiencyAnalyzer`, `efficiencyService`,
