@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { parseProxyServerConfig } from '../../proxy/proxyServer';
+import {
+  createProxyServerRuntime,
+  parseProxyServerConfig,
+} from '../../proxy/proxyServer';
+import { parseProxyServerConfigFromEnvironment } from '../../proxy/proxyServerConfigParser';
 
 function validConfig(): Record<string, unknown> {
   return {
@@ -65,5 +69,34 @@ describe('parseProxyServerConfig', () => {
       () => parseProxyServerConfig(JSON.stringify(['unexpected'])) ,
       /CURSOR_ACCOUNTS_PROXY_CONFIG is invalid: <root>: Expected object, received array/
     );
+  });
+
+  it('requires the child-process configuration environment variable', () => {
+    assert.throws(
+      () => parseProxyServerConfigFromEnvironment({}),
+      /CURSOR_ACCOUNTS_PROXY_CONFIG environment variable is required/
+    );
+  });
+
+  it('reads the child-process configuration from an injected environment', () => {
+    const config = parseProxyServerConfigFromEnvironment({
+      CURSOR_ACCOUNTS_PROXY_CONFIG: JSON.stringify(validConfig()),
+    });
+
+    assert.equal(config.profileId, 'profile-a');
+  });
+
+  it('composes a runtime that can be shut down before startup', async () => {
+    const config = validConfig();
+    delete config.profileDbPaths;
+    delete config.extensionPath;
+    config.developmentMode = false;
+
+    const runtime = createProxyServerRuntime(
+      parseProxyServerConfig(JSON.stringify(config)),
+      () => undefined
+    );
+
+    await runtime.shutdown();
   });
 });
