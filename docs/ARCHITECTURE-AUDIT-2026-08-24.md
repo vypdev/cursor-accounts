@@ -589,7 +589,7 @@ baseline, but it is not presented as a completed final audit.
 ### Updated Repowise and Graphify signals
 
 Repowise and Graphify were re-run after the latest proxy and Accounts Panel
-extractions. The graph now contains 4,740 nodes and 11,103 edges; nine SQL files remain
+extractions. The graph now contains 4,748 nodes and 11,116 edges; nine SQL files remain
 unparsed because
 the installed Graphify environment does not include `tree_sitter_sql`. The
 largest remaining source-level hubs are `ProxyManager`, `ProfileManager`,
@@ -601,8 +601,8 @@ The Accounts Panel extraction now separates profile CRUD/import/export into
 `AccountsPanelProfileHandlers` and GitHub token actions into
 `AccountsPanelGithubHandlers`. Their focused tests cover successful operations,
 refresh orchestration, cancellation, missing profiles, and import/export
-serialization. The full extension-host checkpoint passed 764/764 tests, the
-webview suite passed 18/18 tests, and the architecture gate passed for 415
+serialization. The full extension-host checkpoint passed 768/768 tests, the
+webview suite passed 18/18 tests, and the architecture gate passed for 417
 TypeScript files.
 
 The provider's read-model and refresh responsibilities now live behind
@@ -611,7 +611,7 @@ Graphify degree 29. The refresher is now 341 lines, has Graphify degree 19 and
 55.13% line coverage, and its direct tests cover inactive-webview
 short-circuiting, initial read-model publication, secondary refresh
 coordination, and proxy-state publication. The latest full extension-host
-checkpoint is 764/764 tests and the architecture gate covers 415 TypeScript
+checkpoint is 768/768 tests and the architecture gate covers 417 TypeScript
 files.
 
 The remote account, GitHub, and quota refreshes now live in
@@ -629,6 +629,15 @@ reports degree 8 for the port and the architecture gate covers 415 TypeScript
 files after the change. The concrete `ProxyManager` remains the composition
 root implementation through structural typing, so runtime behavior is
 unchanged.
+
+`CursorProcessScanner` now owns OS-specific Cursor process inspection and
+parser dispatch. `InstanceDetector` retains profile matching, detection cache,
+polling, and change notifications; it is now 276 lines with 85.14% line
+coverage and Graphify degree 30. The scanner has 79.41% line coverage and
+Graphify degree 11, with direct tests for injected providers, Linux/macOS
+parsing, helper filtering, and Windows PowerShell-to-wmic fallback. The latest
+full extension-host checkpoint passed 768/768 tests and the architecture gate
+covers 417 TypeScript files.
 
 The MITM proxy extraction now separates session correlation and traffic
 enrichment into `ProxyTrafficSessionCoordinator`, reducing

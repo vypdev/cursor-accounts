@@ -1,20 +1,14 @@
-import { exec } from 'child_process';
-import { promisify } from 'util';
 import * as extensionLog from '../logging/extensionLog';
 import { pathsEqual } from '../utils/pathUtils';
 import type { IInstanceDetector } from '../domain/ports/IInstanceDetector';
 import type { IProfileManager } from '../domain/ports/IProfileManager';
 import type { InstanceInfo, InstanceInfoMap } from './types';
 
-const execAsync = promisify(exec);
-
 import {
-  type CursorProcess,
-  parseLinuxPsOutput,
-  parseMacOSPsOutput,
-  parseWindowsPowerShellJson,
-  parseWindowsWmicOutput,
-} from './instanceProcessParser';
+  CursorProcessScanner,
+  type CursorProcessProvider,
+} from './cursorProcessScanner';
+import type { CursorProcess } from './instanceProcessParser';
 
 export type { CursorProcess } from './instanceProcessParser';
 export {
@@ -26,8 +20,6 @@ export {
   parseWindowsPowerShellJson,
   parseWindowsWmicOutput,
 } from './instanceProcessParser';
-
-const PROCESS_COMMAND_TIMEOUT_MS = 5000;
 
 export class InstanceDetectorError extends Error {
   constructor(
@@ -88,14 +80,17 @@ export function getOpenProjectPathsForProfile(
 export class InstanceDetector implements IInstanceDetector {
   private pollTimer: NodeJS.Timeout | undefined;
   private lastDetection: Map<string, InstanceInfo> = new Map();
+  private readonly processScanner: CursorProcessScanner;
   private onDetectionChangeCallbacks: Array<
     (instances: Map<string, InstanceInfo>) => void
   > = [];
 
   constructor(
     private readonly profileManager: IProfileManager,
-    private readonly processProvider?: () => Promise<CursorProcess[]>
-  ) {}
+    processProvider?: CursorProcessProvider
+  ) {
+    this.processScanner = new CursorProcessScanner(processProvider);
+  }
 
   /** Register callback for detection updates (e.g. Accounts panel). */
   onDetectionChange(
@@ -109,7 +104,7 @@ export class InstanceDetector implements IInstanceDetector {
    */
   async detectRunningInstances(): Promise<Map<string, InstanceInfo>> {
     try {
-      const processes = await this.getCursorProcesses();
+      const processes = await this.processScanner.scan();
       const profiles = await this.profileManager.getProfiles();
 
       const instances = new Map<string, InstanceInfo>();
@@ -197,7 +192,7 @@ export class InstanceDetector implements IInstanceDetector {
   async findProcessByUserDataDir(
     userDataDir: string
   ): Promise<CursorProcess | undefined> {
-    const processes = await this.getCursorProcesses();
+    const processes = await this.processScanner.scan();
     return processes.find(
       (proc) =>
         proc.userDataDir != null && pathsEqual(proc.userDataDir, userDataDir)
@@ -243,133 +238,6 @@ export class InstanceDetector implements IInstanceDetector {
     }
   }
 
-  /**
-   * Get Cursor processes running on the system.
-   * Platform-specific implementation.
-   */
-  private async getCursorProcesses(): Promise<CursorProcess[]> {
-    if (this.processProvider) {
-      return await this.processProvider();
-    }
-
-    switch (process.platform) {
-      case 'darwin':
-        return await this.getCursorProcessesMacOS();
-      case 'win32':
-        return await this.getCursorProcessesWindows();
-      default:
-        return await this.getCursorProcessesLinux();
-    }
-  }
-
-  private async getCursorProcessesMacOS(): Promise<CursorProcess[]> {
-    try {
-      const { stdout } = await execAsync(
-        'ps -eo pid,lstart,args | grep -i "[C]ursor" | grep -i "MacOS/Cursor"',
-        { timeout: PROCESS_COMMAND_TIMEOUT_MS }
-      );
-
-      return parseMacOSPsOutput(stdout);
-    } catch (error) {
-      if (isExecNotFoundError(error)) {
-        return [];
-      }
-
-      extensionLog.error(
-        `[InstanceDetector] Failed to get Cursor processes on macOS: ${extensionLog.formatError(error)}`
-      );
-      throw new InstanceDetectorError(
-        'Failed to detect running Cursor instances on macOS',
-        error instanceof Error ? error : undefined
-      );
-    }
-  }
-
-  private async getCursorProcessesWindows(): Promise<CursorProcess[]> {
-    try {
-      return await this.getCursorProcessesWindowsPowerShell();
-    } catch (psError) {
-      extensionLog.warn(
-        `[InstanceDetector] PowerShell detection failed, falling back to wmic: ${extensionLog.formatError(psError)}`
-      );
-
-      try {
-        return await this.getCursorProcessesWindowsWmic();
-      } catch (wmicError) {
-        extensionLog.error(
-          `[InstanceDetector] Both PowerShell and wmic detection failed: ${extensionLog.formatError(wmicError)}`
-        );
-        throw new InstanceDetectorError(
-          'Failed to detect running Cursor instances on Windows',
-          wmicError instanceof Error ? wmicError : undefined
-        );
-      }
-    }
-  }
-
-  private async getCursorProcessesWindowsPowerShell(): Promise<CursorProcess[]> {
-    try {
-      const { stdout } = await execAsync(
-        'powershell -Command "Get-Process | Where-Object {$_.ProcessName -eq \'Cursor\'} | ' +
-          'Select-Object Id,CommandLine | ConvertTo-Json"',
-        { timeout: PROCESS_COMMAND_TIMEOUT_MS }
-      );
-
-      return parseWindowsPowerShellJson(stdout);
-    } catch (error) {
-      if (
-        error instanceof Error &&
-        (error.message.includes('Cannot find a process') ||
-          isExecNotFoundError(error))
-      ) {
-        return [];
-      }
-      throw error;
-    }
-  }
-
-  private async getCursorProcessesWindowsWmic(): Promise<CursorProcess[]> {
-    try {
-      const { stdout } = await execAsync(
-        'wmic process where "name=\'Cursor.exe\'" get ProcessId,CommandLine /format:list',
-        { timeout: PROCESS_COMMAND_TIMEOUT_MS }
-      );
-
-      return parseWindowsWmicOutput(stdout);
-    } catch (error) {
-      if (
-        error instanceof Error &&
-        (error.message.includes('No Instance') || isExecNotFoundError(error))
-      ) {
-        return [];
-      }
-      throw error;
-    }
-  }
-
-  private async getCursorProcessesLinux(): Promise<CursorProcess[]> {
-    try {
-      const { stdout } = await execAsync(
-        'ps -eo pid,args | grep -i "[c]ursor" | grep -v grep',
-        { timeout: PROCESS_COMMAND_TIMEOUT_MS }
-      );
-
-      return parseLinuxPsOutput(stdout);
-    } catch (error) {
-      if (isExecNotFoundError(error)) {
-        return [];
-      }
-
-      extensionLog.error(
-        `[InstanceDetector] Failed to get Cursor processes on Linux: ${extensionLog.formatError(error)}`
-      );
-      throw new InstanceDetectorError(
-        'Failed to detect running Cursor instances on Linux',
-        error instanceof Error ? error : undefined
-      );
-    }
-  }
-
   private notifyDetectionChange(
     instances: Map<string, InstanceInfo>
   ): void {
@@ -383,14 +251,6 @@ export class InstanceDetector implements IInstanceDetector {
       }
     }
   }
-}
-
-function isExecNotFoundError(error: unknown): boolean {
-  return (
-    error instanceof Error &&
-    'code' in error &&
-    (error.code === 1 || error.code === 'ENOENT')
-  );
 }
 
 function mapsEqual(
