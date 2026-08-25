@@ -1,10 +1,10 @@
 import * as path from 'path';
-import { isProfileProxyEnabled } from '@cursor-accounts/types';
 import * as extensionLog from '../logging/extensionLog';
 import { ensureDirectory } from '../utils/pathUtils';
 import type { IInstanceDetector } from '../domain/ports/IInstanceDetector';
 import type { IProfileLauncher } from '../domain/ports/IProfileLauncher';
 import type { IProfileProcessLauncher } from '../domain/ports/IProfileProcessLauncher';
+import type { IProfileProxyLaunchCoordinator } from '../domain/ports/IProfileProxyLaunchCoordinator';
 import type { IProfileWriter } from '../domain/ports/IProfileWriter';
 import type { IProfileSettingsManager } from '../domain/ports/IProfileSettingsManager';
 import type { IProxyCertificate } from '../domain/ports/IProxyCertificate';
@@ -15,6 +15,7 @@ import {
   defaultProfileProcessLauncher,
   ProfileLauncherError,
 } from './profileProcessLauncher';
+import { ProfileProxyLaunchCoordinator } from './profileProxyLaunchCoordinator';
 import type { Profile } from './types';
 
 export {
@@ -49,7 +50,7 @@ export function proxyServerLaunchArg(proxyUrl: string): string {
   return `--proxy-server=${proxyUrl}`;
 }
 
-/** Build argv for Cursor with optional project path and Chromium proxy flag. */
+  /** Build argv for Cursor with optional project path and Chromium proxy flag. */
 export function buildLaunchArgs(
   userDataDir: string,
   projectPath?: string,
@@ -94,12 +95,19 @@ export class ProfileLauncher implements IProfileLauncher {
   constructor(
     private readonly profileWriter: IProfileWriter,
     private readonly instanceDetector?: IInstanceDetector,
-    private readonly proxyManager?:
+    proxyManager?:
       IProxyLifecycle & IProxyRouting & IProxyCertificate,
-    private readonly profileSettingsManager?: IProfileSettingsManager,
+    profileSettingsManager?: IProfileSettingsManager,
     private readonly processLauncher: IProfileProcessLauncher =
-      defaultProfileProcessLauncher
-  ) {}
+      defaultProfileProcessLauncher,
+    proxyLaunchCoordinator?: IProfileProxyLaunchCoordinator
+  ) {
+    this.proxyLaunchCoordinator =
+      proxyLaunchCoordinator ??
+      new ProfileProxyLaunchCoordinator(proxyManager, profileSettingsManager);
+  }
+
+  private readonly proxyLaunchCoordinator: IProfileProxyLaunchCoordinator;
 
   /**
    * Launch Cursor with the specified profile.
@@ -194,7 +202,7 @@ export class ProfileLauncher implements IProfileLauncher {
 
       const profile = await this.profileWriter.findProfileByPath(userDataDir);
       const launchContext = profile
-        ? await this.resolveProxyLaunchContext(profile.id, userDataDir)
+        ? await this.proxyLaunchCoordinator.resolve(profile, userDataDir)
         : null;
 
       const execPath = this.getExecutablePath();
@@ -383,64 +391,6 @@ export class ProfileLauncher implements IProfileLauncher {
     }
 
     return [execPath, ...args.map((arg) => JSON.stringify(arg))].join(' ');
-  }
-
-  /**
-   * Spawn Cursor process (platform-specific implementation).
-   */
-  private async resolveProxyLaunchContext(
-    profileId: string,
-    userDataDir: string
-  ): Promise<{
-    proxyUrl: string;
-    caCertPath: string;
-  } | null> {
-    if (!this.proxyManager) {
-      return null;
-    }
-
-    const profile = await this.profileWriter.getProfile(profileId);
-    if (!profile || !isProfileProxyEnabled(profile)) {
-      return null;
-    }
-
-    const running = await this.proxyManager.isRunning(profileId);
-    if (!running) {
-      const startResult = await this.proxyManager.ensureProfileProxy(profileId);
-      if (!startResult.success) {
-        extensionLog.warn(
-          `[ProfileLauncher] Failed to start proxy for ${profileId}: ${startResult.error ?? 'unknown error'}`
-        );
-        return null;
-      }
-    }
-
-    const proxyUrl = await this.proxyManager.getProxyServerUrl(profileId);
-    if (!proxyUrl) {
-      return null;
-    }
-
-    if (this.profileSettingsManager) {
-      try {
-        await this.profileSettingsManager.applyProxySettings(
-          userDataDir,
-          proxyUrl
-        );
-      } catch (error) {
-        extensionLog.warn(
-          `[ProfileLauncher] Failed to apply proxy settings for ${profileId}: ${
-            error instanceof Error ? error.message : String(error)
-          }`
-        );
-      }
-    }
-
-    const caCertPath = await this.proxyManager.getCertificatePath();
-    if (!caCertPath) {
-      return { proxyUrl, caCertPath: '' };
-    }
-
-    return { proxyUrl, caCertPath };
   }
 
 }

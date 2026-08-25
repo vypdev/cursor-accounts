@@ -64,4 +64,6 @@ export type {
 } from './types/proxyTraffic';
 export * from './ports/IProfileDetector';
 export * from './ports/IProfileLauncher';
+export * from './ports/IProfileProcessLauncher';
+export * from './ports/IProfileProxyLaunchCoordinator';
 export * from './ports/IInstanceDetector';
