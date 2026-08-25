@@ -14,6 +14,7 @@ export class ProxyAgentTrackingIngress {
   private readonly services = new Map<string, AgentTrackingService>();
   private readonly profileTails = new Map<string, Promise<void>>();
   private closed = false;
+  private closePromise: Promise<void> | undefined;
 
   constructor(
     private readonly dbPool: IAgentTrackingDbPool,
@@ -73,10 +74,19 @@ export class ProxyAgentTrackingIngress {
   }
 
   async close(): Promise<void> {
+    if (this.closePromise) {
+      await this.closePromise;
+      return;
+    }
+
     this.closed = true;
-    await this.flush();
-    this.services.clear();
-    await this.dbPool.closeAll();
+    this.closePromise = (async () => {
+      await this.flush();
+      this.services.clear();
+      await this.dbPool.closeAll();
+    })();
+
+    await this.closePromise;
   }
 
   private async getOrCreateService(profileId: string): Promise<AgentTrackingService> {

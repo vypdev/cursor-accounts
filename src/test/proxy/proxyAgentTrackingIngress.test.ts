@@ -166,4 +166,19 @@ describe('ProxyAgentTrackingIngress', () => {
       /ingress is closed/
     );
   });
+
+  it('shares concurrent close calls and closes the database pool once', async () => {
+    const repositories = new Map([
+      ['profile-a', createRepository('profile-a', [])],
+    ]);
+    const closeCalls: string[] = [];
+    const ingress = new ProxyAgentTrackingIngress(
+      createPool(repositories, closeCalls),
+      'profile-a'
+    );
+
+    await Promise.all([ingress.close(), ingress.close(), ingress.close()]);
+
+    assert.deepEqual(closeCalls, ['closeAll']);
+  });
 });
