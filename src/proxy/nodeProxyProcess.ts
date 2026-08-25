@@ -18,6 +18,10 @@ export class NodeProxyProcess implements IProxyProcess {
   ) {}
 
   async start(config: ProxyServerConfig): Promise<ProxyProcessRuntime> {
+    if (this.child && this.child.exitCode === null && !this.child.killed) {
+      throw new Error('Proxy process is already running');
+    }
+
     try {
       await fs.access(this.scriptPath);
     } catch {
@@ -48,6 +52,12 @@ export class NodeProxyProcess implements IProxyProcess {
   }
 
   private attachHandlers(child: ChildProcess): void {
+    child.once('exit', () => {
+      if (this.child === child) {
+        this.child = null;
+      }
+    });
+
     for (const handler of this.exitHandlers) {
       child.on('exit', handler);
     }
