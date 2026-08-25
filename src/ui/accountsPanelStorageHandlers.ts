@@ -1,13 +1,13 @@
 import { createEmptyStorageBreakdown, type StorageCleanupOptions } from '@cursor-accounts/types';
 import type { IProfileStorageAnalyzer } from '../domain/ports/IProfileStorageAnalyzer';
+import type { IProfileManager } from '../domain/ports/IProfileManager';
 import type { IStorageCleanupService } from '../domain/ports/IStorageCleanupService';
-import type { ProfileManager } from '../profiles/profileManager';
 import type { ToWebviewMessage } from '../profiles/types';
 import { t } from '../l10n';
 import * as extensionLog from '../logging/extensionLog';
 
 export interface AccountsPanelStorageHandlerDependencies {
-  profileManager: ProfileManager;
+  profileManager: IProfileManager;
   storageAnalyzer: IProfileStorageAnalyzer;
   storageCleanupService: IStorageCleanupService;
 }

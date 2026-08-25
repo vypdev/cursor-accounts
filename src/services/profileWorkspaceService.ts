@@ -1,5 +1,5 @@
 import type { ProfileWithWorkspaces, WorkspaceInfo } from '@cursor-accounts/types';
-import type { ProfileManager } from '../profiles/profileManager';
+import type { IProfileManager } from '../domain/ports/IProfileManager';
 import type { WorkspaceScanner } from '../profiles/workspaceScanner';
 
 /**
@@ -7,7 +7,7 @@ import type { WorkspaceScanner } from '../profiles/workspaceScanner';
  */
 export class ProfileWorkspaceService {
   constructor(
-    private readonly profileManager: ProfileManager,
+    private readonly profileManager: IProfileManager,
     private readonly workspaceScanner: WorkspaceScanner
   ) {}
 

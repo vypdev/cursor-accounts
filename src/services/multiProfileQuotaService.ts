@@ -3,11 +3,11 @@ import type { ActivityLeaderboardSnapshot } from '../domain';
 import { isEnterpriseUsage } from '../domain';
 import type { IActivityLeaderboardService } from '../domain/ports/IActivityLeaderboardService';
 import type { IProfileAuthReader } from '../domain/ports/IProfileAuthReader';
+import type { IProfileManager } from '../domain/ports/IProfileManager';
 import type { IQuotaService } from '../domain/ports/IQuotaService';
 import type { ITokenProvider } from '../domain/ports/ITokenProvider';
 import * as extensionLog from '../logging/extensionLog';
 import { StaticTokenProvider } from '../auth/tokenProvider';
-import type { ProfileManager } from '../profiles/profileManager';
 import type { Profile, ProfileQuota } from '../profiles/types';
 import { validateUserDataPath } from '../utils/pathUtils';
 
@@ -37,7 +37,7 @@ export class MultiProfileQuotaService {
 
   constructor(
     private readonly context: vscode.ExtensionContext,
-    private readonly profileManager: ProfileManager,
+    private readonly profileManager: IProfileManager,
     private readonly authReader: IProfileAuthReader,
     private readonly createQuotaService: QuotaServiceFactory,
     private readonly activityLeaderboardService: IActivityLeaderboardService

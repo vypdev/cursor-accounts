@@ -1,5 +1,5 @@
 import type { ProfileDetector } from '../profiles/profileDetector';
-import type { ProfileManager } from '../profiles/profileManager';
+import type { IProfileManager } from '../domain/ports/IProfileManager';
 import type { Profile } from '../profiles/types';
 import * as extensionLog from '../logging/extensionLog';
 import { t } from '../l10n';
@@ -19,7 +19,7 @@ export class EfficiencyAnalyzer {
   private readonly maxConcurrent = 2;
 
   constructor(
-    private readonly profileManager: ProfileManager,
+    private readonly profileManager: IProfileManager,
     private readonly profileDetector: ProfileDetector,
     private readonly apiKeyManager: ApiKeyManager,
     private readonly sdkClassifier: SdkClassifier,

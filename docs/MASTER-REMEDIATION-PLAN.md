@@ -208,6 +208,10 @@ that historical baseline:
   status, certificate state, and proxy routing. `AccountsPanelDataRefresher`
   no longer depends on the broad `IProxyManager` facade; Graphify gives the
   new port degree 8.
+- Concrete `ProfileManager` dependencies in storage, workspace, quota,
+  efficiency, command, and Accounts panel consumers now use `IProfileManager`.
+  Graphify reports the `ProfileManager` hub at degree 33 after this boundary
+  cleanup; concrete construction remains in the composition/runtime layer.
 - `CursorProcessScanner` now owns platform-specific process inspection and
   parser dispatch; `InstanceDetector` retains profile matching, cached state,
   polling, and notifications. Its focused cross-platform tests cover injected

@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import type { IProfileAuthReader } from '../domain/ports/IProfileAuthReader';
+import type { IProfileManager } from '../domain/ports/IProfileManager';
 import type { IProfileStorageAnalyzer } from '../domain/ports/IProfileStorageAnalyzer';
 import type { IStorageCleanupService } from '../domain/ports/IStorageCleanupService';
 import * as extensionLog from '../logging/extensionLog';
@@ -9,7 +10,6 @@ import type { EfficiencyService } from '../modelEfficiency/efficiencyService';
 import { getEfficiencyWrongWindowMessage } from '../modelEfficiency/efficiencyService';
 import type { InstanceDetector } from '../profiles/instanceDetector';
 import type { ProfileLauncher } from '../profiles/profileLauncher';
-import type { ProfileManager } from '../profiles/profileManager';
 import type {
   FromWebviewMessage,
   ToWebviewMessage,
@@ -40,7 +40,7 @@ export interface AccountsPanelHandlerCallbacks {
 
 /** Dependencies for Accounts panel user-action handlers (webview message use cases). */
 export interface AccountsPanelHandlerDeps {
-  profileManager: ProfileManager;
+  profileManager: IProfileManager;
   profileLauncher: ProfileLauncher;
   profileDetector: ProfileDetector;
   efficiencyService: EfficiencyService;

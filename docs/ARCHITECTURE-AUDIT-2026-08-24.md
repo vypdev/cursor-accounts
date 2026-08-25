@@ -630,6 +630,13 @@ files after the change. The concrete `ProxyManager` remains the composition
 root implementation through structural typing, so runtime behavior is
 unchanged.
 
+Concrete `ProfileManager` dependencies in storage, workspace, quota,
+efficiency, command, and Accounts panel consumers now depend on
+`IProfileManager`. This reduces the concrete `ProfileManager` Graphify hub from
+degree 51 to degree 33 and keeps concrete construction at the runtime and
+composition boundaries. The latest full extension-host checkpoint remains
+768/768 tests with 417 TypeScript files covered by the architecture gate.
+
 `CursorProcessScanner` now owns OS-specific Cursor process inspection and
 parser dispatch. `InstanceDetector` retains profile matching, detection cache,
 polling, and change notifications; it is now 276 lines with 85.14% line

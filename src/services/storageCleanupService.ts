@@ -5,13 +5,13 @@ import type {
 import type { ICacheCleanupService } from '../domain/ports/ICacheCleanupService';
 import type { IDatabaseCleanupService } from '../domain/ports/IDatabaseCleanupService';
 import type { IProfileStorageAnalyzer } from '../domain/ports/IProfileStorageAnalyzer';
+import type { IProfileManager } from '../domain/ports/IProfileManager';
 import type { IStorageCleanupService } from '../domain/ports/IStorageCleanupService';
 import { getProfileStateDbPath } from '../auth/cursorPaths';
 import * as extensionLog from '../logging/extensionLog';
 import { t } from '../l10n';
 import type { InstanceDetector } from '../profiles/instanceDetector';
 import type { ProfileDetector } from '../profiles/profileDetector';
-import type { ProfileManager } from '../profiles/profileManager';
 import { validateUserDataPath } from '../utils/pathUtils';
 import { formatBytes } from '@cursor-accounts/shared';
 import { EfficiencyDatabase, getEfficiencyDbPath } from '../persistence/efficiencyDatabase';
@@ -26,7 +26,7 @@ const ACTIONS_WITHOUT_FS_DELTA = new Set<StorageCleanupOptions['action']>([
 const EFFICIENCY_EVENTS_RETENTION_DAYS = 90;
 
 export interface StorageCleanupServiceDeps {
-  profileManager: ProfileManager;
+  profileManager: IProfileManager;
   profileDetector: ProfileDetector;
   instanceDetector: InstanceDetector;
   storageAnalyzer: IProfileStorageAnalyzer;

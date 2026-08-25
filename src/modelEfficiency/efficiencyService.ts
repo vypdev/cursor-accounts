@@ -3,7 +3,7 @@ import type { IProfileAuthReader } from '../domain/ports/IProfileAuthReader';
 import * as extensionLog from '../logging/extensionLog';
 import { t } from '../l10n';
 import type { Profile } from '../profiles/types';
-import type { ProfileManager } from '../profiles/profileManager';
+import type { IProfileManager } from '../domain/ports/IProfileManager';
 import { ApiKeyManager, ApiKeyManagerError } from './apiKeyManager';
 import { ComposerDbPoller } from './composerDbPoller';
 import { EfficiencyAnalyzer } from './efficiencyAnalyzer';
@@ -26,7 +26,7 @@ export class EfficiencyService {
 
   constructor(
     private readonly context: vscode.ExtensionContext,
-    private readonly profileManager: ProfileManager,
+    private readonly profileManager: IProfileManager,
     private readonly profileDetector: ProfileDetector,
     private readonly authReader: IProfileAuthReader,
     private readonly statsStorage: EfficiencyStatsStorage,
