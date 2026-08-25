@@ -4,6 +4,7 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
 import { InstanceDetector } from '../profiles/instanceDetector';
+import type { IProfileProcessLauncher } from '../domain/ports/IProfileProcessLauncher';
 import {
   buildManualLaunchCommand,
   buildSpawnEnv,
@@ -299,6 +300,69 @@ describe('ProfileLauncher', { concurrency: false }, () => {
       } else {
         assert.equal(/already running/i.test(result.error ?? ''), false);
       }
+    });
+  });
+
+  describe('launchWithPath', () => {
+    it('launches through the process port and records the last launch', async () => {
+      const profile = await manager.createProfile({
+        email: 'path-launch@example.com',
+      });
+      const requests: Array<{
+        executablePath: string;
+        args: string[];
+      }> = [];
+      const processLauncher: IProfileProcessLauncher = {
+        launch: async ({ executablePath, args }) => {
+          requests.push({ executablePath, args });
+        },
+      };
+      const isolatedLauncher = new ProfileLauncher(
+        manager,
+        undefined,
+        undefined,
+        undefined,
+        processLauncher
+      );
+
+      const result = await isolatedLauncher.launchWithPath(
+        profile.userDataDir,
+        '/workspace/project'
+      );
+
+      assert.equal(result.success, true);
+      assert.equal(requests.length, 1);
+      assert.ok(requests[0]?.args.includes(profile.userDataDir));
+      assert.ok(requests[0]?.args.includes('/workspace/project'));
+      const updated = await manager.getProfile(profile.id);
+      assert.ok(updated?.lastLaunched);
+    });
+
+    it('returns a process-launch error without updating the profile', async () => {
+      const profile = await manager.createProfile({
+        email: 'path-launch-error@example.com',
+      });
+      const processLauncher: IProfileProcessLauncher = {
+        launch: async () => {
+          throw new Error('Cursor executable unavailable');
+        },
+      };
+      const isolatedLauncher = new ProfileLauncher(
+        manager,
+        undefined,
+        undefined,
+        undefined,
+        processLauncher
+      );
+
+      const result = await isolatedLauncher.launchWithPath(profile.userDataDir);
+
+      assert.deepEqual(result, {
+        success: false,
+        error: 'Cursor executable unavailable',
+      });
+      const updated = await manager.getProfile(profile.id);
+      assert.equal(updated?.lastLaunched, undefined);
     });
   });
 });

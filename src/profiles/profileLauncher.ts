@@ -4,7 +4,10 @@ import { ensureDirectory } from '../utils/pathUtils';
 import type { IInstanceDetector } from '../domain/ports/IInstanceDetector';
 import type { IProfileLauncher } from '../domain/ports/IProfileLauncher';
 import type { IProfileProcessLauncher } from '../domain/ports/IProfileProcessLauncher';
-import type { IProfileProxyLaunchCoordinator } from '../domain/ports/IProfileProxyLaunchCoordinator';
+import type {
+  IProfileProxyLaunchCoordinator,
+  ProfileProxyLaunchContext,
+} from '../domain/ports/IProfileProxyLaunchCoordinator';
 import type { IProfileWriter } from '../domain/ports/IProfileWriter';
 import type { IProfileSettingsManager } from '../domain/ports/IProfileSettingsManager';
 import type { IProxyCertificate } from '../domain/ports/IProxyCertificate';
@@ -44,6 +47,12 @@ const LAUNCH_VERIFY_INTERVAL_MS = 500;
 export interface LaunchArgsOptions {
   /** Full proxy URL, e.g. http://127.0.0.1:8081 from ProxyManager.getProxyServerUrl. */
   proxyUrl?: string;
+}
+
+interface PreparedLaunch {
+  execPath: string;
+  args: string[];
+  launchContext: ProfileProxyLaunchContext | null;
 }
 
 export function proxyServerLaunchArg(proxyUrl: string): string {
@@ -138,35 +147,16 @@ export class ProfileLauncher implements IProfileLauncher {
         );
       }
 
-      if (this.instanceDetector && !options?.force) {
-        if (options?.projectPath) {
-          const projectAlreadyOpen =
-            await this.instanceDetector.isProfileProjectRunning(
-              profileId,
-              options.projectPath
-            );
-          if (projectAlreadyOpen) {
-            extensionLog.warn(
-              `[ProfileLauncher] Project already open for profile ${profileId}: ${options.projectPath}`
-            );
-            return {
-              success: false,
-              error: `This project is already open for profile "${profile.displayName}".`,
-            };
-          }
-        } else {
-          const instances =
-            await this.instanceDetector.detectRunningInstances();
-          if (isProfilePresentInInstances(instances, profileId)) {
-            extensionLog.warn(
-              `[ProfileLauncher] Profile ${profileId} is already running`
-            );
-            return {
-              success: false,
-              error: `Profile "${profile.displayName}" is already running. Close the existing window first.`,
-            };
-          }
-        }
+      const conflict = await this.findLaunchConflict(
+        profileId,
+        profile.displayName,
+        options
+      );
+      if (conflict) {
+        return {
+          success: false,
+          error: conflict,
+        };
       }
 
       return await this.launchWithProfile(profile, options?.projectPath);
@@ -198,63 +188,18 @@ export class ProfileLauncher implements IProfileLauncher {
     projectPath?: string
   ): Promise<LaunchResult> {
     try {
-      await ensureDirectory(userDataDir);
-
-      const profile = await this.profileWriter.findProfileByPath(userDataDir);
-      const launchContext = profile
-        ? await this.proxyLaunchCoordinator.resolve(profile, userDataDir)
-        : null;
-
-      const execPath = this.getExecutablePath();
-      const args = this.buildLaunchArgs(userDataDir, projectPath, {
-        proxyUrl: launchContext?.proxyUrl,
-      });
-
-      extensionLog.info(
-        `[ProfileLauncher] Spawn: ${this.formatSpawnCommand(execPath, args)}`
-      );
-
+      const preparedLaunch = await this.prepareLaunch(userDataDir, projectPath);
       await this.processLauncher.launch({
-        executablePath: execPath,
-        args,
-        caCertPath: launchContext?.caCertPath || undefined,
+        executablePath: preparedLaunch.execPath,
+        args: preparedLaunch.args,
+        caCertPath: preparedLaunch.launchContext?.caCertPath || undefined,
         appBundlePath:
           process.platform === 'darwin' ? this.getAppBundlePath() : undefined,
       });
-
-      let pid: number | undefined;
-      if (this.instanceDetector) {
-        pid = await this.waitForInstance(userDataDir);
-      }
-
-      if (this.instanceDetector && pid == null) {
-        const manualCmd = buildManualLaunchCommand(
-          userDataDir,
-          launchContext?.proxyUrl
-        );
-        extensionLog.warn(
-          `[ProfileLauncher] Cursor did not start for ${userDataDir}`
-        );
-        return {
-          success: false,
-          error: `Cursor did not start. Try launching manually from Terminal:\n${manualCmd}`,
-        };
-      }
-
-      const matchedProfile = await this.profileWriter.findProfileByPath(userDataDir);
-      if (matchedProfile) {
-        await this.profileWriter.updateProfile(matchedProfile.id, {
-          lastLaunched: new Date().toISOString(),
-        });
-      }
-
-      extensionLog.info(
-        `[ProfileLauncher] Instance detected (pid ${pid ?? 'unknown'})`
+      return await this.completeLaunch(
+        userDataDir,
+        preparedLaunch.launchContext?.proxyUrl
       );
-      return {
-        success: true,
-        pid,
-      };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       extensionLog.error(`[ProfileLauncher] Failed to spawn Cursor: ${message}`);
@@ -382,6 +327,95 @@ export class ProfileLauncher implements IProfileLauncher {
     projectPath?: string
   ): Promise<LaunchResult> {
     return await this.launchWithPath(profile.userDataDir, projectPath);
+  }
+
+  private async findLaunchConflict(
+    profileId: string,
+    displayName: string,
+    options?: LaunchOptions
+  ): Promise<string | undefined> {
+    if (!this.instanceDetector || options?.force) {
+      return undefined;
+    }
+
+    if (options?.projectPath) {
+      const projectAlreadyOpen =
+        await this.instanceDetector.isProfileProjectRunning(
+          profileId,
+          options.projectPath
+        );
+      if (!projectAlreadyOpen) {
+        return undefined;
+      }
+      extensionLog.warn(
+        `[ProfileLauncher] Project already open for profile ${profileId}: ${options.projectPath}`
+      );
+      return `This project is already open for profile "${displayName}".`;
+    }
+
+    const instances = await this.instanceDetector.detectRunningInstances();
+    if (!isProfilePresentInInstances(instances, profileId)) {
+      return undefined;
+    }
+    extensionLog.warn(
+      `[ProfileLauncher] Profile ${profileId} is already running`
+    );
+    return `Profile "${displayName}" is already running. Close the existing window first.`;
+  }
+
+  private async prepareLaunch(
+    userDataDir: string,
+    projectPath?: string
+  ): Promise<PreparedLaunch> {
+    await ensureDirectory(userDataDir);
+    const profile = await this.profileWriter.findProfileByPath(userDataDir);
+    const launchContext = profile
+      ? await this.proxyLaunchCoordinator.resolve(profile, userDataDir)
+      : null;
+    const execPath = this.getExecutablePath();
+    const args = this.buildLaunchArgs(userDataDir, projectPath, {
+      proxyUrl: launchContext?.proxyUrl,
+    });
+
+    extensionLog.info(
+      `[ProfileLauncher] Spawn: ${this.formatSpawnCommand(execPath, args)}`
+    );
+    return { execPath, args, launchContext };
+  }
+
+  private async completeLaunch(
+    userDataDir: string,
+    proxyUrl?: string
+  ): Promise<LaunchResult> {
+    const pid = this.instanceDetector
+      ? await this.waitForInstance(userDataDir)
+      : undefined;
+    if (this.instanceDetector && pid == null) {
+      const manualCmd = buildManualLaunchCommand(userDataDir, proxyUrl);
+      extensionLog.warn(
+        `[ProfileLauncher] Cursor did not start for ${userDataDir}`
+      );
+      return {
+        success: false,
+        error: `Cursor did not start. Try launching manually from Terminal:\n${manualCmd}`,
+      };
+    }
+
+    await this.recordLaunch(userDataDir);
+    extensionLog.info(
+      `[ProfileLauncher] Instance detected (pid ${pid ?? 'unknown'})`
+    );
+    return { success: true, pid };
+  }
+
+  private async recordLaunch(userDataDir: string): Promise<void> {
+    const matchedProfile = await this.profileWriter.findProfileByPath(userDataDir);
+    if (!matchedProfile) {
+      return;
+    }
+    await this.profileWriter.updateProfile(matchedProfile.id, {
+      lastLaunched: new Date().toISOString(),
+    });
   }
 
   private formatSpawnCommand(execPath: string, args: string[]): string {
