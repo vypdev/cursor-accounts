@@ -11,7 +11,7 @@ import * as extensionLog from '../logging/extensionLog';
 import { getLocale, getWebviewMessages, t } from '../l10n';
 import type { IInstanceDetector } from '../domain/ports/IInstanceDetector';
 import type { IProfileDetector } from '../domain/ports/IProfileDetector';
-import type { IProfileManager } from '../domain/ports/IProfileManager';
+import type { IProfileReader } from '../domain/ports/IProfileReader';
 import type { IProxyPanelRead } from '../domain/ports/IProxyPanelRead';
 import type { EfficiencyService } from '../modelEfficiency/efficiencyService';
 import type { AccountsPanelBackgroundRefreshCoordinator } from './accountsPanelBackgroundRefreshCoordinator';
@@ -32,7 +32,7 @@ import {
 } from '../services/multiProfileQuotaService';
 
 export interface AccountsPanelDataRefresherDependencies {
-  profileManager: IProfileManager;
+  profileManager: IProfileReader;
   profileDetector: IProfileDetector;
   backgroundRefresh: AccountsPanelBackgroundRefreshCoordinator;
   quotaService: Pick<MultiProfileQuotaService, 'getAllCachedQuotas'>;

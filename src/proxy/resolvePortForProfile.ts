@@ -1,4 +1,4 @@
-import type { IProfileManager } from '../domain/ports/IProfileManager';
+import type { IProfileReader } from '../domain/ports/IProfileReader';
 import type { IProxyStateStore } from '../domain/ports/IProxyStateStore';
 import { isPortAvailable, isProcessAlive } from './portUtils';
 import { PROXY_PORT_FALLBACKS } from './types';
@@ -37,7 +37,7 @@ export async function isProfileProxyRunning(
  */
 export async function resolvePortForProfile(
   profileId: string,
-  profileManager: IProfileManager,
+  profileManager: IProfileReader,
   stateStore: IProxyStateStore
 ): Promise<number | null> {
   const profile = await profileManager.getProfile(profileId);
@@ -89,7 +89,7 @@ export async function resolvePortForProfile(
  * Collect ports currently in use by live profile proxies.
  */
 export async function getAllUsedProxyPorts(
-  profileManager: IProfileManager,
+  profileManager: IProfileReader,
   stateStore: IProxyStateStore
 ): Promise<number[]> {
   const profiles = await profileManager.getProfiles();

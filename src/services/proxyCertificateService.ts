@@ -1,6 +1,6 @@
 import * as fs from 'fs/promises';
 import type { ProxyInstallGuide } from '@cursor-accounts/types';
-import type { IProfileManager } from '../domain/ports/IProfileManager';
+import type { IProfileReader } from '../domain/ports/IProfileReader';
 import type { IProxyCertificateService } from '../domain/ports/IProxyCertificateService';
 import type { IProxyStateStore } from '../domain/ports/IProxyStateStore';
 import { buildProxyInstallGuide } from '../proxy/buildProxyInstallGuide';
@@ -13,7 +13,7 @@ export class ProxyCertificateService implements IProxyCertificateService {
   constructor(
     private readonly certManager: CertificateManager,
     private readonly stateStore: IProxyStateStore,
-    private readonly profileManager: IProfileManager
+    private readonly profileManager: IProfileReader
   ) {}
 
   async ensureCaCertificate(): Promise<string> {

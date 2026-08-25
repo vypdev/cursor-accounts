@@ -141,7 +141,7 @@ that historical baseline:
 - the latest full extension-host checkpoint passed 785 tests;
 - the webview suite has 18 passing tests;
 - localization has 26 locales with 428 keys each;
-- the architecture gate checks 426 TypeScript files, with valid, boundary,
+- the architecture gate checks 427 TypeScript files, with valid, boundary,
   cycle, and unresolved-import fixtures passing;
 - current-target packaging produced and verified
   `cursor-accounts-darwin-arm64-0.1.34.vsix`; stale artifacts are excluded by
@@ -155,7 +155,7 @@ that historical baseline:
 - Documentation validation covers 43 Markdown files and caught stale links to
   the former application-layer proxy ingress path before the gate was enabled.
 - Graphify was refreshed after the latest proxy, Accounts Panel, and model-efficiency
-  extractions; the graph now contains 4,777 nodes and 9,624 edges. Repowise reports zero safe-only dead-code
+  extractions; the graph now contains 4,781 nodes and 9,631 edges. Repowise reports zero safe-only dead-code
   findings; its 30 medium-confidence candidates remain retained pending
   runtime/public-contract evidence.
 - `EfficiencyAnalyzer` now delegates scheduling to `EfficiencyAnalysisQueue`
@@ -238,6 +238,10 @@ that historical baseline:
   efficiency, command, and Accounts panel consumers now use `IProfileManager`.
   Graphify reports the `ProfileManager` hub at degree 33 after this boundary
   cleanup; concrete construction remains in the composition/runtime layer.
+- Read-only proxy, quota, workspace, detection, and panel consumers now depend
+  on the narrower `IProfileReader` port. Graphify reports the broad
+  `IProfileManager` port at degree 59 and the new reader at degree 34, down from
+  degree 87 for the broad port before this migration.
 - `CursorProcessScanner` now owns platform-specific process inspection and
   parser dispatch; `InstanceDetector` retains profile matching, cached state,
   polling, and notifications. Its focused cross-platform tests cover injected

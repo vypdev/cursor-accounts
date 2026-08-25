@@ -1,4 +1,4 @@
-import type { IProfileManager } from '../domain/ports/IProfileManager';
+import type { IProfileReader } from '../domain/ports/IProfileReader';
 import { createAgentTrackingRepository } from '../persistence/agentTrackingRepositoryFactory';
 import { getEfficiencyDbPath } from '../persistence/efficiencyDatabase';
 import { ProxyLiveCostCalculator } from '../domain/services/ProxyLiveCostCalculator';
@@ -44,7 +44,7 @@ export class ProxyAgentTrackingCoordinator {
 
   async ensureForProfile(
     profileId: string,
-    profileManager: IProfileManager
+    profileManager: IProfileReader
   ): Promise<void> {
     if (this.services.has(profileId)) {
       return;

@@ -10,7 +10,7 @@ import type {
   ConversationUsagePersistedListener,
   ProxyTrafficListener,
 } from '../domain/ports/IProxyTraffic';
-import type { IProfileManager } from '../domain/ports/IProfileManager';
+import type { IProfileReader } from '../domain/ports/IProfileReader';
 import type { IProfileSettingsManager } from '../domain/ports/IProfileSettingsManager';
 import type { IProxyCertificateService } from '../domain/ports/IProxyCertificateService';
 import type { IProxyProcess } from '../domain/ports/IProxyProcess';
@@ -118,7 +118,7 @@ export class ProxyManager implements IProxyManager {
 
   constructor(
     private readonly stateStore: IProxyStateStore,
-    private readonly profileManager: IProfileManager,
+    private readonly profileManager: IProfileReader,
     private readonly context: vscode.ExtensionContext,
     storageDir: string = getSharedProxyStorageDir(),
     private readonly proxySettingsService?: ProxySettingsService,

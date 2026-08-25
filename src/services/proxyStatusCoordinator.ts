@@ -3,14 +3,14 @@ import {
   type ProxyStateFile,
   type ProxyStatus,
 } from '@cursor-accounts/types';
-import type { IProfileManager } from '../domain/ports/IProfileManager';
+import type { IProfileReader } from '../domain/ports/IProfileReader';
 import type { IProxyStateStore } from '../domain/ports/IProxyStateStore';
 import type { SharedProxyRuntime } from './sharedProxyLifecycleCoordinator';
 import { SHARED_PROXY_RUNTIME_KEY } from '../proxy/types';
 
 /** Dependencies required to build the observable proxy status read model. */
 export interface ProxyStatusCoordinatorDependencies {
-  profileManager: IProfileManager;
+  profileManager: IProfileReader;
   stateStore: IProxyStateStore;
   logDirectory: string;
   getRuntime(profileId: string): SharedProxyRuntime | undefined;

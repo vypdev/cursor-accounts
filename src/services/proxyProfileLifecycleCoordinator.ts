@@ -2,7 +2,7 @@ import {
   isProfileProxyEnabled,
   type Profile,
 } from '@cursor-accounts/types';
-import type { IProfileManager } from '../domain/ports/IProfileManager';
+import type { IProfileReader } from '../domain/ports/IProfileReader';
 import type { IProxyStateStore } from '../domain/ports/IProxyStateStore';
 import type { IProxyTrafficIngress } from '../domain/ports/IProxyTrafficIngress';
 import type { SharedProxyRuntime } from './sharedProxyLifecycleCoordinator';
@@ -18,7 +18,7 @@ interface ProxyControlClient {
 }
 
 export interface ProxyProfileLifecycleCoordinatorDependencies {
-  profileManager: IProfileManager;
+  profileManager: IProfileReader;
   stateStore: IProxyStateStore;
   sharedStateStore: ISharedProxyStateStore;
   trafficIngress: IProxyTrafficIngress;

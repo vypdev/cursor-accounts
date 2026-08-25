@@ -1,7 +1,7 @@
 import * as extensionLog from '../logging/extensionLog';
 import { pathsEqual } from '../utils/pathUtils';
 import type { IInstanceDetector } from '../domain/ports/IInstanceDetector';
-import type { IProfileManager } from '../domain/ports/IProfileManager';
+import type { IProfileReader } from '../domain/ports/IProfileReader';
 import type { InstanceInfo, InstanceInfoMap } from './types';
 
 import {
@@ -86,7 +86,7 @@ export class InstanceDetector implements IInstanceDetector {
   > = [];
 
   constructor(
-    private readonly profileManager: IProfileManager,
+    private readonly profileManager: IProfileReader,
     processProvider?: CursorProcessProvider
   ) {
     this.processScanner = new CursorProcessScanner(processProvider);

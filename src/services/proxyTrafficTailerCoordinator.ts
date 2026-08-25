@@ -2,7 +2,7 @@ import type {
   ProxyStateFile,
   ProxyStatus,
 } from '@cursor-accounts/types';
-import type { IProfileManager } from '../domain/ports/IProfileManager';
+import type { IProfileReader } from '../domain/ports/IProfileReader';
 import type { SharedProxyRuntime } from './sharedProxyLifecycleCoordinator';
 import { SHARED_PROXY_RUNTIME_KEY } from '../proxy/types';
 
@@ -18,7 +18,7 @@ interface EnsureIngressOptions {
 }
 
 export interface ProxyTrafficTailerCoordinatorDependencies {
-  profileManager: IProfileManager;
+  profileManager: IProfileReader;
   getRuntime(profileId: string): SharedProxyRuntime | undefined;
   runtimes(): Iterable<[string, SharedProxyRuntime]>;
   readSharedState(): Promise<ProxyStateFile | null>;

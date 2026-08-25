@@ -4,9 +4,10 @@ import type {
   ValidationResult,
 } from '@cursor-accounts/types';
 import type { IInstanceDetector } from './IInstanceDetector';
+import type { IProfileReader } from './IProfileReader';
 
 /** Port for profile configuration CRUD and validation. */
-export interface IProfileManager {
+export interface IProfileManager extends IProfileReader {
   initialize(): Promise<void>;
   getProfiles(): Promise<Profile[]>;
   getProfile(id: string): Promise<Profile | undefined>;

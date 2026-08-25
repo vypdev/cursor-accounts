@@ -1,5 +1,5 @@
 import { isProfileProxyJsonlLoggingEnabled, type Profile } from '@cursor-accounts/types';
-import type { IProfileManager } from '../domain/ports/IProfileManager';
+import type { IProfileReader } from '../domain/ports/IProfileReader';
 import type {
   IProxyOutputPresenter,
   ProxyOutputSettings,
@@ -13,7 +13,7 @@ export interface ProxyTrafficIngressCoordinatorOptions {
 }
 
 export interface ProxyTrafficIngressCoordinatorDependencies {
-  profileManager: IProfileManager;
+  profileManager: IProfileReader;
   trafficIngress: IProxyTrafficIngress;
   outputPresenter?: IProxyOutputPresenter;
   getOutputConfig: () => ProxyOutputSettings;

@@ -55,6 +55,7 @@ export * from './ports/IDatabaseCleanupService';
 export * from './ports/ICacheCleanupService';
 export * from './ports/IProfileStorageAnalyzer';
 export * from './ports/IProfileManager';
+export * from './ports/IProfileReader';
 export * from './ports/IProfileDetector';
 export * from './ports/IProfileLauncher';
 export * from './ports/IInstanceDetector';

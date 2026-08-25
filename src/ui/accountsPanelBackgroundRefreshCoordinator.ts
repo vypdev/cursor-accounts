@@ -1,7 +1,7 @@
 import type { ProfileQuota, ToWebviewMessage } from '@cursor-accounts/types';
 import * as extensionLog from '../logging/extensionLog';
 import type { IProfileDetector } from '../domain/ports/IProfileDetector';
-import type { IProfileManager } from '../domain/ports/IProfileManager';
+import type { IProfileReader } from '../domain/ports/IProfileReader';
 import type { ProfileGitHubEnrichmentService } from '../github/profileGitHubEnrichmentService';
 import type { MultiProfileQuotaService } from '../services/multiProfileQuotaService';
 import { quotaMapToRecord } from '../services/multiProfileQuotaService';
@@ -10,7 +10,7 @@ import { accountMapToRecord } from '../services/profileAccountFetcher';
 import type { ProfileWorkspaceService } from '../services/profileWorkspaceService';
 
 export interface AccountsPanelBackgroundRefreshDependencies {
-  profileManager: IProfileManager;
+  profileManager: IProfileReader;
   profileDetector: IProfileDetector;
   quotaService: MultiProfileQuotaService;
   accountFetcher: ProfileAccountFetcher;

@@ -1,5 +1,5 @@
 import type { IInstanceDetector } from '../domain/ports/IInstanceDetector';
-import type { IProfileManager } from '../domain/ports/IProfileManager';
+import type { IProfileReader } from '../domain/ports/IProfileReader';
 import type { RestoreAllProfilesResult } from '../domain/ports/IProxyLifecycle';
 import type {
   IProfileSettingsManager,
@@ -18,7 +18,7 @@ export type { RestoreAllProfilesResult };
  */
 export class ProxySettingsService {
   constructor(
-    private readonly profileManager: IProfileManager,
+    private readonly profileManager: IProfileReader,
     private readonly profileSettingsManager: IProfileSettingsManager,
     private readonly instanceDetector?: IInstanceDetector
   ) {}
