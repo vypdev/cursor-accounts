@@ -86,6 +86,12 @@ Completed slices are recorded below so the plan cannot drift from the code.
   now owns migration execution and verification of the six required agent
   tracking tables. The repository facade delegates initialization and retains
   only cleanup plus adapter composition around the domain port.
+- **SQLite retention decomposition:** `BetterSqliteAgentTrackingCleanupStore`
+  now owns retention selection and the atomic multi-table deletion transaction.
+  The implementation selects conversations by `conversations.created_at`,
+  removes dependent tracking rows before their agents and conversations, and
+  preserves rollback behavior when any deletion fails. The repository facade
+  is now a composition-only implementation of the domain port.
 - **Security hardening started:** webview error rendering is text-safe, Windows
   process launch no longer enables `shell`, loopback validation ignores
   spoofable forwarding headers, persisted proxy headers redact credentials,
@@ -360,6 +366,16 @@ that historical baseline:
   architecture gate covers 436 TypeScript files, Graphify reports 4,857 nodes
   and 9,818 edges, and Repowise safe-only dead-code analysis reports no
   findings.
+- `BetterSqliteAgentTrackingCleanupStore` now owns retention selection and the
+  atomic dependent-row deletion transaction. The retention predicate is
+  verified against the schema's `conversations.created_at` column, fixing the
+  previous use of the agent-only `started_at` column. The repository facade is
+  115 lines with Graphify degree 24; the cleanup store is 70 lines with degree
+  5. The focused cleanup tests pass 2/2, the full checkpoint passes 795/795
+  tests across 253 suites, the architecture gate covers 438 TypeScript files,
+  documentation checks cover 43 Markdown files, Graphify reports 3,742 nodes
+  and 10,117 edges in the regenerated code-only graph, and Repowise safe-only
+  dead-code analysis reports no findings.
 
 ### 3.2 Target state
 
@@ -1003,19 +1019,25 @@ and one persistence use case. It should not contain all event policy branches.
 
 ### W4.4 SQLite repository decomposition
 
-Keep SQL and connection handling in infrastructure. The read-model seam is now
-separate from the write adapter, and the domain facade no longer owns SQL for
-either side. Continue separating:
+Keep SQL and connection handling in infrastructure. The SQLite repository
+decomposition is now complete for the current domain-port surface:
 
-- conversation and agent writes;
-- token event writes and idempotency ledger;
-- conversation aggregate queries;
-- agent tree queries;
-- retention cleanup and database-size policy.
+- `BetterSqliteAgentTrackingReadStore` owns conversation aggregates, turn
+  history, agent breakdowns, agent trees, and database-size queries;
+- `BetterSqliteAgentTrackingWriteStore` owns conversation/agent writes, token
+  snapshots, token deltas, turn-ended rows, and delta idempotency;
+- `BetterSqliteAgentTrackingSchemaInitializer` owns migration execution and
+  required-table verification;
+- `BetterSqliteAgentTrackingCleanupStore` owns retention selection and the
+  atomic dependent-row cleanup transaction;
+- `BetterSqliteAgentTrackingRepository` only composes these adapters behind
+  `IAgentTrackingRepository`.
 
-Introduce read models where query shapes differ from write records. Preserve
-transactions, WAL, busy timeout, event uniqueness, and multi-window behavior.
-Add concurrency tests before changing write ordering or connection ownership.
+The cleanup contract is covered by selective deletion, no-op behavior, and
+transaction rollback tests. Preserve transactions, WAL, busy timeout, event
+uniqueness, and multi-window behavior in future changes. Broader critical
+module coverage floors and explicit concurrency tests remain separate follow-up
+work; they must not be inferred from this decomposition alone.
 
 ### W4.5 Accounts panel and webview decomposition
 

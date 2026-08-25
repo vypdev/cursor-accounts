@@ -883,6 +883,40 @@ This is composition-root coupling, while migration policy and table checks are
 no longer embedded in the domain-port facade. Retention cleanup is the final
 remaining responsibility in this SQLite repository slice.
 
+### SQLite cleanup checkpoint — 2026-08-25
+
+`BetterSqliteAgentTrackingCleanupStore` now owns the retention selection and
+the atomic deletion sequence for conversations and every dependent tracking
+table. The selection predicate was verified against migration `002`: the
+conversation timestamp is `conversations.created_at`, not `started_at` (which
+belongs to `agents`). This fixes the previous retention query while preserving
+the intended profile and cutoff semantics. The transaction deletes token
+snapshots, delta aggregates, delta idempotency events, turn-ended rows, agents,
+and conversations as one unit.
+
+Focused tests cover eligible/ineligible conversations, repeat cleanup as a
+no-op, dependent-row removal, and rollback after a failure in the cascade.
+The repository facade now only composes the read, write, schema, and cleanup
+adapters behind `IAgentTrackingRepository`.
+
+Evidence for this follow-up:
+
+- focused cleanup tests: 2/2 passed;
+- `pnpm test`: 795/795 tests passed across 253 suites;
+- `pnpm run check:architecture`: passed for 438 TypeScript files;
+- `pnpm run check:docs`: passed for 43 Markdown files;
+- Graphify: 3,742 nodes and 10,117 edges in the regenerated code-only graph;
+- Graphify degrees: repository 24, cleanup store 5;
+- source sizes: repository 115 lines, cleanup store 70 lines;
+- Repowise `dead-code --safe-only --format json`: no findings.
+
+The facade's degree increased because it composes four focused adapters. This
+is composition-root coupling, while retention SQL, cutoff semantics, and the
+multi-table transaction are now isolated and directly testable. The SQLite
+repository decomposition is complete for the current domain-port surface;
+broader subsystem coverage floors and concurrency characterization remain
+separate follow-up work.
+
 ## 12. Prioritized remediation plan
 
 ### Phase 0 — Release blockers and deterministic validation
