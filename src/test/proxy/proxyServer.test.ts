@@ -59,4 +59,11 @@ describe('parseProxyServerConfig', () => {
       /apiPort: Number must be less than or equal to 65535; maxBodyLogBytes: Number must be greater than 0/
     );
   });
+
+  it('rejects non-object JSON values instead of coercing them', () => {
+    assert.throws(
+      () => parseProxyServerConfig(JSON.stringify(['unexpected'])) ,
+      /CURSOR_ACCOUNTS_PROXY_CONFIG is invalid: <root>: Expected object, received array/
+    );
+  });
 });

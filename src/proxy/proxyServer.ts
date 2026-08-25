@@ -207,6 +207,16 @@ async function main(): Promise<void> {
     apiServer.broadcast(event);
   };
 
+  const handleTerminationSignal = (): void => {
+    void shutdown();
+  };
+
+  // The lifecycle coordinators normally request shutdown through the API, but
+  // supervisors can terminate the child directly when the API is unavailable.
+  // Keep that fallback graceful so queued tracking writes are drained first.
+  process.once('SIGTERM', handleTerminationSignal);
+  process.once('SIGINT', handleTerminationSignal);
+
   try {
     await apiServer.start({
       apiPort: config.apiPort,
@@ -235,6 +245,8 @@ async function main(): Promise<void> {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     process.stderr.write(`[proxy] startup failed: ${message}\n`);
+    await server.stop().catch(() => undefined);
+    await trackingIngress?.close().catch(() => undefined);
     await apiServer.stop().catch(() => undefined);
     process.exit(1);
   }
