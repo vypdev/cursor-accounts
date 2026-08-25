@@ -6,6 +6,8 @@ import {
   buildWindowsInstallCommand,
   buildWindowsUninstallCommand,
   buildWindowsVerifyCommand,
+  CERTIFICATE_PROCESS_KILL_GRACE_MS,
+  DEFAULT_CERTIFICATE_PROCESS_TIMEOUT_MS,
   escapePowerShellSingleQuoted,
   escapeShellDoubleQuoted,
   installCaCertificateElevated,
@@ -13,6 +15,7 @@ import {
   LINUX_UNINSTALL_MANUAL_MESSAGE,
   uninstallCaCertificate,
   verifyCaCertificateInstalled,
+  runCertificateProcess,
 } from '../proxy/installCaCertificate';
 import type { CertificateProcessRunner } from '../proxy/installCaCertificate';
 
@@ -83,6 +86,21 @@ describe('installCaCertificate command builders', () => {
   it('LINUX_UNINSTALL_MANUAL_MESSAGE references system CA path', () => {
     assert.match(LINUX_UNINSTALL_MANUAL_MESSAGE, /cursor-accounts-mitm\.crt/);
     assert.match(LINUX_UNINSTALL_MANUAL_MESSAGE, /update-ca-certificates/);
+  });
+
+  it('uses bounded process timeouts with a kill escalation window', async () => {
+    assert.equal(DEFAULT_CERTIFICATE_PROCESS_TIMEOUT_MS, 120_000);
+    assert.equal(CERTIFICATE_PROCESS_KILL_GRACE_MS, 1_000);
+
+    await assert.rejects(
+      () =>
+        runCertificateProcess(
+          process.execPath,
+          ['-e', 'setTimeout(() => {}, 60_000)'],
+          25
+        ),
+      /Certificate process timed out after 25ms/
+    );
   });
 
   it('keeps Linux installation and removal manual', async () => {

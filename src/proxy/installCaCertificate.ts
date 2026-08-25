@@ -20,6 +20,9 @@ export interface CertificateProcessRunner {
   ): Promise<{ code: number | null; stderr: string }>;
 }
 
+export const DEFAULT_CERTIFICATE_PROCESS_TIMEOUT_MS = 120_000;
+export const CERTIFICATE_PROCESS_KILL_GRACE_MS = 1_000;
+
 /** Escape a path for use inside a double-quoted shell string on Unix. */
 export function escapeShellDoubleQuoted(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
@@ -82,19 +85,26 @@ function normalizeInstallError(stderr: string, fallback: string): string {
   return message;
 }
 
-async function runProcess(
+export async function runCertificateProcess(
   command: string,
   args: string[],
-  timeoutMs = 120_000
+  timeoutMs = DEFAULT_CERTIFICATE_PROCESS_TIMEOUT_MS
 ): Promise<{ code: number | null; stderr: string }> {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, { stdio: ['ignore', 'ignore', 'pipe'] });
     let stderr = '';
+    let timedOut = false;
+    let killTimer: ReturnType<typeof setTimeout> | undefined;
 
     const timer = setTimeout(() => {
+      timedOut = true;
       child.kill('SIGTERM');
-      reject(new Error('Certificate installation timed out'));
-    }, timeoutMs);
+      killTimer = setTimeout(() => {
+        if (child.exitCode === null && child.signalCode === null) {
+          child.kill('SIGKILL');
+        }
+      }, CERTIFICATE_PROCESS_KILL_GRACE_MS);
+    }, Math.max(1, timeoutMs));
 
     child.stderr?.on('data', (chunk: Buffer) => {
       stderr += chunk.toString();
@@ -102,18 +112,32 @@ async function runProcess(
 
     child.on('error', (err) => {
       clearTimeout(timer);
+      if (killTimer) {
+        clearTimeout(killTimer);
+      }
       reject(err);
     });
 
     child.on('close', (code) => {
       clearTimeout(timer);
+      if (killTimer) {
+        clearTimeout(killTimer);
+      }
+      if (timedOut) {
+        reject(
+          new Error(
+            `Certificate process timed out after ${Math.max(1, timeoutMs)}ms`
+          )
+        );
+        return;
+      }
       resolve({ code, stderr: stderr.trim() });
     });
   });
 }
 
 const defaultProcessRunner: CertificateProcessRunner = {
-  run: runProcess,
+  run: runCertificateProcess,
 };
 
 export async function installCaCertificateElevated(
