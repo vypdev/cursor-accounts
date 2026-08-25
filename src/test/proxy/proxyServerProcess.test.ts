@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
 import { describe, it } from 'node:test';
+import * as path from 'node:path';
 import type {
   ProxyServerProcessDependencies,
   ProxyServerProcessRuntime,
@@ -139,5 +141,29 @@ describe('runProxyServerProcess', () => {
     assert.deepEqual(messages, [
       '[proxy] startup failed: invalid configuration\n',
     ]);
+  });
+
+  it('exits cleanly from the compiled entry point when configuration is invalid', async () => {
+    const entryPoint = path.resolve(__dirname, '../../proxy/proxyServer.js');
+    const child = spawn(process.execPath, [entryPoint], {
+      env: {
+        ...process.env,
+        CURSOR_ACCOUNTS_PROXY_CONFIG: '{',
+      },
+      stdio: ['ignore', 'ignore', 'pipe'],
+    });
+    const stderr: string[] = [];
+    child.stderr?.on('data', (chunk: Buffer) => stderr.push(chunk.toString()));
+
+    const exitCode = await new Promise<number | null>((resolve, reject) => {
+      child.once('error', reject);
+      child.once('exit', (code) => resolve(code));
+    });
+
+    assert.equal(exitCode, 1);
+    assert.match(
+      stderr.join(''),
+      /\[proxy\] startup failed: CURSOR_ACCOUNTS_PROXY_CONFIG is not valid JSON/
+    );
   });
 });
