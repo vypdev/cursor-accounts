@@ -87,18 +87,18 @@ export class ProxyManager implements IProxyManager {
   private readonly statusCallbacks: Array<() => void> = [];
   private readonly usagePersistedListeners: ConversationUsagePersistedListener[] =
     [];
-  private readonly agentTrackingCoordinator: ProxyAgentTrackingCoordinator;
-  private readonly trafficIngressCoordinator: ProxyTrafficIngressCoordinator;
-  private readonly trafficUsageCoordinator: ProxyTrafficUsageCoordinator;
-  private readonly sharedProxyLifecycleCoordinator: SharedProxyLifecycleCoordinator;
-  private readonly profileLifecycleCoordinator: ProxyProfileLifecycleCoordinator;
-  private readonly statusCoordinator: ProxyStatusCoordinator;
-  private readonly trafficTailerCoordinator: ProxyTrafficTailerCoordinator;
-  private readonly profileRoutingConfiguration: ProxyProfileRoutingConfiguration;
-  private readonly childProcessStopCoordinator: ProxyChildProcessStopCoordinator;
+  private agentTrackingCoordinator!: ProxyAgentTrackingCoordinator;
+  private trafficIngressCoordinator!: ProxyTrafficIngressCoordinator;
+  private trafficUsageCoordinator!: ProxyTrafficUsageCoordinator;
+  private sharedProxyLifecycleCoordinator!: SharedProxyLifecycleCoordinator;
+  private profileLifecycleCoordinator!: ProxyProfileLifecycleCoordinator;
+  private statusCoordinator!: ProxyStatusCoordinator;
+  private trafficTailerCoordinator!: ProxyTrafficTailerCoordinator;
+  private profileRoutingConfiguration!: ProxyProfileRoutingConfiguration;
+  private childProcessStopCoordinator!: ProxyChildProcessStopCoordinator;
   private readonly serverConfigurationBuilder: ProxyServerConfigurationBuilder;
   private readonly sharedProxyStateStore: SharedProxyStateStore;
-  private readonly outputCoordinator: ProxyManagerOutputCoordinator;
+  private outputCoordinator!: ProxyManagerOutputCoordinator;
   private readonly storageDir: string;
   private readonly logDir: string;
   private lastDiagnosticsOutputAt = 0;
@@ -162,8 +162,18 @@ export class ProxyManager implements IProxyManager {
           .get(key, fallback),
       isJsonlLoggingEnabled: (profile) => profile.proxyJsonlLoggingEnabled === true,
     });
+    this.initializeTrafficCoordinators();
+    this.initializeLifecycleCoordinators();
+    this.initializeReadModelCoordinators();
+    this.initializeStopCoordinator();
+    this.deps.trafficBus.subscribe((summary, profileId) => {
+      void this.handleTraffic(summary, profileId);
+    });
+  }
+
+  private initializeTrafficCoordinators(): void {
     this.agentTrackingCoordinator = new ProxyAgentTrackingCoordinator(
-      context.extensionPath,
+      this.context.extensionPath,
       () =>
         vscode.workspace
           .getConfiguration('cursorAccounts.proxy')
@@ -189,6 +199,9 @@ export class ProxyManager implements IProxyManager {
         this.agentTrackingCoordinator.get(profileId),
       onUsagePersisted: (event) => this.notifyUsagePersisted(event),
     });
+  }
+
+  private initializeLifecycleCoordinators(): void {
     this.sharedProxyLifecycleCoordinator =
       new SharedProxyLifecycleCoordinator({
         storageDir: this.storageDir,
@@ -255,6 +268,9 @@ export class ProxyManager implements IProxyManager {
       appendStopped: () => this.outputPresenter?.appendStopped(),
       notifyStatusChange: () => this.notifyStatusChange(),
     });
+  }
+
+  private initializeReadModelCoordinators(): void {
     this.statusCoordinator = new ProxyStatusCoordinator({
       profileManager: this.profileManager,
       stateStore: this.stateStore,
@@ -300,6 +316,9 @@ export class ProxyManager implements IProxyManager {
         this.trafficTailerCoordinator.ensureOutputTailer(profileId, options),
       ensureTrafficTailer: () => this.trafficTailerCoordinator.ensureTrafficTailer(),
     });
+  }
+
+  private initializeStopCoordinator(): void {
     this.profileRoutingConfiguration = new ProxyProfileRoutingConfiguration({
       authReader: this.deps.authReader,
     });
@@ -321,9 +340,6 @@ export class ProxyManager implements IProxyManager {
       gracePeriodMs: 500,
       wait: (milliseconds) =>
         new Promise((resolve) => setTimeout(resolve, milliseconds)),
-    });
-    this.deps.trafficBus.subscribe((summary, profileId) => {
-      void this.handleTraffic(summary, profileId);
     });
   }
 
