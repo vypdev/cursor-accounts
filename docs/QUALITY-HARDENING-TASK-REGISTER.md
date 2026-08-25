@@ -29,7 +29,7 @@ acceptance criteria and evidence are recorded.
 | QA-5 | Clean Architecture enforcement | PARTIAL | TypeScript-AST resolver-backed checker passes for 282 production files; negative fixtures cover domain/application/package/cycle cases; current Graphify/Repowise hotspots remain | Refactor the highest-risk low-coverage infrastructure modules without weakening the contract, then add characterization and failure-path tests |
 | QA-6 | Security and privacy | PARTIAL | Threat model recorded; API error details are now generic; loopback/token parity, redaction, sidecar safety, text-safe webview rendering, and Repowise history scan are evidenced | Complete retention/disk-full/WAL tests, process and certificate review, protocol-specific redaction, and the legacy optional-token decision |
 | QA-7 | Reliability and lifecycle | OPEN | SQLite cleanup has selective and rollback tests | Add concurrency, failure injection, migration recovery, and disk lifecycle tests |
-| QA-8 | Local test confidence | PARTIAL | Critical floors exist for selected modules; Repowise still identifies low-coverage hotspots | Add risk-based floors and negative/property tests for remaining hotspots |
+| QA-8 | Local test confidence | PARTIAL | `proxyDecode.ts` now has 91.7% c8 lines and 100% c8 branches with 22 focused tests; Repowise still identifies remaining low-coverage hotspots and retains a stale 27.17% coverage index for this file | Reconcile static-analysis coverage ingestion, add risk-based floors, and cover the next proxy/profile/process hotspots |
 | QA-9 | Documentation and operations | PARTIAL | Plan, audit links, dependency inventory, advisory register, and English docs are synchronized for this slice | Add task/decision records, reproducible audit artifact output, and runbooks |
 | QA-10 | Independent final audit and release rehearsal | OPEN | Not started | Run only after QA-1 through QA-9 have current evidence |
 
@@ -40,8 +40,8 @@ acceptance criteria and evidence are recorded.
 | Item | Value |
 |---|---|
 | Branch | feature/3-mitm-proxy |
-| Latest implementation commit | 7618984 |
-| Latest documentation commit | 7618984 |
+| Latest implementation commit | 2d9fe05 |
+| Latest documentation commit | 6215933 |
 | Node | v22.23.1 |
 | pnpm | 11.19.0 |
 | Graphify | 0.9.48 |
@@ -246,6 +246,36 @@ protobuf redaction, and removal of the legacy optional-token path remain open.
 QA-6 remains PARTIAL until those residual risks have tests and an explicit
 compatibility decision.
 
+## QA-8.1 decoder hotspot checkpoint — 2026-08-25
+
+Commit `2d9fe05` refactored `src/proxy/proxyDecode.ts` into explicit
+responsibilities without changing its public decoder contract:
+
+- JSON decoding and redaction are isolated from binary/protobuf decoding;
+- RPC message-type resolution is separated from payload attempts;
+- payload decoding and error capture are deterministic and bounded;
+- shared insight finalization is performed through one helper;
+- malformed, unknown, empty, JSON, binary, and relative/malformed URL cases
+  are covered by focused tests.
+
+The focused decoder/Connect suite passes 22/22 tests. The full audit passes,
+including lint/typecheck, architecture (282 production files), all host tests,
+coverage floors, webview 18/18, and VSIX verification. The current c8 lcov
+record reports 199/217 covered lines (91.7%) and 50/50 covered branches (100%)
+for `proxyDecode.ts`.
+
+Repowise health after re-indexing reports the structural improvement from the
+pre-refactor signal (CCN 24, nesting 5, duplication 31.65%) to CCN 11,
+nesting 3, duplication 9.23%, and score 1.5. Its coverage field still reports
+27.17% for this file despite the current c8 lcov record, so the discrepancy is
+tracked as a tooling-integration issue rather than treated as resolved
+coverage evidence.
+
+QA-8 remains PARTIAL. The next risk-based candidates are `proxyServer.ts`,
+`installCaCertificate.ts`, `statusBarManager.ts`, `profileLauncher.ts`, and
+the high-fan-out contract barrels. Each requires characterization tests before
+any extraction.
+
 ## Reclassification decisions
 
 The following historical findings are reclassified from the current baseline:
@@ -271,6 +301,7 @@ The following historical findings are reclassified from the current baseline:
 | 2026-08-25 | QA-3 native packaging reproducibility slice | 50bdcc2 | Dynamic Electron ABI, official prebuild digest verification, native archive tests, runtime-tree sanitization, pnpm 10.34 frozen install, current-target build, production audit 0, signatures 830/830, and full audit pass |
 | 2026-08-25 | QA-5 Clean Architecture enforcement slice | 7618984 | TypeScript-AST/resolver checker, package-source fallback, production test exclusion, line/rule/JSON diagnostics, negative fixtures, architecture contract, contributor guidance, full audit pass |
 | 2026-08-25 | QA-6.1 safe API error serialization slice | c7c28a8 | Generic public API errors, sensitive-message regression test, security threat model, focused 16/16 security tests, Repowise history scan with zero findings, and full audit pass |
+| 2026-08-25 | QA-8.1 proxy decoder hotspot slice | 2d9fe05 | Decoder branch extraction, 22/22 focused tests, c8 91.7% lines and 100% branches for proxyDecode.ts, Repowise CCN/nesting/duplication improvement, full audit pass, remote workflow success |
 
 This register must be updated in the same commit as each task's implementation
 or evidence change.

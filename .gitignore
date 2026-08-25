@@ -60,3 +60,5 @@ Thumbs.db
 
 # Optional local VS Code settings (machine-specific)
 .vscode/settings.json
+.vscode/mcp.json
+.vscode/extensions.json
