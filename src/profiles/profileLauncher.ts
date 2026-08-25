@@ -1,18 +1,27 @@
-import type { ChildProcess} from 'child_process';
-import { spawn } from 'child_process';
 import * as path from 'path';
 import { isProfileProxyEnabled } from '@cursor-accounts/types';
 import * as extensionLog from '../logging/extensionLog';
 import { ensureDirectory } from '../utils/pathUtils';
 import type { IInstanceDetector } from '../domain/ports/IInstanceDetector';
 import type { IProfileLauncher } from '../domain/ports/IProfileLauncher';
+import type { IProfileProcessLauncher } from '../domain/ports/IProfileProcessLauncher';
 import type { IProfileWriter } from '../domain/ports/IProfileWriter';
 import type { IProfileSettingsManager } from '../domain/ports/IProfileSettingsManager';
 import type { IProxyCertificate } from '../domain/ports/IProxyCertificate';
 import type { IProxyLifecycle } from '../domain/ports/IProxyLifecycle';
 import type { IProxyRouting } from '../domain/ports/IProxyRouting';
 import { isProfilePresentInInstances } from './instanceDetector';
+import {
+  defaultProfileProcessLauncher,
+  ProfileLauncherError,
+} from './profileProcessLauncher';
 import type { Profile } from './types';
+
+export {
+  buildSpawnEnv,
+  ProfileLauncherError,
+  SPAWN_ENV_STRIP_KEYS,
+} from './profileProcessLauncher';
 
 export interface LaunchResult {
   success: boolean;
@@ -27,25 +36,8 @@ export interface LaunchOptions {
   projectPath?: string;
 }
 
-/** Environment variables that break GUI launch when inherited from the extension host. */
-export const SPAWN_ENV_STRIP_KEYS = [
-  'ELECTRON_RUN_AS_NODE',
-  'ELECTRON_NO_ASAR',
-  'ELECTRON_NO_ATTACH_CONSOLE',
-] as const;
-
 const LAUNCH_VERIFY_TIMEOUT_MS = 5000;
 const LAUNCH_VERIFY_INTERVAL_MS = 500;
-
-export class ProfileLauncherError extends Error {
-  constructor(
-    message: string,
-    public readonly cause?: Error
-  ) {
-    super(message);
-    this.name = 'ProfileLauncherError';
-  }
-}
 
 /** Optional launch flags when a profile MITM proxy is active. */
 export interface LaunchArgsOptions {
@@ -57,9 +49,6 @@ export function proxyServerLaunchArg(proxyUrl: string): string {
   return `--proxy-server=${proxyUrl}`;
 }
 
-/**
- * Build a clean environment for spawning Cursor outside the extension host.
- */
 /** Build argv for Cursor with optional project path and Chromium proxy flag. */
 export function buildLaunchArgs(
   userDataDir: string,
@@ -74,18 +63,6 @@ export function buildLaunchArgs(
     args.push(projectPath);
   }
   return args;
-}
-
-export function buildSpawnEnv(caCertPath?: string): NodeJS.ProcessEnv {
-  const env = { ...process.env };
-  for (const key of SPAWN_ENV_STRIP_KEYS) {
-    delete env[key];
-  }
-  delete env.NODE_EXTRA_CA_CERTS;
-  if (caCertPath) {
-    env.NODE_EXTRA_CA_CERTS = caCertPath;
-  }
-  return env;
 }
 
 /** Manual launch command shown when automated launch verification fails. */
@@ -119,7 +96,9 @@ export class ProfileLauncher implements IProfileLauncher {
     private readonly instanceDetector?: IInstanceDetector,
     private readonly proxyManager?:
       IProxyLifecycle & IProxyRouting & IProxyCertificate,
-    private readonly profileSettingsManager?: IProfileSettingsManager
+    private readonly profileSettingsManager?: IProfileSettingsManager,
+    private readonly processLauncher: IProfileProcessLauncher =
+      defaultProfileProcessLauncher
   ) {}
 
   /**
@@ -227,11 +206,13 @@ export class ProfileLauncher implements IProfileLauncher {
         `[ProfileLauncher] Spawn: ${this.formatSpawnCommand(execPath, args)}`
       );
 
-      await this.spawnProcess(
-        execPath,
+      await this.processLauncher.launch({
+        executablePath: execPath,
         args,
-        launchContext?.caCertPath
-      );
+        caCertPath: launchContext?.caCertPath || undefined,
+        appBundlePath:
+          process.platform === 'darwin' ? this.getAppBundlePath() : undefined,
+      });
 
       let pid: number | undefined;
       if (this.instanceDetector) {
@@ -462,87 +443,4 @@ export class ProfileLauncher implements IProfileLauncher {
     return { proxyUrl, caCertPath };
   }
 
-  private async spawnProcess(
-    execPath: string,
-    args: string[],
-    caCertPath?: string
-  ): Promise<ChildProcess> {
-    const spawnEnv = buildSpawnEnv(
-      caCertPath && caCertPath.length > 0 ? caCertPath : undefined
-    );
-
-    return new Promise((resolve, reject) => {
-      try {
-        let proc: ChildProcess;
-
-        if (process.platform === 'darwin') {
-          const appPath = this.getAppBundlePath();
-          proc = spawn('open', ['-na', appPath, '--args', ...args], {
-            detached: true,
-            stdio: 'ignore',
-            env: spawnEnv,
-          });
-        } else if (process.platform === 'win32') {
-          proc = spawn(execPath, args, {
-            detached: true,
-            stdio: 'ignore',
-            env: spawnEnv,
-          });
-        } else {
-          proc = spawn(execPath, args, {
-            detached: true,
-            stdio: 'ignore',
-            env: spawnEnv,
-          });
-        }
-
-        proc.on('error', (error) => {
-          reject(
-            new ProfileLauncherError(
-              'Failed to spawn process',
-              error instanceof Error ? error : undefined
-            )
-          );
-        });
-
-        if (process.platform === 'darwin') {
-          // `open` exits 0 after handing off to LaunchServices; that is success.
-          proc.on('exit', (code) => {
-            if (code === 0) {
-              resolve(proc);
-            } else {
-              reject(
-                new ProfileLauncherError(
-                  code != null
-                    ? `Failed to open Cursor (exit ${code})`
-                    : 'Process failed to start'
-                )
-              );
-            }
-          });
-          return;
-        }
-
-        proc.unref();
-
-        setTimeout(() => {
-          if (
-            proc.killed ||
-            (proc.exitCode != null && proc.exitCode !== 0)
-          ) {
-            reject(new ProfileLauncherError('Process failed to start'));
-          } else {
-            resolve(proc);
-          }
-        }, 500);
-      } catch (error) {
-        reject(
-          new ProfileLauncherError(
-            'Failed to spawn process',
-            error instanceof Error ? error : undefined
-          )
-        );
-      }
-    });
-  }
 }
