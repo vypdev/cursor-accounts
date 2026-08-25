@@ -4,7 +4,7 @@ import * as path from 'path';
 import * as extensionLog from '../logging/extensionLog';
 import { validateUserDataPath } from '../utils/pathUtils';
 import { profileExportSchema } from '../validation/apiSchemas';
-import type { IProfileManager } from '../domain/ports/IProfileManager';
+import type { IProfileReader } from '../domain/ports/IProfileReader';
 import type {
   ExportedProfile,
   Profile,
@@ -28,7 +28,7 @@ const SENSITIVE_SETTING_KEY_PATTERN =
   /(token|secret|password|api[_-]?key|credential)/i;
 
 export class ProfileExporter {
-  constructor(private readonly profileManager: IProfileManager) {}
+  constructor(private readonly profileManager: IProfileReader) {}
 
   /**
    * Export profiles to JSON format.

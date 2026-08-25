@@ -588,13 +588,14 @@ baseline, but it is not presented as a completed final audit.
 
 ### Updated Repowise and Graphify signals
 
-Repowise and Graphify were re-run after the latest proxy, Accounts Panel, and
-model-efficiency extractions. The graph now contains 4,781 nodes and 9,631 edges; nine SQL files remain
+Repowise and Graphify were re-run after the latest proxy, Accounts Panel,
+model-efficiency, and profile-port extractions. The graph now contains 4,783
+nodes and 9,633 edges; nine SQL files remain
 unparsed because
 the installed Graphify environment does not include `tree_sitter_sql`. The
-largest remaining source-level hubs are `ProxyManager`, `ProfileManager`,
-`InstanceDetector`, `AccountsPanelProvider`, `AccountsPanelHandlers`, and
-`MitmProxyServer`. These are decomposition priorities, not evidence that the
+largest remaining source-level hubs are `ProxyManager`, `ProxyTrafficSummary`,
+`IProfileManager`, `ProfileDetector`, `IProfileReader`, `MultiProfileQuotaService`,
+and `ProfileManager`. These are decomposition priorities, not evidence that the
 graph tool's generic god-node score is itself a defect.
 
 The Accounts Panel extraction now separates profile CRUD/import/export into
@@ -692,8 +693,10 @@ remains responsible for persistence, SQLite reads, watermark handling, and
 scheduling.
 
 Read-only proxy, quota, workspace, detection, and panel consumers now depend
-on the narrower `IProfileReader` port. Graphify reports the broad
-`IProfileManager` port at degree 59 and the new reader at degree 34, down from
+on the narrower `IProfileReader` port. Profile lookup by email and user-data
+path is now included in that read-only contract, allowing `ProfileDetector` and
+`ProfileExporter` to avoid the full CRUD dependency. Graphify reports
+`IProfileManager` at degree 55 and `IProfileReader` at degree 40, down from
 degree 87 for the broad port before this migration. `IProfileManager` remains
 the full CRUD contract for workflows that create, update, import, or delete
 profiles.
