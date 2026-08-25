@@ -12,6 +12,13 @@ type DetectedProfile = NonNullable<
   Awaited<ReturnType<IProfileDetector['detectCurrentProfile']>>
 >;
 
+type ProxyCommandManager = IProxyLifecycle &
+  IProxyStatus &
+  IProxyCertificate &
+  IProxyOutput;
+
+type ProxyCommandHandler = () => Promise<void> | void;
+
 async function getEnabledCurrentProfile(
   profileDetector: IProfileDetector
 ): Promise<DetectedProfile | null> {
@@ -25,10 +32,7 @@ async function getEnabledCurrentProfile(
 
 export function registerProxyCommands(
   context: vscode.ExtensionContext,
-  proxyManager: IProxyLifecycle &
-    IProxyStatus &
-    IProxyCertificate &
-    IProxyOutput,
+  proxyManager: ProxyCommandManager,
   profileDetector: IProfileDetector,
   onStatusChanged?: () => void
 ): void {
@@ -36,113 +40,146 @@ export function registerProxyCommands(
     onStatusChanged?.();
   });
 
-  context.subscriptions.push(
-    vscode.commands.registerCommand('cursorAccounts.proxy.start', async () => {
-      const currentProfile = await getEnabledCurrentProfile(profileDetector);
-      if (!currentProfile) {
-        return;
-      }
+  registerStartCommand(context, proxyManager, profileDetector);
+  registerStopCommand(context, proxyManager, profileDetector);
+  registerShowLogsCommand(context, proxyManager);
+  registerClearLogsCommand(context, proxyManager);
+  registerShowOutputCommand(context, proxyManager, profileDetector);
+  registerOutputCommands(context, proxyManager);
+  registerSaveCertificateCommand(context, proxyManager);
+}
 
-      const result = await proxyManager.start(currentProfile.id);
-      if (result.success) {
-        vscode.window.showInformationMessage(
-          t('commands.proxy.started', { port: String(result.port ?? '') })
-        );
-      } else {
-        vscode.window.showErrorMessage(
-          t('commands.proxy.startFailed', {
-            error: result.error ?? t('errors.unknown'),
-          })
-        );
-      }
-    }),
+function registerStartCommand(
+  context: vscode.ExtensionContext,
+  proxyManager: ProxyCommandManager,
+  profileDetector: IProfileDetector
+): void {
+  addCommand(context, 'cursorAccounts.proxy.start', async () => {
+    const currentProfile = await getEnabledCurrentProfile(profileDetector);
+    if (!currentProfile) return;
 
-    vscode.commands.registerCommand('cursorAccounts.proxy.stop', async () => {
-      const currentProfile = await getEnabledCurrentProfile(profileDetector);
-      if (!currentProfile) {
-        return;
-      }
-
-      await proxyManager.stop(currentProfile.id);
-      vscode.window.showInformationMessage(t('commands.proxy.stopped'));
-    }),
-
-    vscode.commands.registerCommand('cursorAccounts.proxy.showLogs', async () => {
-      const logDir = proxyManager.getLogDirectory();
-      await vscode.commands.executeCommand(
-        'revealFileInOS',
-        vscode.Uri.file(logDir)
+    const result = await proxyManager.start(currentProfile.id);
+    if (result.success) {
+      vscode.window.showInformationMessage(
+        t('commands.proxy.started', { port: String(result.port ?? '') })
       );
-    }),
+      return;
+    }
+    vscode.window.showErrorMessage(
+      t('commands.proxy.startFailed', {
+        error: result.error ?? t('errors.unknown'),
+      })
+    );
+  });
+}
 
-    vscode.commands.registerCommand(
-      'cursorAccounts.proxy.clearLogs',
-      async () => {
-        const confirmation = await vscode.window.showWarningMessage(
-          t('commands.proxy.logsDeleteConfirm'),
-          { modal: true },
-          t('commands.proxy.logsDeleteConfirmAction')
-        );
-        if (confirmation !== t('commands.proxy.logsDeleteConfirmAction')) {
-          return;
-        }
-        try {
-          const result = await proxyManager.clearLogFiles();
-          vscode.window.showInformationMessage(
-            t('commands.proxy.logsDeleted', {
-              count: String(result.deletedFiles),
-            })
-          );
-        } catch (error) {
-          vscode.window.showErrorMessage(
-            t('commands.proxy.logsDeleteFailed', {
-              error: error instanceof Error ? error.message : String(error),
-            })
-          );
-        }
-      }
-    ),
+function registerStopCommand(
+  context: vscode.ExtensionContext,
+  proxyManager: ProxyCommandManager,
+  profileDetector: IProfileDetector
+): void {
+  addCommand(context, 'cursorAccounts.proxy.stop', async () => {
+    const currentProfile = await getEnabledCurrentProfile(profileDetector);
+    if (!currentProfile) return;
 
-    vscode.commands.registerCommand('cursorAccounts.proxy.showOutput', async () => {
-      const currentProfile = await getEnabledCurrentProfile(profileDetector);
-      if (!currentProfile) {
-        return;
-      }
+    await proxyManager.stop(currentProfile.id);
+    vscode.window.showInformationMessage(t('commands.proxy.stopped'));
+  });
+}
 
-      const tailFromStart = vscode.workspace
-        .getConfiguration('cursorAccounts.proxy')
-        .get<boolean>('outputTailFromStart', false);
-      await proxyManager.ensureOutputTailer(currentProfile.id, { tailFromStart });
-      proxyManager.showOutputChannel();
-    }),
+function registerShowLogsCommand(
+  context: vscode.ExtensionContext,
+  proxyManager: ProxyCommandManager
+): void {
+  addCommand(context, 'cursorAccounts.proxy.showLogs', async () => {
+    await vscode.commands.executeCommand(
+      'revealFileInOS',
+      vscode.Uri.file(proxyManager.getLogDirectory())
+    );
+  });
+}
 
-    vscode.commands.registerCommand(
-      'cursorAccounts.proxy.showTokenDetector',
-      () => {
-        proxyManager.showTokenDetectorChannel();
-      }
-    ),
+function registerClearLogsCommand(
+  context: vscode.ExtensionContext,
+  proxyManager: ProxyCommandManager
+): void {
+  addCommand(context, 'cursorAccounts.proxy.clearLogs', async () => {
+    const action = t('commands.proxy.logsDeleteConfirmAction');
+    const confirmation = await vscode.window.showWarningMessage(
+      t('commands.proxy.logsDeleteConfirm'),
+      { modal: true },
+      action
+    );
+    if (confirmation !== action) return;
 
-    vscode.commands.registerCommand(
-      'cursorAccounts.proxy.saveCertificate',
-      async () => {
-        const result = await saveCaCertificateAs(proxyManager);
-        if (result.cancelled) {
-          return;
-        }
-        if (result.saved && result.path) {
-          vscode.window.showInformationMessage(
-            t('commands.proxy.saveCertificate.saved', { path: result.path })
-          );
-          return;
-        }
-        vscode.window.showErrorMessage(
-          t('commands.proxy.saveCertificate.failed', {
-            error:
-              result.error ?? t('commands.proxy.saveCertificate.notFound'),
-          })
-        );
-      }
-    )
-  );
+    try {
+      const result = await proxyManager.clearLogFiles();
+      vscode.window.showInformationMessage(
+        t('commands.proxy.logsDeleted', {
+          count: String(result.deletedFiles),
+        })
+      );
+    } catch (error) {
+      vscode.window.showErrorMessage(
+        t('commands.proxy.logsDeleteFailed', {
+          error: error instanceof Error ? error.message : String(error),
+        })
+      );
+    }
+  });
+}
+
+function registerShowOutputCommand(
+  context: vscode.ExtensionContext,
+  proxyManager: ProxyCommandManager,
+  profileDetector: IProfileDetector
+): void {
+  addCommand(context, 'cursorAccounts.proxy.showOutput', async () => {
+    const currentProfile = await getEnabledCurrentProfile(profileDetector);
+    if (!currentProfile) return;
+
+    const tailFromStart = vscode.workspace
+      .getConfiguration('cursorAccounts.proxy')
+      .get<boolean>('outputTailFromStart', false);
+    await proxyManager.ensureOutputTailer(currentProfile.id, { tailFromStart });
+    proxyManager.showOutputChannel();
+  });
+}
+
+function registerOutputCommands(
+  context: vscode.ExtensionContext,
+  proxyManager: ProxyCommandManager
+): void {
+  addCommand(context, 'cursorAccounts.proxy.showTokenDetector', () => {
+    proxyManager.showTokenDetectorChannel();
+  });
+}
+
+function registerSaveCertificateCommand(
+  context: vscode.ExtensionContext,
+  proxyManager: ProxyCommandManager
+): void {
+  addCommand(context, 'cursorAccounts.proxy.saveCertificate', async () => {
+    const result = await saveCaCertificateAs(proxyManager);
+    if (result.cancelled) return;
+    if (result.saved && result.path) {
+      vscode.window.showInformationMessage(
+        t('commands.proxy.saveCertificate.saved', { path: result.path })
+      );
+      return;
+    }
+    vscode.window.showErrorMessage(
+      t('commands.proxy.saveCertificate.failed', {
+        error: result.error ?? t('commands.proxy.saveCertificate.notFound'),
+      })
+    );
+  });
+}
+
+function addCommand(
+  context: vscode.ExtensionContext,
+  command: string,
+  handler: ProxyCommandHandler
+): void {
+  context.subscriptions.push(vscode.commands.registerCommand(command, handler));
 }
