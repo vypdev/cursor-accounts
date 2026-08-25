@@ -115,6 +115,13 @@ export async function installCaCertificateElevated(
     };
   }
 
+  if (platform !== 'darwin' && platform !== 'win32') {
+    return {
+      success: false,
+      error: `Automatic installation is not supported on ${platform}`,
+    };
+  }
+
   try {
     const alreadyInstalled = await verifyCaCertificateInstalled(platform);
     if (alreadyInstalled) {
@@ -165,7 +172,7 @@ export async function installCaCertificateElevated(
 
     return {
       success: false,
-      error: `Automatic installation is not supported on ${platform}`,
+      error: 'Automatic installation platform guard was bypassed',
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -222,6 +229,13 @@ export async function uninstallCaCertificate(
     };
   }
 
+  if (platform !== 'darwin' && platform !== 'win32') {
+    return {
+      success: false,
+      error: `Automatic removal is not supported on ${platform}`,
+    };
+  }
+
   try {
     const installed = await verifyCaCertificateInstalled(platform);
     if (!installed) {
@@ -272,7 +286,7 @@ export async function uninstallCaCertificate(
 
     return {
       success: false,
-      error: `Automatic removal is not supported on ${platform}`,
+      error: 'Automatic removal platform guard was bypassed',
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

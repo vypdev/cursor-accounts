@@ -8,8 +8,11 @@ import {
   buildWindowsVerifyCommand,
   escapePowerShellSingleQuoted,
   escapeShellDoubleQuoted,
+  installCaCertificateElevated,
   LINUX_SYSTEM_CA_PATH,
   LINUX_UNINSTALL_MANUAL_MESSAGE,
+  uninstallCaCertificate,
+  verifyCaCertificateInstalled,
 } from '../proxy/installCaCertificate';
 
 describe('installCaCertificate command builders', () => {
@@ -66,5 +69,29 @@ describe('installCaCertificate command builders', () => {
   it('LINUX_UNINSTALL_MANUAL_MESSAGE references system CA path', () => {
     assert.match(LINUX_UNINSTALL_MANUAL_MESSAGE, /cursor-accounts-mitm\.crt/);
     assert.match(LINUX_UNINSTALL_MANUAL_MESSAGE, /update-ca-certificates/);
+  });
+
+  it('keeps Linux installation and removal manual', async () => {
+    assert.deepEqual(await installCaCertificateElevated('/tmp/ca.pem', 'linux'), {
+      success: false,
+      error:
+        'Automatic installation is not supported on Linux. Use the terminal commands in the guide.',
+    });
+    assert.deepEqual(await uninstallCaCertificate('linux'), {
+      success: false,
+      error: LINUX_UNINSTALL_MANUAL_MESSAGE,
+    });
+  });
+
+  it('rejects unsupported platforms without spawning a process', async () => {
+    assert.deepEqual(await installCaCertificateElevated('/tmp/ca.pem', 'aix'), {
+      success: false,
+      error: 'Automatic installation is not supported on aix',
+    });
+    assert.deepEqual(await uninstallCaCertificate('aix'), {
+      success: false,
+      error: 'Automatic removal is not supported on aix',
+    });
+    assert.equal(await verifyCaCertificateInstalled('aix'), false);
   });
 });
