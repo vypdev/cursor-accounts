@@ -2,9 +2,9 @@ import * as vscode from 'vscode';
 import * as extensionLog from '../logging/extensionLog';
 import { isEnterpriseUsage } from '../domain';
 import type { QuotaUsage } from '../domain';
+import type { IProfileDetector } from '../domain/ports/IProfileDetector';
 import { getCursorAccountsConfig } from '../config';
 import { t } from '../l10n';
-import type { ProfileDetector } from '../profiles/profileDetector';
 import type { Profile } from '../profiles/types';
 import {
   buildQuotaText,
@@ -24,7 +24,7 @@ export class StatusBarManager {
 
   constructor(
     private readonly context: vscode.ExtensionContext,
-    private readonly profileDetector?: ProfileDetector
+    private readonly profileDetector?: IProfileDetector
   ) {
     this.quotaItem = vscode.window.createStatusBarItem(
       vscode.StatusBarAlignment.Right,

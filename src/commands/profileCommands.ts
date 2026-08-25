@@ -1,6 +1,6 @@
 import type * as vscode from 'vscode';
+import type { IProfileDetector } from '../domain/ports/IProfileDetector';
 import type { InstanceDetector } from '../profiles/instanceDetector';
-import type { ProfileDetector } from '../profiles/profileDetector';
 import type { ProfileLauncher } from '../profiles/profileLauncher';
 import type { IProfileManager } from '../domain/ports/IProfileManager';
 import type { ProfileCommandDeps } from './profileCommandDeps';
@@ -12,7 +12,7 @@ export function registerProfileCommands(
   context: vscode.ExtensionContext,
   profileManager: IProfileManager,
   profileLauncher: ProfileLauncher,
-  profileDetector: ProfileDetector,
+  profileDetector: IProfileDetector,
   instanceDetector?: InstanceDetector
 ): void {
   const deps: ProfileCommandDeps = {

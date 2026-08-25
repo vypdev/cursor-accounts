@@ -710,6 +710,13 @@ at degree 16, and `IProfileReader` at degree 43 after the extraction. The
 architecture gate now covers 428 TypeScript files and the complete
 extension-host checkpoint remains 785/785 tests.
 
+Concrete `ProfileDetector` dependencies are now expressed through
+`IProfileDetector` across authentication, commands, storage,
+model-efficiency, and Accounts panel consumers. The concrete adapter remains
+only at the composition boundary; its Graphify degree falls from 41 to 18,
+while the shared port has degree 43. The complete extension-host checkpoint
+remains 785/785 tests.
+
 Repowise still identifies low-coverage or high-coupling targets including
 `proxyDecode`, `ProxyManager`, `efficiencyAnalyzer`, `efficiencyService`,
 `composerDbPoller`, `statusBarManager`, and several broad type barrels. The

@@ -2,11 +2,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import type { IProfileAuthReader } from '../domain/ports/IProfileAuthReader';
+import type { IProfileDetector } from '../domain/ports/IProfileDetector';
 import type { IProfileManager } from '../domain/ports/IProfileManager';
 import * as extensionLog from '../logging/extensionLog';
 import * as lifecycleLog from '../logging/webviewLifecycleLog';
 import type { InstanceDetector } from '../profiles/instanceDetector';
-import type { ProfileDetector } from '../profiles/profileDetector';
 import type { ProfileLauncher } from '../profiles/profileLauncher';
 import type {
   FromWebviewMessage,
@@ -61,7 +61,7 @@ export class AccountsPanelProvider {
     private readonly context: vscode.ExtensionContext,
     profileManager: IProfileManager,
     profileLauncher: ProfileLauncher,
-    private readonly profileDetector: ProfileDetector,
+    private readonly profileDetector: IProfileDetector,
     private readonly quotaService: MultiProfileQuotaService,
     accountFetcher: ProfileAccountFetcher,
     private readonly instanceDetector: InstanceDetector,

@@ -1,8 +1,8 @@
 import type * as vscode from 'vscode';
 import type { CursorAuthTokens } from '@cursor-accounts/types';
 import type { IRefreshableTokenProvider } from '../domain/ports/ITokenProvider';
+import type { IProfileDetector } from '../domain/ports/IProfileDetector';
 import * as extensionLog from '../logging/extensionLog';
-import type { ProfileDetector } from '../profiles/profileDetector';
 import {
   getProfileSecretsKeys,
   getProfileStateDbPath,
@@ -19,7 +19,7 @@ export class TokenService implements IRefreshableTokenProvider {
 
   constructor(
     private readonly context: vscode.ExtensionContext,
-    private readonly profileDetector: ProfileDetector
+    private readonly profileDetector: IProfileDetector
   ) {
     this.extensionPath = context.extensionPath;
   }

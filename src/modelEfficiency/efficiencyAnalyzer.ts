@@ -1,4 +1,4 @@
-import type { ProfileDetector } from '../profiles/profileDetector';
+import type { IProfileDetector } from '../domain/ports/IProfileDetector';
 import type { IProfileWriter } from '../domain/ports/IProfileWriter';
 import * as extensionLog from '../logging/extensionLog';
 import type { MultiProfileQuotaService } from '../services/multiProfileQuotaService';
@@ -16,7 +16,7 @@ export class EfficiencyAnalyzer {
 
   constructor(
     profileWriter: IProfileWriter,
-    profileDetector: ProfileDetector,
+    profileDetector: IProfileDetector,
     apiKeyManager: ApiKeyManager,
     sdkClassifier: SdkClassifier,
     private readonly outputPresenter: OutputPresenter,

@@ -6,12 +6,12 @@ import type { ICacheCleanupService } from '../domain/ports/ICacheCleanupService'
 import type { IDatabaseCleanupService } from '../domain/ports/IDatabaseCleanupService';
 import type { IProfileStorageAnalyzer } from '../domain/ports/IProfileStorageAnalyzer';
 import type { IProfileReader } from '../domain/ports/IProfileReader';
+import type { IProfileDetector } from '../domain/ports/IProfileDetector';
 import type { IStorageCleanupService } from '../domain/ports/IStorageCleanupService';
 import { getProfileStateDbPath } from '../auth/cursorPaths';
 import * as extensionLog from '../logging/extensionLog';
 import { t } from '../l10n';
 import type { InstanceDetector } from '../profiles/instanceDetector';
-import type { ProfileDetector } from '../profiles/profileDetector';
 import { validateUserDataPath } from '../utils/pathUtils';
 import { formatBytes } from '@cursor-accounts/shared';
 import { EfficiencyDatabase, getEfficiencyDbPath } from '../persistence/efficiencyDatabase';
@@ -27,7 +27,7 @@ const EFFICIENCY_EVENTS_RETENTION_DAYS = 90;
 
 export interface StorageCleanupServiceDeps {
   profileManager: IProfileReader;
-  profileDetector: ProfileDetector;
+  profileDetector: IProfileDetector;
   instanceDetector: InstanceDetector;
   storageAnalyzer: IProfileStorageAnalyzer;
   cacheCleanup: ICacheCleanupService;

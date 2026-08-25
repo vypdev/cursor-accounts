@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import type { IProfileDetector } from '../domain/ports/IProfileDetector';
 import type { IProfileAuthReader } from '../domain/ports/IProfileAuthReader';
 import * as extensionLog from '../logging/extensionLog';
 import { t } from '../l10n';
@@ -10,7 +11,6 @@ import { EfficiencyAnalyzer } from './efficiencyAnalyzer';
 import type { EfficiencyStatsStorage } from './efficiencyStatsStorage';
 import { OutputPresenter } from './outputPresenter';
 import { CursorSdkClassifier } from './sdkClassifier';
-import type { ProfileDetector } from '../profiles/profileDetector';
 import type { MultiProfileQuotaService } from '../services/multiProfileQuotaService';
 
 export function getEfficiencyWrongWindowMessage(): string {
@@ -27,7 +27,7 @@ export class EfficiencyService {
   constructor(
     private readonly context: vscode.ExtensionContext,
     private readonly profileWriter: IProfileWriter,
-    private readonly profileDetector: ProfileDetector,
+    private readonly profileDetector: IProfileDetector,
     private readonly authReader: IProfileAuthReader,
     private readonly statsStorage: EfficiencyStatsStorage,
     private readonly multiProfileQuotaService: MultiProfileQuotaService

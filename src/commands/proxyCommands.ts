@@ -1,19 +1,19 @@
 import * as vscode from 'vscode';
+import type { IProfileDetector } from '../domain/ports/IProfileDetector';
 import type { IProxyCertificate } from '../domain/ports/IProxyCertificate';
 import type { IProxyLifecycle } from '../domain/ports/IProxyLifecycle';
 import type { IProxyOutput } from '../domain/ports/IProxyOutput';
 import type { IProxyStatus } from '../domain/ports/IProxyStatus';
-import type { ProfileDetector } from '../profiles/profileDetector';
 import { isProfileProxyEnabled } from '@cursor-accounts/types';
 import { t } from '../l10n';
 import { saveCaCertificateAs } from '../proxy/saveCaCertificate';
 
 type DetectedProfile = NonNullable<
-  Awaited<ReturnType<ProfileDetector['detectCurrentProfile']>>
+  Awaited<ReturnType<IProfileDetector['detectCurrentProfile']>>
 >;
 
 async function getEnabledCurrentProfile(
-  profileDetector: ProfileDetector
+  profileDetector: IProfileDetector
 ): Promise<DetectedProfile | null> {
   const currentProfile = await profileDetector.detectCurrentProfile();
   if (!currentProfile || !isProfileProxyEnabled(currentProfile)) {
@@ -29,7 +29,7 @@ export function registerProxyCommands(
     IProxyStatus &
     IProxyCertificate &
     IProxyOutput,
-  profileDetector: ProfileDetector,
+  profileDetector: IProfileDetector,
   onStatusChanged?: () => void
 ): void {
   proxyManager.onStatusChange(() => {

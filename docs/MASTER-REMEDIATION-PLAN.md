@@ -252,6 +252,12 @@ that historical baseline:
   `IProfileManager` Graphify hub to degree 36; the writer has degree 16 and the
   reader has degree 43 after the extraction. The architecture gate covers 428
   TypeScript files and the full extension-host checkpoint remains 785/785 tests.
+- Concrete `ProfileDetector` dependencies are now expressed through
+  `IProfileDetector` across authentication, commands, storage, model-efficiency,
+  and Accounts panel consumers. The concrete adapter remains only at the
+  composition boundary and its Graphify degree falls from 41 to 18; the shared
+  port has degree 43. The complete extension-host checkpoint remains 785/785
+  tests.
 - `CursorProcessScanner` now owns platform-specific process inspection and
   parser dispatch; `InstanceDetector` retains profile matching, cached state,
   polling, and notifications. Its focused cross-platform tests cover injected

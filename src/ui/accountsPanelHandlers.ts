@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import type { IProfileAuthReader } from '../domain/ports/IProfileAuthReader';
+import type { IProfileDetector } from '../domain/ports/IProfileDetector';
 import type { IProfileManager } from '../domain/ports/IProfileManager';
 import type { IProfileStorageAnalyzer } from '../domain/ports/IProfileStorageAnalyzer';
 import type { IStorageCleanupService } from '../domain/ports/IStorageCleanupService';
@@ -14,7 +15,6 @@ import type {
   FromWebviewMessage,
   ToWebviewMessage,
 } from '../profiles/types';
-import type { ProfileDetector } from '../profiles/profileDetector';
 import { resolveRecentProjectLaunch } from '../profiles/recentProjectLaunchRouter';
 import type { ProfileWorkspaceService } from '../services/profileWorkspaceService';
 import type { IProfileSettingsManager } from '../domain/ports/IProfileSettingsManager';
@@ -42,7 +42,7 @@ export interface AccountsPanelHandlerCallbacks {
 export interface AccountsPanelHandlerDeps {
   profileManager: IProfileManager;
   profileLauncher: ProfileLauncher;
-  profileDetector: ProfileDetector;
+  profileDetector: IProfileDetector;
   efficiencyService: EfficiencyService;
   authReader: IProfileAuthReader;
   instanceDetector: InstanceDetector;

@@ -1,10 +1,10 @@
 import type * as vscode from 'vscode';
+import type { IProfileDetector } from '../domain/ports/IProfileDetector';
 import type { IProfileStorageAnalyzer } from '../domain/ports/IProfileStorageAnalyzer';
 import type { IProfileReader } from '../domain/ports/IProfileReader';
 import type { IStorageCleanupService } from '../domain/ports/IStorageCleanupService';
 import type { EfficiencyService } from '../modelEfficiency/efficiencyService';
 import type { InstanceDetector } from '../profiles/instanceDetector';
-import type { ProfileDetector } from '../profiles/profileDetector';
 import { StorageCleanupService } from '../services/storageCleanupService';
 import { NodeFileSystemService } from '../storage/nodeFileSystemService';
 import { ProfileStorageAnalyzer } from '../storage/profileStorageAnalyzer';
@@ -24,7 +24,7 @@ export interface AccountsPanelStorageBundle {
 export function createAccountsPanelStorageBundle(params: {
   context: vscode.ExtensionContext;
   profileReader: IProfileReader;
-  profileDetector: ProfileDetector;
+  profileDetector: IProfileDetector;
   instanceDetector: InstanceDetector;
   efficiencyService: EfficiencyService;
 }): AccountsPanelStorageBundle {

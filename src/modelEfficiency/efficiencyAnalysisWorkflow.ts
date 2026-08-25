@@ -1,7 +1,7 @@
 import { t } from '../l10n';
 import * as extensionLog from '../logging/extensionLog';
+import type { IProfileDetector } from '../domain/ports/IProfileDetector';
 import type { IProfileWriter } from '../domain/ports/IProfileWriter';
-import type { ProfileDetector } from '../profiles/profileDetector';
 import type { Profile } from '../profiles/types';
 import type { MultiProfileQuotaService } from '../services/multiProfileQuotaService';
 import type { PromptEventRecord } from '../persistence/types';
@@ -16,7 +16,7 @@ import type { PromptMetadata } from './types';
 export class EfficiencyAnalysisWorkflow {
   constructor(
     private readonly profileWriter: IProfileWriter,
-    private readonly profileDetector: ProfileDetector,
+    private readonly profileDetector: IProfileDetector,
     private readonly apiKeyManager: ApiKeyManager,
     private readonly sdkClassifier: SdkClassifier,
     private readonly outputPresenter: OutputPresenter,

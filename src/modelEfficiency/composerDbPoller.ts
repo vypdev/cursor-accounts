@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { getProfileStateDbPath } from '../auth/cursorPaths';
-import type { ProfileDetector } from '../profiles/profileDetector';
+import type { IProfileDetector } from '../domain/ports/IProfileDetector';
 import type { Profile } from '../profiles/types';
 import * as extensionLog from '../logging/extensionLog';
 import {
@@ -64,7 +64,7 @@ export class ComposerDbPoller {
 
   constructor(
     private readonly context: vscode.ExtensionContext,
-    private readonly profileDetector: ProfileDetector,
+    private readonly profileDetector: IProfileDetector,
     private readonly extensionPath: string,
     private readonly analyzer: EfficiencyAnalyzer
   ) {}

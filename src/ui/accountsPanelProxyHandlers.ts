@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { isProfileProxyEnabled } from '@cursor-accounts/types';
-import type { ProfileDetector } from '../profiles/profileDetector';
+import type { IProfileDetector } from '../domain/ports/IProfileDetector';
 import type { ToWebviewMessage } from '../profiles/types';
 import type { IProxyCertificate } from '../domain/ports/IProxyCertificate';
 import type { IProxyLifecycle } from '../domain/ports/IProxyLifecycle';
@@ -9,7 +9,7 @@ import { saveCaCertificateAs } from '../proxy/saveCaCertificate';
 import { t } from '../l10n';
 
 export interface AccountsPanelProxyHandlerDependencies {
-  profileDetector: ProfileDetector;
+  profileDetector: IProfileDetector;
   proxyManager: IProxyLifecycle & IProxyCertificate & IProxyOutput;
 }
 
