@@ -102,7 +102,7 @@ Unknown webview messages are validated at the message boundary.
 | Safe API error serialization | `src/test/proxy/api/errorHandler.test.ts` |
 | Header/body redaction | `src/test/requestLogger.test.ts`, `src/test/bodyCapture.test.ts` |
 | Sidecar traversal/symlink safety | `src/test/bodyCapture.test.ts`, `src/test/proxyLogCleanup.test.ts` |
-| History secret scan | `repowise security scan --history --format json` — zero findings on 168 commits, 4,340 blobs, and 2,516 files on 2026-08-25 |
+| History secret scan | `repowise security scan --history --format json` — zero findings on 211 commits, 4,522 blobs, and 2,572 files on 2026-08-25 |
 | Full regression gates | `CI=true npx --yes pnpm@10.34.0 run audit` |
 
 ## Open actions
