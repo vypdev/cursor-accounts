@@ -66,6 +66,12 @@ Completed slices are recorded below so the plan cannot drift from the code.
   `ProxyManager` remains the compatibility facade and supplies runtime state
   and tailer callbacks through dependency injection. Four focused tests protect
   the extracted behavior.
+- **Tracking persistence decomposition:** `AgentTrackingPersistenceCoordinator`
+  now selects the first applicable persistence strategy, while
+  `AgentTrackingPersistenceWriter` owns repository record construction, event
+  keys, minute buckets, delta-cost resolution, and turn-snapshot writes. The
+  coordinator has no direct repository writes, and direct writer tests cover
+  live deltas, no-op deltas, detected turns, and incomplete turn-ended events.
 - **Security hardening started:** webview error rendering is text-safe, Windows
   process launch no longer enables `shell`, loopback validation ignores
   spoofable forwarding headers, persisted proxy headers redact credentials,
@@ -310,6 +316,15 @@ that historical baseline:
   checkpoint passes 789/789 tests, the architecture gate covers 430 TypeScript
   files, Graphify reports 4,803 nodes and 9,685 edges, and Repowise safe-only
   dead-code analysis reports no findings.
+- `AgentTrackingPersistenceWriter` now owns the persistence record-writing
+  strategies previously embedded in `AgentTrackingPersistenceCoordinator`.
+  The coordinator is 89 lines with Graphify degree 7; the writer has Graphify
+  degree 18 and remains a single-purpose application writer. The architecture
+  gate covers 433 TypeScript files, the latest checkpoint passes 793/793 tests,
+  Graphify reports 4,832 nodes and 9,770 edges, and Repowise safe-only
+  dead-code analysis reports no findings. The cycle introduced during the first
+  extraction attempt was rejected by the architecture gate and removed by
+  moving shared persistence contracts to `agentTrackingPersistenceTypes.ts`.
 
 ### 3.2 Target state
 
@@ -917,9 +932,28 @@ Required tests:
 
 ### W4.3 Tracking service and persistence coordinator
 
-The previous extraction reduced `AgentTrackingService.ingestTraffic`, but the
-coordinator's `persist` method remains branch-heavy. Split persistence policy
-into strategies or pure builders only after adding characterization tests for:
+The previous extraction reduced `AgentTrackingService.ingestTraffic`. The
+latest slice also separates persistence strategy selection from repository
+record construction: `AgentTrackingPersistenceCoordinator` owns priority and
+`AgentTrackingPersistenceWriter` owns strategy-specific writes.
+
+Completed in this phase:
+
+- turn-ended billing rows;
+- context/token detail rows;
+- live token delta aggregation and cost resolution;
+- batch turn detection;
+- token snapshots;
+- no-op/incomplete event guards;
+- event-key construction and replay identity preservation;
+- direct writer tests for the extracted boundary.
+
+Remaining work in this area is limited to the SQLite repository seams below and
+coverage floors for the broader tracking subsystem. Do not add another policy
+branch to the coordinator without a dedicated strategy or characterization
+test.
+
+The preserved behavior is covered by:
 
 - turn-ended billing rows;
 - context/token detail rows;

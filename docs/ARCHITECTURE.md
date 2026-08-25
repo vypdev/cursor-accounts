@@ -401,7 +401,7 @@ The live usage status bar keys sessions by bidi `request_id` and **sums** all ac
 
 ### Live agent tokens and turn persistence
 
-**Live UI (primary):** [`StreamingAgentDecoder`](../src/proxy/streamingAgentDecoder.ts) in `mitmProxyServer` emits incremental `token_delta` summaries (`isLiveTokenUpdate`) and billing-grade `turn_ended` rows (`isTurnEnded`) to the proxy API WebSocket. [`AgentLiveUsageStatusBar`](../src/ui/agentLiveUsageStatusBar.ts) sums active sessions; [`AgentTrackingService`](../src/services/agentTrackingService.ts) persists `turn_ended` snapshots without requiring `turn_index`.
+**Live UI (primary):** [`StreamingAgentDecoder`](../src/proxy/streamingAgentDecoder.ts) in `mitmProxyServer` emits incremental `token_delta` summaries (`isLiveTokenUpdate`) and billing-grade `turn_ended` rows (`isTurnEnded`) to the proxy API WebSocket. [`AgentLiveUsageStatusBar`](../src/ui/agentLiveUsageStatusBar.ts) sums active sessions; [`AgentTrackingService`](../src/services/agentTrackingService.ts) resolves identity and upserts conversation/agent records, then [`AgentTrackingPersistenceCoordinator`](../src/application/services/agentTrackingPersistenceCoordinator.ts) selects the persistence path and [`AgentTrackingPersistenceWriter`](../src/application/services/agentTrackingPersistenceWriter.ts) builds repository records without exposing SQL to the application layer.
 
 **Batch / offline heuristic (secondary):** [`TokenTurnDetectionService`](../src/domain/services/tokenTurnDetectionService.ts) applies peak/reset thresholds (≥300 / ≤150) only when `AgentTrackingService` ingests traffic with `allTokenFrames[]` (e.g. full RunSSE body replay). It is **not** used for live status bar updates.
 

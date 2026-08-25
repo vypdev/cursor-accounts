@@ -785,6 +785,30 @@ surface, while the manager remains a compatibility facade. The next review
 should measure source size, complexity, and responsibility concentration rather
 than treating degree alone as a success criterion.
 
+### Persistence checkpoint — 2026-08-25
+
+The persistence follow-up separates event-priority selection from repository
+record construction. `AgentTrackingPersistenceCoordinator` now selects the
+first applicable path, while `AgentTrackingPersistenceWriter` owns turn-ended,
+context, live-delta, detected-turn, batch-delta, and token-snapshot writes,
+including event-key and cost-resolution policy. Shared application contracts
+live in `agentTrackingPersistenceTypes.ts`, so the architecture gate remains
+cycle-free.
+
+Evidence for this follow-up:
+
+- `pnpm test`: 793/793 tests passed across 252 suites;
+- `pnpm run check:architecture`: passed for 433 TypeScript files;
+- `pnpm run check:docs`: passed for 43 Markdown files;
+- Graphify: 4,832 nodes and 9,770 edges;
+- Graphify degrees: coordinator 7, writer 18;
+- Repowise `dead-code --safe-only --format json`: no findings;
+- direct writer tests: 4/4 passed.
+
+The first implementation attempt created a coordinator/writer type-import
+cycle. The architecture gate caught it before commit; the shared contracts
+were moved to the independent types module and the gate then passed.
+
 ## 12. Prioritized remediation plan
 
 ### Phase 0 — Release blockers and deterministic validation
