@@ -23,7 +23,7 @@ acceptance criteria and evidence are recorded.
 |---|---|---|---|---|
 | QA-0 | Baseline and finding reclassification | COMPLETE | pnpm run audit passes; current Graphify/Repowise/dependency evidence captured on 2026-08-25 | Keep this baseline immutable and update it after every cross-cutting change |
 | QA-1 | CI, tests, localization, lint | PARTIAL | Full audit passes with 864 host tests, 79.84% lines, 74.15% branches, and 79.05% functions; localization is 26 locales/428 keys and webview is 18/18 | Add repeated host-run evidence and review generated-artifact/source-lint policy |
-| QA-2 | Dependencies and supply chain | PARTIAL | SDK `1.0.28`, legacy npm `sqlite3` removed, targeted `uuid@11.1.1` and `undici@6.28.0` overrides resolve; pinned pnpm 10.34 production audit reports 0 advisories; clean VSIX tree has no package-manager store | Add a supported signature-audit utility, SBOM/license review, and independent compatibility evidence before marking complete |
+| QA-2 | Dependencies and supply chain | PARTIAL | SDK `1.0.28`, legacy npm `sqlite3` removed, targeted `uuid@11.1.1` and `undici@6.28.0` overrides resolve; pinned pnpm 10.34 production audit reports 0 advisories; isolated pnpm 11.19 signature audit verifies 163/163 packages; CycloneDX 1.5 SBOM contains 163 components; clean VSIX tree has no package-manager store | Review Cursor vendor terms and semaphore MIT attribution, decide SBOM retention, and automate the isolated signature/SBOM evidence before marking complete |
 | QA-3 | Native runtime and packaging | PARTIAL | Current-target clean build passes with dynamic Electron ABI 128, official SHA-256 validation, sanitized runtime native tree, clean-room Node 24/pnpm 10 installation, and 49.66 MiB VSIX verification | Expand evidence across the complete darwin, Linux, and Windows target matrix |
 | QA-4 | Token and cost correctness | PARTIAL | Accounting contract, authoritative server-cost precedence, model-aware fallback calculation, non-finite input guards, and SQLite replay golden test are implemented | Expand coverage across all decoder shapes, pricing refresh/versioning, rounding policy, and unknown/cache-rate reconciliation |
 | QA-5 | Clean Architecture enforcement | PARTIAL | TypeScript-AST resolver-backed checker passes for 296 production files; negative fixtures cover domain/application/package/cycle cases; the new restore contract remains behind the domain port and adapter boundary; current Graphify/Repowise hotspots remain | Refactor the highest-risk low-coverage infrastructure modules without weakening the contract, then add characterization and failure-path tests |
@@ -102,6 +102,10 @@ visible `node_modules` paths before VSCE invokes npm-packlist. VSIX verification
 accepts both hoisted and virtual-store layouts, so it validates runtime
 contents rather than a pnpm implementation detail. Clean-room installation and
 the complete supported-target matrix remain open acceptance criteria.
+
+The current dependency-security, signature, SBOM, and production-license
+evidence is recorded in
+[SUPPLY-CHAIN-EVIDENCE-2026-08-25.md](SUPPLY-CHAIN-EVIDENCE-2026-08-25.md).
 
 ### Graphify
 
@@ -854,6 +858,7 @@ The following historical findings are reclassified from the current baseline:
 | 2026-08-25 | QA-6.6/QA-7.11/QA-8.11 SQLite artifact and child-stop recovery slice | 87ff608 | Replaced raw database copying with `VACUUM INTO`, preserved corrupted database sidecars, added real SIGTERM-ignore/SIGKILL escalation coverage, 56/56 focused tests, full audit at 79.79%/74.19%/78.94%, Graphify 5,207 nodes/12,180 raw edges, Repowise average health 8.46/10 and safe-only dead-code empty, remote workflow 32850441389 green |
 | 2026-08-25 | QA-6.7/QA-7.12/QA-8.12 SQLite restore and partial-failure slice | 57d4314 | Added validated SQLite backup restore, corrupt-backup rejection, partial cleanup byte reporting, separate-process long-reader checkpoint evidence, 27/27 focused storage/concurrency tests, full audit at 79.84%/74.15%/79.05%, Graphify 5,215 nodes/12,200 raw edges, Repowise health 8.46/10, safe-only dead-code empty, and zero history security findings |
 | 2026-08-25 | QA-2/QA-3 clean-room packaging and store-exclusion evidence | Pending | Empty external pnpm store, Node 24.19.0, pnpm 10.34.0, current-target build and VSIX verification passed; local store contamination reproduced and prevented; production audit 0 advisories; signature audit remains explicitly open because pinned pnpm 10 does not provide the documented pnpm 11 command |
+| 2026-08-25 | QA-2 signature, SBOM, and license evidence slice | Pending | Isolated pnpm 11.19 signature audit verified 163/163 production packages; lockfile-only CycloneDX 1.5 SBOM contains 163 components; pnpm 10.34 production license inventory contains 157 records in 10 groups, with unknown licenses for `@cursor/sdk` and `semaphore`; compliance resolution remains open |
 | 2026-08-25 | QA-3 toolchain contract and target-matrix documentation slice | Pending | Runtime contract validation added to audit/build/CI/release/hotfix; Node 24.19.0/pnpm 10.34.0 full audit and current-target build passed; six-target packaging remains a remote runner gate |
 
 This register must be updated in the same commit as each task's implementation
