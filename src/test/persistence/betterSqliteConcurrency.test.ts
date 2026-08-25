@@ -1,5 +1,6 @@
 import { describe, it, before, after } from 'node:test';
 import * as assert from 'node:assert';
+import { spawn } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
@@ -29,6 +30,44 @@ describe('BetterSqlite Concurrency (Multi-Window Simulation)', () => {
       // Ignore cleanup errors
     }
   });
+
+  function runProcessWorker(
+    dbPath: string,
+    workerId: string,
+    count: number
+  ): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const worker = spawn(
+        process.execPath,
+        [
+          path.join(__dirname, 'betterSqliteProcessWorker.js'),
+          dbPath,
+          workerId,
+          String(count),
+        ],
+        { stdio: ['ignore', 'ignore', 'pipe'] }
+      );
+      let stderr = '';
+      worker.stderr?.setEncoding('utf8');
+      worker.stderr?.on('data', (chunk: string) => {
+        stderr += chunk;
+      });
+      worker.once('error', reject);
+      worker.once('close', (code, signal) => {
+        if (code === 0) {
+          resolve();
+          return;
+        }
+        reject(
+          new Error(
+            `SQLite worker ${workerId} exited with ${
+              code === null ? `signal ${signal ?? 'unknown'}` : `code ${code}`
+            }${stderr.trim() ? `: ${stderr.trim()}` : ''}`
+          )
+        );
+      });
+    });
+  }
 
   it('two managers can write to same database without lock errors', async () => {
     const manager1 = new BetterSqliteConnectionManager();
@@ -64,6 +103,46 @@ describe('BetterSqlite Concurrency (Multi-Window Simulation)', () => {
       await manager2.closeAllConnections();
     }
   });
+
+  it(
+    'supports concurrent writes from separate Node processes and reopens cleanly',
+    { timeout: 30_000 },
+    async () => {
+      const manager = new BetterSqliteConnectionManager();
+      const dbPath = path.join(tempDir, 'multi-process.db');
+      const rowsPerWorker = 100;
+
+      try {
+        const connection = await manager.getConnection(dbPath);
+        connection.run(
+          'CREATE TABLE process_events (id INTEGER PRIMARY KEY AUTOINCREMENT, worker_id TEXT NOT NULL, sequence INTEGER NOT NULL)'
+        );
+
+        await Promise.all([
+          runProcessWorker(dbPath, 'worker-a', rowsPerWorker),
+          runProcessWorker(dbPath, 'worker-b', rowsPerWorker),
+        ]);
+
+        const count = connection.get<{ count: number }>(
+          'SELECT COUNT(*) AS count FROM process_events'
+        );
+        assert.equal(count?.count, rowsPerWorker * 2);
+      } finally {
+        await manager.closeAllConnections();
+      }
+
+      const reopenedManager = new BetterSqliteConnectionManager();
+      try {
+        const reopened = await reopenedManager.getConnection(dbPath);
+        const count = reopened.get<{ count: number }>(
+          'SELECT COUNT(*) AS count FROM process_events'
+        );
+        assert.equal(count?.count, rowsPerWorker * 2);
+      } finally {
+        await reopenedManager.closeAllConnections();
+      }
+    }
+  );
 
   it('WAL files are created when using WAL mode', async () => {
     const manager = new BetterSqliteConnectionManager();

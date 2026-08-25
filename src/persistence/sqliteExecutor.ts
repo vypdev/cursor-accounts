@@ -102,7 +102,7 @@ export class SqliteExecutor {
     await fsPromises.mkdir(path.dirname(this.dbPath), { recursive: true });
 
     return new Promise((resolve, reject) => {
-      const child = spawn(binary, [this.dbPath], {
+      const child = spawn(binary, ['-bail', this.dbPath], {
         stdio: ['pipe', 'pipe', 'pipe'],
       });
 

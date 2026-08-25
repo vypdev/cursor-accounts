@@ -5,6 +5,8 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
 import { getSqlite3Binary } from '../../auth/sqliteBinary';
+import { BetterSqliteConnectionManager } from '../../persistence/betterSqlite/betterSqliteConnectionManager';
+import { BetterSqliteAgentTrackingSchemaInitializer } from '../../persistence/betterSqlite/betterSqliteAgentTrackingSchemaInitializer';
 import { DatabaseMigrator } from '../../persistence/databaseMigrations';
 
 const extensionPath = path.join(__dirname, '..', '..', '..');
@@ -13,6 +15,21 @@ function runSqlite(dbPath: string, sql: string): string {
   return execFileSync(getSqlite3Binary(extensionPath), ['-json', dbPath, sql], {
     encoding: 'utf8',
   });
+}
+
+async function applyMigrationsThrough(
+  migrator: DatabaseMigrator,
+  version: number
+): Promise<void> {
+  const migrations = await migrator.loadMigrations();
+  for (const migration of migrations.filter((item) => item.version <= version)) {
+    await migrator.getExecutor().runScript(migration.sql);
+    await migrator.getExecutor().runStatement(
+      `INSERT INTO database_metadata (key, value, updated_at)
+       VALUES ('schema_version', '${migration.version}', ${Math.floor(Date.now() / 1000)})
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at;`
+    );
+  }
 }
 
 describe('DatabaseMigrator', () => {
@@ -73,6 +90,66 @@ describe('DatabaseMigrator', () => {
     assert.equal(second.migrationsApplied.length, 0);
   });
 
+  it('rolls back a failed migration and retries cleanly after the conflict is removed', async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'db-migrate-'));
+    const dbPath = path.join(tempDir, 'efficiency.db');
+    const migrator = new DatabaseMigrator(dbPath, extensionPath);
+
+    await applyMigrationsThrough(migrator, 8);
+    runSqlite(
+      dbPath,
+      'CREATE TABLE agent_tokens_delta_events (conflicting_column TEXT);'
+    );
+
+    const failed = await migrator.migrate();
+    assert.equal(failed.success, false);
+    assert.equal(failed.fromVersion, 8);
+    assert.equal(failed.toVersion, 8);
+    assert.equal(await migrator.getCurrentVersion(), 8);
+
+    const columns = JSON.parse(
+      runSqlite(dbPath, 'PRAGMA table_info(agent_tokens);')
+    ) as Array<{ name: string }>;
+    assert.equal(
+      columns.some((column) => column.name === 'event_key'),
+      false,
+      'Failed migration must not leave partially added columns'
+    );
+
+    runSqlite(dbPath, 'DROP TABLE agent_tokens_delta_events;');
+    const retried = await migrator.migrate();
+    assert.equal(retried.success, true);
+    assert.equal(retried.fromVersion, 8);
+    assert.equal(retried.toVersion, 9);
+    assert.equal(await migrator.getCurrentVersion(), 9);
+  });
+
+  it('fails schema initialization when migration fails instead of accepting partial state', async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'db-migrate-'));
+    const dbPath = path.join(tempDir, 'efficiency.db');
+    const migrator = new DatabaseMigrator(dbPath, extensionPath);
+    await applyMigrationsThrough(migrator, 8);
+    runSqlite(
+      dbPath,
+      'CREATE TABLE agent_tokens_delta_events (conflicting_column TEXT);'
+    );
+
+    const manager = new BetterSqliteConnectionManager();
+    try {
+      const initializer = new BetterSqliteAgentTrackingSchemaInitializer(
+        manager,
+        dbPath,
+        extensionPath
+      );
+      await assert.rejects(
+        () => initializer.initialize(),
+        /Agent tracking database migration failed/
+      );
+    } finally {
+      await manager.closeAllConnections();
+    }
+  });
+
   it('rejects invalid migration filenames', () => {
     tempDir = path.join(os.tmpdir(), 'unused');
     const migrator = new DatabaseMigrator(
@@ -103,17 +180,7 @@ describe('DatabaseMigrator', () => {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'db-migrate-'));
     const dbPath = path.join(tempDir, 'efficiency.db');
     const migrator = new DatabaseMigrator(dbPath, extensionPath);
-    const migrations = await migrator.loadMigrations();
-    const throughV3 = migrations.filter((m) => m.version <= 3);
-
-    for (const migration of throughV3) {
-      await migrator.getExecutor().runScript(migration.sql);
-      await migrator.getExecutor().runStatement(
-        `INSERT INTO database_metadata (key, value, updated_at)
-         VALUES ('schema_version', '${migration.version}', ${Math.floor(Date.now() / 1000)})
-         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at;`
-      );
-    }
+    await applyMigrationsThrough(migrator, 3);
 
     runSqlite(
       dbPath,

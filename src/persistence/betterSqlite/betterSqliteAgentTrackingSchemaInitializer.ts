@@ -24,7 +24,14 @@ export class BetterSqliteAgentTrackingSchemaInitializer {
 
     const conn = await this.connectionManager.getConnection(this.dbPath);
     const migrator = new DatabaseMigrator(this.dbPath, this.extensionPath);
-    await migrator.migrate();
+    const migration = await migrator.migrate();
+    if (!migration.success) {
+      throw new Error(
+        `Agent tracking database migration failed: ${
+          migration.error ?? 'unknown error'
+        }`
+      );
+    }
 
     const tables = conn.all<{ name: string }>(
       "SELECT name FROM sqlite_master WHERE type='table'"
