@@ -52,7 +52,13 @@ function createDependencies(overrides: {
   clearLogFiles?: () => Promise<{ deletedFiles: number; deletedBytes: number }>;
   getCertificatePath?: () => Promise<string | null>;
 } = {}) {
-  const calls = { starts: 0, stops: [] as string[], clears: 0, outputTailers: 0 };
+  const calls = {
+    starts: 0,
+    stops: [] as string[],
+    clears: 0,
+    outputTailers: 0,
+    tokenChannels: 0,
+  };
   const proxyManager = {
     onStatusChange: (callback: () => void) => {
       callback();
@@ -78,7 +84,9 @@ function createDependencies(overrides: {
       calls.outputTailers += 1;
     },
     showOutputChannel: () => undefined,
-    showTokenDetectorChannel: () => undefined,
+    showTokenDetectorChannel: () => {
+      calls.tokenChannels += 1;
+    },
     getCertificatePath: async () =>
       overrides.getCertificatePath
         ? await overrides.getCertificatePath()
@@ -181,6 +189,22 @@ describe('registerProxyCommands', () => {
 
     assert.deepEqual(dependencies.calls.stops, ['profile-1']);
     assert.equal(dependencies.calls.outputTailers, 1);
+  });
+
+  it('reveals logs and opens the token detector output channel', async () => {
+    const executedCommands: string[] = [];
+    (vscode.commands as unknown as {
+      executeCommand: (command: string, ...args: unknown[]) => Promise<unknown>;
+    }).executeCommand = async (command) => {
+      executedCommands.push(command);
+    };
+    const dependencies = register();
+
+    await registeredHandlers.get('cursorAccounts.proxy.showLogs')!();
+    await registeredHandlers.get('cursorAccounts.proxy.showTokenDetector')!();
+
+    assert.deepEqual(executedCommands, ['revealFileInOS']);
+    assert.equal(dependencies.calls.tokenChannels, 1);
   });
 
   it('requires confirmation before deleting logs and reports failures', async () => {
