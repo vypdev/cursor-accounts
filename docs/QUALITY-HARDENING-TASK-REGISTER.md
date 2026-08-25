@@ -41,7 +41,7 @@ acceptance criteria and evidence are recorded.
 |---|---|
 | Branch | feature/3-mitm-proxy |
 | Latest implementation commit | 9ef232a |
-| Latest documentation commit | 235de81 |
+| Latest documentation commit | de9e730 |
 | Node | v22.23.1 |
 | pnpm | 11.19.0 |
 | Graphify | 0.9.48 |
@@ -295,7 +295,10 @@ permission normalization, cancelled Windows installation, and successful
 post-removal verification. The current c8 record reports 69.96% lines,
 69.56% branches, and 91.66% functions for `installCaCertificate.ts`. The seam
 does not claim real administrator/UAC execution; that remains a cross-platform
-release-matrix responsibility.
+release-matrix responsibility. After the final Repowise re-index, its health
+report still shows approximately 26% coverage for this file, so the c8 report
+is the authoritative coverage evidence and the Repowise ingestion mismatch is
+tracked as an unresolved tooling issue, consistently with `proxyDecode.ts`.
 
 ## QA-7.2 proxy child failure cleanup checkpoint — 2026-08-25
 
