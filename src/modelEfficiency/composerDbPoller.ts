@@ -4,14 +4,13 @@ import type { ProfileDetector } from '../profiles/profileDetector';
 import type { Profile } from '../profiles/types';
 import * as extensionLog from '../logging/extensionLog';
 import {
-  bubbleCreatedAtMs,
-  extractPlainTextFromRichText,
   extractWorkspaceRoots,
   getUserBubbleHeaders,
   parseBubbleRow,
   parseComposerData,
   parseComposerHeaders,
 } from './composerDbParse';
+import { buildPromptMetadata } from './composerPromptMetadata';
 import type { EfficiencyAnalyzer } from './efficiencyAnalyzer';
 import { GitBranchDetector } from './gitBranchDetector';
 import type {
@@ -31,7 +30,7 @@ import {
 import type {
   ComposerHeaderEntry,
   DbPollerState,
-  PromptMetadata} from './types';
+} from './types';
 import {
   DB_POLLER_STATE_KEY,
   SEEN_BUBBLES_CAP_PER_COMPOSER,
@@ -288,39 +287,19 @@ export class ComposerDbPoller {
         bubbleIdKey(composerId, bubbleId),
         this.extensionPath
       );
-      const bubble = parseBubbleRow(bubbleRaw);
-      if (!bubble || bubble.type !== 1) {
-        continue;
-      }
-
-      const createdAtMs = bubbleCreatedAtMs(bubble);
-      if (
-        createdAtMs !== undefined &&
-        !Number.isNaN(enabledAtMs) &&
-        createdAtMs < enabledAtMs
-      ) {
-        continue;
-      }
-
-      let prompt = typeof bubble.text === 'string' ? bubble.text.trim() : '';
-      if (!prompt && bubble.richText) {
-        prompt = extractPlainTextFromRichText(bubble.richText);
-      }
-      if (!prompt) {
-        continue;
-      }
-
-      const metadata: PromptMetadata = {
-        timestamp: createdAtMs ?? lastUpdated,
-        prompt,
+      const metadata = buildPromptMetadata(parseBubbleRow(bubbleRaw), {
+        composerId,
+        profileEmail: profile.email,
         model,
         modelResolved: resolved.resolved,
-        attachments: [],
-        conversationId: composerId,
         workspaceRoots,
         gitBranch,
-        userEmail: profile.email,
-      };
+        lastUpdated,
+        enabledAtMs,
+      });
+      if (!metadata) {
+        continue;
+      }
 
       extensionLog.info(
         `[ComposerDbPoller] New user prompt in ${composerId.slice(0, 8)}…`

@@ -138,10 +138,10 @@ The audit baseline is commit `9a116cf` on branch
 The implementation state after the completed slices is tracked separately from
 that historical baseline:
 
-- the latest full extension-host checkpoint passed 778 tests;
+- the latest full extension-host checkpoint passed 782 tests;
 - the webview suite has 18 passing tests;
 - localization has 26 locales with 428 keys each;
-- the architecture gate checks 423 TypeScript files, with valid, boundary,
+- the architecture gate checks 425 TypeScript files, with valid, boundary,
   cycle, and unresolved-import fixtures passing;
 - current-target packaging produced and verified
   `cursor-accounts-darwin-arm64-0.1.34.vsix`; stale artifacts are excluded by
@@ -155,7 +155,7 @@ that historical baseline:
 - Documentation validation covers 43 Markdown files and caught stale links to
   the former application-layer proxy ingress path before the gate was enabled.
 - Graphify was refreshed after the latest proxy, Accounts Panel, and model-efficiency
-  extractions; the graph now contains 4,770 nodes and 9,601 edges. Repowise reports zero safe-only dead-code
+  extractions; the graph now contains 4,776 nodes and 9,614 edges. Repowise reports zero safe-only dead-code
   findings; its 30 medium-confidence candidates remain retained pending
   runtime/public-contract evidence.
 - `EfficiencyAnalyzer` now delegates scheduling to `EfficiencyAnalysisQueue`
@@ -167,6 +167,13 @@ that historical baseline:
   windows, missing API keys, profile conflicts, successful scoring, and event
   persistence. The queue also closes a deduplication gap for work waiting for
   a concurrency slot.
+- `ComposerDbPoller` now delegates pure `BubbleRow` eligibility and
+  `PromptMetadata` construction to `buildPromptMetadata` in
+  `composerPromptMetadata.ts`. The new boundary has 100% line, branch, and
+  function coverage and keeps SQLite reads, watermark updates, and analyzer
+  scheduling in the poller. Its focused tests cover text and rich-text
+  prompts, timestamp fallbacks, non-user/empty/pre-enabled bubbles, and
+  malformed timestamps.
 - `ProxyTrafficUsageCoordinator` now owns agent-traffic classification,
   shared/per-profile ingestion decisions, and persisted-usage notifications;
   its focused tests pass and coverage is 99.1% lines / 100% functions.

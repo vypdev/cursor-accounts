@@ -47,6 +47,8 @@ See [CONFIGURATION.md](CONFIGURATION.md) for all settings.
 The extension host keeps prompt detection, scheduling, and analysis separate:
 
 - `ComposerDbPoller` reads Composer state and emits `PromptMetadata`.
+- `composerPromptMetadata` performs pure bubble eligibility checks and maps
+  eligible rows to `PromptMetadata`.
 - `EfficiencyAnalysisQueue` owns bounded concurrency, FIFO draining, and
   deduplication for pending analyses.
 - `EfficiencyAnalysisWorkflow` resolves the active profile, obtains the API
