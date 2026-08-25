@@ -27,7 +27,7 @@ acceptance criteria and evidence are recorded.
 | QA-3 | Native runtime and packaging | PARTIAL | Current-target clean build passes with dynamic Electron ABI 128, official SHA-256 validation, sanitized runtime native tree, and VSIX verification | Execute clean-room install from an empty store/workspace and expand evidence across the supported target matrix |
 | QA-4 | Token and cost correctness | PARTIAL | Accounting contract, authoritative server-cost precedence, model-aware fallback calculation, non-finite input guards, and SQLite replay golden test are implemented | Expand coverage across all decoder shapes, pricing refresh/versioning, rounding policy, and unknown/cache-rate reconciliation |
 | QA-5 | Clean Architecture enforcement | PARTIAL | TypeScript-AST resolver-backed checker passes for 282 production files; negative fixtures cover domain/application/package/cycle cases; current Graphify/Repowise hotspots remain | Refactor the highest-risk low-coverage infrastructure modules without weakening the contract, then add characterization and failure-path tests |
-| QA-6 | Security and privacy | PARTIAL | Local API token, loopback validation, redaction, sidecar safety, and text-safe rendering exist | Complete threat-model decisions, retention/disk-full tests, and process review |
+| QA-6 | Security and privacy | PARTIAL | Threat model recorded; API error details are now generic; loopback/token parity, redaction, sidecar safety, text-safe webview rendering, and Repowise history scan are evidenced | Complete retention/disk-full/WAL tests, process and certificate review, protocol-specific redaction, and the legacy optional-token decision |
 | QA-7 | Reliability and lifecycle | OPEN | SQLite cleanup has selective and rollback tests | Add concurrency, failure injection, migration recovery, and disk lifecycle tests |
 | QA-8 | Local test confidence | PARTIAL | Critical floors exist for selected modules; Repowise still identifies low-coverage hotspots | Add risk-based floors and negative/property tests for remaining hotspots |
 | QA-9 | Documentation and operations | PARTIAL | Plan, audit links, dependency inventory, advisory register, and English docs are synchronized for this slice | Add task/decision records, reproducible audit artifact output, and runbooks |
@@ -219,6 +219,33 @@ QA-5 remains PARTIAL until the prioritized infrastructure hotspots receive
 characterization, failure-path, and lifecycle coverage and the final audit
 confirms no boundary regressions.
 
+## QA-6 security checkpoint — 2026-08-25
+
+Commit `c7c28a8` closes a concrete disclosure path in the local proxy API:
+`apiErrorHandler` no longer serializes raw exception messages, which could
+contain filesystem paths, parser details, or synthetic secrets. It returns the
+stable public message `Proxy API request failed`; a regression test verifies
+that attacker-controlled error text is absent.
+
+The threat model is documented in
+[SECURITY-THREAT-MODEL.md](SECURITY-THREAT-MODEL.md), covering assets,
+collection policy, loopback and capability-token decisions, webview safety,
+header/body redaction, sidecar containment, rotation, and residual risks.
+
+Focused security evidence passes 16/16 tests for API error serialization,
+loopback validation, REST/WebSocket token parity, body redaction, sidecar
+traversal, and selective cleanup. The full CI-equivalent audit also passes,
+including coverage, localization, documentation links (49 files), webview
+18/18, and selected VSIX verification.
+
+Repowise history scanning on 2026-08-25 covered 168 commits, 4,340 blobs, and
+2,516 files with zero inserted findings. This does not replace runtime tests:
+disk-full/partial-deletion/WAL behavior, process and certificate diagnostics,
+protobuf redaction, and removal of the legacy optional-token path remain open.
+
+QA-6 remains PARTIAL until those residual risks have tests and an explicit
+compatibility decision.
+
 ## Reclassification decisions
 
 The following historical findings are reclassified from the current baseline:
@@ -243,6 +270,7 @@ The following historical findings are reclassified from the current baseline:
 | 2026-08-25 | QA-2 dependency/native cleanup slice | 03b9fe6 | SDK upgrade, sqlite3 removal, targeted overrides, clean install, production audit 0, native smoke test, and full audit pass |
 | 2026-08-25 | QA-3 native packaging reproducibility slice | 50bdcc2 | Dynamic Electron ABI, official prebuild digest verification, native archive tests, runtime-tree sanitization, pnpm 10.34 frozen install, current-target build, production audit 0, signatures 830/830, and full audit pass |
 | 2026-08-25 | QA-5 Clean Architecture enforcement slice | 7618984 | TypeScript-AST/resolver checker, package-source fallback, production test exclusion, line/rule/JSON diagnostics, negative fixtures, architecture contract, contributor guidance, full audit pass |
+| 2026-08-25 | QA-6.1 safe API error serialization slice | c7c28a8 | Generic public API errors, sensitive-message regression test, security threat model, focused 16/16 security tests, Repowise history scan with zero findings, and full audit pass |
 
 This register must be updated in the same commit as each task's implementation
 or evidence change.
