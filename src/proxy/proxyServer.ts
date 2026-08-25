@@ -14,12 +14,10 @@ import { RequestLogger } from './requestLogger';
 import { NullLogger } from './nullLogger';
 import type { ProxyTrafficLogger } from './nullLogger';
 import type { ProxyServerConfig } from './types';
-import type { MitmProxyHandlers } from './types';
 import { ProxyApiServer } from './api/proxyApiServer';
-import type { ProxyApiEvent } from '../application/types/proxyApi';
 import { SqliteAgentTrackingDbPool } from '../persistence/betterSqlite/sqliteAgentTrackingDbPool';
 import { ProxyAgentTrackingIngress } from './proxyAgentTrackingIngress';
-import { SHARED_PROXY_RUNTIME_KEY } from './types';
+import { ProxyServerRuntime } from '../application/proxyServerRuntime';
 
 const proxyServerConfigSchema = z.object({
   port: z.number().int().min(1).max(65_535),
@@ -70,28 +68,14 @@ function parseConfig(): ProxyServerConfig {
   return parseProxyServerConfig(raw);
 }
 
-function emitTrafficEvent(
-  apiServer: ProxyApiServer,
+export function createProxyServerRuntime(
   config: ProxyServerConfig,
-  summary: Parameters<NonNullable<MitmProxyHandlers['onTraffic']>>[0]
-): void {
-  const sanitized = {
-    ...summary,
-    bodyDecoded: undefined,
-  };
-
-  const event: ProxyApiEvent = {
-    type: 'traffic',
-    timestamp: new Date().toISOString(),
-    profileId: summary.profileId ?? config.profileId,
-    data: sanitized,
-  };
-  apiServer.broadcast(event);
-}
-
-async function main(): Promise<void> {
-  const config = parseConfig();
-  const startedAt = new Date().toISOString();
+  writeStderr: (message: string) => void = (message) => {
+    process.stderr.write(message);
+  },
+  now: () => string = () => new Date().toISOString(),
+  onShutdownRequested?: (shutdown: Promise<void>) => void
+): ProxyServerRuntime {
   const certDir = path.join(config.storageDir, 'certs');
   const certificateManager = new CertificateManager(certDir);
   const maxBytes = config.maxLogSizeMb * 1024 * 1024;
@@ -103,7 +87,6 @@ async function main(): Promise<void> {
     : new NullLogger();
 
   const apiServer = new ProxyApiServer();
-  let shuttingDown = false;
   let trackingIngress: ProxyAgentTrackingIngress | undefined;
 
   const profileDbPaths = config.profileDbPaths
@@ -116,7 +99,7 @@ async function main(): Promise<void> {
     );
     trackingIngress = new ProxyAgentTrackingIngress(
       dbPool,
-      config.profileId ?? SHARED_PROXY_RUNTIME_KEY
+      config.profileId
     );
   }
 
@@ -124,91 +107,47 @@ async function main(): Promise<void> {
     ? new Map(Object.entries(config.userIdToProfileId))
     : undefined;
 
-  const shutdown = async (): Promise<void> => {
-    if (shuttingDown) {
-      return;
-    }
-    shuttingDown = true;
-
-    if (statsInterval) {
-      clearInterval(statsInterval);
-    }
-    if (diagnosticsInterval) {
-      clearInterval(diagnosticsInterval);
-    }
-
-    // Stop producing traffic before closing the ingress. The ingress then
-    // drains all per-profile queues before SQLite connections are closed.
-    await server.stop().catch(() => undefined);
-    await trackingIngress?.close().catch(() => undefined);
-    await apiServer.stop();
-    process.exit(0);
-  };
-
+  const runtimeRef: { current?: ProxyServerRuntime } = {};
   const server = new PolyglotMitmProxyServer(
     certificateManager,
     requestLogger,
     {
       onTraffic: (summary) => {
-        const pendingPersistence = trackingIngress?.enqueue(summary);
-        pendingPersistence?.catch(() => undefined);
-        emitTrafficEvent(apiServer, config, summary);
+        runtimeRef.current?.emitTraffic(config, summary);
       },
     },
     userIdMapping
   );
 
-  server.on('error', (err: unknown) => {
-    const message =
-      err instanceof Error
-        ? err.message
-        : typeof err === 'string'
-          ? err
-          : JSON.stringify(err) ?? 'Unknown proxy error';
-    process.stderr.write(`[proxy] ${message}\n`);
-    apiServer.broadcast({
-      type: 'error',
-      timestamp: new Date().toISOString(),
-      profileId: config.profileId,
-      data: { message, kind: 'PROXY_ERROR' },
-    });
+  const runtime = new ProxyServerRuntime({
+    apiServer,
+    proxyServer: server,
+    trackingIngress,
+    writeStderr,
+    now,
+    onShutdownRequested,
   });
+  runtimeRef.current = runtime;
+  return runtime;
+}
 
-  let statsInterval: ReturnType<typeof setInterval> | undefined;
-  let diagnosticsInterval: ReturnType<typeof setInterval> | undefined;
-  const diagnosticsIntervalMs = config.diagnosticsIntervalMs ?? 30_000;
-
-  const emitDiagnostics = (): void => {
-    if (!config.trafficDiagnostics) {
-      return;
-    }
-    const lines = server.formatDiagnosticsLines();
-    for (const line of lines) {
-      process.stderr.write(`${line}\n`);
-    }
-    if (lines.length > 0) {
-      apiServer.broadcast({
-        type: 'diagnostics',
-        timestamp: new Date().toISOString(),
-        profileId: config.profileId,
-        data: { lines },
-      });
-    }
+async function main(): Promise<void> {
+  const config = parseConfig();
+  const exitAfterShutdown = (shutdown: Promise<void>): void => {
+    void shutdown.then(
+      () => process.exit(0),
+      () => process.exit(0)
+    );
   };
-
-  const emitStats = (): void => {
-    const stats = server.getStatistics();
-    const event: ProxyApiEvent = {
-      type: 'stats',
-      timestamp: new Date().toISOString(),
-      profileId: config.profileId,
-      data: stats,
-    };
-    apiServer.broadcast(event);
-  };
+  const runtime = createProxyServerRuntime(
+    config,
+    undefined,
+    undefined,
+    exitAfterShutdown
+  );
 
   const handleTerminationSignal = (): void => {
-    void shutdown();
+    exitAfterShutdown(runtime.shutdown());
   };
 
   // The lifecycle coordinators normally request shutdown through the API, but
@@ -218,36 +157,11 @@ async function main(): Promise<void> {
   process.once('SIGINT', handleTerminationSignal);
 
   try {
-    await apiServer.start({
-      apiPort: config.apiPort,
-      apiToken: config.apiToken,
-      mitmPort: config.port,
-      profileId: config.profileId,
-      pid: process.pid,
-      startedAt,
-      getStatistics: () => server.getStatistics(),
-      getDiagnosticsLines: () => server.formatDiagnosticsLines(),
-      onShutdownRequested: () => {
-        void shutdown();
-      },
-    });
-
-    await server.start(config);
-    process.stderr.write(
-      `[proxy] MITM listening on 127.0.0.1:${config.port}, API on 127.0.0.1:${config.apiPort}\n`
-    );
-
-    statsInterval = setInterval(emitStats, 5000);
-    if (config.trafficDiagnostics) {
-      emitDiagnostics();
-      diagnosticsInterval = setInterval(emitDiagnostics, diagnosticsIntervalMs);
-    }
+    await runtime.start(config, process.pid);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     process.stderr.write(`[proxy] startup failed: ${message}\n`);
-    await server.stop().catch(() => undefined);
-    await trackingIngress?.close().catch(() => undefined);
-    await apiServer.stop().catch(() => undefined);
+    await runtime.shutdown();
     process.exit(1);
   }
 }
