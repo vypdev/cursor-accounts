@@ -14,6 +14,20 @@ import {
   uninstallCaCertificate,
   verifyCaCertificateInstalled,
 } from '../proxy/installCaCertificate';
+import type { CertificateProcessRunner } from '../proxy/installCaCertificate';
+
+function scriptedRunner(
+  results: Array<{ code: number | null; stderr: string }>
+): CertificateProcessRunner & { calls: Array<{ command: string; args: string[] }> } {
+  const calls: Array<{ command: string; args: string[] }> = [];
+  return {
+    calls,
+    run: async (command, args) => {
+      calls.push({ command, args });
+      return results.shift() ?? { code: 1, stderr: '' };
+    },
+  };
+}
 
 describe('installCaCertificate command builders', () => {
   it('escapeShellDoubleQuoted escapes quotes and backslashes', () => {
@@ -93,5 +107,67 @@ describe('installCaCertificate command builders', () => {
       error: 'Automatic removal is not supported on aix',
     });
     assert.equal(await verifyCaCertificateInstalled('aix'), false);
+  });
+
+  it('installs on macOS through the injected process runner', async () => {
+    const runner = scriptedRunner([
+      { code: 1, stderr: '' },
+      { code: 0, stderr: '' },
+    ]);
+
+    const result = await installCaCertificateElevated(
+      '/tmp/ca cert.pem',
+      'darwin',
+      runner
+    );
+
+    assert.deepEqual(result, { success: true });
+    assert.deepEqual(
+      runner.calls.map(({ command }) => command),
+      ['security', 'osascript']
+    );
+  });
+
+  it('normalizes macOS permission failures after post-install verification', async () => {
+    const runner = scriptedRunner([
+      { code: 1, stderr: '' },
+      { code: 1, stderr: 'not authorized to modify keychain' },
+      { code: 1, stderr: '' },
+    ]);
+
+    const result = await installCaCertificateElevated('/tmp/ca.pem', 'darwin', runner);
+
+    assert.deepEqual(result, { success: false, error: 'Permission denied' });
+  });
+
+  it('treats a cancelled Windows install as failure when verification is absent', async () => {
+    const runner = scriptedRunner([
+      { code: 1, stderr: '' },
+      { code: 1, stderr: 'User canceled the operation' },
+      { code: 1, stderr: '' },
+    ]);
+
+    const result = await installCaCertificateElevated('C:\\ca.pem', 'win32', runner);
+
+    assert.deepEqual(result, {
+      success: false,
+      error: 'Installation canceled by user',
+    });
+  });
+
+  it('considers Windows removal complete when post-removal verification is absent', async () => {
+    const runner = scriptedRunner([
+      { code: 0, stderr: '' },
+      { code: 1, stderr: '' },
+    ]);
+
+    const result = await uninstallCaCertificate('win32', runner);
+
+    assert.deepEqual(result, { success: true });
+    assert.deepEqual(runner.calls.map(({ command }) => command), [
+      'powershell.exe',
+      'powershell.exe',
+      'powershell.exe',
+    ]);
   });
 });

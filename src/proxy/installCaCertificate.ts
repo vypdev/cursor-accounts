@@ -12,6 +12,14 @@ export interface CertificateInstallResult {
   error?: string;
 }
 
+export interface CertificateProcessRunner {
+  run(
+    command: string,
+    args: string[],
+    timeoutMs?: number
+  ): Promise<{ code: number | null; stderr: string }>;
+}
+
 /** Escape a path for use inside a double-quoted shell string on Unix. */
 export function escapeShellDoubleQuoted(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
@@ -74,7 +82,7 @@ function normalizeInstallError(stderr: string, fallback: string): string {
   return message;
 }
 
-function runProcess(
+async function runProcess(
   command: string,
   args: string[],
   timeoutMs = 120_000
@@ -104,9 +112,14 @@ function runProcess(
   });
 }
 
+const defaultProcessRunner: CertificateProcessRunner = {
+  run: runProcess,
+};
+
 export async function installCaCertificateElevated(
   certPath: string,
-  platform: NodeJS.Platform = process.platform
+  platform: NodeJS.Platform = process.platform,
+  processRunner: CertificateProcessRunner = defaultProcessRunner
 ): Promise<CertificateInstallResult> {
   if (platform === 'linux') {
     return {
@@ -123,18 +136,21 @@ export async function installCaCertificateElevated(
   }
 
   try {
-    const alreadyInstalled = await verifyCaCertificateInstalled(platform);
+    const alreadyInstalled = await verifyCaCertificateInstalled(
+      platform,
+      processRunner
+    );
     if (alreadyInstalled) {
       return { success: true };
     }
 
     if (platform === 'darwin') {
       const script = buildMacInstallScript(certPath);
-      const { code, stderr } = await runProcess('osascript', ['-e', script]);
+      const { code, stderr } = await processRunner.run('osascript', ['-e', script]);
       if (code === 0) {
         return { success: true };
       }
-      if (await verifyCaCertificateInstalled(platform)) {
+      if (await verifyCaCertificateInstalled(platform, processRunner)) {
         return { success: true };
       }
       return {
@@ -148,7 +164,7 @@ export async function installCaCertificateElevated(
 
     if (platform === 'win32') {
       const psCommand = buildWindowsInstallCommand(certPath);
-      const { code, stderr } = await runProcess('powershell.exe', [
+      const { code, stderr } = await processRunner.run('powershell.exe', [
         '-NoProfile',
         '-ExecutionPolicy',
         'Bypass',
@@ -158,7 +174,7 @@ export async function installCaCertificateElevated(
       if (code === 0) {
         return { success: true };
       }
-      if (await verifyCaCertificateInstalled(platform)) {
+      if (await verifyCaCertificateInstalled(platform, processRunner)) {
         return { success: true };
       }
       return {
@@ -181,11 +197,12 @@ export async function installCaCertificateElevated(
 }
 
 export async function verifyCaCertificateInstalled(
-  platform: NodeJS.Platform = process.platform
+  platform: NodeJS.Platform = process.platform,
+  processRunner: CertificateProcessRunner = defaultProcessRunner
 ): Promise<boolean> {
   try {
     if (platform === 'darwin') {
-      const { code } = await runProcess('security', [
+      const { code } = await processRunner.run('security', [
         'find-certificate',
         '-c',
         CA_COMMON_NAME,
@@ -196,7 +213,7 @@ export async function verifyCaCertificateInstalled(
 
     if (platform === 'win32') {
       const ps = buildWindowsVerifyCommand();
-      const { code } = await runProcess(
+      const { code } = await processRunner.run(
         'powershell.exe',
         ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', ps],
         15_000
@@ -220,7 +237,8 @@ export async function verifyCaCertificateInstalled(
 }
 
 export async function uninstallCaCertificate(
-  platform: NodeJS.Platform = process.platform
+  platform: NodeJS.Platform = process.platform,
+  processRunner: CertificateProcessRunner = defaultProcessRunner
 ): Promise<CertificateInstallResult> {
   if (platform === 'linux') {
     return {
@@ -237,18 +255,18 @@ export async function uninstallCaCertificate(
   }
 
   try {
-    const installed = await verifyCaCertificateInstalled(platform);
+    const installed = await verifyCaCertificateInstalled(platform, processRunner);
     if (!installed) {
       return { success: true };
     }
 
     if (platform === 'darwin') {
       const script = buildMacUninstallScript();
-      const { code, stderr } = await runProcess('osascript', ['-e', script]);
+      const { code, stderr } = await processRunner.run('osascript', ['-e', script]);
       if (code === 0) {
         return { success: true };
       }
-      if (!(await verifyCaCertificateInstalled(platform))) {
+      if (!(await verifyCaCertificateInstalled(platform, processRunner))) {
         return { success: true };
       }
       return {
@@ -262,7 +280,7 @@ export async function uninstallCaCertificate(
 
     if (platform === 'win32') {
       const psCommand = buildWindowsUninstallCommand();
-      const { code, stderr } = await runProcess('powershell.exe', [
+      const { code, stderr } = await processRunner.run('powershell.exe', [
         '-NoProfile',
         '-ExecutionPolicy',
         'Bypass',
@@ -272,7 +290,7 @@ export async function uninstallCaCertificate(
       if (code === 0) {
         return { success: true };
       }
-      if (!(await verifyCaCertificateInstalled(platform))) {
+      if (!(await verifyCaCertificateInstalled(platform, processRunner))) {
         return { success: true };
       }
       return {
