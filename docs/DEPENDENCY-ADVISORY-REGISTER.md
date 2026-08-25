@@ -1,6 +1,6 @@
 # Production Dependency Advisory Register
 
-Last reviewed: 2026-08-24
+Last reviewed: 2026-08-25
 
 ## Scope
 
@@ -20,6 +20,12 @@ and packaging path must also be reviewed.
   compatibility setting and remains frozen-install compatible.
 
 ## Remaining findings and decisions
+
+The 2026-08-25 baseline reports 1 critical, 15 high, 13 moderate, and 3 low
+advisories across 240 production and optional dependency entries. Registry
+signature verification reports 852 verified packages with no invalid or
+missing signatures. These results do not close any advisory; shipped-VSIX
+reachability and runtime exposure still require the QA-2 inventory.
 
 | Package | Current path | Severity | Decision |
 | --- | --- | --- | --- |

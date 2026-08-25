@@ -917,6 +917,37 @@ repository decomposition is complete for the current domain-port surface;
 broader subsystem coverage floors and concurrency characterization remain
 separate follow-up work.
 
+### QA-0 re-baseline checkpoint — 2026-08-25
+
+The current repository was re-audited before the next implementation program.
+The reproducible audit now passes all currently wired checks:
+
+- extension-host tests: 795/795 across 253 suites;
+- coverage: 76.1% lines, 72.77% branches, 76.33% functions;
+- architecture rules and fixtures: passed for 438 TypeScript files;
+- localization: 26 locales with 428 keys each;
+- webview tests: 18/18 across five files;
+- documentation links: 45 Markdown files;
+- current selected VSIX content verification: passed.
+
+The remaining release and architecture risks were reclassified rather than
+assumed resolved. The current production audit reports 1 critical, 15 high, 13
+moderate, and 3 low advisories across 240 dependencies. Signature verification
+reports 852 verified packages with no invalid or missing signatures. Graphify's
+current code-only graph contains 3,742 nodes and 10,117 edges; relevant
+hotspots include `ProxyManager` (degree 67),
+`IAgentTrackingRepository` (degree 38), and `MitmProxyServer` (degree 19).
+Repowise safe-only dead-code and historical security scans report no findings,
+while its health analysis still identifies low-coverage and high-coupling
+targets such as `proxyDecode.ts`, `proxyServer.ts`,
+`installCaCertificate.ts`, and `profileCommands.ts`.
+
+This checkpoint closes baseline capture only. It does not close dependency
+advisories, clean-room packaging, token/cost correctness, strict resolved-import
+architecture enforcement, concurrency/lifecycle testing, or the independent
+final audit. The live task state is maintained in
+[`QUALITY-HARDENING-TASK-REGISTER.md`](QUALITY-HARDENING-TASK-REGISTER.md).
+
 ## 12. Prioritized remediation plan
 
 ### Phase 0 — Release blockers and deterministic validation

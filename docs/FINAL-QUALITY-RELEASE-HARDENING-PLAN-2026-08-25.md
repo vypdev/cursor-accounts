@@ -41,7 +41,7 @@ The following facts are current evidence, not completion claims:
 | Coverage | 76.1% lines, 72.77% branches, 76.33% functions | Global thresholds pass; critical-module floors are still required |
 | TypeScript/ESLint | Full lint passed in the latest verified slice | Must be repeated after each dependency/build change |
 | Architecture gate | Passed for 438 TypeScript files | The gate is useful but must be independently verified against resolved imports |
-| Documentation links | Passed for 44 Markdown files | Does not prove semantic documentation consistency |
+| Documentation links | Passed for 45 Markdown files | Does not prove semantic documentation consistency |
 | Graphify | 3,742 nodes, 10,117 edges in the latest code-only graph | ProxyManager remains a high-coupling hotspot; metrics depend on tool policy |
 | Repowise | Latest safe-only dead-code run returned no findings | Must be supplemented by health, security, and shipped-artifact analysis |
 | SQLite tracking | Read, write, schema, and retention seams are separated | Correctness, concurrency, migration, and lifecycle behavior remain open |
@@ -93,6 +93,8 @@ retention or migration change must state what happens to existing data.
 ## 4. Program control and required records
 
 Create or maintain these records before implementation:
+
+The live register is [QUALITY-HARDENING-TASK-REGISTER.md](QUALITY-HARDENING-TASK-REGISTER.md).
 
 | Record | Required contents | Owner |
 |---|---|---|
