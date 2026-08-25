@@ -588,8 +588,8 @@ baseline, but it is not presented as a completed final audit.
 
 ### Updated Repowise and Graphify signals
 
-Repowise and Graphify were re-run after the latest proxy and Accounts Panel
-extractions. The graph now contains 4,750 nodes and 11,140 edges; nine SQL files remain
+Repowise and Graphify were re-run after the latest proxy, Accounts Panel, and
+model-efficiency extractions. The graph now contains 4,770 nodes and 9,601 edges; nine SQL files remain
 unparsed because
 the installed Graphify environment does not include `tree_sitter_sql`. The
 largest remaining source-level hubs are `ProxyManager`, `ProfileManager`,
@@ -601,8 +601,8 @@ The Accounts Panel extraction now separates profile CRUD/import/export into
 `AccountsPanelProfileHandlers` and GitHub token actions into
 `AccountsPanelGithubHandlers`. Their focused tests cover successful operations,
 refresh orchestration, cancellation, missing profiles, and import/export
-serialization. The full extension-host checkpoint passed 772/772 tests, the
-webview suite passed 18/18 tests, and the architecture gate passed for 419
+serialization. The full extension-host checkpoint passed 778/778 tests, the
+webview suite passed 18/18 tests, and the architecture gate passed for 423
 TypeScript files.
 
 The provider's read-model and refresh responsibilities now live behind
@@ -611,7 +611,7 @@ Graphify degree 29. The refresher is now 341 lines, has Graphify degree 19 and
 55.13% line coverage, and its direct tests cover inactive-webview
 short-circuiting, initial read-model publication, secondary refresh
 coordination, and proxy-state publication. The latest full extension-host
-checkpoint is 772/772 tests and the architecture gate covers 419 TypeScript
+checkpoint is 778/778 tests and the architecture gate covers 423 TypeScript
 files.
 
 The remote account, GitHub, and quota refreshes now live in
@@ -625,7 +625,7 @@ for existing panel actions and event subscriptions.
 The Accounts panel no longer depends on the broad `IProxyManager` facade for
 read-only proxy data. The new `IProxyPanelRead` port exposes only status,
 certificate-state, and proxy-routing reads required by the panel; Graphify
-reports degree 8 for the port and the architecture gate covers 419 TypeScript
+reports degree 8 for the port and the architecture gate covers 423 TypeScript
 files after the change. The concrete `ProxyManager` remains the composition
 root implementation through structural typing, so runtime behavior is
 unchanged.
@@ -635,7 +635,7 @@ efficiency, command, and Accounts panel consumers now depend on
 `IProfileManager`. This reduces the concrete `ProfileManager` Graphify hub from
 degree 51 to degree 33 and keeps concrete construction at the runtime and
 composition boundaries. The latest full extension-host checkpoint remains
-772/772 tests with 419 TypeScript files covered by the architecture gate.
+778/778 tests with 423 TypeScript files covered by the architecture gate.
 
 `CursorProcessScanner` now owns OS-specific Cursor process inspection and
 parser dispatch. `InstanceDetector` retains profile matching, detection cache,
@@ -643,16 +643,16 @@ polling, and change notifications; it is now 276 lines with 85.14% line
 coverage and Graphify degree 30. The scanner has 79.41% line coverage and
 Graphify degree 11, with direct tests for injected providers, Linux/macOS
 parsing, helper filtering, and Windows PowerShell-to-wmic fallback. The latest
-full extension-host checkpoint passed 772/772 tests and the architecture gate
-covers 419 TypeScript files.
+full extension-host checkpoint passed 778/778 tests and the architecture gate
+covers 423 TypeScript files.
 
 `proxyInsightEnricher` now owns Bidi and RunSSE session/token insight enrichment,
 leaving `proxyDecode` responsible for body loading, RPC type resolution, and
 decode orchestration. `proxyDecode` is now 173 lines with Graphify degree 29;
 the enricher has 39.52% line coverage and direct tests for completed/streaming
 token projections, unchanged insights, and unsupported directions. The latest
-full extension-host checkpoint passed 772/772 tests and the architecture gate
-covers 419 TypeScript files.
+full extension-host checkpoint passed 778/778 tests and the architecture gate
+covers 423 TypeScript files.
 
 The MITM proxy extraction now separates session correlation and traffic
 enrichment into `ProxyTrafficSessionCoordinator`, reducing
@@ -660,7 +660,16 @@ enrichment into `ProxyTrafficSessionCoordinator`, reducing
 Graphify degree 15 and 96.55% line coverage; its direct tests cover model and
 conversation correlation, profile/workspace enrichment, unchanged summaries,
 and cleanup on shutdown. The latest full extension-host checkpoint passed
-772/772 tests.
+778/778 tests.
+
+`EfficiencyAnalyzer` now delegates scheduling to `EfficiencyAnalysisQueue` and
+profile/API/classification/persistence work to `EfficiencyAnalysisWorkflow`.
+The queue has 100% line, branch, and function coverage and Graphify degree 10;
+the workflow has 97.30% line, 93.75% branch, and 100% function coverage with
+Graphify degree 7. Direct tests cover FIFO ordering, concurrency limits,
+pending-item deduplication, retries, disabled windows, missing API keys,
+profile conflicts, successful scoring, and event persistence. The queue also
+closes a deduplication gap for work waiting for a concurrency slot.
 
 Repowise still identifies low-coverage or high-coupling targets including
 `proxyDecode`, `ProxyManager`, `efficiencyAnalyzer`, `efficiencyService`,

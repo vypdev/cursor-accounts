@@ -138,10 +138,10 @@ The audit baseline is commit `9a116cf` on branch
 The implementation state after the completed slices is tracked separately from
 that historical baseline:
 
-- the latest full extension-host checkpoint passed 772 tests;
+- the latest full extension-host checkpoint passed 778 tests;
 - the webview suite has 18 passing tests;
 - localization has 26 locales with 428 keys each;
-- the architecture gate checks 419 TypeScript files, with valid, boundary,
+- the architecture gate checks 423 TypeScript files, with valid, boundary,
   cycle, and unresolved-import fixtures passing;
 - current-target packaging produced and verified
   `cursor-accounts-darwin-arm64-0.1.34.vsix`; stale artifacts are excluded by
@@ -154,10 +154,19 @@ that historical baseline:
   the current-target VSIX was rebuilt, sanitized, and verified again.
 - Documentation validation covers 43 Markdown files and caught stale links to
   the former application-layer proxy ingress path before the gate was enabled.
-- Graphify was refreshed after the latest proxy and Accounts Panel extractions;
-  the graph now contains 4,750 nodes and 11,140 edges. Repowise reports zero safe-only dead-code
+- Graphify was refreshed after the latest proxy, Accounts Panel, and model-efficiency
+  extractions; the graph now contains 4,770 nodes and 9,601 edges. Repowise reports zero safe-only dead-code
   findings; its 30 medium-confidence candidates remain retained pending
   runtime/public-contract evidence.
+- `EfficiencyAnalyzer` now delegates scheduling to `EfficiencyAnalysisQueue`
+  and profile/API/classification/persistence work to
+  `EfficiencyAnalysisWorkflow`. The queue has 100% line, branch, and function
+  coverage and Graphify degree 10; the workflow has 97.30% line, 93.75% branch,
+  and 100% function coverage with Graphify degree 7. Direct tests cover FIFO
+  ordering, concurrency limits, pending-item deduplication, retries, disabled
+  windows, missing API keys, profile conflicts, successful scoring, and event
+  persistence. The queue also closes a deduplication gap for work waiting for
+  a concurrency slot.
 - `ProxyTrafficUsageCoordinator` now owns agent-traffic classification,
   shared/per-profile ingestion decisions, and persisted-usage notifications;
   its focused tests pass and coverage is 99.1% lines / 100% functions.

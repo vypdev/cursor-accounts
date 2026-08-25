@@ -232,7 +232,9 @@ Scoped submodule under `src/modelEfficiency/`:
 
 - `ApiKeyManager` — creates Cursor API key via session
 - `ComposerDbPoller` — polls active profile `state.vscdb` for new user bubbles
-- `EfficiencyAnalyzer` / `SdkClassifier` — `@cursor/sdk`
+- `EfficiencyAnalyzer` — thin queue/workflow facade for prompt analysis
+- `EfficiencyAnalysisQueue` — bounded concurrency and prompt deduplication
+- `EfficiencyAnalysisWorkflow` / `SdkClassifier` — profile resolution and `@cursor/sdk` classification
 - `OutputPresenter` — VS Code output channel
 - `CursorModelPricingProvider` / `StateDbModelCatalogRepository` — official model pricing + catalog for Accounts **Prices** modal
 

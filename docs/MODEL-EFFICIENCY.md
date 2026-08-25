@@ -42,6 +42,23 @@ See [CONFIGURATION.md](CONFIGURATION.md) for all settings.
 - Latency is up to the poll interval
 - Uses your Cursor plan quota (SDK `model: auto`)
 
+## Application boundaries
+
+The extension host keeps prompt detection, scheduling, and analysis separate:
+
+- `ComposerDbPoller` reads Composer state and emits `PromptMetadata`.
+- `EfficiencyAnalysisQueue` owns bounded concurrency, FIFO draining, and
+  deduplication for pending analyses.
+- `EfficiencyAnalysisWorkflow` resolves the active profile, obtains the API
+  key, invokes the classifier, presents the result, records the event, and
+  updates the profile timestamp.
+- `EfficiencyAnalyzer` is the compatibility facade used by the poller and
+  delegates to the queue and workflow.
+
+This separation keeps VS Code/database polling concerns outside the analysis
+workflow and makes scheduling and profile-safety behavior independently
+testable.
+
 ## Limitations
 
 - Available only for the **active window's profile** — secrets and API keys are scoped to that extension host
