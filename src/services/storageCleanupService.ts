@@ -15,6 +15,7 @@ import type { InstanceDetector } from '../profiles/instanceDetector';
 import { validateUserDataPath } from '../utils/pathUtils';
 import { formatBytes } from '@cursor-accounts/shared';
 import { EfficiencyDatabase, getEfficiencyDbPath } from '../persistence/efficiencyDatabase';
+import { PartialCleanupError } from '../domain/types/storageCleanup';
 
 const ACTIONS_WITHOUT_FS_DELTA = new Set<StorageCleanupOptions['action']>([
   'deleteOldChats',
@@ -151,12 +152,14 @@ export class StorageCleanupService implements IStorageCleanupService {
     } catch (error) {
       const message =
         error instanceof Error ? error.message : t('errors.unknown');
+      const bytesReclaimed =
+        error instanceof PartialCleanupError ? error.bytesReclaimed : 0;
       extensionLog.error(
         `[StorageCleanup] ${options.action} failed for ${profileId}: ${message}`
       );
       return {
         success: false,
-        bytesReclaimed: 0,
+        bytesReclaimed,
         message,
         error: message,
       };

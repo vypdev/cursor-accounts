@@ -91,7 +91,8 @@ These actions are available in the UI but are **not** registered as Command Pale
 - **Extension cache** clears quota/leaderboard cache entries owned by this extension for the selected profile.
 - **Editor cache** removes `Cache`, `CachedData`, `GPUCache`, `logs`, and `Code Cache` under the profile's user-data directory. The profile must be closed.
 - **Vacuum database** compacts `state.vscdb` without deleting chat history. The profile must be closed.
-- **Deep clean** deletes chat/composer/agent rows from `cursorDiskKV` and runs `VACUUM`. A timestamped backup of `state.vscdb` is created first. The profile must be closed.
+- **Deep clean** deletes chat/composer/agent rows from `cursorDiskKV` and runs `VACUUM`. A SQLite-consistent timestamped backup of `state.vscdb` is created first with `VACUUM INTO`; the profile must be closed.
+- Deep-clean backups are validated with `PRAGMA integrity_check` before the database is restored. Restoration is an infrastructure operation and must only be performed while the profile is closed.
 - Do **not** delete `state.vscdb` manually; it can break chat loading in Cursor.
 
 ## Related documentation

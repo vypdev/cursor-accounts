@@ -77,6 +77,7 @@ function createService(overrides: {
     databaseCleanup: {
       vacuum: async () => undefined,
       deepClean: async () => ({ backupPath: '/tmp/b', bytesReclaimed: 0 }),
+      restoreDeepCleanBackup: async () => undefined,
       ...overrides.databaseCleanup,
     },
     extensionPath: path.join(__dirname, '..', '..'),

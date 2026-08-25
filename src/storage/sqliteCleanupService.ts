@@ -1,10 +1,15 @@
 import { spawn } from 'child_process';
+import * as path from 'path';
 import { validateStateDbPath } from '../utils/pathUtils';
 import type { IDatabaseCleanupService } from '../domain/ports/IDatabaseCleanupService';
 import { getSqlite3Binary } from '../auth/sqliteBinary';
 import * as extensionLog from '../logging/extensionLog';
 import type { IFileSystemService } from '../domain/ports/IFileSystemService';
-import { buildDeepCleanBackupPath, DEEP_CLEAN_SQL } from './storageConstants';
+import {
+  buildDeepCleanBackupPath,
+  DEEP_CLEAN_BACKUP_NAME_PATTERN,
+  DEEP_CLEAN_SQL,
+} from './storageConstants';
 
 export interface SqliteCleanupServiceDeps {
   extensionPath: string;
@@ -71,7 +76,53 @@ export class SqliteCleanupService implements IDatabaseCleanupService {
     return { backupPath, bytesReclaimed };
   }
 
-  private runSqliteScript(dbPath: string, script: string): Promise<void> {
+  async restoreDeepCleanBackup(
+    dbPath: string,
+    backupPath: string
+  ): Promise<void> {
+    validateStateDbPath(dbPath);
+    validateStateDbPath(backupPath);
+
+    const dbName = path.basename(dbPath);
+    const backupName = path.basename(backupPath);
+    if (
+      path.dirname(backupPath) !== path.dirname(dbPath) ||
+      !backupName.startsWith(`${dbName}.backup-`) ||
+      !DEEP_CLEAN_BACKUP_NAME_PATTERN.test(backupName)
+    ) {
+      throw new Error(
+        'Deep-clean restore requires a sibling timestamped backup for the same database'
+      );
+    }
+
+    const backupStat = await this.deps.fileSystem.stat(backupPath);
+    if (!backupStat?.isFile || backupStat.size === 0) {
+      throw new Error(`Deep-clean backup not found or empty: ${backupPath}`);
+    }
+
+    const integrity = await this.runSqliteScript(
+      backupPath,
+      'PRAGMA integrity_check;'
+    );
+    if (integrity.trim() !== 'ok') {
+      throw new Error(`Deep-clean backup failed integrity check: ${backupPath}`);
+    }
+
+    await this.runSqliteScript(
+      dbPath,
+      `.restore main ${sqlStringLiteral(backupPath)}`
+    );
+
+    const restoredIntegrity = await this.runSqliteScript(
+      dbPath,
+      'PRAGMA integrity_check;'
+    );
+    if (restoredIntegrity.trim() !== 'ok') {
+      throw new Error(`Restored database failed integrity check: ${dbPath}`);
+    }
+  }
+
+  private runSqliteScript(dbPath: string, script: string): Promise<string> {
     const sqliteBinary = getSqlite3Binary(this.deps.extensionPath);
 
     return new Promise((resolve, reject) => {
@@ -80,6 +131,10 @@ export class SqliteCleanupService implements IDatabaseCleanupService {
       });
 
       let stderr = '';
+      let stdout = '';
+      child.stdout.on('data', (chunk: Buffer | string) => {
+        stdout += chunk.toString();
+      });
       const timeout = setTimeout(() => {
         child.kill();
         reject(new Error(`SQLite script timed out for ${dbPath}`));
@@ -95,7 +150,7 @@ export class SqliteCleanupService implements IDatabaseCleanupService {
       child.on('close', (code) => {
         clearTimeout(timeout);
         if (code === 0) {
-          resolve();
+          resolve(stdout);
           return;
         }
         reject(

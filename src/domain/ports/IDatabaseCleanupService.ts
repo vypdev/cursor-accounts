@@ -17,4 +17,10 @@ export interface IDatabaseCleanupService {
    * Creates a timestamped backup before modifying the database.
    */
   deepClean(dbPath: string): Promise<DeepCleanResult>;
+
+  /**
+   * Restore a validated deep-clean backup into the database.
+   * Callers must ensure the profile is closed.
+   */
+  restoreDeepCleanBackup(dbPath: string, backupPath: string): Promise<void>;
 }

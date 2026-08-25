@@ -195,6 +195,104 @@ describe('BetterSqlite Concurrency (Multi-Window Simulation)', () => {
     }
   });
 
+  it('defers WAL truncation while a separate process holds a read transaction', { timeout: 15_000 }, async () => {
+    const manager = new BetterSqliteConnectionManager();
+    const dbPath = path.join(tempDir, 'long-reader-checkpoint.db');
+    let reader: ReturnType<typeof spawn> | undefined;
+    let readerStderr = '';
+
+    try {
+      const connection = await manager.getConnection(dbPath);
+      connection.run(
+        'CREATE TABLE checkpoint_events (id INTEGER PRIMARY KEY AUTOINCREMENT, payload TEXT NOT NULL)'
+      );
+      connection.run(
+        "INSERT INTO checkpoint_events (payload) VALUES ('baseline')"
+      );
+
+      reader = spawn(
+        process.execPath,
+        [path.join(__dirname, 'betterSqliteReaderWorker.js'), dbPath],
+        { stdio: ['pipe', 'pipe', 'pipe'] }
+      );
+      const activeReader = reader;
+      activeReader.stderr?.setEncoding('utf8');
+      activeReader.stderr?.on('data', (chunk: string) => {
+        readerStderr += chunk;
+      });
+      const readerReady = new Promise<void>((resolve, reject) => {
+        let stdout = '';
+        activeReader.stdout?.setEncoding('utf8');
+        activeReader.stdout?.on('data', (chunk: string) => {
+          stdout += chunk;
+          if (stdout.includes('ready')) {
+            resolve();
+          }
+        });
+        activeReader.once('error', reject);
+        activeReader.once('close', (code, signal) => {
+          if (code !== null && code !== 0) {
+            reject(
+              new Error(
+                `Reader exited with code ${code}${readerStderr ? `: ${readerStderr}` : ''}`
+              )
+            );
+          } else if (signal) {
+            reject(new Error(`Reader exited with signal ${signal}`));
+          }
+        });
+      });
+
+      await readerReady;
+      for (let index = 0; index < 100; index += 1) {
+        connection.run(
+          'INSERT INTO checkpoint_events (payload) VALUES (?)',
+          `event-${index}`
+        );
+      }
+
+      const blocked = connection.get<{
+        busy: number;
+        log: number;
+        checkpointed: number;
+      }>('PRAGMA wal_checkpoint(TRUNCATE)');
+      assert.equal(blocked?.busy, 1);
+
+      activeReader.stdin?.write('\n');
+      await new Promise<void>((resolve, reject) => {
+        activeReader.once('error', reject);
+        activeReader.once('close', (code, signal) => {
+          if (code === 0) {
+            resolve();
+            return;
+          }
+          reject(
+            new Error(
+              `Reader cleanup exited with ${
+                code === null ? `signal ${signal ?? 'unknown'}` : `code ${code}`
+              }${readerStderr ? `: ${readerStderr}` : ''}`
+            )
+          );
+        });
+      });
+
+      const completed = connection.get<{
+        busy: number;
+        log: number;
+        checkpointed: number;
+      }>('PRAGMA wal_checkpoint(TRUNCATE)');
+      assert.equal(completed?.busy, 0);
+      assert.equal(completed?.log, 0);
+      assert.equal(completed?.checkpointed, 0);
+    } finally {
+      if (reader?.exitCode === null) {
+        reader.stdin?.write('\n');
+        reader.kill('SIGKILL');
+      }
+      await manager.closeAllConnections();
+    }
+  });
+
   it('handles rapid concurrent inserts without errors', async () => {
     const manager1 = new BetterSqliteConnectionManager();
     const manager2 = new BetterSqliteConnectionManager();

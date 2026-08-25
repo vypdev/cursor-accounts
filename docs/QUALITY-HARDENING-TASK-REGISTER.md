@@ -22,14 +22,14 @@ acceptance criteria and evidence are recorded.
 | ID | Area | Status | Current evidence | Next required action |
 |---|---|---|---|---|
 | QA-0 | Baseline and finding reclassification | COMPLETE | pnpm run audit passes; current Graphify/Repowise/dependency evidence captured on 2026-08-25 | Keep this baseline immutable and update it after every cross-cutting change |
-| QA-1 | CI, tests, localization, lint | PARTIAL | Full audit passes with 860 host tests, 79.79% lines, 74.19% branches, and 78.94% functions; localization is 26 locales/428 keys and webview is 18/18 | Add repeated host-run evidence and review generated-artifact/source-lint policy |
+| QA-1 | CI, tests, localization, lint | PARTIAL | Full audit passes with 864 host tests, 79.84% lines, 74.15% branches, and 79.05% functions; localization is 26 locales/428 keys and webview is 18/18 | Add repeated host-run evidence and review generated-artifact/source-lint policy |
 | QA-2 | Dependencies and supply chain | PARTIAL | SDK `1.0.28`, legacy npm `sqlite3` removed, targeted `uuid@11.1.1` and `undici@6.28.0` overrides resolve; `pnpm audit --prod` reports 0 advisories and signatures remain valid | Add clean-room shipped-tree scan, package-size review, and independent compatibility evidence before marking complete |
 | QA-3 | Native runtime and packaging | PARTIAL | Current-target clean build passes with dynamic Electron ABI 128, official SHA-256 validation, sanitized runtime native tree, and VSIX verification | Execute clean-room install from an empty store/workspace and expand evidence across the supported target matrix |
 | QA-4 | Token and cost correctness | PARTIAL | Accounting contract, authoritative server-cost precedence, model-aware fallback calculation, non-finite input guards, and SQLite replay golden test are implemented | Expand coverage across all decoder shapes, pricing refresh/versioning, rounding policy, and unknown/cache-rate reconciliation |
-| QA-5 | Clean Architecture enforcement | PARTIAL | TypeScript-AST resolver-backed checker passes for 295 production files; negative fixtures cover domain/application/package/cycle cases; current Graphify/Repowise hotspots remain | Refactor the highest-risk low-coverage infrastructure modules without weakening the contract, then add characterization and failure-path tests |
-| QA-6 | Security and privacy | PARTIAL | Threat model recorded; API error details are generic; loopback/token parity, redaction, sidecar safety, text-safe webview rendering, certificate platform validation, injected certificate-process failure tests, bounded certificate-process timeout/kill escalation, fail-closed migration execution, SQLite snapshot backup, sidecar preservation, and Repowise history scan are evidenced | Complete disk-full/partial-cleanup tests, native privileged command execution review on supported OS runners, protocol-specific redaction, and the legacy optional-token decision |
-| QA-7 | Reliability and lifecycle | PARTIAL | Tracking ingress shutdown is idempotent; proxy startup failures now attempt MITM/ingress/API cleanup; direct `SIGTERM`/`SIGINT` uses graceful shutdown; the real runtime integration suite passes 3/3; SQLite persistence has 2-process concurrency/reopen, migration rollback/retry, consistent backup, corrupted-database sidecar preservation, and real child hang escalation coverage | Add disk-full/partial-cleanup, restore-from-backup, long-lived reader checkpoint, and crash-restart tests |
-| QA-8 | Local test confidence | PARTIAL | Full audit passes 860 host tests and 18 webview tests; `proxyDecode.ts` has 91.7% c8 lines and 100% c8 branches; certificate process/platform boundaries have 16/16 focused tests; `nodeProxyProcess.ts` has 91.15% lines, 88% branches, and 100% functions; `ProxyServerRuntime` has 3/3 real integration tests; `sqliteExecutor.ts` is at 87.23% lines/78.78% branches/100% functions, `sqliteCleanupService.ts` at 84.54%/77.77%/83.33%, and the schema initializer at 95.91%/77.77%/100%; the ProfileLauncher slice adds 33 focused tests; `proxyManager.ts` is at 72.07% c8 lines; `proxyCommands.ts` is at 94.59% lines, 75% branches, and 100% functions; `statusBarManager.ts` has 94.59% lines, 84.44% branches, and 93.33% functions; Repowise still identifies remaining hotspots | Reconcile static-analysis coverage ingestion, add risk-based floors, and cover the next proxy/profile/process hotspots |
+| QA-5 | Clean Architecture enforcement | PARTIAL | TypeScript-AST resolver-backed checker passes for 296 production files; negative fixtures cover domain/application/package/cycle cases; the new restore contract remains behind the domain port and adapter boundary; current Graphify/Repowise hotspots remain | Refactor the highest-risk low-coverage infrastructure modules without weakening the contract, then add characterization and failure-path tests |
+| QA-6 | Security and privacy | PARTIAL | Threat model recorded; API error details are generic; loopback/token parity, redaction, sidecar safety, text-safe webview rendering, certificate platform validation, injected certificate-process failure tests, bounded certificate-process timeout/kill escalation, fail-closed migration execution, SQLite snapshot backup/restore validation, sidecar preservation, partial-cleanup accounting, and Repowise history scan are evidenced | Complete disk-full/crash-restart testing, native privileged command execution review on supported OS runners, protocol-specific redaction, and the legacy optional-token decision |
+| QA-7 | Reliability and lifecycle | PARTIAL | Tracking ingress shutdown is idempotent; proxy startup failures now attempt MITM/ingress/API cleanup; direct `SIGTERM`/`SIGINT` uses graceful shutdown; the real runtime integration suite passes 3/3; SQLite persistence has 2-process concurrency/reopen, migration rollback/retry, consistent backup, validated restore, corrupted-database sidecar preservation, partial cleanup reporting, long-lived-reader checkpoint evidence, and real child hang escalation coverage | Add disk-full/crash-restart reconciliation and release-level recovery rehearsal |
+| QA-8 | Local test confidence | PARTIAL | Full audit passes 864 host tests and 18 webview tests; overall c8 is 79.84% lines/74.15% branches/79.05% functions; the SQLite/storage focused suites pass 27/27 including restore, partial cleanup, and long-lived-reader cases; `proxyDecode.ts` has 91.7% c8 lines and 100% c8 branches; certificate process/platform boundaries have 16/16 focused tests; `nodeProxyProcess.ts` has 91.15% lines, 88% branches, and 100% functions; `ProxyServerRuntime` has 3/3 real integration tests; Repowise still identifies remaining hotspots | Reconcile static-analysis coverage ingestion, add risk-based floors, and cover the next proxy/profile/process hotspots |
 | QA-9 | Documentation and operations | PARTIAL | Plan, audit links, dependency inventory, advisory register, and English docs are synchronized for this slice | Add task/decision records, reproducible audit artifact output, and runbooks |
 | QA-10 | Independent final audit and release rehearsal | OPEN | Not started | Run only after QA-1 through QA-9 have current evidence |
 
@@ -40,13 +40,13 @@ acceptance criteria and evidence are recorded.
 | Item | Value |
 |---|---|
 | Branch | feature/3-mitm-proxy |
-| Latest implementation commit | 87ff608 |
+| Latest implementation commit | Worktree recovery slice; commit to be recorded after verification |
 | Latest documentation commit | See the commit and evidence log below |
 | Node | v22.23.1 |
 | pnpm | 11.19.0 |
 | Graphify | 0.9.48 |
 | Repowise | 0.45.0 |
-| Architecture gate | 292 production TypeScript files; tests excluded by contract |
+| Architecture gate | 296 production TypeScript files; tests excluded by contract |
 | Documentation gate | 49 Markdown files |
 
 ### Reproducible audit
@@ -54,7 +54,8 @@ acceptance criteria and evidence are recorded.
 pnpm run audit passed on 2026-08-25 with:
 
 - extension-host tests: passed across the compiled host test suite;
-- coverage: 79.79% lines, 74.19% branches, 78.94% functions;
+- 864 host tests and coverage of 79.84% lines, 74.15% branches, and 79.05%
+  functions;
 - architecture rules and fixtures: passed;
 - localization: 26 locales with 428 keys each;
 - webview tests: 5 files and 18 tests passed;
@@ -66,9 +67,10 @@ matrix; those remain QA-3 work.
 
 ### Graphify
 
-The latest graph was generated with Graphify `0.9.48` on `87ff608` using no
-clustering. It contains 5,207 nodes and 12,180 raw edges across 688 extracted
-code files; the post-build graph contains 10,489 edges. The highest relevant
+The latest graph was generated with Graphify `0.9.48` on the current recovery
+worktree using no clustering. It contains 5,215 nodes and 12,200 raw edges
+across 691 extracted code files; the post-build graph contains 10,508 edges.
+The highest relevant
 hotspots include:
 
 - ProxyManager: degree 71;
@@ -79,7 +81,7 @@ hotspots include:
 
 Graphify skipped nine SQL contributions because `tree_sitter_sql` is not
 installed and skipped `.npmrc` as potentially sensitive. The multigraph
-diagnostic reports 1,508 dangling endpoint edges, one self-loop, no missing
+diagnostic reports 1,509 dangling endpoint edges, one self-loop, no missing
 endpoints, and 93 same-endpoint relation groups; these are analysis signals,
 not architecture violations by themselves. The graph was generated in an
 isolated copy because Graphify's watcher cannot write its output directory in
@@ -90,16 +92,16 @@ the managed workspace.
 - Safe-only dead-code analysis: no findings. The index reports three heuristic
   unreachable files and 26 unused exports, but none is safe for automatic
   deletion without entrypoint and bundle reachability review.
-- Historical security scan: 0 findings across 213 commits, 4,536 blobs, and
-  2,576 files.
+- Historical security scan: 0 findings across 214 commits, 4,539 blobs, and
+  2,578 files.
 - Current refactoring targets include proxyDecode.ts, proxyServer.ts,
   installCaCertificate.ts, statusBarManager.ts, efficiencyService.ts,
   profileCommands.ts, IProxyManager.ts, and high-fan-out type barrels.
 
-The latest Repowise index contains 710 indexed wiki/decision items from 689
+The latest Repowise index contains refreshed wiki/decision items from 691
 files. The no-network mock-vector reindex completed successfully; the health
-report scores average health at 8.46/10, hotspot health at 5.71/10, and
-maintainability at 9.38/10. Its lowest current production targets are
+report scores average health at 8.46/10, hotspot health at 5.74/10,
+maintainability at 9.38/10, and performance at 9.91/10. Its lowest current production targets are
 `src/proxy/proxyInsightExtractor.ts` (1.81/10, NLOC 654, max CCN 20,
 11.13% duplication), `src/proxy/mitmProxyServer.ts` (2.16/10, NLOC 487,
 max CCN 37, 17.60% duplication), `src/services/proxyManager.ts` (3.14/10,
@@ -488,6 +490,52 @@ automation, checkpoint starvation from a long-lived reader, or crash-restart
 reconciliation. The current backup artifacts are preserved for manual
 recovery, but a future slice must prove restoration and failure reporting.
 
+## QA-6.7/QA-7.12/QA-8.12 SQLite restore and partial-failure checkpoint — 2026-08-25
+
+This worktree slice extends the previous artifact-integrity checkpoint with
+explicit recovery and failure-reporting behavior:
+
+- `IDatabaseCleanupService` now exposes a restore operation while keeping the
+  capability behind the domain port. `SqliteCleanupService` accepts only a
+  validated sibling backup with the expected `state.vscdb.backup-<timestamp>`
+  name, requires a regular non-empty file, runs `PRAGMA integrity_check` before
+  mutation, restores through the bundled SQLite CLI, and runs a second integrity
+  check after restoration. The real SQLite test restores both deleted and
+  retained rows, while a corrupt backup is rejected without changing the live
+  database.
+- `VSCodeCacheService` preserves the amount already removed when a later cache
+  directory fails by raising `PartialCleanupError`. `StorageCleanupService`
+  carries that value into the failed result instead of reporting zero bytes,
+  making partial deletion visible to callers and the UI.
+- A separate-process long-lived-reader test proves that
+  `PRAGMA wal_checkpoint(TRUNCATE)` reports `busy=1` while the reader holds its
+  transaction and completes with an empty WAL after the reader releases it.
+  This captures the documented SQLite WAL behavior instead of treating a
+  deferred checkpoint as data loss. See [SQLite WAL](https://www.sqlite.org/wal.html),
+  [VACUUM INTO](https://www.sqlite.org/lang_vacuum.html), and the
+  [SQLite CLI restore command](https://www.sqlite.org/cli.html).
+- Focused evidence passes 18/18 storage tests and 9/9 SQLite concurrency tests.
+  The full audit passes 864 host tests, c8 79.84% lines/74.15% branches/79.05%
+  functions, 18/18 webview tests, 296 architecture files, 26 locales/428
+  keys, documentation links, and VSIX verification.
+- Graphify was refreshed to 5,215 nodes and 12,200 raw edges. Its diagnostic
+  reports 93 same-endpoint relation groups and 1,509 dangling endpoints; these
+  are graph-extraction diagnostics, not new architecture violations. The
+  affected-node query confirms the restore path remains connected through the
+  storage composition root and test boundary.
+- Repowise reports average health 8.46/10, maintainability average 9.38/10,
+  performance average 9.91/10, zero safe-only dead-code findings, and zero
+  findings across 214 commits, 4,539 blobs, and 2,578 files in the history
+  security scan. Remaining hotspots are recorded rather than hidden; the
+  principal candidates are `proxyInsightExtractor.ts`, `mitmProxyServer.ts`,
+  `proxyManager.ts`, `StorageCleanupService`, and untested webview surfaces.
+
+Disk-full behavior, crash-restart reconciliation, native privileged command
+execution, and the broader release rehearsal remain open. The restore method is
+an infrastructure capability for closed profiles; no user-facing restore action
+is exposed until its operational UX, retention policy, and confirmation flow are
+specified.
+
 ## QA-6 security checkpoint — 2026-08-25
 
 Commit `c7c28a8` closes a concrete disclosure path in the local proxy API:
@@ -701,7 +749,7 @@ The following historical findings are reclassified from the current baseline:
 | Domain/application dependency direction | PARTIALLY RESOLVED | Current resolved production graph has no violations; checker and fixtures now use TypeScript AST, package resolution, line-level rules, and fail-closed relative imports |
 | Native runtime reproducibility | OPEN | Existing artifact passes; clean-room ABI matrix remains unverified |
 | Token and cost semantic correctness | OPEN | No complete golden event-to-cost reconciliation corpus exists |
-| Security/privacy residuals | PARTIAL | Several controls exist; retention, disk-full, process, and threat-model evidence remain |
+| Security/privacy residuals | PARTIAL | Several controls exist; retention, disk-full, crash-restart, privileged-process, and threat-model evidence remain |
 
 ## Commit and evidence log
 

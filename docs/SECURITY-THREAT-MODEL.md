@@ -83,11 +83,14 @@ Decision: JSONL rotation and body pruning enforce a configured total-size cap;
 explicit cleanup removes recognized logs and sidecars. Existing tests cover
 rotation and selective cleanup.
 
-Residual risk: disk-full and partial-deletion behavior, restore automation,
-long-lived-reader checkpoint starvation, and crash recovery require dedicated
-failure-injection tests in QA-6/QA-7 before this threat is closed. Deep-clean
-now uses SQLite `VACUUM INTO` for a consistent snapshot, and efficiency-database
-recreation preserves the main file together with its `-wal`/`-shm` sidecars.
+Residual risk: disk-full behavior and crash recovery require dedicated
+failure-injection tests in QA-6/QA-7 before this threat is closed. Partial
+cleanup now reports bytes reclaimed before a later failure. Deep-clean now uses
+SQLite `VACUUM INTO` for a consistent snapshot, validates backups before
+restoration, and efficiency-database recreation preserves the main file
+together with its `-wal`/`-shm` sidecars. A long-lived reader is covered by a
+separate-process checkpoint test; SQLite may legitimately defer truncation
+until that reader releases its transaction.
 
 ### T6 — Webview or API renders attacker-controlled text as markup
 
@@ -110,7 +113,8 @@ Unknown webview messages are validated at the message boundary.
 
 ## Open actions
 
-1. Add disk-full, partial deletion, restore, long-lived-reader checkpoint, and crash-restart tests.
+1. Add disk-full and crash-restart tests, including explicit recovery and
+   reconciliation evidence.
 2. Decide whether production should make the capability token mandatory in the
    server schema and remove the legacy optional path.
 3. Evaluate metadata-only capture as the default and document explicit user

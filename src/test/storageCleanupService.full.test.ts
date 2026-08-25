@@ -103,6 +103,7 @@ function createService(overrides: {
         backupPath: '/tmp/backup',
         bytesReclaimed: 512,
       }),
+      restoreDeepCleanBackup: async () => undefined,
       ...overrides.databaseCleanup,
     },
     extensionPath: path.join(__dirname, '..', '..'),
@@ -232,6 +233,27 @@ describe('StorageCleanupService full coverage', () => {
 
     assert.equal(result.success, false);
     assert.match(result.message, /running/i);
+  });
+
+  it('reports bytes reclaimed when editor cleanup fails after partial deletion', async () => {
+    const { PartialCleanupError } = await import(
+      '../domain/types/storageCleanup'
+    );
+    const service = createService({
+      cacheCleanup: {
+        cleanEditorCache: async () => {
+          throw new PartialCleanupError('Editor cache cleanup was partial', 128);
+        },
+      },
+    });
+
+    const result = await service.cleanProfileStorage('p1', {
+      action: 'cleanEditorCache',
+    });
+
+    assert.equal(result.success, false);
+    assert.equal(result.bytesReclaimed, 128);
+    assert.match(result.message, /partial/i);
   });
 
   it('vacuums database when profile is closed', async () => {
@@ -402,6 +424,41 @@ describe('VSCodeCacheService', () => {
       false
     );
   });
+
+  it('preserves partial deletion information when a later cache directory fails', async () => {
+    const { VSCodeCacheService } = await import('../storage/vscodeCacheService');
+    let calls = 0;
+    const service = new VSCodeCacheService({
+      context: {} as vscode.ExtensionContext,
+      fileSystem: {
+        stat: async () => null,
+        getFileSize: async () => 0,
+        getPathSize: async () => 0,
+        removeDirectory: async () => {
+          calls += 1;
+          if (calls === 1) {
+            return { bytes: 256 };
+          }
+          throw new Error('disk full');
+        },
+        copyFile: async () => undefined,
+      },
+      efficiencyService: {} as unknown as import('../modelEfficiency/efficiencyService').EfficiencyService,
+      isCurrentProfile: async () => false,
+    });
+
+    await assert.rejects(
+      service.cleanEditorCache('/tmp/profile'),
+      (error: unknown) => {
+        return (
+          error instanceof Error &&
+          error.name === 'PartialCleanupError' &&
+          'bytesReclaimed' in error &&
+          error.bytesReclaimed === 256
+        );
+      }
+    );
+  });
 });
 
 describe('SqliteCleanupService', () => {
@@ -446,6 +503,58 @@ describe('SqliteCleanupService', () => {
         { key: 'keep:1', value: 'retain' },
       ]);
       assert.deepEqual(JSON.parse(cleanedRows), [
+        { key: 'keep:1', value: 'retain' },
+      ]);
+
+      await service.restoreDeepCleanBackup(dbPath, result.backupPath);
+      const restoredRows = execFileSync(sqliteBinary, [
+        '-json',
+        dbPath,
+        'SELECT key, value FROM cursorDiskKV ORDER BY key;',
+      ], { encoding: 'utf8' });
+      assert.deepEqual(JSON.parse(restoredRows), [
+        { key: 'composerData:1', value: 'secret' },
+        { key: 'keep:1', value: 'retain' },
+      ]);
+    } finally {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects an invalid backup before changing the database', async () => {
+    const { SqliteCleanupService } = await import(
+      '../storage/sqliteCleanupService'
+    );
+    const tempDir = await fs.mkdtemp(
+      path.join(process.cwd(), '.sqlite-restore-test-')
+    );
+    const dbPath = path.join(tempDir, 'state.vscdb');
+    const backupPath = `${dbPath}.backup-123`;
+
+    try {
+      const sqliteBinary = getSqlite3Binary(process.cwd());
+      execFileSync(sqliteBinary, [
+        dbPath,
+        `CREATE TABLE cursorDiskKV (key TEXT PRIMARY KEY, value TEXT);
+         INSERT INTO cursorDiskKV (key, value) VALUES ('keep:1', 'retain');`,
+      ]);
+      await fs.writeFile(backupPath, 'not a sqlite database');
+
+      const service = new SqliteCleanupService({
+        extensionPath: process.cwd(),
+        fileSystem: new NodeFileSystemService(),
+      });
+
+      await assert.rejects(
+        service.restoreDeepCleanBackup(dbPath, backupPath),
+        /integrity|database|SQLite/i
+      );
+      const rows = execFileSync(sqliteBinary, [
+        '-json',
+        dbPath,
+        'SELECT key, value FROM cursorDiskKV;',
+      ], { encoding: 'utf8' });
+      assert.deepEqual(JSON.parse(rows), [
         { key: 'keep:1', value: 'retain' },
       ]);
     } finally {

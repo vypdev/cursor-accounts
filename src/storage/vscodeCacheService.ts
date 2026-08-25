@@ -1,6 +1,7 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
 import type { ICacheCleanupService } from '../domain/ports/ICacheCleanupService';
+import { PartialCleanupError } from '../domain/types/storageCleanup';
 import type { IFileSystemService } from '../domain/ports/IFileSystemService';
 import * as extensionLog from '../logging/extensionLog';
 import type { EfficiencyService } from '../modelEfficiency/efficiencyService';
@@ -31,11 +32,23 @@ export class VSCodeCacheService implements ICacheCleanupService {
    */
   async cleanEditorCache(userDataDir: string): Promise<number> {
     let removedBytes = 0;
-    for (const dirName of EDITOR_CACHE_DIRS) {
-      const result = await this.deps.fileSystem.removeDirectory(
-        path.join(userDataDir, dirName)
+    try {
+      for (const dirName of EDITOR_CACHE_DIRS) {
+        const result = await this.deps.fileSystem.removeDirectory(
+          path.join(userDataDir, dirName)
+        );
+        removedBytes += result.bytes;
+      }
+    } catch (error) {
+      if (removedBytes === 0) {
+        throw error;
+      }
+      const message = error instanceof Error ? error.message : String(error);
+      throw new PartialCleanupError(
+        `Editor cache cleanup partially completed after reclaiming ${removedBytes} bytes: ${message}`,
+        removedBytes,
+        { cause: error }
       );
-      removedBytes += result.bytes;
     }
     return removedBytes;
   }

@@ -292,7 +292,7 @@ sequenceDiagram
     Cache->>FS: removeDirectory
   else vacuum or deep clean
     Cleanup->>DB: vacuum / deepClean
-    DB->>FS: copyFile backup + sqlite3 CLI
+    DB->>FS: VACUUM INTO backup + sqlite3 CLI
   else built-in Cursor commands
     Cleanup->>Cache: deleteOldChats / gcAgentKvBlobs
   end
@@ -307,7 +307,7 @@ sequenceDiagram
 | Ports | `src/domain/ports/IStorageCleanupService.ts`, `IFileSystemService.ts`, etc. | Hexagonal boundaries for cleanup orchestration |
 | Orchestrator | `src/services/storageCleanupService.ts` | Validates profile state, dispatches cleanup actions |
 | Filesystem adapter | `src/storage/nodeFileSystemService.ts` | Node.js `fs/promises` implementation |
-| SQLite adapter | `src/storage/sqliteCleanupService.ts` | `VACUUM` and deep clean via bundled `sqlite3` |
+| SQLite adapter | `src/storage/sqliteCleanupService.ts` | `VACUUM`, SQLite-consistent deep-clean backup/restore, and cleanup via bundled `sqlite3` |
 | Cache adapter | `src/storage/vscodeCacheService.ts` | Editor cache dirs + extension globalState + VS Code commands |
 | Size analyzer | `src/storage/profileStorageAnalyzer.ts` | Per-profile storage breakdown |
 | UI | `webview/src/components/StorageManagementModal.tsx` | Breakdown table and cleanup actions |
