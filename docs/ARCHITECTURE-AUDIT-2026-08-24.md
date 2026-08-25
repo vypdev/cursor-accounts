@@ -858,6 +858,31 @@ focused adapters. This is expected composition coupling; SQL and write policy
 are no longer concentrated in the facade. Migration startup and retention
 cleanup remain the next infrastructure seam.
 
+### SQLite schema checkpoint — 2026-08-25
+
+`BetterSqliteAgentTrackingSchemaInitializer` now owns migration execution and
+post-migration verification of the six required agent-tracking tables. The
+repository facade delegates initialization while retaining the domain-port
+shape and the still-unextracted retention cleanup. The initialization order is
+unchanged: obtain the connection, run `DatabaseMigrator`, verify the required
+tables, then log completion.
+
+Evidence for this follow-up:
+
+- migration plus SQLite integration tests: 12/12 passed;
+- `pnpm test`: 793/793 tests passed across 252 suites;
+- `pnpm run check:architecture`: passed for 436 TypeScript files;
+- `pnpm run check:docs`: passed for 43 Markdown files;
+- Graphify: 4,857 nodes and 9,818 edges;
+- Graphify degrees: facade 22, schema initializer 5;
+- source sizes: facade 155 lines, schema initializer 42 lines;
+- Repowise `dead-code --safe-only --format json`: no findings.
+
+The facade's degree increased because it now composes three focused adapters.
+This is composition-root coupling, while migration policy and table checks are
+no longer embedded in the domain-port facade. Retention cleanup is the final
+remaining responsibility in this SQLite repository slice.
+
 ## 12. Prioritized remediation plan
 
 ### Phase 0 — Release blockers and deterministic validation

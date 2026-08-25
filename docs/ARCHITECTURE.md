@@ -34,6 +34,7 @@ Agent tracking uses **`better-sqlite3`** with persistent connections:
   - **Domain port**: `src/domain/ports/IDatabaseConnectionManager.ts`
   - **Infrastructure adapter**: `src/persistence/betterSqlite/betterSqliteConnectionManager.ts`
   - **Domain-port facade**: `BetterSqliteAgentTrackingRepository`
+  - **Schema initializer**: `BetterSqliteAgentTrackingSchemaInitializer`
   - **Write adapter**: `BetterSqliteAgentTrackingWriteStore`
   - **Read-model adapter**: `BetterSqliteAgentTrackingReadStore`
 - **Benefits**: WAL mode + busy_timeout eliminates lock errors, supports transactions, 10-100x faster

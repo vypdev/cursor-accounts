@@ -82,6 +82,10 @@ Completed slices are recorded below so the plan cannot drift from the code.
   writes, and delta idempotency transactions. The repository facade retains
   only migration verification, cleanup, read/write composition, and the domain
   port contract.
+- **SQLite schema decomposition:** `BetterSqliteAgentTrackingSchemaInitializer`
+  now owns migration execution and verification of the six required agent
+  tracking tables. The repository facade delegates initialization and retains
+  only cleanup plus adapter composition around the domain port.
 - **Security hardening started:** webview error rendering is text-safe, Windows
   process launch no longer enables `shell`, loopback validation ignores
   spoofable forwarding headers, persisted proxy headers redact credentials,
@@ -349,6 +353,13 @@ that historical baseline:
   checkpoint passes 793/793 tests, the architecture gate covers 435 TypeScript
   files, Graphify reports 4,851 nodes and 9,807 edges, and Repowise safe-only
   dead-code analysis reports no findings.
+- `BetterSqliteAgentTrackingSchemaInitializer` now owns migration execution and
+  required-table verification. The repository facade is 155 lines with
+  Graphify degree 22; the initializer is 42 lines with degree 5. Migration and
+  integration tests pass 12/12, the full checkpoint remains 793/793 tests, the
+  architecture gate covers 436 TypeScript files, Graphify reports 4,857 nodes
+  and 9,818 edges, and Repowise safe-only dead-code analysis reports no
+  findings.
 
 ### 3.2 Target state
 
@@ -996,12 +1007,11 @@ Keep SQL and connection handling in infrastructure. The read-model seam is now
 separate from the write adapter, and the domain facade no longer owns SQL for
 either side. Continue separating:
 
-- migration/schema initialization;
 - conversation and agent writes;
 - token event writes and idempotency ledger;
 - conversation aggregate queries;
 - agent tree queries;
-- cleanup and database-size queries.
+- retention cleanup and database-size policy.
 
 Introduce read models where query shapes differ from write records. Preserve
 transactions, WAL, busy timeout, event uniqueness, and multi-window behavior.

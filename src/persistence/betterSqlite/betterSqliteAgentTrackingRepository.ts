@@ -1,8 +1,7 @@
 import type { IAgentTrackingRepository } from '../../domain/ports/IAgentTrackingRepository';
 import type { IDatabaseConnectionManager } from '../../domain/ports/IDatabaseConnectionManager';
-import * as extensionLog from '../../logging/extensionLog';
-import { DatabaseMigrator } from '../databaseMigrations';
 import { BetterSqliteAgentTrackingReadStore } from './betterSqliteAgentTrackingReadStore';
+import { BetterSqliteAgentTrackingSchemaInitializer } from './betterSqliteAgentTrackingSchemaInitializer';
 import { BetterSqliteAgentTrackingWriteStore } from './betterSqliteAgentTrackingWriteStore';
 
 /**
@@ -14,16 +13,22 @@ import { BetterSqliteAgentTrackingWriteStore } from './betterSqliteAgentTracking
  */
 export class BetterSqliteAgentTrackingRepository implements IAgentTrackingRepository {
   private readonly readStore: BetterSqliteAgentTrackingReadStore;
+  private readonly schemaInitializer: BetterSqliteAgentTrackingSchemaInitializer;
   private readonly writeStore: BetterSqliteAgentTrackingWriteStore;
 
   constructor(
     private readonly connectionManager: IDatabaseConnectionManager,
     private readonly dbPath: string,
-    private readonly extensionPath: string
+    extensionPath: string
   ) {
     this.readStore = new BetterSqliteAgentTrackingReadStore(
       connectionManager,
       dbPath
+    );
+    this.schemaInitializer = new BetterSqliteAgentTrackingSchemaInitializer(
+      connectionManager,
+      dbPath,
+      extensionPath
     );
     this.writeStore = new BetterSqliteAgentTrackingWriteStore(
       connectionManager,
@@ -32,32 +37,7 @@ export class BetterSqliteAgentTrackingRepository implements IAgentTrackingReposi
   }
 
   async initialize(): Promise<void> {
-    extensionLog.info(`[BetterSqliteAgentTracking] Initializing: ${this.dbPath}`);
-
-    const conn = await this.connectionManager.getConnection(this.dbPath);
-    const migrator = new DatabaseMigrator(this.dbPath, this.extensionPath);
-    await migrator.migrate();
-
-    const tables = conn.all<{ name: string }>(
-      "SELECT name FROM sqlite_master WHERE type='table'"
-    );
-    const tableNames = tables.map((table) => table.name);
-    const requiredTables = [
-      'conversations',
-      'agents',
-      'agent_tokens',
-      'agent_tokens_delta',
-      'agent_tokens_delta_events',
-      'agent_turn_ended',
-    ];
-
-    for (const table of requiredTables) {
-      if (!tableNames.includes(table)) {
-        throw new Error(`Missing required table: ${table}`);
-      }
-    }
-
-    extensionLog.info('[BetterSqliteAgentTracking] Initialization complete');
+    return this.schemaInitializer.initialize();
   }
 
   upsertConversation(
