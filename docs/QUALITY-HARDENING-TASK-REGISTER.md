@@ -41,7 +41,7 @@ acceptance criteria and evidence are recorded.
 |---|---|
 | Branch | feature/3-mitm-proxy |
 | Latest implementation commit | 2f0352f |
-| Latest documentation commit | 6215933 |
+| Latest documentation commit | aa6f7c1 |
 | Node | v22.23.1 |
 | pnpm | 11.19.0 |
 | Graphify | 0.9.48 |
