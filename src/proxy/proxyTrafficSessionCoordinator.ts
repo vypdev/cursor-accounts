@@ -1,7 +1,10 @@
 import {
   resolveProfileIdFromAuthorizationHeader,
 } from './jwtProfileResolver';
-import type { ProxyTrafficSummary } from './types';
+import type {
+  ProxyTrafficCorrelationEvent,
+  ProxyTrafficSummary,
+} from '../domain/types/proxyTraffic';
 
 export interface ProxyTrafficSessionCoordinatorCallbacks {
   onTraffic(summary: ProxyTrafficSummary): void;
@@ -43,7 +46,7 @@ export class ProxyTrafficSessionCoordinator {
     this.callbacks.onTraffic(enriched);
   }
 
-  track(summary: ProxyTrafficSummary): void {
+  track(summary: ProxyTrafficCorrelationEvent): void {
     this.trackSessionModel(summary);
     this.trackSessionConversation(summary);
   }
@@ -54,7 +57,7 @@ export class ProxyTrafficSessionCoordinator {
     this.sessionProfileIds.clear();
   }
 
-  private trackSessionModel(summary: ProxyTrafficSummary): void {
+  private trackSessionModel(summary: ProxyTrafficCorrelationEvent): void {
     const agent = summary.insights?.agent;
     const modelId = agent?.requestedModelId ?? agent?.modelName;
     const sessionId = agent?.requestId;
@@ -63,7 +66,7 @@ export class ProxyTrafficSessionCoordinator {
     }
   }
 
-  private trackSessionConversation(summary: ProxyTrafficSummary): void {
+  private trackSessionConversation(summary: ProxyTrafficCorrelationEvent): void {
     const agent = summary.insights?.agent;
     const conversationId =
       agent?.conversationId ?? summary.insights?.context?.conversationId;
@@ -73,7 +76,7 @@ export class ProxyTrafficSessionCoordinator {
     }
   }
 
-  private trackSessionProfile(summary: ProxyTrafficSummary): void {
+  private trackSessionProfile(summary: ProxyTrafficCorrelationEvent): void {
     const agent = summary.insights?.agent;
     const sessionId = agent?.requestId;
     if (summary.profileId && sessionId) {

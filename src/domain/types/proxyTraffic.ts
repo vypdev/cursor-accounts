@@ -12,21 +12,30 @@ export interface ProxyLiveTokenData {
 }
 
 /** Narrow traffic contract consumed by agent usage and persistence workflows. */
-export interface ProxyTrafficUsageEvent {
+export interface ProxyTrafficCorrelationEvent {
+  insights?: ProxyInsights;
+  /** Profile detected from JWT Authorization header (shared proxy mode). */
+  profileId?: string;
+  /** Workspace detected from agent protobuf payload. */
+  workspaceId?: string;
+}
+
+/** Narrow traffic contract consumed by agent usage and persistence workflows. */
+export interface ProxyTrafficUsageEvent
+  extends Pick<ProxyTrafficCorrelationEvent, 'insights' | 'profileId'> {
   timestamp: string;
   url: string;
   endpoint: string;
   httpRequestId?: string;
-  insights?: ProxyInsights;
   isLiveTokenUpdate?: boolean;
   isTurnEnded?: boolean;
   liveTokenData?: ProxyLiveTokenData;
-  /** Profile detected from JWT Authorization header (shared proxy mode). */
-  profileId?: string;
 }
 
 /** Redacted traffic event for the proxy API and output channels. */
-export interface ProxyTrafficSummary extends ProxyTrafficUsageEvent {
+export interface ProxyTrafficSummary
+  extends ProxyTrafficUsageEvent,
+    ProxyTrafficCorrelationEvent {
   kind: 'request' | 'response' | 'error';
   method?: string;
   url: string;
@@ -46,8 +55,6 @@ export interface ProxyTrafficSummary extends ProxyTrafficUsageEvent {
   errorKind?: string;
   errorMessage?: string;
   protocolVersion?: HttpProtocolVersion;
-  /** Workspace detected from agent protobuf payload. */
-  workspaceId?: string;
 }
 
 export interface MitmProxyHandlers {
