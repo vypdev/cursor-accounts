@@ -42,6 +42,24 @@ describe('ProxyLiveCostCalculator', () => {
     assert.equal(calculator.calculateDeltaCost(-5, 'composer-2.5'), 0);
   });
 
+  it('ignores non-finite and negative token counts', () => {
+    const calculator = new ProxyLiveCostCalculator(mockProvider(null), () => 4);
+
+    assert.equal(calculator.calculateDeltaCost(Number.NaN, 'unknown-model'), 0);
+    assert.equal(calculator.calculateDeltaCost(Number.POSITIVE_INFINITY, 'unknown-model'), 0);
+    assert.equal(
+      calculator.calculateTurnCost(
+        {
+          inputTokens: -100,
+          outputTokens: Number.NaN,
+          cacheReadTokens: Number.POSITIVE_INFINITY,
+        },
+        'unknown-model'
+      ),
+      0
+    );
+  });
+
   it('calculateTurnCost applies input/output/cache breakdown', () => {
     const calculator = new ProxyLiveCostCalculator(
       mockProvider({

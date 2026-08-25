@@ -14,9 +14,11 @@ export class AgentTrackingPersistenceWriter {
 
   async writeTurnEnded(context: AgentPersistenceContext): Promise<boolean> {
     const { summary, agent, timestamp, modelName } = context;
-    if (agent.inputTokens == null && agent.outputTokens == null) {
+    if (!this.hasTurnUsage(agent)) {
       return false;
     }
+
+    const totalCents = this.resolveTurnCostCents(agent, modelName);
 
     await this.repository.insertTurnEnded({
       requestId: agent.requestId!,
@@ -25,7 +27,7 @@ export class AgentTrackingPersistenceWriter {
       cacheReadTokens: agent.cacheReadTokens,
       cacheWriteTokens: agent.cacheWriteTokens,
       totalTokens: this.resolveTotalTokens(agent),
-      totalCents: agent.totalCents,
+      totalCents,
       usageUuid: agent.usageUuid,
       recordedAt: timestamp,
       modelName,
@@ -248,5 +250,44 @@ export class AgentTrackingPersistenceWriter {
       (agent.cacheReadTokens ?? 0) +
       (agent.cacheWriteTokens ?? 0);
     return billed > 0 ? billed : agent.streamingTokens;
+  }
+
+  private resolveTurnCostCents(
+    agent: AgentSessionInfo,
+    modelName?: string
+  ): number | undefined {
+    if (
+      agent.totalCents != null &&
+      Number.isFinite(agent.totalCents) &&
+      agent.totalCents >= 0
+    ) {
+      return agent.totalCents;
+    }
+
+    if (!this.costCalculator) {
+      return undefined;
+    }
+
+    const calculated = this.costCalculator.calculateTurnCost(
+      {
+        inputTokens: agent.inputTokens ?? 0,
+        outputTokens: agent.outputTokens ?? 0,
+        cacheReadTokens: agent.cacheReadTokens,
+        cacheWriteTokens: agent.cacheWriteTokens,
+      },
+      agent.requestedModelId ?? agent.modelName ?? modelName
+    );
+
+    return Number.isFinite(calculated) && calculated >= 0 ? calculated : undefined;
+  }
+
+  private hasTurnUsage(agent: AgentSessionInfo): boolean {
+    return (
+      agent.inputTokens != null ||
+      agent.outputTokens != null ||
+      agent.cacheReadTokens != null ||
+      agent.cacheWriteTokens != null ||
+      agent.totalCents != null
+    );
   }
 }

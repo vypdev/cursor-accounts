@@ -189,4 +189,80 @@ describe('AgentTrackingPersistenceWriter', () => {
     assert.equal(await writer.writeTurnEnded(createContext()), false);
     assert.equal(repository.turnEnded.length, 0);
   });
+
+  it('uses model-aware pricing when the server omits turn cost', async () => {
+    const repository = new RecordingRepository();
+    const writer = new AgentTrackingPersistenceWriter(repository, undefined, {
+      calculateDeltaCost: () => 0,
+      calculateTurnCost: (breakdown, modelId) => {
+        assert.deepEqual(breakdown, {
+          inputTokens: 100,
+          outputTokens: 50,
+          cacheReadTokens: 20,
+          cacheWriteTokens: undefined,
+        });
+        assert.equal(modelId, 'model-from-agent');
+        return 1.25;
+      },
+    });
+
+    assert.equal(
+      await writer.writeTurnEnded(
+        createContext({
+          agent: {
+            requestId: 'request-1',
+            inputTokens: 100,
+            outputTokens: 50,
+            cacheReadTokens: 20,
+            modelName: 'model-from-agent',
+            usageEvent: 'turn_ended',
+          },
+        })
+      ),
+      true
+    );
+    assert.equal(repository.turnEnded[0]?.totalCents, 1.25);
+  });
+
+  it('keeps a valid server turn cost authoritative', async () => {
+    const repository = new RecordingRepository();
+    const writer = new AgentTrackingPersistenceWriter(repository, undefined, {
+      calculateDeltaCost: () => 0,
+      calculateTurnCost: () => 999,
+    });
+
+    await writer.writeTurnEnded(
+      createContext({
+        agent: {
+          requestId: 'request-1',
+          inputTokens: 100,
+          outputTokens: 50,
+          totalCents: 4.5,
+          usageEvent: 'turn_ended',
+        },
+      })
+    );
+
+    assert.equal(repository.turnEnded[0]?.totalCents, 4.5);
+  });
+
+  it('persists a cache-only completion when no input/output split is present', async () => {
+    const repository = new RecordingRepository();
+    const writer = new AgentTrackingPersistenceWriter(repository);
+
+    assert.equal(
+      await writer.writeTurnEnded(
+        createContext({
+          agent: {
+            requestId: 'request-1',
+            cacheReadTokens: 25,
+            usageEvent: 'turn_ended',
+          },
+        })
+      ),
+      true
+    );
+    assert.equal(repository.turnEnded[0]?.inputTokens, 0);
+    assert.equal(repository.turnEnded[0]?.cacheReadTokens, 25);
+  });
 });

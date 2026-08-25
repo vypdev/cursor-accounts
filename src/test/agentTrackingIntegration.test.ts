@@ -5,12 +5,34 @@ import * as os from 'os';
 import * as path from 'path';
 import type { IDatabaseConnectionManager } from '../domain/ports/IDatabaseConnectionManager';
 import type { IAgentTrackingRepository } from '../domain/ports/IAgentTrackingRepository';
+import type { IModelPricingProvider } from '../domain/ports/IModelPricingProvider';
+import { ProxyLiveCostCalculator } from '../domain/services/ProxyLiveCostCalculator';
 import { BetterSqliteAgentTrackingRepository } from '../persistence/betterSqlite/betterSqliteAgentTrackingRepository';
 import { BetterSqliteConnectionManager } from '../persistence/betterSqlite/betterSqliteConnectionManager';
 import { AgentTrackingService } from '../services/agentTrackingService';
 import type { ProxyTrafficUsageEvent } from '../domain/types/proxyTraffic';
 
 const extensionPath = path.join(__dirname, '..', '..');
+
+const goldenPricingProvider: IModelPricingProvider = {
+  getPricingForModel(modelId) {
+    return modelId === 'golden-model'
+      ? {
+          modelId,
+          displayName: 'Golden Test Model',
+          provider: 'Unknown',
+          inputPer1M: 1,
+          outputPer1M: 3,
+          cacheReadPer1M: 0.1,
+          cacheWritePer1M: 1.25,
+          hiddenByDefault: false,
+        }
+      : null;
+  },
+  getAllModelPricing() {
+    return [];
+  },
+};
 
 async function createRepository(
   dbPath: string,
@@ -92,6 +114,80 @@ describe('AgentTracking integration', () => {
     assert.equal(result.totalCacheReadTokens, 20);
     assert.equal(result.totalDeltaTokens, 150);
     assert.ok(result.models.includes('claude-sonnet'));
+  });
+
+  it('reconciles live estimates and model-aware completion cost without double counting', async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-accounting-golden-'));
+    connectionManager = new BetterSqliteConnectionManager();
+    const dbPath = path.join(tempDir, 'efficiency.db');
+    const repo = await createRepository(dbPath, connectionManager);
+    const service = new AgentTrackingService(
+      repo,
+      'prof-golden',
+      undefined,
+      new ProxyLiveCostCalculator(goldenPricingProvider)
+    );
+    await service.initialize();
+
+    const liveEvent = {
+      timestamp: new Date(1_000_000).toISOString(),
+      url: 'https://agent.cursor.sh/RunSSE',
+      endpoint: '/RunSSE',
+      httpRequestId: 'http-golden-live',
+      isLiveTokenUpdate: true,
+      liveTokenData: {
+        accumulatedTokens: 1_000,
+        latestDelta: 1_000,
+        modelId: 'golden-model',
+      },
+      insights: {
+        agent: {
+          requestId: 'request-golden',
+          conversationId: 'conversation-golden',
+          usageEvent: 'token_delta',
+          requestedModelId: 'golden-model',
+        },
+      },
+    } satisfies ProxyTrafficUsageEvent;
+
+    const completionEvent = {
+      timestamp: new Date(1_001_000).toISOString(),
+      url: 'https://agent.cursor.sh/RunSSE',
+      endpoint: '/RunSSE',
+      httpRequestId: 'http-golden-completion',
+      isTurnEnded: true,
+      insights: {
+        agent: {
+          requestId: 'request-golden',
+          conversationId: 'conversation-golden',
+          usageEvent: 'turn_ended',
+          requestedModelId: 'golden-model',
+          inputTokens: 1_000,
+          outputTokens: 500,
+          cacheReadTokens: 200,
+          cacheWriteTokens: 100,
+        },
+      },
+    } satisfies ProxyTrafficUsageEvent;
+
+    await service.ingestTraffic(liveEvent);
+    await service.ingestTraffic(liveEvent);
+    await service.ingestTraffic(completionEvent);
+    await service.ingestTraffic(completionEvent);
+
+    const totals = await service.getConversationTokens('conversation-golden');
+    assert.equal(totals.totalDeltaTokens, 1_000);
+    assert.ok(Math.abs(totals.totalDeltaCostCents - 0.2) < 0.000001);
+    assert.equal(totals.totalInputTokens, 1_000);
+    assert.equal(totals.totalOutputTokens, 500);
+    assert.equal(totals.totalCacheReadTokens, 200);
+    assert.equal(totals.totalCacheWriteTokens, 100);
+    assert.equal(totals.totalTokens, 1_800);
+    assert.ok(Math.abs(totals.totalTurnCostCents - 0.2645) < 0.000001);
+
+    const completedTurns = await service.getConversationTurnEnded('conversation-golden');
+    assert.equal(completedTurns.length, 1);
+    assert.ok(Math.abs((completedTurns[0]?.totalCents ?? 0) - 0.2645) < 0.000001);
   });
 
   it('end-to-end parent-child subagent tree', async () => {

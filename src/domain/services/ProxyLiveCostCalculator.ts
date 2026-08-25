@@ -6,6 +6,20 @@ import type {
 
 const DEFAULT_FALLBACK_DOLLARS_PER_M = 4;
 
+function normalizeTokenCount(value: number | undefined): number {
+  if (value == null || !Number.isFinite(value) || value <= 0) {
+    return 0;
+  }
+  return value;
+}
+
+function normalizeRate(value: number | undefined): number {
+  if (value == null || !Number.isFinite(value) || value <= 0) {
+    return 0;
+  }
+  return value;
+}
+
 export class ProxyLiveCostCalculator implements IProxyLiveCostCalculator {
   constructor(
     private readonly pricingProvider: IModelPricingProvider,
@@ -17,7 +31,8 @@ export class ProxyLiveCostCalculator implements IProxyLiveCostCalculator {
     deltaTokens: number,
     modelId: string | undefined
   ): number {
-    if (deltaTokens <= 0) {
+    const normalizedDelta = normalizeTokenCount(deltaTokens);
+    if (normalizedDelta === 0) {
       return 0;
     }
 
@@ -26,27 +41,31 @@ export class ProxyLiveCostCalculator implements IProxyLiveCostCalculator {
       : null;
 
     if (!pricing) {
-      return this.tokensToCents(deltaTokens, this.getFallbackDollarsPerM());
+      return this.tokensToCents(
+        normalizedDelta,
+        normalizeRate(this.getFallbackDollarsPerM())
+      );
     }
 
     const blendedRatePer1M =
       (pricing.inputPer1M + pricing.outputPer1M) / 2;
-    return this.tokensToCents(deltaTokens, blendedRatePer1M);
+    return this.tokensToCents(normalizedDelta, blendedRatePer1M);
   }
 
   calculateTurnCost(
     breakdown: TurnTokenBreakdown,
     modelId: string | undefined
   ): number {
+    const inputTokens = normalizeTokenCount(breakdown.inputTokens);
+    const outputTokens = normalizeTokenCount(breakdown.outputTokens);
+    const cacheReadTokens = normalizeTokenCount(breakdown.cacheReadTokens);
+    const cacheWriteTokens = normalizeTokenCount(breakdown.cacheWriteTokens);
     const pricing = modelId
       ? this.pricingProvider.getPricingForModel(modelId)
       : null;
 
     const totalTokens =
-      breakdown.inputTokens +
-      breakdown.outputTokens +
-      (breakdown.cacheReadTokens ?? 0) +
-      (breakdown.cacheWriteTokens ?? 0);
+      inputTokens + outputTokens + cacheReadTokens + cacheWriteTokens;
 
     if (totalTokens <= 0) {
       return 0;
@@ -58,22 +77,19 @@ export class ProxyLiveCostCalculator implements IProxyLiveCostCalculator {
 
     let costCents = 0;
 
-    costCents += this.tokensToCents(breakdown.inputTokens, pricing.inputPer1M);
-    costCents += this.tokensToCents(
-      breakdown.outputTokens,
-      pricing.outputPer1M
-    );
+    costCents += this.tokensToCents(inputTokens, pricing.inputPer1M);
+    costCents += this.tokensToCents(outputTokens, pricing.outputPer1M);
 
-    if (breakdown.cacheReadTokens && pricing.cacheReadPer1M != null) {
+    if (cacheReadTokens > 0 && pricing.cacheReadPer1M != null) {
       costCents += this.tokensToCents(
-        breakdown.cacheReadTokens,
+        cacheReadTokens,
         pricing.cacheReadPer1M
       );
     }
 
-    if (breakdown.cacheWriteTokens && pricing.cacheWritePer1M != null) {
+    if (cacheWriteTokens > 0 && pricing.cacheWritePer1M != null) {
       costCents += this.tokensToCents(
-        breakdown.cacheWriteTokens,
+        cacheWriteTokens,
         pricing.cacheWritePer1M
       );
     }
@@ -82,9 +98,11 @@ export class ProxyLiveCostCalculator implements IProxyLiveCostCalculator {
   }
 
   private tokensToCents(tokens: number, dollarsPerMillion: number): number {
-    if (tokens <= 0 || dollarsPerMillion <= 0) {
+    const normalizedTokens = normalizeTokenCount(tokens);
+    const normalizedRate = normalizeRate(dollarsPerMillion);
+    if (normalizedTokens === 0 || normalizedRate === 0) {
       return 0;
     }
-    return (tokens / 1_000_000) * dollarsPerMillion * 100;
+    return (normalizedTokens / 1_000_000) * normalizedRate * 100;
   }
 }

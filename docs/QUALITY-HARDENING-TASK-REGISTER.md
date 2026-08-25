@@ -25,7 +25,7 @@ acceptance criteria and evidence are recorded.
 | QA-1 | CI, tests, localization, lint | PARTIAL | Full audit passes with loopback access: 795 tests, 26 locales, 428 keys, webview 18/18, coverage floors; three repeated webview runs pass | Add repeated host-run evidence and review generated-artifact/source-lint policy |
 | QA-2 | Dependencies and supply chain | PARTIAL | SDK `1.0.28`, legacy npm `sqlite3` removed, targeted `uuid@11.1.1` and `undici@6.28.0` overrides resolve; `pnpm audit --prod` reports 0 advisories and signatures remain valid | Add clean-room shipped-tree scan, package-size review, and independent compatibility evidence before marking complete |
 | QA-3 | Native runtime and packaging | PARTIAL | Current-target clean build passes with dynamic Electron ABI 128, official SHA-256 validation, sanitized runtime native tree, and VSIX verification | Execute clean-room install from an empty store/workspace and expand evidence across the supported target matrix |
-| QA-4 | Token and cost correctness | OPEN | Persistence seams and idempotency tests exist; no complete golden accounting corpus | Define accounting contract and build redacted end-to-end fixtures |
+| QA-4 | Token and cost correctness | PARTIAL | Accounting contract, authoritative server-cost precedence, model-aware fallback calculation, non-finite input guards, and SQLite replay golden test are implemented | Expand coverage across all decoder shapes, pricing refresh/versioning, rounding policy, and unknown/cache-rate reconciliation |
 | QA-5 | Clean Architecture enforcement | OPEN | Existing checker and fixtures pass; Graphify still reports contract/hotspot risks | Resolve domain/application contracts and replace checker blind spots |
 | QA-6 | Security and privacy | PARTIAL | Local API token, loopback validation, redaction, sidecar safety, and text-safe rendering exist | Complete threat-model decisions, retention/disk-full tests, and process review |
 | QA-7 | Reliability and lifecycle | OPEN | SQLite cleanup has selective and rollback tests | Add concurrency, failure injection, migration recovery, and disk lifecycle tests |
@@ -157,6 +157,25 @@ The current-target packaging path now has reproducible local evidence:
 QA-3 remains PARTIAL because a fresh empty-store installation and the complete
 darwin, Linux, and Windows target matrix have not yet been executed in this
 environment.
+
+## QA-4 accounting checkpoint — 2026-08-25
+
+The accounting contract is now explicit in
+[ACCOUNTING-CONTRACT.md](ACCOUNTING-CONTRACT.md). The implementation and tests
+currently prove:
+
+- a valid server `total_cents` remains authoritative, including zero;
+- absent, negative, or non-finite server costs cannot become billing values;
+- completed turns fall back to the model-aware calculator when the server omits
+  cost;
+- live delta estimates remain separate from completed-turn costs;
+- repeated live and completion events remain idempotent in SQLite;
+- synthetic redacted end-to-end data reconciles token totals, cache components,
+  live cost, and completed-turn cost without double counting.
+
+QA-4 remains PARTIAL until decoder-shape coverage, pricing snapshot/version
+semantics, rounding policy, and unknown-model/cache-rate reconciliation are
+specified and tested.
 
 ## Reclassification decisions
 
