@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { parseRpcPath } from '../proxy/proxyDecode';
+import {
+  decodeProtoEntry,
+  messageTypeName,
+  parseRpcPath,
+} from '../proxy/proxyDecode';
 import {
   extractAgentInnerInsights,
   extractAgentSessionInfo,
@@ -10,6 +14,18 @@ import {
   getProtoRegistry,
   resetProtoRegistryForTests,
 } from '../proxy/protoRegistry';
+import type { ProxyLogEntry } from '../proxy/types';
+
+function entry(overrides: Partial<ProxyLogEntry> = {}): ProxyLogEntry {
+  return {
+    timestamp: '2026-08-25T00:00:00.000Z',
+    direction: 'response',
+    url: 'https://api2.cursor.sh/aiserver.v1.DashboardService/GetCurrentPeriodUsage',
+    host: 'api2.cursor.sh',
+    headers: {},
+    ...overrides,
+  };
+}
 
 describe('parseRpcPath', () => {
   it('parses aiserver RPC URLs', () => {
@@ -26,6 +42,117 @@ describe('parseRpcPath', () => {
       parseRpcPath('https://api2.cursor.sh/agent.v1.AgentService/RunPoll'),
       '/agent.v1.AgentService/RunPoll'
     );
+  });
+
+  it('falls back to the RPC pattern for a relative or malformed URL', () => {
+    assert.equal(
+      parseRpcPath('/aiserver.v1.DashboardService/GetCurrentPeriodUsage'),
+      '/aiserver.v1.DashboardService/GetCurrentPeriodUsage'
+    );
+    assert.equal(parseRpcPath('not-an-rpc-url'), null);
+  });
+
+  it('rejects non-Cursor RPC paths', () => {
+    assert.equal(parseRpcPath('https://example.com/Service/Method'), null);
+  });
+
+  it('builds request and response message names', () => {
+    assert.equal(messageTypeName('BidiAppend', 'request'), 'aiserver.v1.BidiAppendRequest');
+    assert.equal(messageTypeName('BidiAppend', 'response'), 'aiserver.v1.BidiAppendResponse');
+  });
+
+  it('returns precise errors before attempting to decode', async () => {
+    assert.deepEqual(await decodeProtoEntry(entry()), { error: 'No body data' });
+    assert.deepEqual(
+      await decodeProtoEntry(
+        entry({
+          body: '{}',
+          headers: { 'content-type': 'application/json' },
+          url: 'https://example.com/not-an-rpc',
+        })
+      ),
+      { error: 'Not a Connect RPC URL (aiserver/agent)' }
+    );
+  });
+
+  it('decodes and redacts JSON RPC payloads', async () => {
+    const result = await decodeProtoEntry(
+      entry({
+        direction: 'request',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ request_id: 'req-1', access_token: 'secret' }),
+      })
+    );
+
+    assert.equal(result.rpcPath, '/aiserver.v1.DashboardService/GetCurrentPeriodUsage');
+    assert.equal(result.error, undefined);
+    assert.equal(result.decoded?.access_token, '[REDACTED]');
+  });
+
+  it('returns a JSON parse error without throwing', async () => {
+    const result = await decodeProtoEntry(
+      entry({
+        headers: { 'content-type': 'application/json' },
+        body: '{invalid-json',
+      })
+    );
+
+    assert.equal(result.rpcPath, '/aiserver.v1.DashboardService/GetCurrentPeriodUsage');
+    assert.match(result.error ?? '', /JSON|Unexpected token|position/i);
+  });
+
+  it('decodes a known binary RPC payload through the registry', async () => {
+    resetProtoRegistryForTests();
+    const registry = await getProtoRegistry();
+    const types = registry.getRpcTypes('/aiserver.v1.BidiService/BidiAppend');
+    assert.ok(types);
+    const payload = types.requestType
+      .encode(
+        types.requestType.create({
+          data: 'hello',
+          requestId: { requestId: 'req-binary' },
+          appendSeqno: 2,
+        })
+      )
+      .finish();
+
+    const result = await decodeProtoEntry(
+      entry({
+        direction: 'request',
+        url: 'https://api2.cursor.sh/aiserver.v1.BidiService/BidiAppend',
+        headers: { 'content-type': 'application/connect+proto' },
+        bodyBase64: Buffer.from(payload).toString('base64'),
+        bodyEncoding: 'base64',
+      })
+    );
+
+    assert.equal(result.error, undefined);
+    assert.equal(result.decoded?.data, 'hello');
+    assert.equal(result.insights?.agent?.requestId, 'req-binary');
+  });
+
+  it('reports unknown and malformed binary payloads safely', async () => {
+    const unknown = await decodeProtoEntry(
+      entry({
+        bodyBase64: Buffer.from([1]).toString('base64'),
+        bodyEncoding: 'base64',
+        url: 'https://api2.cursor.sh/aiserver.v1.UnknownService/Unknown',
+        headers: { 'content-type': 'application/connect+proto' },
+      })
+    );
+    assert.equal(unknown.error, 'Unknown RPC: /aiserver.v1.UnknownService/Unknown');
+
+    const malformed = await decodeProtoEntry(
+      entry({
+        direction: 'request',
+        bodyBase64: Buffer.from([0xff, 0xff]).toString('base64'),
+        bodyEncoding: 'base64',
+        url: 'https://api2.cursor.sh/aiserver.v1.BidiService/BidiAppend',
+        headers: { 'content-type': 'application/connect+proto' },
+      })
+    );
+    assert.equal(malformed.rpcPath, '/aiserver.v1.BidiService/BidiAppend');
+    assert.ok(malformed.error || malformed.insights);
   });
 });
 
