@@ -13,7 +13,7 @@ export interface CertificateInstallResult {
   error?: string;
 }
 
-export interface CertificatePlatformOperations {
+interface CertificatePlatformOperations {
   verifyInstalled(processRunner: CertificateProcessRunner): Promise<boolean>;
   install(
     certPath: string,
@@ -56,7 +56,7 @@ async function executeCertificateCommand(
   };
 }
 
-export const darwinCertificateOperations: CertificatePlatformOperations = {
+const darwinCertificateOperations: CertificatePlatformOperations = {
   async verifyInstalled(processRunner) {
     const { code } = await processRunner.run(
       'security',
@@ -89,7 +89,7 @@ export const darwinCertificateOperations: CertificatePlatformOperations = {
   },
 };
 
-export const windowsCertificateOperations: CertificatePlatformOperations = {
+const windowsCertificateOperations: CertificatePlatformOperations = {
   async verifyInstalled(processRunner) {
     const { code } = await processRunner.run(
       'powershell.exe',
