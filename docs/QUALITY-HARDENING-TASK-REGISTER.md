@@ -27,9 +27,9 @@ acceptance criteria and evidence are recorded.
 | QA-3 | Native runtime and packaging | PARTIAL | Current-target clean build passes with dynamic Electron ABI 128, official SHA-256 validation, sanitized runtime native tree, and VSIX verification | Execute clean-room install from an empty store/workspace and expand evidence across the supported target matrix |
 | QA-4 | Token and cost correctness | PARTIAL | Accounting contract, authoritative server-cost precedence, model-aware fallback calculation, non-finite input guards, and SQLite replay golden test are implemented | Expand coverage across all decoder shapes, pricing refresh/versioning, rounding policy, and unknown/cache-rate reconciliation |
 | QA-5 | Clean Architecture enforcement | PARTIAL | TypeScript-AST resolver-backed checker passes for 282 production files; negative fixtures cover domain/application/package/cycle cases; current Graphify/Repowise hotspots remain | Refactor the highest-risk low-coverage infrastructure modules without weakening the contract, then add characterization and failure-path tests |
-| QA-6 | Security and privacy | PARTIAL | Threat model recorded; API error details are generic; loopback/token parity, redaction, sidecar safety, text-safe webview rendering, certificate platform validation, and Repowise history scan are evidenced | Complete retention/disk-full/WAL tests, process and certificate command failure review, protocol-specific redaction, and the legacy optional-token decision |
+| QA-6 | Security and privacy | PARTIAL | Threat model recorded; API error details are generic; loopback/token parity, redaction, sidecar safety, text-safe webview rendering, certificate platform validation, injected certificate-process failure tests, and Repowise history scan are evidenced | Complete retention/disk-full/WAL tests, native command/timeout execution review on supported OS runners, protocol-specific redaction, and the legacy optional-token decision |
 | QA-7 | Reliability and lifecycle | PARTIAL | Tracking ingress shutdown is idempotent; proxy startup failures now attempt MITM/ingress/API cleanup; direct `SIGTERM`/`SIGINT` uses graceful shutdown; focused lifecycle/entrypoint tests pass 9/9 | Add multi-process/WAL, failure-injection, migration-recovery, disk-lifecycle, and child-process hang tests |
-| QA-8 | Local test confidence | PARTIAL | `proxyDecode.ts` has 91.7% c8 lines and 100% c8 branches with 22 focused tests; certificate platform boundaries have 11/11 focused tests and 39.39% c8 lines; Repowise still identifies remaining hotspots and retains a stale 27.17% coverage index for `proxyDecode.ts` | Reconcile static-analysis coverage ingestion, add risk-based floors, and cover the next proxy/profile/process hotspots |
+| QA-8 | Local test confidence | PARTIAL | `proxyDecode.ts` has 91.7% c8 lines and 100% c8 branches with 22 focused tests; certificate process/platform boundaries have 15/15 focused tests and 69.96% c8 lines, 69.56% branches, and 91.66% functions; Repowise still identifies remaining hotspots and retains a stale 27.17% coverage index for `proxyDecode.ts` | Reconcile static-analysis coverage ingestion, add risk-based floors, and cover the next proxy/profile/process hotspots |
 | QA-9 | Documentation and operations | PARTIAL | Plan, audit links, dependency inventory, advisory register, and English docs are synchronized for this slice | Add task/decision records, reproducible audit artifact output, and runbooks |
 | QA-10 | Independent final audit and release rehearsal | OPEN | Not started | Run only after QA-1 through QA-9 have current evidence |
 
@@ -40,8 +40,8 @@ acceptance criteria and evidence are recorded.
 | Item | Value |
 |---|---|
 | Branch | feature/3-mitm-proxy |
-| Latest implementation commit | 91f3586 |
-| Latest documentation commit | f64cb11 |
+| Latest implementation commit | 9ef232a |
+| Latest documentation commit | 235de81 |
 | Node | v22.23.1 |
 | pnpm | 11.19.0 |
 | Graphify | 0.9.48 |
@@ -282,6 +282,21 @@ UAC/certificate command failure injection, and cross-platform execution remain
 open because they require supported operating-system runners or injectable
 process seams.
 
+## QA-8.2 certificate process-boundary checkpoint — 2026-08-25
+
+Commit `9ef232a` introduces the `CertificateProcessRunner` seam while keeping
+the Node `spawn` implementation as the production default. Installation,
+verification, and removal now use the same injected runner, so tests can cover
+command ordering and post-operation verification without invoking privileged
+macOS or Windows commands.
+
+The focused suite passes 15/15 tests, including successful macOS installation,
+permission normalization, cancelled Windows installation, and successful
+post-removal verification. The current c8 record reports 69.96% lines,
+69.56% branches, and 91.66% functions for `installCaCertificate.ts`. The seam
+does not claim real administrator/UAC execution; that remains a cross-platform
+release-matrix responsibility.
+
 ## QA-7.2 proxy child failure cleanup checkpoint — 2026-08-25
 
 Commit `e9cdc6c` closes two resource-lifecycle gaps in the standalone proxy
@@ -358,6 +373,7 @@ The following historical findings are reclassified from the current baseline:
 | 2026-08-25 | QA-7.1 tracking ingress shutdown lifecycle slice | 2f0352f | Idempotent concurrent close, drain-before-close guarantee, 4/4 focused tests, CI-mode lint/typecheck/pretest pass, Graphify refresh; multi-process and failure-injection evidence remain open |
 | 2026-08-25 | QA-7.2 proxy child failure cleanup slice | e9cdc6c | Startup failure cleanup, graceful SIGTERM/SIGINT handling, 5/5 proxy entrypoint tests, 4/4 ingress lifecycle tests, full audit pass, remote workflow pending |
 | 2026-08-25 | QA-6.4 certificate platform-boundary slice | 91f3586 | Unsupported-platform uninstall bug fixed, Linux policy preserved, 11/11 focused tests, c8 certificate coverage 39.39%, full audit pass, remote workflow pending |
+| 2026-08-25 | QA-8.2 certificate process-boundary slice | 9ef232a | Injected process runner, 15/15 focused tests, c8 certificate coverage 69.96% lines/69.56% branches/91.66% functions, full audit pass; native privileged execution remains open |
 
 This register must be updated in the same commit as each task's implementation
 or evidence change.
