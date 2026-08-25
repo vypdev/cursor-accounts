@@ -28,8 +28,8 @@ acceptance criteria and evidence are recorded.
 | QA-4 | Token and cost correctness | PARTIAL | Accounting contract, authoritative server-cost precedence, model-aware fallback calculation, non-finite input guards, and SQLite replay golden test are implemented | Expand coverage across all decoder shapes, pricing refresh/versioning, rounding policy, and unknown/cache-rate reconciliation |
 | QA-5 | Clean Architecture enforcement | PARTIAL | TypeScript-AST resolver-backed checker passes for 282 production files; negative fixtures cover domain/application/package/cycle cases; current Graphify/Repowise hotspots remain | Refactor the highest-risk low-coverage infrastructure modules without weakening the contract, then add characterization and failure-path tests |
 | QA-6 | Security and privacy | PARTIAL | Threat model recorded; API error details are generic; loopback/token parity, redaction, sidecar safety, text-safe webview rendering, certificate platform validation, injected certificate-process failure tests, and Repowise history scan are evidenced | Complete retention/disk-full/WAL tests, native command/timeout execution review on supported OS runners, protocol-specific redaction, and the legacy optional-token decision |
-| QA-7 | Reliability and lifecycle | PARTIAL | Tracking ingress shutdown is idempotent; proxy startup failures now attempt MITM/ingress/API cleanup; direct `SIGTERM`/`SIGINT` uses graceful shutdown; focused lifecycle/entrypoint tests pass 9/9 | Add multi-process/WAL, failure-injection, migration-recovery, disk-lifecycle, and child-process hang tests |
-| QA-8 | Local test confidence | PARTIAL | `proxyDecode.ts` has 91.7% c8 lines and 100% c8 branches with 22 focused tests; certificate process/platform boundaries have 15/15 focused tests and 69.96% c8 lines, 69.56% branches, and 91.66% functions; Repowise still identifies remaining hotspots and retains a stale 27.17% coverage index for `proxyDecode.ts` | Reconcile static-analysis coverage ingestion, add risk-based floors, and cover the next proxy/profile/process hotspots |
+| QA-7 | Reliability and lifecycle | PARTIAL | Tracking ingress shutdown is idempotent; proxy startup failures now attempt MITM/ingress/API cleanup; direct `SIGTERM`/`SIGINT` uses graceful shutdown; focused lifecycle/entrypoint/process tests pass 14/14 | Add multi-process/WAL, failure-injection, migration-recovery, disk-lifecycle, and child-process hang tests |
+| QA-8 | Local test confidence | PARTIAL | `proxyDecode.ts` has 91.7% c8 lines and 100% c8 branches with 22 focused tests; certificate process/platform boundaries have 15/15 focused tests and 69.96% c8 lines, 69.56% branches, and 91.66% functions; `nodeProxyProcess.ts` has 103/113 c8 lines, 21/25 branches, and 10/10 functions with 5 focused tests; Repowise still identifies remaining hotspots and retains stale coverage indexes | Reconcile static-analysis coverage ingestion, add risk-based floors, and cover the next proxy/profile/process hotspots |
 | QA-9 | Documentation and operations | PARTIAL | Plan, audit links, dependency inventory, advisory register, and English docs are synchronized for this slice | Add task/decision records, reproducible audit artifact output, and runbooks |
 | QA-10 | Independent final audit and release rehearsal | OPEN | Not started | Run only after QA-1 through QA-9 have current evidence |
 
@@ -40,7 +40,7 @@ acceptance criteria and evidence are recorded.
 | Item | Value |
 |---|---|
 | Branch | feature/3-mitm-proxy |
-| Latest implementation commit | 9ef232a |
+| Latest implementation commit | 5599974 |
 | Latest documentation commit | de9e730 |
 | Node | v22.23.1 |
 | pnpm | 11.19.0 |
@@ -317,6 +317,22 @@ for a future injectable lifecycle harness; this checkpoint therefore records
 the implementation and compile/runtime evidence without claiming complete
 failure-injection coverage.
 
+## QA-7.3 proxy child lifecycle checkpoint — 2026-08-25
+
+Commit `5599974` hardens the `NodeProxyProcess` application boundary. A
+second `start()` call now fails while the existing child is alive, preventing
+orphaned proxy processes and ambiguous exit ownership. The child reference is
+cleared only when the exiting child is still the current child, so a natural
+exit cannot erase a newer process reference. The existing stderr and exit
+event forwarding behavior is characterized by focused tests.
+
+The focused `NodeProxyProcess` suite passes 5/5 tests, including missing
+script handling, non-running process state, absent IPC, duplicate-start
+rejection, stderr forwarding, exit-code propagation, and reference cleanup.
+The full CI-equivalent audit passes. This checkpoint does not claim complete
+crash recovery or hang detection: supervisor escalation, forced termination,
+child startup races, and multi-process behavior remain open QA-7 work.
+
 ## QA-8.1 decoder hotspot checkpoint — 2026-08-25
 
 Commit `2d9fe05` refactored `src/proxy/proxyDecode.ts` into explicit
@@ -377,6 +393,7 @@ The following historical findings are reclassified from the current baseline:
 | 2026-08-25 | QA-7.2 proxy child failure cleanup slice | e9cdc6c | Startup failure cleanup, graceful SIGTERM/SIGINT handling, 5/5 proxy entrypoint tests, 4/4 ingress lifecycle tests, full audit pass, remote workflow pending |
 | 2026-08-25 | QA-6.4 certificate platform-boundary slice | 91f3586 | Unsupported-platform uninstall bug fixed, Linux policy preserved, 11/11 focused tests, c8 certificate coverage 39.39%, full audit pass, remote workflow pending |
 | 2026-08-25 | QA-8.2 certificate process-boundary slice | 9ef232a | Injected process runner, 15/15 focused tests, c8 certificate coverage 69.96% lines/69.56% branches/91.66% functions, full audit pass; native privileged execution remains open |
+| 2026-08-25 | QA-7.3 proxy child lifecycle slice | 5599974 | Duplicate-start guard, identity-safe natural-exit cleanup, stderr/exit characterization, 5/5 focused tests, c8 `nodeProxyProcess.ts` coverage 103/113 lines, 21/25 branches, and 10/10 functions, full audit pass; crash/hang recovery remains open |
 
 This register must be updated in the same commit as each task's implementation
 or evidence change.
