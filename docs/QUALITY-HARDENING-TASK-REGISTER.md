@@ -26,7 +26,7 @@ acceptance criteria and evidence are recorded.
 | QA-2 | Dependencies and supply chain | PARTIAL | SDK `1.0.28`, legacy npm `sqlite3` removed, targeted `uuid@11.1.1` and `undici@6.28.0` overrides resolve; `pnpm audit --prod` reports 0 advisories and signatures remain valid | Add clean-room shipped-tree scan, package-size review, and independent compatibility evidence before marking complete |
 | QA-3 | Native runtime and packaging | PARTIAL | Current-target clean build passes with dynamic Electron ABI 128, official SHA-256 validation, sanitized runtime native tree, and VSIX verification | Execute clean-room install from an empty store/workspace and expand evidence across the supported target matrix |
 | QA-4 | Token and cost correctness | PARTIAL | Accounting contract, authoritative server-cost precedence, model-aware fallback calculation, non-finite input guards, and SQLite replay golden test are implemented | Expand coverage across all decoder shapes, pricing refresh/versioning, rounding policy, and unknown/cache-rate reconciliation |
-| QA-5 | Clean Architecture enforcement | OPEN | Existing checker and fixtures pass; Graphify still reports contract/hotspot risks | Resolve domain/application contracts and replace checker blind spots |
+| QA-5 | Clean Architecture enforcement | PARTIAL | TypeScript-AST resolver-backed checker passes for 282 production files; negative fixtures cover domain/application/package/cycle cases; current Graphify/Repowise hotspots remain | Refactor the highest-risk low-coverage infrastructure modules without weakening the contract, then add characterization and failure-path tests |
 | QA-6 | Security and privacy | PARTIAL | Local API token, loopback validation, redaction, sidecar safety, and text-safe rendering exist | Complete threat-model decisions, retention/disk-full tests, and process review |
 | QA-7 | Reliability and lifecycle | OPEN | SQLite cleanup has selective and rollback tests | Add concurrency, failure injection, migration recovery, and disk lifecycle tests |
 | QA-8 | Local test confidence | PARTIAL | Critical floors exist for selected modules; Repowise still identifies low-coverage hotspots | Add risk-based floors and negative/property tests for remaining hotspots |
@@ -40,14 +40,14 @@ acceptance criteria and evidence are recorded.
 | Item | Value |
 |---|---|
 | Branch | feature/3-mitm-proxy |
-| Latest implementation commit | 50bdcc2 |
-| Latest documentation commit | 50bdcc2 |
+| Latest implementation commit | 7618984 |
+| Latest documentation commit | 7618984 |
 | Node | v22.23.1 |
 | pnpm | 11.19.0 |
 | Graphify | 0.9.48 |
 | Repowise | 0.45.0 |
-| Architecture gate | 438 TypeScript files |
-| Documentation gate | 46 Markdown files |
+| Architecture gate | 282 production TypeScript files; tests excluded by contract |
+| Documentation gate | 48 Markdown files |
 
 ### Reproducible audit
 
@@ -180,6 +180,45 @@ QA-4 remains PARTIAL until decoder-shape coverage, pricing snapshot/version
 semantics, rounding policy, and unknown-model/cache-rate reconciliation are
 specified and tested.
 
+## QA-5 architecture checkpoint — 2026-08-25
+
+Commit `7618984` replaced the regex-only import inspection with a
+TypeScript-AST and TypeScript-resolver implementation. The current production
+graph contains 282 TypeScript files, excludes `src/test` and generated output,
+and passes with zero boundary violations and zero static import cycles.
+
+The checker now:
+
+- parses static imports, export declarations, dynamic `import()`, `require()`,
+  and TypeScript import-equals declarations;
+- resolves relative imports with TypeScript and fails closed when a relative
+  source cannot be resolved;
+- resolves workspace package names against package manifests and source
+  entrypoints when `dist` output is absent;
+- enforces explicit domain, application, shared-kernel, proxy, and composition
+  root rules for both type and runtime imports;
+- reports source line, import kind, target layer, and a machine-readable rule;
+- emits JSON for audit integrations with `node scripts/check-architecture.mjs
+  --json`.
+
+The independent fixture suite covers legal domain/application dependencies,
+domain-to-application violations, application-to-infrastructure violations,
+unapproved external `require()` dependencies, unresolved relative imports,
+workspace package resolution, and static cycles. Documentation and contributor
+guidance now reference the same contract in
+[ARCHITECTURE-CONTRACT.md](ARCHITECTURE-CONTRACT.md).
+
+Graphify `0.9.48` was refreshed after the implementation and reported 4,983
+nodes and 11,607 raw edges; Repowise `0.45.0` continues to prioritize
+`proxyDecode.ts`, `proxyServer.ts`, `installCaCertificate.ts`,
+`statusBarManager.ts`, and high-fan-out contract barrels. Those findings are
+being treated as refactoring/test priorities, not as permission to relax the
+architecture rules.
+
+QA-5 remains PARTIAL until the prioritized infrastructure hotspots receive
+characterization, failure-path, and lifecycle coverage and the final audit
+confirms no boundary regressions.
+
 ## Reclassification decisions
 
 The following historical findings are reclassified from the current baseline:
@@ -191,7 +230,7 @@ The following historical findings are reclassified from the current baseline:
 | Source lint and coverage gate | PARTIALLY RESOLVED | Repository audit passes; generated-artifact policy and broader local floors remain |
 | Current VSIX verification | RESOLVED FOR SELECTED ARTIFACT | Clean-room and release matrix remain open |
 | Production advisories | PARTIALLY RESOLVED | Current `pnpm audit --prod` reports zero advisory records; clean-room shipped-tree evidence remains open |
-| Domain/application dependency direction | OPEN | Existing gate passes but resolver-level contract analysis remains incomplete |
+| Domain/application dependency direction | PARTIALLY RESOLVED | Current resolved production graph has no violations; checker and fixtures now use TypeScript AST, package resolution, line-level rules, and fail-closed relative imports |
 | Native runtime reproducibility | OPEN | Existing artifact passes; clean-room ABI matrix remains unverified |
 | Token and cost semantic correctness | OPEN | No complete golden event-to-cost reconciliation corpus exists |
 | Security/privacy residuals | PARTIAL | Several controls exist; retention, disk-full, process, and threat-model evidence remain |
@@ -203,6 +242,7 @@ The following historical findings are reclassified from the current baseline:
 | 2026-08-25 | QA-0 baseline capture and register creation | fa1bb12 | Current audit outputs in /private/tmp/qa0-*; immutable baseline recorded before remediation |
 | 2026-08-25 | QA-2 dependency/native cleanup slice | 03b9fe6 | SDK upgrade, sqlite3 removal, targeted overrides, clean install, production audit 0, native smoke test, and full audit pass |
 | 2026-08-25 | QA-3 native packaging reproducibility slice | 50bdcc2 | Dynamic Electron ABI, official prebuild digest verification, native archive tests, runtime-tree sanitization, pnpm 10.34 frozen install, current-target build, production audit 0, signatures 830/830, and full audit pass |
+| 2026-08-25 | QA-5 Clean Architecture enforcement slice | 7618984 | TypeScript-AST/resolver checker, package-source fallback, production test exclusion, line/rule/JSON diagnostics, negative fixtures, architecture contract, contributor guidance, full audit pass |
 
 This register must be updated in the same commit as each task's implementation
 or evidence change.
