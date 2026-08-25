@@ -107,9 +107,6 @@ async function preparePackage() {
     env: { ...process.env, CI: 'true' },
   });
 
-  console.log('Building sqlite3 native binding…');
-  run('npm rebuild sqlite3');
-
   // Download better-sqlite3 prebuild for Electron (directly from GitHub releases)
   console.log('Downloading better-sqlite3 prebuild for Electron…');
   run('node scripts/download-electron-prebuild.mjs');
@@ -124,15 +121,6 @@ async function preparePackage() {
     .filter((entry) => entry.startsWith('sdk-'))
     .map((entry) => `@cursor/${entry}`);
 
-  const sqliteBinding = path.join(
-    root,
-    'node_modules',
-    'sqlite3',
-    'build',
-    'Release',
-    'node_sqlite3.node'
-  );
-
   const betterSqliteBinding = path.join(
     root,
     'node_modules',
@@ -141,10 +129,6 @@ async function preparePackage() {
     'Release',
     'better_sqlite3.node'
   );
-
-  if (!fs.existsSync(sqliteBinding)) {
-    throw new Error(`Missing sqlite3 native binding: ${sqliteBinding}`);
-  }
 
   if (!fs.existsSync(betterSqliteBinding)) {
     throw new Error(`Missing better-sqlite3 native binding: ${betterSqliteBinding}`);
@@ -155,7 +139,6 @@ async function preparePackage() {
       ? `Found SDK packages: ${sdkPackages.join(', ')}`
       : 'Platform SDK packages will be installed per target during packaging'
   );
-  console.log(`Found sqlite3 binding: ${sqliteBinding}`);
   console.log(`Found better-sqlite3 binding: ${betterSqliteBinding}`);
 }
 
@@ -222,10 +205,6 @@ function verifyVsix(target) {
 
   const checks = [
     { label: 'webview bundle', pattern: 'extension/webview-dist/bundle.js' },
-    {
-      label: 'sqlite3 native binding',
-      pattern: 'extension/node_modules/sqlite3/build/Release/node_sqlite3.node',
-    },
     {
       label: 'better-sqlite3 native binding',
       pattern: 'extension/node_modules/better-sqlite3/build/Release/better_sqlite3.node',

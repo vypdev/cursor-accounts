@@ -13,3 +13,5 @@ allowBuilds:
   sqlite3: true
 overrides:
   body-parser: 1.20.6
+  undici: 6.28.0
+  uuid: 11.1.1

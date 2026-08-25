@@ -22,15 +22,15 @@ acceptance criteria and evidence are recorded.
 | ID | Area | Status | Current evidence | Next required action |
 |---|---|---|---|---|
 | QA-0 | Baseline and finding reclassification | COMPLETE | pnpm run audit passes; current Graphify/Repowise/dependency evidence captured on 2026-08-25 | Keep this baseline immutable and update it after every cross-cutting change |
-| QA-1 | CI, tests, localization, lint | PARTIAL | Audit passes: 795 tests, 26 locales, 428 keys, webview 18/18, coverage floors | Add repeated-run evidence and review generated-artifact/source-lint policy |
-| QA-2 | Dependencies and supply chain | OPEN | Current production audit: 1 critical, 15 high, 13 moderate, 3 low; signatures 852/852 | Build shipped dependency/SBOM inventory and triage each advisory |
+| QA-1 | CI, tests, localization, lint | PARTIAL | Full audit passes with loopback access: 795 tests, 26 locales, 428 keys, webview 18/18, coverage floors; three repeated webview runs pass | Add repeated host-run evidence and review generated-artifact/source-lint policy |
+| QA-2 | Dependencies and supply chain | PARTIAL | SDK `1.0.28`, legacy npm `sqlite3` removed, targeted `uuid@11.1.1` and `undici@6.28.0` overrides resolve; `pnpm audit --prod` reports 0 advisories and signatures remain valid | Add clean-room shipped-tree scan, package-size review, and independent compatibility evidence before marking complete |
 | QA-3 | Native runtime and packaging | PARTIAL | Existing VSIX verification passes; clean-room and full target matrix are not yet evidenced | Repair fail-closed native preparation and execute clean-room matrix |
 | QA-4 | Token and cost correctness | OPEN | Persistence seams and idempotency tests exist; no complete golden accounting corpus | Define accounting contract and build redacted end-to-end fixtures |
 | QA-5 | Clean Architecture enforcement | OPEN | Existing checker and fixtures pass; Graphify still reports contract/hotspot risks | Resolve domain/application contracts and replace checker blind spots |
 | QA-6 | Security and privacy | PARTIAL | Local API token, loopback validation, redaction, sidecar safety, and text-safe rendering exist | Complete threat-model decisions, retention/disk-full tests, and process review |
 | QA-7 | Reliability and lifecycle | OPEN | SQLite cleanup has selective and rollback tests | Add concurrency, failure injection, migration recovery, and disk lifecycle tests |
 | QA-8 | Local test confidence | PARTIAL | Critical floors exist for selected modules; Repowise still identifies low-coverage hotspots | Add risk-based floors and negative/property tests for remaining hotspots |
-| QA-9 | Documentation and operations | PARTIAL | Plan, audit links, and English docs are synchronized for this slice | Add task/decision records, reproducible audit artifact output, and runbooks |
+| QA-9 | Documentation and operations | PARTIAL | Plan, audit links, dependency inventory, advisory register, and English docs are synchronized for this slice | Add task/decision records, reproducible audit artifact output, and runbooks |
 | QA-10 | Independent final audit and release rehearsal | OPEN | Not started | Run only after QA-1 through QA-9 have current evidence |
 
 ## QA-0 evidence
@@ -106,6 +106,32 @@ pnpm audit signatures --json verified 852 packages with no invalid or missing
 signatures. Signature validity does not remediate vulnerable package versions;
 QA-2 remains open.
 
+## Post-remediation checkpoint — 2026-08-25
+
+The first QA-2 implementation slice is now validated by the full repository
+audit, executed with the loopback permission required by the proxy API
+acceptance tests:
+
+- `@cursor/sdk` upgraded from `1.0.18` to `1.0.28`; its Node requirement
+  (`>=22.13`) is compatible with the observed Node `22.23.1` runtime.
+- The unused root `sqlite3@5.1.7` package was removed. The extension uses
+  `better-sqlite3` for persistence and retains the separately built platform
+  SQLite CLI under `bin/<target>/`.
+- `uuid@11.1.1` is forced for `http-mitm-proxy`; source inspection confirmed
+  the library uses only the named `v4` export and the proxy package loads.
+- `undici@6.28.0` is forced for ConnectRPC `1.7.0`; source inspection found
+  no runtime `undici` import in the affected package, and the SDK loads.
+- `CI=true pnpm run audit` passed: lint/type checks, architecture rules and
+  fixtures, localization, documentation links (46 files), extension tests and
+  coverage floors, webview tests (18/18), and selected VSIX verification.
+- The audit was also attempted in the restricted sandbox; its two loopback
+  acceptance tests failed with `EPERM`, so that run is not considered product
+  evidence. The escalated run passed those tests.
+
+QA-2 remains PARTIAL until clean-room packaging proves that build-only
+dependencies are not shipped accidentally and the exact staged runtime closure
+is reviewed.
+
 ## Reclassification decisions
 
 The following historical findings are reclassified from the current baseline:
@@ -126,7 +152,8 @@ The following historical findings are reclassified from the current baseline:
 
 | Date | Task | Commit | Evidence |
 |---|---|---|---|
-| 2026-08-25 | QA-0 baseline capture and register creation | Pending | Current audit outputs in /private/tmp/qa0-*; update with committed artifact paths when QA-9 audit runner exists |
+| 2026-08-25 | QA-0 baseline capture and register creation | fa1bb12 | Current audit outputs in /private/tmp/qa0-*; immutable baseline recorded before remediation |
+| 2026-08-25 | QA-2 dependency/native cleanup slice | Pending | SDK upgrade, sqlite3 removal, targeted overrides, clean install, production audit 0, and full audit pass; update with the implementation commit after commit |
 
 This register must be updated in the same commit as each task's implementation
 or evidence change.

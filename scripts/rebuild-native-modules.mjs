@@ -37,17 +37,9 @@ console.log(`[rebuild-native-modules] Rebuilding native modules for ${runtime}..
 
 try {
   if (runtime === 'node') {
-    // Node-based tests use the bundled SQLite CLI for legacy integrations and
-    // only load better-sqlite3 directly. Rebuilding sqlite3 here would add an
-    // unrelated node-gyp dependency and can fail even when Agent Tracking is
-    // fully testable.
     console.log('→ better-sqlite3 (Node ABI)');
     execSync('npm rebuild better-sqlite3', rebuildOptions);
   } else {
-    // sqlite3 remains part of the packaged Cursor SDK/CLI runtime.
-    console.log('→ sqlite3');
-    execSync('npm rebuild sqlite3', rebuildOptions);
-
     console.log(`→ better-sqlite3 (Electron ${electronVersion})`);
     execSync(
       `npx electron-rebuild -v ${electronVersion} -m ./node_modules/better-sqlite3 -f`,

@@ -38,11 +38,11 @@ pnpm run build -- --target darwin-arm64
 
 1. **Bundles** the extension code with esbuild for optimal performance
 2. Compiles workspace packages (`@cursor-accounts/types`, `@cursor-accounts/shared`) and the Accounts webview
-3. Installs dependencies and rebuilds the `sqlite3` native binding
+3. Installs dependencies and prepares the `better-sqlite3` native binding
 4. Converts workspace dependencies to a production layout compatible with `vsce`
 5. Removes hoisted devDependencies that break npm dependency validation, then prunes non-production top-level packages from `node_modules`
 6. Packages a platform-specific `.vsix` with bundled code and full production dependencies
-7. Verifies the VSIX contains the webview bundle, `sqlite3`, `@cursor/sdk`, and critical runtime deps (`undici`, `bindings`)
+7. Verifies the VSIX contains the webview bundle, `better-sqlite3`, `@cursor/sdk`, and critical runtime deps (`undici`, `bindings`)
 8. Restores the workspace to its original development state
 
 The extension code is bundled into a single `out/extension-bundle.js` file (~1.2MB). All production `node_modules` (including `@cursor/sdk` and its full transitive dependency tree) are included in the VSIX.
@@ -91,7 +91,7 @@ The extension uses **esbuild** to bundle all TypeScript code into a single file,
 | Platform SDK | `@cursor/sdk-<platform>` | `node_modules/@cursor/sdk-*` | Yes (one per target) |
 | SQLite CLI | `bin/<target>/sqlite3` | Same path | Yes (one per target) |
 
-**Note**: `@cursor/sdk` is marked as `external` in the esbuild bundle because it has native dependencies and is dynamically imported. Its full production dependency tree (`undici`, `bindings`, `sqlite3`, etc.) is shipped in `node_modules/` — not selectively whitelisted.
+**Note**: `@cursor/sdk` is marked as `external` in the esbuild bundle because it has native dependencies and is dynamically imported. Its production dependency tree (`undici`, `bindings`, and platform SDK packages) is shipped in `node_modules/`; the obsolete npm `sqlite3` package is not shipped.
 
 **VSIX Size**: ~20 MB per platform (3465 files; down from ~26 MB before bundling; includes full production `node_modules` for `@cursor/sdk`)
 

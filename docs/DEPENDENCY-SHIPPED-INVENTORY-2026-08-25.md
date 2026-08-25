@@ -84,3 +84,20 @@ VSIX_FILE=cursor-accounts-darwin-arm64-0.1.34.vsix pnpm run verify:vsix
 ## Baseline decision
 
 No dependency version is changed by this inventory. The next implementation slice is to establish a safe remediation matrix: direct upgrade candidates, API/engine compatibility, native rebuild requirements, package-size impact, and regression gates. An advisory is not considered resolved until the lockfile, production audit, shipped-artifact scan, native verification, and full test/audit workflow agree.
+
+## Follow-up implementation checkpoint
+
+The inventory baseline above intentionally remains immutable. The first
+remediation slice subsequently changed the graph as follows:
+
+- `@cursor/sdk`: `1.0.18` → `1.0.28`;
+- root `sqlite3@5.1.7`: removed because no source import or current SDK
+  dependency requires it;
+- `uuid`: targeted override to `11.1.1` for `http-mitm-proxy`;
+- `undici`: targeted override to `6.28.0` for ConnectRPC `1.7.0`;
+- `pnpm audit --prod`: 34 advisory records in the pre-remediation graph → 0
+  advisory records after the slice.
+
+These changes are not final QA-2 closure. The next required evidence is a
+clean-room package inspection proving the shipped tree contains only runtime
+dependencies and the native ABI expected by the target extension host.

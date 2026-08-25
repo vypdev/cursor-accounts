@@ -76,12 +76,9 @@ else
   exit 1
 fi
 
-# Check for legacy sqlite3 CLI (should still be included for fallback)
-if unzip -l "$VSIX_FILE" | grep -q "node_sqlite3.node"; then
-  echo "✅ Legacy sqlite3 binding included (for fallback)"
-else
-  echo "⚠️  Warning: Legacy sqlite3 not found (may be intentional)"
-fi
+# The extension uses better-sqlite3 for persistence. The bundled sqlite3 CLI,
+# when present for token/database utilities, is a separate platform binary and
+# must not be confused with the removed npm sqlite3 native module.
 
 # Check for migrations
 if unzip -l "$VSIX_FILE" | grep -q "persistence/migrations"; then
