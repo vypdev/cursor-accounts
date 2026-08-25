@@ -12,6 +12,7 @@ import type { ProfileAccountFetcher } from '../services/profileAccountFetcher';
 import type { MultiProfileQuotaService } from '../services/multiProfileQuotaService';
 import type { ProfileWorkspaceService } from '../services/profileWorkspaceService';
 import type { ProfileGitHubEnrichmentService } from '../github/profileGitHubEnrichmentService';
+import { AccountsPanelBackgroundRefreshCoordinator } from '../ui/accountsPanelBackgroundRefreshCoordinator';
 import { AccountsPanelDataRefresher } from '../ui/accountsPanelDataRefresher';
 
 const PROFILE: Profile = {
@@ -25,30 +26,55 @@ const PROFILE: Profile = {
 
 function createRefresher(active = true) {
   const postedMessages: ToWebviewMessage[] = [];
+  const profileManager = {
+    getProfiles: async () => [PROFILE],
+  } as unknown as IProfileManager;
+  const profileDetector = {
+    detectCurrentProfile: async () => null,
+    getCurrentUserDataDir: () => '/tmp/cursor-user',
+  } as unknown as IProfileDetector;
+  const quotaService = {
+    getAllCachedQuotas: () => new Map(),
+    fetchAllQuotas: async () => new Map(),
+  } as unknown as MultiProfileQuotaService;
+  const accountFetcher = {
+    fetchAllProfileAccounts: async () => new Map(),
+    fetchActiveWindowAccount: async () => null,
+  } as unknown as ProfileAccountFetcher;
+  const profileWorkspaceService = {
+    getProfilesWithWorkspaces: async () => [],
+  } as unknown as ProfileWorkspaceService;
+  const githubEnrichment = {
+    enrichProfiles: async () => ({ summaries: {}, tokenStatus: {} }),
+  } as unknown as ProfileGitHubEnrichmentService;
+  const callbacks = {
+    postMessage: async (message: ToWebviewMessage) => {
+      postedMessages.push(message);
+    },
+    hasActiveWebview: () => active,
+  };
+  const backgroundRefresh = new AccountsPanelBackgroundRefreshCoordinator(
+    {
+      profileManager,
+      profileDetector,
+      quotaService,
+      accountFetcher,
+      profileWorkspaceService,
+      githubEnrichment,
+    },
+    callbacks
+  );
   const refresher = new AccountsPanelDataRefresher(
     {
-      profileManager: {
-        getProfiles: async () => [PROFILE],
-      } as unknown as IProfileManager,
-      profileDetector: {
-        detectCurrentProfile: async () => null,
-        getCurrentUserDataDir: () => '/tmp/cursor-user',
-      } as unknown as IProfileDetector,
-      quotaService: {
-        getAllCachedQuotas: () => new Map(),
-        fetchAllQuotas: async () => new Map(),
-      } as unknown as MultiProfileQuotaService,
-      accountFetcher: {
-        fetchAllProfileAccounts: async () => new Map(),
-        fetchActiveWindowAccount: async () => null,
-      } as unknown as ProfileAccountFetcher,
+      profileManager,
+      profileDetector,
+      backgroundRefresh,
+      quotaService,
       instanceDetector: {
         detectRunningInstances: async () => new Map(),
         getLastDetection: () => new Map(),
       } as unknown as IInstanceDetector,
-      profileWorkspaceService: {
-        getProfilesWithWorkspaces: async () => [],
-      } as unknown as ProfileWorkspaceService,
+      profileWorkspaceService,
       efficiencyService: {
         getStatsStorage: () => ({ getAllStats: () => ({}) }),
       } as unknown as EfficiencyService,
@@ -58,16 +84,8 @@ function createRefresher(active = true) {
         checkCertificateInstalled: async () => false,
         getCachedCertificateInstalled: () => false,
       } as unknown as IProxyManager,
-      githubEnrichment: {
-        enrichProfiles: async () => ({ summaries: {}, tokenStatus: {} }),
-      } as unknown as ProfileGitHubEnrichmentService,
     },
-    {
-      postMessage: async (message) => {
-        postedMessages.push(message);
-      },
-      hasActiveWebview: () => active,
-    }
+    callbacks
   );
 
   return { refresher, postedMessages };

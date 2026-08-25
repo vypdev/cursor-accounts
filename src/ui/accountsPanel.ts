@@ -26,6 +26,7 @@ import type { ProxySettingsService } from '../services/proxySettingsService';
 import type { IProfileSettingsManager } from '../domain/ports/IProfileSettingsManager';
 import { ProfileGitHubEnrichmentService } from '../github/profileGitHubEnrichmentService';
 import { AccountsPanelHandlers } from './accountsPanelHandlers';
+import { AccountsPanelBackgroundRefreshCoordinator } from './accountsPanelBackgroundRefreshCoordinator';
 import { AccountsPanelDataRefresher } from './accountsPanelDataRefresher';
 import { ModelPricingService } from '../services/modelPricingService';
 import { CursorModelPricingProvider } from '../modelEfficiency/cursorModelPricingProvider';
@@ -80,18 +81,32 @@ export class AccountsPanelProvider {
       pricingProvider
     );
 
-    this.dataRefresher = new AccountsPanelDataRefresher(
+    const backgroundRefresh = new AccountsPanelBackgroundRefreshCoordinator(
       {
         profileManager,
         profileDetector,
         quotaService,
         accountFetcher,
+        profileWorkspaceService,
+        githubEnrichment: new ProfileGitHubEnrichmentService(),
+      },
+      {
+        postMessage: (message) => this.postMessage(message),
+        hasActiveWebview: () => this.getActiveWebview() !== undefined,
+      }
+    );
+
+    this.dataRefresher = new AccountsPanelDataRefresher(
+      {
+        profileManager,
+        profileDetector,
+        backgroundRefresh,
+        quotaService,
         instanceDetector,
         profileWorkspaceService,
         efficiencyService,
         proxyManager,
         proxySettingsService,
-        githubEnrichment: new ProfileGitHubEnrichmentService(),
       },
       {
         postMessage: (message) => this.postMessage(message),

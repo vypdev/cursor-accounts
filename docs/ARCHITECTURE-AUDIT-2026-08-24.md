@@ -589,7 +589,7 @@ baseline, but it is not presented as a completed final audit.
 ### Updated Repowise and Graphify signals
 
 Repowise and Graphify were re-run after the latest proxy and Accounts Panel
-extractions. The graph now contains 4,719 nodes and 11,039 edges; nine SQL files remain
+extractions. The graph now contains 4,733 nodes and 11,095 edges; nine SQL files remain
 unparsed because
 the installed Graphify environment does not include `tree_sitter_sql`. The
 largest remaining source-level hubs are `ProxyManager`, `ProfileManager`,
@@ -601,17 +601,26 @@ The Accounts Panel extraction now separates profile CRUD/import/export into
 `AccountsPanelProfileHandlers` and GitHub token actions into
 `AccountsPanelGithubHandlers`. Their focused tests cover successful operations,
 refresh orchestration, cancellation, missing profiles, and import/export
-serialization. The full extension-host checkpoint passed 760/760 tests, the
-webview suite passed 18/18 tests, and the architecture gate passed for 412
+serialization. The full extension-host checkpoint passed 764/764 tests, the
+webview suite passed 18/18 tests, and the architecture gate passed for 414
 TypeScript files.
 
 The provider's read-model and refresh responsibilities now live behind
 `AccountsPanelDataRefresher`, reducing `AccountsPanelProvider` to 545 lines and
-Graphify degree 29. The refresher has Graphify degree 19 and 60.41% line
-coverage; its direct tests cover inactive-webview short-circuiting, initial
-read-model publication, secondary refresh coordination, and proxy-state
-publication. The latest full extension-host checkpoint is 760/760 tests and
-the architecture gate covers 412 TypeScript files.
+Graphify degree 29. The refresher is now 341 lines, has Graphify degree 19 and
+55.13% line coverage, and its direct tests cover inactive-webview
+short-circuiting, initial read-model publication, secondary refresh
+coordination, and proxy-state publication. The latest full extension-host
+checkpoint is 764/764 tests and the architecture gate covers 414 TypeScript
+files.
+
+The remote account, GitHub, and quota refreshes now live in
+`AccountsPanelBackgroundRefreshCoordinator`, which has Graphify degree 11 and
+88.11% line coverage. Its direct tests cover inactive-webview short-circuiting,
+account loading/projections, GitHub and quota publication, and lock release
+after a failed account fetch. The provider constructs this coordinator at the
+composition boundary while the data refresher remains a compatibility facade
+for existing panel actions and event subscriptions.
 
 The MITM proxy extraction now separates session correlation and traffic
 enrichment into `ProxyTrafficSessionCoordinator`, reducing
