@@ -4,7 +4,7 @@ Thank you for contributing. This guide covers local setup, project layout, testi
 
 ## Prerequisites
 
-- [Node.js 22](https://nodejs.org/) — `nvm use` (see [.nvmrc](.nvmrc))
+- [Node.js 24](https://nodejs.org/) — `nvm install && nvm use` (see [.nvmrc](.nvmrc))
 - [pnpm 10](https://pnpm.io/) — `corepack enable` or install globally
 - [Cursor](https://cursor.com/) or VS Code for Extension Development Host (F5)
 
@@ -13,7 +13,9 @@ Use **pnpm only** in this repo. Do not mix `npm install` with `pnpm-lock.yaml`.
 ## Getting started
 
 ```bash
-nvm use 22
+nvm install
+nvm use
+corepack enable
 pnpm install
 pnpm run compile
 ```

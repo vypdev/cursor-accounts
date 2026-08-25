@@ -50,11 +50,11 @@ for (const vsix of vsixFiles) {
     },
     {
       label: 'undici',
-      pattern: 'extension/node_modules/.pnpm/undici@.*/node_modules/undici/package.json',
+      pattern: 'extension/node_modules/(\\.pnpm/undici@.*/node_modules/undici|undici)/package.json',
     },
     {
       label: 'bindings',
-      pattern: 'extension/node_modules/.pnpm/bindings@.*/node_modules/bindings/package.json',
+      pattern: 'extension/node_modules/(\\.pnpm/bindings@.*/node_modules/bindings|bindings)/package.json',
     },
   ];
 
@@ -83,7 +83,7 @@ for (const vsix of vsixFiles) {
 
   for (const { label, pattern } of checks) {
     try {
-      execSync(`unzip -l "${vsix}" | grep "${pattern}"`, {
+      execSync(`unzip -l "${vsix}" | grep -E "${pattern}"`, {
         cwd: root,
         encoding: 'utf-8',
       });

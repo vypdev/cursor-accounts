@@ -6,7 +6,7 @@ For historical notes on extension bundling and prepublish simplification, see [S
 
 ## Prerequisites
 
-- [Node.js 22+](https://nodejs.org/) (`nvm use` — see [.nvmrc](../.nvmrc))
+- [Node.js 24.x](https://nodejs.org/) (`nvm install && nvm use` — see [.nvmrc](../.nvmrc))
 - [pnpm 10](https://pnpm.io/) (`corepack enable`)
 - Use **pnpm only** in this repo
 
@@ -15,6 +15,9 @@ For historical notes on extension bundling and prepublish simplification, see [S
 Build for your current platform and architecture:
 
 ```bash
+nvm install
+nvm use
+corepack enable
 pnpm install
 pnpm run build:current
 ```
@@ -22,6 +25,9 @@ pnpm run build:current
 Build for all supported platforms:
 
 ```bash
+nvm install
+nvm use
+corepack enable
 pnpm install
 pnpm run build:all
 ```
@@ -166,7 +172,8 @@ pnpm run verify:native:node
 
 ### Node version mismatch
 
-The build requires Node 22+. Run `nvm use` or ensure CI uses `node-version: 22`.
+The build requires Node 24.x. Run `nvm install && nvm use` or ensure CI uses
+`node-version-file: .nvmrc`.
 
 ### Missing bundled SQLite binary
 
@@ -174,7 +181,12 @@ Platform binaries live under `bin/<target>/`. See [PLATFORM-SUPPORT.md](PLATFORM
 
 ### `npm list` / extraneous dependency errors
 
-The unified build script (`scripts/build.mjs`) handles pnpm workspace compatibility automatically. Do not run `pnpm run package` directly; use `pnpm run build:current` instead.
+The unified build script (`scripts/build.mjs`) handles pnpm workspace
+compatibility automatically. With the repository's hoisted pnpm linker, the
+VSCE compatibility shim also maps transitive runtime dependencies from the
+virtual store to visible `node_modules` paths before npm-packlist runs. This is
+required for packages such as `undici` to be shipped in the VSIX. Do not run
+`pnpm run package` directly; use `pnpm run build:current` instead.
 
 ## Legacy Scripts
 

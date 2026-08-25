@@ -87,8 +87,8 @@ function parseArgs(argv) {
 function ensureNodeVersion() {
   if (process.platform === 'win32') {
     const major = Number.parseInt(process.versions.node.split('.')[0], 10);
-    if (major < 22) {
-      throw new Error(`Node.js 22+ required. Current version: v${process.versions.node}`);
+    if (major !== 24) {
+      throw new Error(`Node.js 24.x required. Current version: v${process.versions.node}`);
     }
     return;
   }
@@ -215,11 +215,11 @@ function verifyVsix(target) {
     },
     {
       label: 'undici',
-      pattern: 'extension/node_modules/.pnpm/undici@.*/node_modules/undici/package.json',
+      pattern: 'extension/node_modules/(\\.pnpm/undici@.*/node_modules/undici|undici)/package.json',
     },
     {
       label: 'bindings',
-      pattern: 'extension/node_modules/.pnpm/bindings@.*/node_modules/bindings/package.json',
+      pattern: 'extension/node_modules/(\\.pnpm/bindings@.*/node_modules/bindings|bindings)/package.json',
     },
     {
       label: 'efficiency SQL migrations',
@@ -254,7 +254,7 @@ function verifyVsix(target) {
   console.log(`\n==> Verifying ${vsixName}`);
   for (const { label, pattern } of checks) {
     try {
-      execSync(`unzip -l "${vsixPath}" | grep "${pattern}"`, {
+      execSync(`unzip -l "${vsixPath}" | grep -E "${pattern}"`, {
         cwd: root,
         encoding: 'utf8',
         stdio: ['ignore', 'pipe', 'pipe'],

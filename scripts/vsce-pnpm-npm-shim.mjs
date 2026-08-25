@@ -2,7 +2,6 @@
 
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 const args = process.argv.slice(2);
@@ -36,10 +35,6 @@ if (isProductionList) {
     ],
   ]);
   const rootNodeModules = path.resolve('node_modules');
-  const rootPackage = JSON.parse(readFileSync('package.json', 'utf8'));
-  const rootDependencyNames = new Set(
-    Object.keys(rootPackage.dependencies ?? {})
-  );
   const toPackagedPath = (entry) => {
     const workspacePath = workspaceMappings.get(entry);
     if (workspacePath) {
@@ -54,12 +49,11 @@ if (isProductionList) {
 
     const packageName = entry.slice(markerIndex + marker.length);
     const candidate = path.join(rootNodeModules, packageName);
-    const isRootRuntimeDependency =
-      rootDependencyNames.has(packageName) ||
-      packageName.startsWith('@cursor/sdk-');
-    return isRootRuntimeDependency && existsSync(candidate)
-      ? candidate
-      : entry;
+    // npm-packlist ignores the hidden .pnpm directory. With pnpm's hoisted
+    // linker, prefer the corresponding visible root package whenever it
+    // exists so transitive runtime dependencies (for example undici) are
+    // included in the VSIX as well as direct dependencies.
+    return existsSync(candidate) ? candidate : entry;
   };
   const output = [
     ...new Set(

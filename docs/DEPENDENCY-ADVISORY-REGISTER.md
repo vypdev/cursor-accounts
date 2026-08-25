@@ -17,7 +17,7 @@ and packaging path must also be reviewed.
 - `protobufjs` now requests `^7.6.5`, which removes the advisory affecting the
   previously resolved `7.6.3` package.
 - `@cursor/sdk` is upgraded to `^1.0.28`; the published SDK requires Node
-  `>=22.13`, which is compatible with the project baseline `Node 22.23.1`, and
+  `>=22.13`, which is compatible with the project baseline `Node 24.19.0`, and
   no longer declares `sqlite3`.
 - The unused root `sqlite3` dependency and its native rebuild/package checks
   are removed. Persistence uses `better-sqlite3`; the platform `bin/<target>/sqlite3`

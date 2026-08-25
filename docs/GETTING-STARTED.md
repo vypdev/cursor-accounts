@@ -4,7 +4,7 @@ This guide covers installation, first launch, and upgrading from the legacy **Cu
 
 ## Prerequisites
 
-- [Node.js 22](https://nodejs.org/) via [nvm](https://github.com/nvm-sh/nvm): `nvm use 22` (see [.nvmrc](../.nvmrc))
+- [Node.js 24](https://nodejs.org/) via [nvm](https://github.com/nvm-sh/nvm): `nvm install && nvm use` (see [.nvmrc](../.nvmrc))
 - [pnpm](https://pnpm.io/): `corepack enable` or `npm install -g pnpm`
 
 Use **pnpm only** for this repo—do not mix `npm install` with `pnpm-lock.yaml`.
@@ -14,7 +14,9 @@ Use **pnpm only** for this repo—do not mix `npm install` with `pnpm-lock.yaml`
 ### From source (development)
 
 ```bash
-nvm use 22
+nvm install
+nvm use
+corepack enable
 pnpm install   # installs extension + webview workspace packages
 pnpm run compile
 ```

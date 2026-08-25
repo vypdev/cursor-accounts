@@ -31,7 +31,9 @@ See [docs/FEATURES.md](docs/FEATURES.md) for the full feature overview.
 ### Quick start (from source)
 
 ```bash
-nvm use 22
+nvm install
+nvm use
+corepack enable
 pnpm install
 pnpm run compile
 ```
@@ -109,7 +111,9 @@ See [docs/DATABASE-BETTER-SQLITE3.md](docs/DATABASE-BETTER-SQLITE3.md) for archi
 ## Development
 
 ```bash
-nvm use 22
+nvm install
+nvm use
+corepack enable
 pnpm run watch         # extension TypeScript on save
 pnpm run watch:webview # Accounts panel webview on save
 pnpm test              # unit tests

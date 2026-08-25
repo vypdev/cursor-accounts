@@ -24,7 +24,7 @@ acceptance criteria and evidence are recorded.
 | QA-0 | Baseline and finding reclassification | COMPLETE | pnpm run audit passes; current Graphify/Repowise/dependency evidence captured on 2026-08-25 | Keep this baseline immutable and update it after every cross-cutting change |
 | QA-1 | CI, tests, localization, lint | PARTIAL | Full audit passes with 864 host tests, 79.84% lines, 74.15% branches, and 79.05% functions; localization is 26 locales/428 keys and webview is 18/18 | Add repeated host-run evidence and review generated-artifact/source-lint policy |
 | QA-2 | Dependencies and supply chain | PARTIAL | SDK `1.0.28`, legacy npm `sqlite3` removed, targeted `uuid@11.1.1` and `undici@6.28.0` overrides resolve; `pnpm audit --prod` reports 0 advisories and signatures remain valid | Add clean-room shipped-tree scan, package-size review, and independent compatibility evidence before marking complete |
-| QA-3 | Native runtime and packaging | PARTIAL | Current-target clean build passes with dynamic Electron ABI 128, official SHA-256 validation, sanitized runtime native tree, and VSIX verification | Execute clean-room install from an empty store/workspace and expand evidence across the supported target matrix |
+| QA-3 | Native runtime and packaging | PARTIAL | Current-target clean build passes with dynamic Electron ABI 128, official SHA-256 validation, sanitized runtime native tree, and VSIX verification under Node 24/pnpm 10 | Execute clean-room install from an empty store/workspace and expand evidence across the supported target matrix |
 | QA-4 | Token and cost correctness | PARTIAL | Accounting contract, authoritative server-cost precedence, model-aware fallback calculation, non-finite input guards, and SQLite replay golden test are implemented | Expand coverage across all decoder shapes, pricing refresh/versioning, rounding policy, and unknown/cache-rate reconciliation |
 | QA-5 | Clean Architecture enforcement | PARTIAL | TypeScript-AST resolver-backed checker passes for 296 production files; negative fixtures cover domain/application/package/cycle cases; the new restore contract remains behind the domain port and adapter boundary; current Graphify/Repowise hotspots remain | Refactor the highest-risk low-coverage infrastructure modules without weakening the contract, then add characterization and failure-path tests |
 | QA-6 | Security and privacy | PARTIAL | Threat model recorded; API error details are generic; loopback/token parity, redaction, sidecar safety, text-safe webview rendering, certificate platform validation, injected certificate-process failure tests, bounded certificate-process timeout/kill escalation, fail-closed migration execution, SQLite snapshot backup/restore validation, sidecar preservation, partial-cleanup accounting, and Repowise history scan are evidenced | Complete disk-full/crash-restart testing, native privileged command execution review on supported OS runners, protocol-specific redaction, and the legacy optional-token decision |
@@ -42,8 +42,8 @@ acceptance criteria and evidence are recorded.
 | Branch | feature/3-mitm-proxy |
 | Latest implementation commit | 57d4314 |
 | Latest documentation commit | See the commit and evidence log below |
-| Node | v22.23.1 |
-| pnpm | 11.19.0 |
+| Node | v24.19.0 (nvm-managed via `.nvmrc`) |
+| pnpm | 10.34.0 (Corepack, declared by `package.json#packageManager`) |
 | Graphify | 0.9.48 |
 | Repowise | 0.45.0 |
 | Architecture gate | 296 production TypeScript files; tests excluded by contract |
@@ -64,6 +64,38 @@ pnpm run audit passed on 2026-08-25 with:
 The current-target VSIX check proves the selected artifact is internally
 consistent. It does not prove clean-room reproducibility or the full platform
 matrix; those remain QA-3 work.
+
+### Node 24 toolchain checkpoint
+
+The repository now has one explicit Node.js toolchain contract:
+
+- `.nvmrc` and `.node-version` select Node 24;
+- `package.json#engines.node` requires `>=24 <25`;
+- `package.json#packageManager` pins pnpm `10.34.0`, activated through Corepack;
+- `@types/node` follows the Node 24 major line;
+- CI uses `actions/setup-node@v6` with `node-version-file: .nvmrc` and
+  `actions/checkout@v5`;
+- local setup and build documentation instruct contributors to run
+  `corepack enable` before using pnpm.
+
+Evidence collected on 2026-08-25 under Node `v24.19.0` (Node module ABI 137)
+and pnpm `10.34.0`:
+
+- `CI=true pnpm install --frozen-lockfile`: passed, including native rebuild
+  and SQLite runtime verification;
+- `CI=true pnpm run audit`: passed, including 296-file architecture checks,
+  864 host tests, 18 webview tests, localization parity, documentation links,
+  coverage floors, and VSIX contents;
+- `CI=true pnpm run build:current`: passed, including the Electron ABI 128
+  native binding, SDK platform package, `undici`, `bindings`, migration files,
+  and forbidden-artifact checks;
+- `pnpm run verify:vsix`: passed against the generated current-platform VSIX.
+
+The packaging compatibility shim now maps hoisted transitive dependencies to
+visible `node_modules` paths before VSCE invokes npm-packlist. VSIX verification
+accepts both hoisted and virtual-store layouts, so it validates runtime
+contents rather than a pnpm implementation detail. Clean-room installation and
+the complete supported-target matrix remain open acceptance criteria.
 
 ### Graphify
 

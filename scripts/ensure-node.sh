@@ -8,7 +8,7 @@ set -e
 # runtime selection.
 unset npm_config_prefix
 
-REQUIRED_MAJOR=22
+REQUIRED_MAJOR=24
 
 ensure_node_version() {
   if ! command -v node >/dev/null 2>&1; then
@@ -18,8 +18,8 @@ ensure_node_version() {
 
   CURRENT_MAJOR=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
 
-  if [ "$CURRENT_MAJOR" -lt "$REQUIRED_MAJOR" ]; then
-    echo "❌ Node.js ${REQUIRED_MAJOR}+ required. Current version: $(node -v)"
+  if [ "$CURRENT_MAJOR" -ne "$REQUIRED_MAJOR" ]; then
+    echo "❌ Node.js ${REQUIRED_MAJOR}.x required. Current version: $(node -v)"
     return 1
   fi
 }
@@ -34,7 +34,7 @@ if [ -s "$NVM_DIR/nvm.sh" ]; then
     nvm install
     nvm use
   else
-    nvm use 22
+    nvm use 24
   fi
 
   ensure_node_version

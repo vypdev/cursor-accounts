@@ -8,7 +8,7 @@ This document describes the persistent connection architecture using `better-sql
 
 ### Prerequisites
 
-1. Node.js 18+ (extension development)
+1. Node.js 24.x (extension development; use the repository `.nvmrc`)
 2. Electron version matching VS Code (for native module compilation)
 
 ### Setup
