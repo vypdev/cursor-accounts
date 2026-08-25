@@ -40,7 +40,7 @@ acceptance criteria and evidence are recorded.
 | Item | Value |
 |---|---|
 | Branch | feature/3-mitm-proxy |
-| Latest implementation commit | f534f8c |
+| Latest implementation commit | 24ab634 |
 | Latest documentation commit | 7c30817 |
 | Node | v22.23.1 |
 | pnpm | 11.19.0 |
@@ -66,7 +66,7 @@ matrix; those remain QA-3 work.
 
 ### Graphify
 
-The latest code-only graph contains 5,135 nodes and 11,970 edges. The highest
+The latest code-only graph contains 5,140 nodes and 11,983 edges. The highest
 relevant hotspots include:
 
 - ProxyManager: degree 67;
@@ -88,12 +88,14 @@ policy and state it explicitly.
   installCaCertificate.ts, statusBarManager.ts, efficiencyService.ts,
   profileCommands.ts, IProxyManager.ts, and high-fan-out type barrels.
 
-The latest Repowise index contains 3,989 nodes and 11,478 edges. Its current
-health scores are 4.3/10 for `src/profiles/profileLauncher.ts`, 1.98/10 for
-`src/services/proxyManager.ts`, and 2.5/10 for the certificate facade. The
+The latest Repowise index contains 3,993 nodes and 11,495 edges. Its current
+health scores are 4.3/10 for `src/profiles/profileLauncher.ts`, 3.13/10 for
+`src/services/proxyManager.ts`, and 2.5/10 for the certificate facade. After
+the coordinator-setup split, `src/services/proxyManager.ts` measures 3.13/10
+with maximum CCN 5 and no large-constructor finding. The
 ProfileLauncher score improved from 1.86 to 4.3 after process/proxy seams and
 workflow extraction; ProxyManager's dependency composition is now separated,
-but its constructor and facade cohesion remain open.
+its initialization phases are explicit, and facade cohesion remains open.
 
 Repowise targets are prioritization signals, not automatic deletion commands.
 Each candidate requires runtime, bundle, and VSIX reachability review.
@@ -241,6 +243,9 @@ The ProfileLauncher hotspot was handled in four implementation commits:
 - `f534f8c` moved ProxyManager's concrete default dependency graph into
   `proxyManagerDefaultDependencies.ts`, preserving the public facade and its
   existing constructor compatibility.
+- `24ab634` split ProxyManager coordinator initialization into ordered traffic,
+  lifecycle, read-model, and stop phases; the constructor no longer contains
+  the full coordinator graph.
 
 The focused launcher suites pass 33/33 tests. The current full audit passes
 with architecture checks for 292 production TypeScript files, localization
@@ -257,9 +262,8 @@ for `profileLauncher.ts`, 89.08%/85.71%/100% for
 `profileProcessLauncher.ts`, 94.66%/76.47%/100% for
 `profileProxyLaunchCoordinator.ts`, 71.42%/89.28%/38.59% for
 `proxyManager.ts`, and 95.09%/75%/42.85% for
-`proxyManagerDefaultDependencies.ts`. The remaining ProxyManager constructor
-composition, facade cohesion, and lower function coverage remain open QA-7
-work; no architecture rule was weakened.
+`proxyManagerDefaultDependencies.ts`. Facade cohesion and lower function
+coverage remain open QA-7 work; no architecture rule was weakened.
 
 ## QA-6 security checkpoint — 2026-08-25
 
@@ -494,6 +498,7 @@ The following historical findings are reclassified from the current baseline:
 | 2026-08-25 | QA-7.4 proxy runtime orchestration slice | 93fdbb7 | Application-layer runtime extraction, ordered cleanup, shared concurrent-shutdown promise, 3/3 focused runtime tests, c8 runtime coverage 132/147 lines, 15/17 branches, and 7/11 functions, full audit pass; process-level signal/exit harness remains open |
 | 2026-08-25 | QA-6.5 certificate process timeout slice | 542ae58 | Explicit 120-second timeout, SIGTERM/SIGKILL escalation, 16/16 focused certificate tests, c8 coverage 262/337 lines/36/51 branches/12/12 functions, full audit pass; native privileged execution remains open |
 | 2026-08-25 | QA-8.3 certificate platform module split | 47526de, ef3d6e5 | Separated process runner, command builders, and platform operations behind the public facade; Repowise installCaCertificate score 1.0→2.5, CCN 13→6, NLOC 298→116, 16/16 focused tests, full audit pass; native platform execution remains open |
+| 2026-08-25 | QA-7.5/QA-8.4 profile launch and proxy composition slices | 4535d73, 1394eb4, d944663, f534f8c, 24ab634 | Process/proxy ports, launch workflow seams, ProxyManager dependency extraction and ordered coordinator setup; focused launcher suites 33/33, Repowise ProfileLauncher 1.86→4.3, ProxyManager 1.98→3.13, full audit pass, remote workflows green |
 
 This register must be updated in the same commit as each task's implementation
 or evidence change.
