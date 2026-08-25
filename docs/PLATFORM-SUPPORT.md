@@ -12,6 +12,49 @@ This extension includes pre-compiled SQLite 3.53.1 binaries for all supported pl
 
 No additional installation or configuration required.
 
+## Runtime and packaging matrix
+
+Platform support has two independent parts: the bundled SQLite CLI must match
+the target operating system and architecture, and the `better-sqlite3` native
+binding must match the Electron runtime used by the VS Code extension host.
+The latter cannot be proven by cross-packaging on an unrelated host.
+
+The release workflows are configured with this target matrix:
+
+| Target | Release runner | Local evidence in the current audit | Matrix gate |
+| --- | --- | --- | --- |
+| `darwin-arm64` | Self-hosted macOS ARM64 | Build, VSIX contents, SQLite binary, and Electron ABI 128 binding verified | Required before release |
+| `darwin-x64` | Self-hosted macOS x64 | Not executed on this host | Required before release |
+| `linux-x64` | Self-hosted Linux x64 | Not executed on this host | Required before release |
+| `linux-arm64` | `ubuntu-24.04-arm` | Not executed on this host | Required before release |
+| `win32-x64` | Self-hosted Windows x64 | Not executed on this host | Required before release |
+| `win32-arm64` | Self-hosted Windows x64 | Not executed on this host | Required before release |
+
+The CI test matrix currently covers Linux x64, macOS ARM64, macOS x64, and
+Windows x64. The release matrix is the authoritative packaging gate for all
+six targets. A target must not be described as independently verified until
+its runner has completed dependency installation, native preparation, binary
+verification, target packaging, and VSIX verification.
+
+Every CI and release packaging job also runs `pnpm run verify:toolchain` after
+Node and pnpm setup. This fails closed unless the active runtime is Node 24.x
+and the active package manager is the exact version declared by
+`package.json#packageManager`.
+
+The minimum target validation sequence is:
+
+```bash
+pnpm run verify:toolchain
+bash scripts/verify-binaries.sh
+pnpm run build -- --target <target>
+VSIX_FILE="cursor-accounts-<target>-<version>.vsix" pnpm run verify:vsix
+```
+
+The build verifier must confirm the target SDK package, runtime dependency
+closure, Electron native binding, migrations, webview bundle, and absence of
+development artifacts or package-manager stores. A successful host build does
+not substitute for the target runner gate.
+
 ## SQLite binaries
 
 The extension reads Cursor's local `state.vscdb` database to obtain authentication tokens. Because the database may be locked while Cursor is running, the extension copies it to a temp file using bundled SQLite CLI binaries located in `bin/`.

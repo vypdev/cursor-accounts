@@ -77,6 +77,9 @@ The repository now has one explicit Node.js toolchain contract:
   `actions/checkout@v5`;
 - local setup and build documentation instruct contributors to run
   `corepack enable` before using pnpm.
+- `scripts/verify-toolchain.mjs` fails closed when either the Node major or the
+  exact pnpm version differs from those declarations. It is executed by the
+  audit runner, the build runner, and every CI/release packaging job.
 
 Evidence collected on 2026-08-25 under Node `v24.19.0` (Node module ABI 137)
 and pnpm `10.34.0`:
@@ -90,6 +93,9 @@ and pnpm `10.34.0`:
   native binding, SDK platform package, `undici`, `bindings`, migration files,
   and forbidden-artifact checks;
 - `pnpm run verify:vsix`: passed against the generated current-platform VSIX.
+- `CI=true pnpm run audit` and `CI=true pnpm run build:current` passed again
+  after the toolchain contract was added, with loopback and temporary-file
+  access enabled for integration tests.
 
 The packaging compatibility shim now maps hoisted transitive dependencies to
 visible `node_modules` paths before VSCE invokes npm-packlist. VSIX verification
@@ -234,6 +240,22 @@ The current-target packaging path now has reproducible local evidence:
 QA-3 remains PARTIAL because the clean-room evidence covers the current
 darwin-arm64 target only; the complete darwin, Linux, and Windows target matrix
 has not yet been executed in this environment.
+
+### Toolchain contract checkpoint — 2026-08-25
+
+The repository now has one executable toolchain contract rather than relying
+on the caller to select the correct global binaries:
+
+- `.nvmrc` and `.node-version` declare Node 24;
+- `package.json#packageManager` declares pnpm 10.34.0;
+- `scripts/verify-toolchain.mjs` validates both values at runtime;
+- `pnpm run audit`, `pnpm run build`, CI, release, and hotfix packaging invoke
+  the validator before doing project work.
+
+The validator was tested both positively and negatively on this host. Node
+24.19.0 with pnpm 10.34.0 passed. The ambient Node 22.23.2 with pnpm 11.19.0
+failed and reported both mismatches. This prevents audit or packaging results
+from being attributed to a toolchain different from the one reviewed.
 
 ## QA-4 accounting checkpoint — 2026-08-25
 
@@ -832,6 +854,7 @@ The following historical findings are reclassified from the current baseline:
 | 2026-08-25 | QA-6.6/QA-7.11/QA-8.11 SQLite artifact and child-stop recovery slice | 87ff608 | Replaced raw database copying with `VACUUM INTO`, preserved corrupted database sidecars, added real SIGTERM-ignore/SIGKILL escalation coverage, 56/56 focused tests, full audit at 79.79%/74.19%/78.94%, Graphify 5,207 nodes/12,180 raw edges, Repowise average health 8.46/10 and safe-only dead-code empty, remote workflow 32850441389 green |
 | 2026-08-25 | QA-6.7/QA-7.12/QA-8.12 SQLite restore and partial-failure slice | 57d4314 | Added validated SQLite backup restore, corrupt-backup rejection, partial cleanup byte reporting, separate-process long-reader checkpoint evidence, 27/27 focused storage/concurrency tests, full audit at 79.84%/74.15%/79.05%, Graphify 5,215 nodes/12,200 raw edges, Repowise health 8.46/10, safe-only dead-code empty, and zero history security findings |
 | 2026-08-25 | QA-2/QA-3 clean-room packaging and store-exclusion evidence | Pending | Empty external pnpm store, Node 24.19.0, pnpm 10.34.0, current-target build and VSIX verification passed; local store contamination reproduced and prevented; production audit 0 advisories; signature audit remains explicitly open because pinned pnpm 10 does not provide the documented pnpm 11 command |
+| 2026-08-25 | QA-3 toolchain contract and target-matrix documentation slice | Pending | Runtime contract validation added to audit/build/CI/release/hotfix; Node 24.19.0/pnpm 10.34.0 full audit and current-target build passed; six-target packaging remains a remote runner gate |
 
 This register must be updated in the same commit as each task's implementation
 or evidence change.

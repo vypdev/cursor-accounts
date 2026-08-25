@@ -1,6 +1,11 @@
 import { spawnSync } from 'node:child_process';
 
 const checks = [
+  {
+    label: 'Node.js and pnpm toolchain contract',
+    command: 'pnpm',
+    args: ['run', 'verify:toolchain'],
+  },
   { label: 'lint and type checks', command: 'pnpm', args: ['run', 'lint'] },
   {
     label: 'architecture rules',

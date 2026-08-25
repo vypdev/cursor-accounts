@@ -90,10 +90,11 @@ function ensureNodeVersion() {
     if (major !== 24) {
       throw new Error(`Node.js 24.x required. Current version: v${process.versions.node}`);
     }
-    return;
+  } else {
+    run('bash scripts/ensure-node.sh', { shell: true });
   }
 
-  run('bash scripts/ensure-node.sh', { shell: true });
+  run('pnpm run verify:toolchain');
 }
 
 function bundleExtension() {

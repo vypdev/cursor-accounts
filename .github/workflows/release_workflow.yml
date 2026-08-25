@@ -72,6 +72,9 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
 
+      - name: Verify toolchain contract
+        run: pnpm run verify:toolchain
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -151,6 +154,9 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
+
+      - name: Verify toolchain contract
+        run: pnpm run verify:toolchain
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile

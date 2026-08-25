@@ -175,6 +175,18 @@ pnpm run verify:native:node
 The build requires Node 24.x. Run `nvm install && nvm use` or ensure CI uses
 `node-version-file: .nvmrc`.
 
+Before running audits, tests, or packaging, verify the complete repository
+toolchain contract:
+
+```bash
+pnpm run verify:toolchain
+```
+
+This command fails unless the active Node major is 24 and the active pnpm
+version exactly matches `package.json#packageManager`. It prevents a globally
+installed pnpm release or a stale Node shell from producing misleading audit,
+license, or packaging evidence.
+
 ### Missing bundled SQLite binary
 
 Platform binaries live under `bin/<target>/`. See [PLATFORM-SUPPORT.md](PLATFORM-SUPPORT.md) for regeneration steps (notably Linux ARM64).

@@ -343,6 +343,7 @@
     "lint:eslint": "eslint .",
     "check:architecture": "node scripts/check-architecture.mjs",
     "test:architecture": "node scripts/check-architecture-fixtures.mjs",
+    "verify:toolchain": "node scripts/verify-toolchain.mjs",
     "check:docs": "node scripts/check-doc-links.mjs",
     "validate:l10n": "node scripts/validate-l10n.mjs",
     "audit": "node scripts/run-audit.mjs",
