@@ -4,6 +4,10 @@ import * as vscode from 'vscode';
 import type { IProfileAuthReader } from '../domain/ports/IProfileAuthReader';
 import type { IProfileDetector } from '../domain/ports/IProfileDetector';
 import type { IProfileManager } from '../domain/ports/IProfileManager';
+import type { IProxyCertificate } from '../domain/ports/IProxyCertificate';
+import type { IProxyLifecycle } from '../domain/ports/IProxyLifecycle';
+import type { IProxyOutput } from '../domain/ports/IProxyOutput';
+import type { IProxyPanelRead } from '../domain/ports/IProxyPanelRead';
 import * as extensionLog from '../logging/extensionLog';
 import * as lifecycleLog from '../logging/webviewLifecycleLog';
 import type { InstanceDetector } from '../profiles/instanceDetector';
@@ -21,7 +25,6 @@ import type { EfficiencyService } from '../modelEfficiency/efficiencyService';
 import { getLocale, isRtlLocale, t } from '../l10n';
 import type { IProfileStorageAnalyzer } from '../domain/ports/IProfileStorageAnalyzer';
 import type { IStorageCleanupService } from '../domain/ports/IStorageCleanupService';
-import type { IProxyManager } from '../domain/ports/IProxyManager';
 import type { ProxySettingsService } from '../services/proxySettingsService';
 import type { IProfileSettingsManager } from '../domain/ports/IProfileSettingsManager';
 import { ProfileGitHubEnrichmentService } from '../github/profileGitHubEnrichmentService';
@@ -70,7 +73,7 @@ export class AccountsPanelProvider {
     authReader: IProfileAuthReader,
     storageCleanupService: IStorageCleanupService,
     storageAnalyzer: IProfileStorageAnalyzer,
-    proxyManager: IProxyManager,
+    proxyManager: IProxyPanelRead & IProxyLifecycle & IProxyCertificate & IProxyOutput,
     proxySettingsService?: ProxySettingsService,
     profileSettingsManager?: IProfileSettingsManager
   ) {
