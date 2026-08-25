@@ -23,6 +23,12 @@ The target is not to optimize a Repowise or Graphify score. The target is to
 make responsibilities explicit, dependencies verifiable, behavior protected by
 tests, and releases reproducible.
 
+The next execution program is detailed in
+[FINAL-QUALITY-RELEASE-HARDENING-PLAN-2026-08-25.md](FINAL-QUALITY-RELEASE-HARDENING-PLAN-2026-08-25.md).
+It supersedes informal follow-up notes for release, correctness, security,
+architecture-enforcement, reliability, and final-audit work while preserving
+the historical implementation log below.
+
 ## 2. Execution status and execution rule
 
 The plan was approved for implementation by the repository owner on
