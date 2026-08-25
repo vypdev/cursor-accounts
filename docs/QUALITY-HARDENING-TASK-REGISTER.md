@@ -24,7 +24,7 @@ acceptance criteria and evidence are recorded.
 | QA-0 | Baseline and finding reclassification | COMPLETE | pnpm run audit passes; current Graphify/Repowise/dependency evidence captured on 2026-08-25 | Keep this baseline immutable and update it after every cross-cutting change |
 | QA-1 | CI, tests, localization, lint | PARTIAL | Full audit passes with loopback access: 795 tests, 26 locales, 428 keys, webview 18/18, coverage floors; three repeated webview runs pass | Add repeated host-run evidence and review generated-artifact/source-lint policy |
 | QA-2 | Dependencies and supply chain | PARTIAL | SDK `1.0.28`, legacy npm `sqlite3` removed, targeted `uuid@11.1.1` and `undici@6.28.0` overrides resolve; `pnpm audit --prod` reports 0 advisories and signatures remain valid | Add clean-room shipped-tree scan, package-size review, and independent compatibility evidence before marking complete |
-| QA-3 | Native runtime and packaging | PARTIAL | Existing VSIX verification passes; clean-room and full target matrix are not yet evidenced | Repair fail-closed native preparation and execute clean-room matrix |
+| QA-3 | Native runtime and packaging | PARTIAL | Current-target clean build passes with dynamic Electron ABI 128, official SHA-256 validation, sanitized runtime native tree, and VSIX verification | Execute clean-room install from an empty store/workspace and expand evidence across the supported target matrix |
 | QA-4 | Token and cost correctness | OPEN | Persistence seams and idempotency tests exist; no complete golden accounting corpus | Define accounting contract and build redacted end-to-end fixtures |
 | QA-5 | Clean Architecture enforcement | OPEN | Existing checker and fixtures pass; Graphify still reports contract/hotspot risks | Resolve domain/application contracts and replace checker blind spots |
 | QA-6 | Security and privacy | PARTIAL | Local API token, loopback validation, redaction, sidecar safety, and text-safe rendering exist | Complete threat-model decisions, retention/disk-full tests, and process review |
@@ -47,7 +47,7 @@ acceptance criteria and evidence are recorded.
 | Graphify | 0.9.48 |
 | Repowise | 0.45.0 |
 | Architecture gate | 438 TypeScript files |
-| Documentation gate | 45 Markdown files |
+| Documentation gate | 46 Markdown files |
 
 ### Reproducible audit
 
@@ -93,7 +93,7 @@ Each candidate requires runtime, bundle, and VSIX reachability review.
 
 ### Production dependency audit
 
-The current pnpm audit --prod baseline reports 240 dependencies:
+The immutable pre-remediation pnpm audit --prod baseline reports 240 dependencies:
 
 | Severity | Count |
 |---|---:|
@@ -128,9 +128,35 @@ acceptance tests:
   acceptance tests failed with `EPERM`, so that run is not considered product
   evidence. The escalated run passed those tests.
 
+The current post-remediation signature check reports 830 verified packages,
+with zero invalid and zero missing signatures; the immutable pre-remediation
+baseline reported 852.
+
 QA-2 remains PARTIAL until clean-room packaging proves that build-only
 dependencies are not shipped accidentally and the exact staged runtime closure
 is reviewed.
+
+## QA-3 packaging checkpoint — 2026-08-25
+
+The current-target packaging path now has reproducible local evidence:
+
+- VS Code target `^1.95.0` resolves to Electron `32.0.0`, node ABI `128`.
+- The prebuild downloader derives the package version and ABI, fetches the
+  official release digest, verifies SHA-256, validates the archive member list,
+  extracts into a temporary directory, and installs only the expected native
+  binding.
+- Native prebuild helper tests cover checksum-format output, the expected
+  archive member, unexpected archive members, path traversal input, and missing
+  extracted bindings.
+- `CI=true pnpm run build:current` passes and produces
+  `cursor-accounts-darwin-arm64-0.1.34.vsix`.
+- The sanitized artifact is 28 MiB with 3,085 entries and retains the runtime
+  `better_sqlite3.node` while removing the source tree and native build
+  intermediates. `node scripts/verify-vsix.mjs` passes on that exact artifact.
+
+QA-3 remains PARTIAL because a fresh empty-store installation and the complete
+darwin, Linux, and Windows target matrix have not yet been executed in this
+environment.
 
 ## Reclassification decisions
 
@@ -142,7 +168,7 @@ The following historical findings are reclassified from the current baseline:
 | Localization key parity | RESOLVED FOR CURRENT BASELINE | All 26 locales currently contain 428 keys; fallback and translation policy still need explicit documentation |
 | Source lint and coverage gate | PARTIALLY RESOLVED | Repository audit passes; generated-artifact policy and broader local floors remain |
 | Current VSIX verification | RESOLVED FOR SELECTED ARTIFACT | Clean-room and release matrix remain open |
-| Production advisories | OPEN | 1 critical and 15 high advisories remain in the current production audit |
+| Production advisories | PARTIALLY RESOLVED | Current `pnpm audit --prod` reports zero advisory records; clean-room shipped-tree evidence remains open |
 | Domain/application dependency direction | OPEN | Existing gate passes but resolver-level contract analysis remains incomplete |
 | Native runtime reproducibility | OPEN | Existing artifact passes; clean-room ABI matrix remains unverified |
 | Token and cost semantic correctness | OPEN | No complete golden event-to-cost reconciliation corpus exists |

@@ -10,7 +10,7 @@
     "node": ">=22",
     "vscode": "^1.95.0"
   },
-  "packageManager": "pnpm@10.0.0",
+  "packageManager": "pnpm@10.34.0",
   "categories": [
     "Other"
   ],
@@ -325,6 +325,7 @@
     "extract:protos": "node scripts/extract-cursor-protos.mjs",
     "test:proto": "node scripts/test-proto-decode.mjs",
     "verify:proto-jsonl": "node scripts/verify-proto-jsonl.mjs",
+    "test:native-prebuild": "node scripts/test-electron-prebuild.mjs",
     "analyze:proxy-traffic": "node scripts/analyze-proxy-traffic.mjs",
     "summarize:session-tokens": "node scripts/summarize-session-tokens.mjs",
     "calibrate:proxy-tokens": "node scripts/calibrate-proxy-tokens.mjs",
@@ -392,6 +393,7 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "globals": "^16.0.0",
     "grpc-tools": "^1.13.1",
+    "node-abi": "^3.92.0",
     "typedoc": "^0.28.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.26.1"

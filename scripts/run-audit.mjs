@@ -18,6 +18,11 @@ const checks = [
     args: ['run', 'test:types-sync'],
   },
   {
+    label: 'native prebuild helper tests',
+    command: 'pnpm',
+    args: ['run', 'test:native-prebuild'],
+  },
+  {
     label: 'localization parity',
     command: 'pnpm',
     args: ['run', 'validate:l10n'],

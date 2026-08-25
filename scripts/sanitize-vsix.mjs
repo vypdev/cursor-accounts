@@ -56,17 +56,39 @@ function pruneDependencyTree(directory) {
 
 function pruneBetterSqliteBuildArtifacts(extensionRoot) {
   const root = path.join(extensionRoot, 'node_modules', 'better-sqlite3');
-  const removable = [
-    path.join(root, 'deps'),
-    path.join(root, 'build', 'Release', '.deps'),
-    path.join(root, 'build', 'Release', 'obj.target'),
-    path.join(root, 'build', 'test_extension.target.mk'),
-    path.join(root, 'build', 'Release', 'test_extension.node'),
-  ];
+  const nativeBinding = path.join(root, 'build', 'Release', 'better_sqlite3.node');
+  const removable = [path.join(root, 'deps'), path.join(root, 'src'), path.join(root, 'bin')];
   let removed = 0;
   for (const targetPath of removable) {
     if (fs.existsSync(targetPath)) {
       fs.rmSync(targetPath, { recursive: true, force: true });
+      removed += 1;
+    }
+  }
+
+  const buildDirectory = path.join(root, 'build');
+  if (fs.existsSync(buildDirectory)) {
+    for (const entry of fs.readdirSync(buildDirectory, { withFileTypes: true })) {
+      const targetPath = path.join(buildDirectory, entry.name);
+      if (targetPath === path.dirname(nativeBinding)) {
+        for (const releaseEntry of fs.readdirSync(targetPath, { withFileTypes: true })) {
+          const releasePath = path.join(targetPath, releaseEntry.name);
+          if (releasePath !== nativeBinding) {
+            fs.rmSync(releasePath, { recursive: true, force: true });
+            removed += 1;
+          }
+        }
+        continue;
+      }
+      fs.rmSync(targetPath, { recursive: true, force: true });
+      removed += 1;
+    }
+  }
+
+  for (const fileName of ['binding.gyp']) {
+    const filePath = path.join(root, fileName);
+    if (fs.existsSync(filePath)) {
+      fs.rmSync(filePath, { force: true });
       removed += 1;
     }
   }

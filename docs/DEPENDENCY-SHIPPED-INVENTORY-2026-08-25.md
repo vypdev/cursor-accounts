@@ -4,6 +4,10 @@
 
 This document freezes the dependency and package-content baseline before any dependency remediation or packaging changes. It is intentionally evidence-oriented: a future change is acceptable only when the same inventory commands can be repeated and the resulting runtime, security, native-module, and VSIX checks remain green.
 
+The baseline sections below are immutable historical evidence. Later sections are
+explicitly labelled implementation checkpoints and must not be read as a
+replacement for the original pre-remediation measurements.
+
 ## Repository dependency graph
 
 The lockfile currently resolves 240 production and optional dependency entries. The relevant direct/runtime packages are:
@@ -101,3 +105,16 @@ remediation slice subsequently changed the graph as follows:
 These changes are not final QA-2 closure. The next required evidence is a
 clean-room package inspection proving the shipped tree contains only runtime
 dependencies and the native ABI expected by the target extension host.
+
+The current-target clean build subsequently produced a 28 MiB `darwin-arm64`
+VSIX with 3,085 entries. It contains the Electron ABI 128
+`better_sqlite3.node` binding and does not contain the removed npm `sqlite3`
+package, native source tree, or intermediate better-sqlite3 build objects.
+
+The dependency graph after remediation was independently checked with
+`pnpm audit --prod --json`: zero advisory records were reported. The current
+registry signature check reports 830 verified packages, with zero invalid and
+zero missing signatures; the count is lower than the immutable baseline because
+the unused `sqlite3` graph was removed. These results are current checkpoint
+evidence; they do not close QA-2 until the clean-room shipped-tree inspection
+is repeated from an empty dependency store.
