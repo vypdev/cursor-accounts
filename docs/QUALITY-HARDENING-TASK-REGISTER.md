@@ -22,14 +22,14 @@ acceptance criteria and evidence are recorded.
 | ID | Area | Status | Current evidence | Next required action |
 |---|---|---|---|---|
 | QA-0 | Baseline and finding reclassification | COMPLETE | pnpm run audit passes; current Graphify/Repowise/dependency evidence captured on 2026-08-25 | Keep this baseline immutable and update it after every cross-cutting change |
-| QA-1 | CI, tests, localization, lint | PARTIAL | Full audit passes with loopback access: 800 tests, 26 locales, 428 keys, webview 18/18, coverage floors; three repeated webview runs pass | Add repeated host-run evidence and review generated-artifact/source-lint policy |
+| QA-1 | CI, tests, localization, lint | PARTIAL | Full audit passes with loopback access; current c8 totals are 78.69% lines, 73.71% branches, and 77.99% functions; localization is 26 locales/428 keys and webview is 18/18 | Add repeated host-run evidence and review generated-artifact/source-lint policy |
 | QA-2 | Dependencies and supply chain | PARTIAL | SDK `1.0.28`, legacy npm `sqlite3` removed, targeted `uuid@11.1.1` and `undici@6.28.0` overrides resolve; `pnpm audit --prod` reports 0 advisories and signatures remain valid | Add clean-room shipped-tree scan, package-size review, and independent compatibility evidence before marking complete |
 | QA-3 | Native runtime and packaging | PARTIAL | Current-target clean build passes with dynamic Electron ABI 128, official SHA-256 validation, sanitized runtime native tree, and VSIX verification | Execute clean-room install from an empty store/workspace and expand evidence across the supported target matrix |
 | QA-4 | Token and cost correctness | PARTIAL | Accounting contract, authoritative server-cost precedence, model-aware fallback calculation, non-finite input guards, and SQLite replay golden test are implemented | Expand coverage across all decoder shapes, pricing refresh/versioning, rounding policy, and unknown/cache-rate reconciliation |
-| QA-5 | Clean Architecture enforcement | PARTIAL | TypeScript-AST resolver-backed checker passes for 287 production files; negative fixtures cover domain/application/package/cycle cases; current Graphify/Repowise hotspots remain | Refactor the highest-risk low-coverage infrastructure modules without weakening the contract, then add characterization and failure-path tests |
+| QA-5 | Clean Architecture enforcement | PARTIAL | TypeScript-AST resolver-backed checker passes for 292 production files; negative fixtures cover domain/application/package/cycle cases; current Graphify/Repowise hotspots remain | Refactor the highest-risk low-coverage infrastructure modules without weakening the contract, then add characterization and failure-path tests |
 | QA-6 | Security and privacy | PARTIAL | Threat model recorded; API error details are generic; loopback/token parity, redaction, sidecar safety, text-safe webview rendering, certificate platform validation, injected certificate-process failure tests, bounded certificate-process timeout/kill escalation, and Repowise history scan are evidenced | Complete retention/disk-full/WAL tests, native privileged command execution review on supported OS runners, protocol-specific redaction, and the legacy optional-token decision |
 | QA-7 | Reliability and lifecycle | PARTIAL | Tracking ingress shutdown is idempotent; proxy startup failures now attempt MITM/ingress/API cleanup; direct `SIGTERM`/`SIGINT` uses graceful shutdown; focused lifecycle/entrypoint/process/runtime tests pass 17/17 | Add multi-process/WAL, failure-injection, migration-recovery, disk-lifecycle, and child-process hang tests |
-| QA-8 | Local test confidence | PARTIAL | `proxyDecode.ts` has 91.7% c8 lines and 100% c8 branches with 22 focused tests; certificate process/platform boundaries have 16/16 focused tests and 262/337 c8 lines, 36/51 branches, and 12/12 functions; `nodeProxyProcess.ts` has 103/113 c8 lines, 21/25 branches, and 10/10 functions with 5 focused tests; `ProxyServerRuntime` has 132/147 c8 lines, 15/17 branches, and 7/11 functions with 3 focused tests; Repowise still identifies remaining hotspots and retains stale coverage indexes | Reconcile static-analysis coverage ingestion, add risk-based floors, and cover the next proxy/profile/process hotspots |
+| QA-8 | Local test confidence | PARTIAL | `proxyDecode.ts` has 91.7% c8 lines and 100% c8 branches with 22 focused tests; certificate process/platform boundaries have 16/16 focused tests; `nodeProxyProcess.ts` has 103/113 c8 lines, 21/25 branches, and 10/10 functions with 5 focused tests; `ProxyServerRuntime` has 132/147 c8 lines, 15/17 branches, and 7/11 functions with 3 focused tests; the ProfileLauncher slice adds 33 focused tests, with current c8 lines at 86.51% for `profileLauncher.ts`, 89.08% for its process adapter, and 94.66% for its proxy coordinator; `proxyManager.ts` is at 71.42% c8 lines; Repowise still identifies remaining hotspots | Reconcile static-analysis coverage ingestion, add risk-based floors, and cover the next proxy/profile/process hotspots |
 | QA-9 | Documentation and operations | PARTIAL | Plan, audit links, dependency inventory, advisory register, and English docs are synchronized for this slice | Add task/decision records, reproducible audit artifact output, and runbooks |
 | QA-10 | Independent final audit and release rehearsal | OPEN | Not started | Run only after QA-1 through QA-9 have current evidence |
 
@@ -40,13 +40,13 @@ acceptance criteria and evidence are recorded.
 | Item | Value |
 |---|---|
 | Branch | feature/3-mitm-proxy |
-| Latest implementation commit | ef3d6e5 |
-| Latest documentation commit | de9e730 |
+| Latest implementation commit | f534f8c |
+| Latest documentation commit | 7c30817 |
 | Node | v22.23.1 |
 | pnpm | 11.19.0 |
 | Graphify | 0.9.48 |
 | Repowise | 0.45.0 |
-| Architecture gate | 287 production TypeScript files; tests excluded by contract |
+| Architecture gate | 292 production TypeScript files; tests excluded by contract |
 | Documentation gate | 49 Markdown files |
 
 ### Reproducible audit
@@ -66,7 +66,7 @@ matrix; those remain QA-3 work.
 
 ### Graphify
 
-The latest code-only graph contains 5,097 nodes and 11,839 edges. The highest
+The latest code-only graph contains 5,135 nodes and 11,970 edges. The highest
 relevant hotspots include:
 
 - ProxyManager: degree 67;
@@ -87,6 +87,13 @@ policy and state it explicitly.
 - Current refactoring targets include proxyDecode.ts, proxyServer.ts,
   installCaCertificate.ts, statusBarManager.ts, efficiencyService.ts,
   profileCommands.ts, IProxyManager.ts, and high-fan-out type barrels.
+
+The latest Repowise index contains 3,989 nodes and 11,478 edges. Its current
+health scores are 4.3/10 for `src/profiles/profileLauncher.ts`, 1.98/10 for
+`src/services/proxyManager.ts`, and 2.5/10 for the certificate facade. The
+ProfileLauncher score improved from 1.86 to 4.3 after process/proxy seams and
+workflow extraction; ProxyManager's dependency composition is now separated,
+but its constructor and facade cohesion remain open.
 
 Repowise targets are prioritization signals, not automatic deletion commands.
 Each candidate requires runtime, bundle, and VSIX reachability review.
@@ -218,6 +225,41 @@ architecture rules.
 QA-5 remains PARTIAL until the prioritized infrastructure hotspots receive
 characterization, failure-path, and lifecycle coverage and the final audit
 confirms no boundary regressions.
+
+## QA-7.5 and QA-8.4 profile-launch and proxy-composition checkpoints — 2026-08-25
+
+The ProfileLauncher hotspot was handled in four implementation commits:
+
+- `4535d73` introduced the `IProfileProcessLauncher` port and a platform-aware
+  process adapter, with deterministic tests for background launch, early exit,
+  LaunchServices success, and synchronous spawn failure.
+- `1394eb4` introduced `IProfileProxyLaunchCoordinator`, isolating proxy
+  enablement, lazy startup, URL/certificate resolution, and settings handling.
+- `d944663` extracted launch conflict detection and launch preparation/finalization
+  seams, and added injected-runner characterization for successful and failed
+  `launchWithPath` operations.
+- `f534f8c` moved ProxyManager's concrete default dependency graph into
+  `proxyManagerDefaultDependencies.ts`, preserving the public facade and its
+  existing constructor compatibility.
+
+The focused launcher suites pass 33/33 tests. The current full audit passes
+with architecture checks for 292 production TypeScript files, localization
+parity for 26 locales and 428 keys, webview tests 18/18, selected VSIX
+verification, and global c8 totals of 78.69% lines, 73.71% branches, and
+77.99% functions. A first full-audit attempt showed one isolated
+`accountsPanel.test.ts` delete-message failure; the focused suite passed 17/17
+and the complete audit passed on the immediate repeat. This is recorded as
+transient test evidence, not as a product defect, but repeated-run stability
+remains part of QA-1.
+
+Current per-file c8 evidence is 86.51% lines/71.23% branches/95.83% functions
+for `profileLauncher.ts`, 89.08%/85.71%/100% for
+`profileProcessLauncher.ts`, 94.66%/76.47%/100% for
+`profileProxyLaunchCoordinator.ts`, 71.42%/89.28%/38.59% for
+`proxyManager.ts`, and 95.09%/75%/42.85% for
+`proxyManagerDefaultDependencies.ts`. The remaining ProxyManager constructor
+composition, facade cohesion, and lower function coverage remain open QA-7
+work; no architecture rule was weakened.
 
 ## QA-6 security checkpoint — 2026-08-25
 
