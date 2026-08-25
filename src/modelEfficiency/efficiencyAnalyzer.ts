@@ -1,5 +1,5 @@
 import type { ProfileDetector } from '../profiles/profileDetector';
-import type { IProfileManager } from '../domain/ports/IProfileManager';
+import type { IProfileWriter } from '../domain/ports/IProfileWriter';
 import * as extensionLog from '../logging/extensionLog';
 import type { MultiProfileQuotaService } from '../services/multiProfileQuotaService';
 import type { ApiKeyManager } from './apiKeyManager';
@@ -15,7 +15,7 @@ export class EfficiencyAnalyzer {
   private readonly queue: EfficiencyAnalysisQueue;
 
   constructor(
-    profileManager: IProfileManager,
+    profileWriter: IProfileWriter,
     profileDetector: ProfileDetector,
     apiKeyManager: ApiKeyManager,
     sdkClassifier: SdkClassifier,
@@ -24,7 +24,7 @@ export class EfficiencyAnalyzer {
     multiProfileQuotaService: MultiProfileQuotaService
   ) {
     this.workflow = new EfficiencyAnalysisWorkflow(
-      profileManager,
+      profileWriter,
       profileDetector,
       apiKeyManager,
       sdkClassifier,

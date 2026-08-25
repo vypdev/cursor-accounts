@@ -80,7 +80,7 @@ export class AccountsPanelHandlers {
     );
     this.storageHandlers = new AccountsPanelStorageHandlers(
       {
-        profileManager: deps.profileManager,
+        profileReader: deps.profileManager,
         storageAnalyzer: deps.storageAnalyzer,
         storageCleanupService: deps.storageCleanupService,
       },
@@ -103,7 +103,7 @@ export class AccountsPanelHandlers {
       }
     );
     this.githubHandlers = new AccountsPanelGithubHandlers(
-      { profileManager: deps.profileManager },
+      { profileWriter: deps.profileManager },
       {
         postMessage: (message) => callbacks.postMessage(message),
         refreshGithubSummaries: () => callbacks.refreshGithubSummaries(),

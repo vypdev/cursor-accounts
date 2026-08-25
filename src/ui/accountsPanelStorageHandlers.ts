@@ -1,13 +1,13 @@
 import { createEmptyStorageBreakdown, type StorageCleanupOptions } from '@cursor-accounts/types';
 import type { IProfileStorageAnalyzer } from '../domain/ports/IProfileStorageAnalyzer';
-import type { IProfileManager } from '../domain/ports/IProfileManager';
+import type { IProfileReader } from '../domain/ports/IProfileReader';
 import type { IStorageCleanupService } from '../domain/ports/IStorageCleanupService';
 import type { ToWebviewMessage } from '../profiles/types';
 import { t } from '../l10n';
 import * as extensionLog from '../logging/extensionLog';
 
 export interface AccountsPanelStorageHandlerDependencies {
-  profileManager: IProfileManager;
+  profileReader: IProfileReader;
   storageAnalyzer: IProfileStorageAnalyzer;
   storageCleanupService: IStorageCleanupService;
 }
@@ -24,7 +24,7 @@ export class AccountsPanelStorageHandlers {
   ) {}
 
   async requestInfo(profileId: string): Promise<void> {
-    const profile = await this.dependencies.profileManager.getProfile(profileId);
+    const profile = await this.dependencies.profileReader.getProfile(profileId);
     if (!profile) {
       await this.callbacks.postMessage({
         type: 'storageInfo',
@@ -61,7 +61,7 @@ export class AccountsPanelStorageHandlers {
       return;
     }
 
-    const profile = await this.dependencies.profileManager.getProfile(profileId);
+    const profile = await this.dependencies.profileReader.getProfile(profileId);
     if (!profile) {
       return;
     }

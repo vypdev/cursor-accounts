@@ -1,11 +1,11 @@
 import * as vscode from 'vscode';
-import type { IProfileManager } from '../domain/ports/IProfileManager';
+import type { IProfileWriter } from '../domain/ports/IProfileWriter';
 import * as extensionLog from '../logging/extensionLog';
 import { t } from '../l10n';
 import type { ToWebviewMessage } from '../profiles/types';
 
 export interface AccountsPanelGithubHandlerDependencies {
-  profileManager: IProfileManager;
+  profileWriter: IProfileWriter;
 }
 
 export interface AccountsPanelGithubHandlerCallbacks {
@@ -21,7 +21,7 @@ export class AccountsPanelGithubHandlers {
   ) {}
 
   async configure(profileId: string): Promise<void> {
-    const profile = await this.dependencies.profileManager.getProfile(profileId);
+    const profile = await this.dependencies.profileWriter.getProfile(profileId);
     if (!profile) {
       await this.callbacks.postMessage({
         type: 'error',
@@ -43,7 +43,7 @@ export class AccountsPanelGithubHandlers {
     }
 
     const tokenPath = selection[0].fsPath;
-    await this.dependencies.profileManager.updateProfile(profileId, {
+    await this.dependencies.profileWriter.updateProfile(profileId, {
       githubTokenPath: tokenPath,
     });
 
@@ -55,7 +55,7 @@ export class AccountsPanelGithubHandlers {
   }
 
   async clear(profileId: string): Promise<void> {
-    const profile = await this.dependencies.profileManager.getProfile(profileId);
+    const profile = await this.dependencies.profileWriter.getProfile(profileId);
     if (!profile) {
       extensionLog.debug(
         `[AccountsPanel] GitHub token clear ignored for missing profile ${profileId}`
@@ -63,7 +63,7 @@ export class AccountsPanelGithubHandlers {
       return;
     }
 
-    await this.dependencies.profileManager.updateProfile(profileId, {
+    await this.dependencies.profileWriter.updateProfile(profileId, {
       githubTokenPath: undefined,
     });
 

@@ -1,6 +1,6 @@
 import { t } from '../l10n';
 import * as extensionLog from '../logging/extensionLog';
-import type { IProfileManager } from '../domain/ports/IProfileManager';
+import type { IProfileWriter } from '../domain/ports/IProfileWriter';
 import type { ProfileDetector } from '../profiles/profileDetector';
 import type { Profile } from '../profiles/types';
 import type { MultiProfileQuotaService } from '../services/multiProfileQuotaService';
@@ -15,7 +15,7 @@ import type { PromptMetadata } from './types';
 /** Runs one model-efficiency analysis after the queue has admitted it. */
 export class EfficiencyAnalysisWorkflow {
   constructor(
-    private readonly profileManager: IProfileManager,
+    private readonly profileWriter: IProfileWriter,
     private readonly profileDetector: ProfileDetector,
     private readonly apiKeyManager: ApiKeyManager,
     private readonly sdkClassifier: SdkClassifier,
@@ -75,7 +75,7 @@ export class EfficiencyAnalysisWorkflow {
     };
 
     void this.statsStorage.recordEvent(profile, eventRecord);
-    await this.profileManager.updateProfile(profile.id, {
+    await this.profileWriter.updateProfile(profile.id, {
       metadata: {
         ...profile.metadata,
         efficiencyLastAnalysisAt: new Date().toISOString(),
@@ -92,7 +92,7 @@ export class EfficiencyAnalysisWorkflow {
     }
 
     if (metadata.userEmail?.trim()) {
-      const byEmail = await this.profileManager.findProfileByEmail(
+      const byEmail = await this.profileWriter.findProfileByEmail(
         metadata.userEmail
       );
       if (byEmail?.id === current.id && byEmail.efficiencyAnalysisEnabled) {

@@ -165,7 +165,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   const storageBundle = createAccountsPanelStorageBundle({
     context,
-    profileManager,
+    profileReader: profileManager,
     profileDetector,
     instanceDetector,
     efficiencyService,

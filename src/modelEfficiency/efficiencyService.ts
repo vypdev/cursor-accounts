@@ -3,7 +3,7 @@ import type { IProfileAuthReader } from '../domain/ports/IProfileAuthReader';
 import * as extensionLog from '../logging/extensionLog';
 import { t } from '../l10n';
 import type { Profile } from '../profiles/types';
-import type { IProfileManager } from '../domain/ports/IProfileManager';
+import type { IProfileWriter } from '../domain/ports/IProfileWriter';
 import { ApiKeyManager, ApiKeyManagerError } from './apiKeyManager';
 import { ComposerDbPoller } from './composerDbPoller';
 import { EfficiencyAnalyzer } from './efficiencyAnalyzer';
@@ -26,7 +26,7 @@ export class EfficiencyService {
 
   constructor(
     private readonly context: vscode.ExtensionContext,
-    private readonly profileManager: IProfileManager,
+    private readonly profileWriter: IProfileWriter,
     private readonly profileDetector: ProfileDetector,
     private readonly authReader: IProfileAuthReader,
     private readonly statsStorage: EfficiencyStatsStorage,
@@ -35,7 +35,7 @@ export class EfficiencyService {
     this.apiKeyManager = new ApiKeyManager(context);
     this.outputPresenter = new OutputPresenter();
     this.analyzer = new EfficiencyAnalyzer(
-      profileManager,
+      profileWriter,
       profileDetector,
       this.apiKeyManager,
       this.sdkClassifier,
@@ -54,7 +54,7 @@ export class EfficiencyService {
   }
 
   async initialize(): Promise<void> {
-    const profiles = await this.profileManager.getProfiles();
+    const profiles = await this.profileWriter.getProfiles();
     await this.statsStorage.loadAllStats(profiles);
     if (profiles.some((p) => p.efficiencyAnalysisEnabled)) {
       this.startPoller();
@@ -82,7 +82,7 @@ export class EfficiencyService {
   }
 
   private async syncPollerWithProfiles(): Promise<void> {
-    const profiles = await this.profileManager.getProfiles();
+    const profiles = await this.profileWriter.getProfiles();
     const anyEnabled = profiles.some((p) => p.efficiencyAnalysisEnabled);
 
     if (anyEnabled) {
@@ -102,7 +102,7 @@ export class EfficiencyService {
       throw new Error(getEfficiencyWrongWindowMessage());
     }
 
-    const profile = await this.profileManager.getProfile(profileId);
+    const profile = await this.profileWriter.getProfile(profileId);
     if (!profile) {
       throw new Error(t('errors.profileNotFound'));
     }
@@ -135,7 +135,7 @@ export class EfficiencyService {
         throw error;
       }
 
-      const updated = await this.profileManager.updateProfile(profileId, {
+      const updated = await this.profileWriter.updateProfile(profileId, {
         efficiencyAnalysisEnabled: true,
       });
 
@@ -156,7 +156,7 @@ export class EfficiencyService {
 
     await this.apiKeyManager.deleteApiKey(profileId);
     await this.statsStorage.deleteStats(profile);
-    const updated = await this.profileManager.updateProfile(profileId, {
+    const updated = await this.profileWriter.updateProfile(profileId, {
       efficiencyAnalysisEnabled: false,
     });
 
@@ -172,7 +172,7 @@ export class EfficiencyService {
     await this.poller?.resetState();
     this.poller?.stop();
     this.poller = undefined;
-    const profiles = await this.profileManager.getProfiles();
+    const profiles = await this.profileWriter.getProfiles();
     if (profiles.some((p) => p.efficiencyAnalysisEnabled)) {
       this.startPoller();
     }

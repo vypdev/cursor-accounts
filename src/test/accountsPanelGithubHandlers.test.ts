@@ -2,7 +2,7 @@ import './registerVscodeMock';
 import assert from 'node:assert/strict';
 import { afterEach, describe, it } from 'node:test';
 import * as vscode from 'vscode';
-import type { IProfileManager } from '../domain/ports/IProfileManager';
+import type { IProfileWriter } from '../domain/ports/IProfileWriter';
 import { initL10nForTests } from '../l10n';
 import type { Profile } from '../profiles/types';
 import { AccountsPanelGithubHandlers } from '../ui/accountsPanelGithubHandlers';
@@ -27,16 +27,16 @@ afterEach(() => {
   windowWithDialog.showOpenDialog = originalShowOpenDialog;
 });
 
-function createHandlers(overrides: Partial<IProfileManager> = {}) {
+function createHandlers(overrides: Partial<IProfileWriter> = {}) {
   const postedMessages: unknown[] = [];
   let refreshCount = 0;
   const handlers = new AccountsPanelGithubHandlers(
     {
-      profileManager: {
+      profileWriter: {
         getProfile: async () => PROFILE,
         updateProfile: async () => PROFILE,
         ...overrides,
-      } as IProfileManager,
+      } as IProfileWriter,
     },
     {
       postMessage: async (message) => {

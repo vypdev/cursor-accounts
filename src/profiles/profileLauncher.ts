@@ -6,7 +6,7 @@ import * as extensionLog from '../logging/extensionLog';
 import { ensureDirectory } from '../utils/pathUtils';
 import type { IInstanceDetector } from '../domain/ports/IInstanceDetector';
 import type { IProfileLauncher } from '../domain/ports/IProfileLauncher';
-import type { IProfileManager } from '../domain/ports/IProfileManager';
+import type { IProfileWriter } from '../domain/ports/IProfileWriter';
 import type { IProfileSettingsManager } from '../domain/ports/IProfileSettingsManager';
 import type { IProxyCertificate } from '../domain/ports/IProxyCertificate';
 import type { IProxyLifecycle } from '../domain/ports/IProxyLifecycle';
@@ -115,7 +115,7 @@ function sleep(ms: number): Promise<void> {
 
 export class ProfileLauncher implements IProfileLauncher {
   constructor(
-    private readonly profileManager: IProfileManager,
+    private readonly profileWriter: IProfileWriter,
     private readonly instanceDetector?: IInstanceDetector,
     private readonly proxyManager?:
       IProxyLifecycle & IProxyRouting & IProxyCertificate,
@@ -130,7 +130,7 @@ export class ProfileLauncher implements IProfileLauncher {
     options?: LaunchOptions
   ): Promise<LaunchResult> {
     try {
-      const profile = await this.profileManager.getProfile(profileId);
+      const profile = await this.profileWriter.getProfile(profileId);
       if (!profile) {
         extensionLog.warn(
           `[ProfileLauncher] Launch failed: profile ${profileId} not found`
@@ -213,7 +213,7 @@ export class ProfileLauncher implements IProfileLauncher {
     try {
       await ensureDirectory(userDataDir);
 
-      const profile = await this.profileManager.findProfileByPath(userDataDir);
+      const profile = await this.profileWriter.findProfileByPath(userDataDir);
       const launchContext = profile
         ? await this.resolveProxyLaunchContext(profile.id, userDataDir)
         : null;
@@ -252,9 +252,9 @@ export class ProfileLauncher implements IProfileLauncher {
         };
       }
 
-      const matchedProfile = await this.profileManager.findProfileByPath(userDataDir);
+      const matchedProfile = await this.profileWriter.findProfileByPath(userDataDir);
       if (matchedProfile) {
-        await this.profileManager.updateProfile(matchedProfile.id, {
+        await this.profileWriter.updateProfile(matchedProfile.id, {
           lastLaunched: new Date().toISOString(),
         });
       }
@@ -418,7 +418,7 @@ export class ProfileLauncher implements IProfileLauncher {
       return null;
     }
 
-    const profile = await this.profileManager.getProfile(profileId);
+    const profile = await this.profileWriter.getProfile(profileId);
     if (!profile || !isProfileProxyEnabled(profile)) {
       return null;
     }

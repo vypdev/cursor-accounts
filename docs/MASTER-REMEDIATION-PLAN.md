@@ -141,7 +141,7 @@ that historical baseline:
 - the latest full extension-host checkpoint passed 785 tests;
 - the webview suite has 18 passing tests;
 - localization has 26 locales with 428 keys each;
-- the architecture gate checks 427 TypeScript files, with valid, boundary,
+- the architecture gate checks 428 TypeScript files, with valid, boundary,
   cycle, and unresolved-import fixtures passing;
 - current-target packaging produced and verified
   `cursor-accounts-darwin-arm64-0.1.34.vsix`; stale artifacts are excluded by
@@ -155,7 +155,7 @@ that historical baseline:
 - Documentation validation covers 43 Markdown files and caught stale links to
   the former application-layer proxy ingress path before the gate was enabled.
 - Graphify was refreshed after the latest proxy, Accounts Panel, model-efficiency,
-  and profile-port extractions; the graph now contains 4,783 nodes and 9,633 edges.
+  and profile-port extractions; the graph now contains 4,781 nodes and 9,622 edges.
   Repowise reports zero safe-only dead-code
   findings; its 30 medium-confidence candidates remain retained pending
   runtime/public-contract evidence.
@@ -242,9 +242,16 @@ that historical baseline:
 - Read-only proxy, quota, workspace, detection, and panel consumers now depend
   on the narrower `IProfileReader` port. Profile lookup by email and user-data
   path is now part of that read-only contract, so `ProfileDetector` and
-  `ProfileExporter` no longer depend on the full CRUD port. Graphify reports
-  `IProfileManager` at degree 55 and `IProfileReader` at degree 40, down from
-  degree 87 for the broad port before this migration.
+  `ProfileExporter` no longer depend on the full CRUD port. Before the writer
+  extraction, Graphify reported `IProfileManager` at degree 55 and
+  `IProfileReader` at degree 40, down from degree 87 for the broad port before
+  this migration.
+- `IProfileWriter` now extends the read-only profile port with only
+  `updateProfile`. Efficiency analysis, profile launch, GitHub token actions,
+  and storage-panel composition use this narrower capability, reducing the
+  `IProfileManager` Graphify hub to degree 36; the writer has degree 16 and the
+  reader has degree 43 after the extraction. The architecture gate covers 428
+  TypeScript files and the full extension-host checkpoint remains 785/785 tests.
 - `CursorProcessScanner` now owns platform-specific process inspection and
   parser dispatch; `InstanceDetector` retains profile matching, cached state,
   polling, and notifications. Its focused cross-platform tests cover injected

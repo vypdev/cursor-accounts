@@ -696,10 +696,19 @@ Read-only proxy, quota, workspace, detection, and panel consumers now depend
 on the narrower `IProfileReader` port. Profile lookup by email and user-data
 path is now included in that read-only contract, allowing `ProfileDetector` and
 `ProfileExporter` to avoid the full CRUD dependency. Graphify reports
-`IProfileManager` at degree 55 and `IProfileReader` at degree 40, down from
-degree 87 for the broad port before this migration. `IProfileManager` remains
+`IProfileManager` at degree 55 and `IProfileReader` at degree 40 before the
+writer extraction, down from degree 87 for the broad port before this
+migration. `IProfileManager` remains
 the full CRUD contract for workflows that create, update, import, or delete
 profiles.
+
+`IProfileWriter` now extends the read-only profile port with only
+`updateProfile`. Efficiency analysis, profile launch, GitHub token actions,
+and storage-panel composition use this narrower capability instead of the full
+CRUD contract. Graphify reports `IProfileManager` at degree 36, `IProfileWriter`
+at degree 16, and `IProfileReader` at degree 43 after the extraction. The
+architecture gate now covers 428 TypeScript files and the complete
+extension-host checkpoint remains 785/785 tests.
 
 Repowise still identifies low-coverage or high-coupling targets including
 `proxyDecode`, `ProxyManager`, `efficiencyAnalyzer`, `efficiencyService`,
