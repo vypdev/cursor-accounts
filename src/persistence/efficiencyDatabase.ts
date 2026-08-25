@@ -191,12 +191,32 @@ export class EfficiencyDatabase {
       extensionLog.info(
         `[EfficiencyDatabase] Corrupted DB backed up to ${backupPath}`
       );
-    } catch {
-      await fs.unlink(this.dbPath).catch(() => {});
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== 'ENOENT') {
+        throw new Error(
+          `Cannot preserve corrupted efficiency database at ${backupPath}: ${extensionLog.formatError(error)}`
+        );
+      }
     }
 
-    await fs.unlink(`${this.dbPath}-wal`).catch(() => {});
-    await fs.unlink(`${this.dbPath}-shm`).catch(() => {});
+    // WAL and shared-memory sidecars belong to the same database snapshot.
+    // Moving only the main file and deleting these artifacts can discard
+    // committed WAL pages and makes the backup impossible to restore.
+    for (const suffix of ['-wal', '-shm']) {
+      const sourcePath = `${this.dbPath}${suffix}`;
+      const sidecarBackupPath = `${backupPath}${suffix}`;
+      try {
+        await fs.rename(sourcePath, sidecarBackupPath);
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException).code;
+        if (code !== 'ENOENT') {
+          throw new Error(
+            `Cannot preserve corrupted efficiency database sidecar at ${sidecarBackupPath}: ${extensionLog.formatError(error)}`
+          );
+        }
+      }
+    }
 
     await this.createFresh();
   }

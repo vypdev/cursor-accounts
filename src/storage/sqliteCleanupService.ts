@@ -11,6 +11,10 @@ export interface SqliteCleanupServiceDeps {
   fileSystem: IFileSystemService;
 }
 
+function sqlStringLiteral(value: string): string {
+  return `'${value.replace(/'/g, "''")}'`;
+}
+
 /**
  * Runs SQLite maintenance scripts against a profile `state.vscdb`.
  * Requires the profile to be closed so the database is not locked.
@@ -42,10 +46,24 @@ export class SqliteCleanupService implements IDatabaseCleanupService {
 
     const beforeDbBytes = await this.deps.fileSystem.getFileSize(dbPath);
     const backupPath = buildDeepCleanBackupPath(dbPath);
-    await this.deps.fileSystem.copyFile(dbPath, backupPath);
+
+    // A raw copy of the main file can omit committed pages that still live in
+    // a WAL sidecar. VACUUM INTO asks SQLite to create a consistent snapshot
+    // of the logical database before any cleanup statements run.
+    await this.runSqliteScript(
+      dbPath,
+      `VACUUM INTO ${sqlStringLiteral(backupPath)};`
+    );
     extensionLog.info(`[StorageCleanup] Backup created at ${backupPath}`);
 
-    await this.runSqliteScript(dbPath, DEEP_CLEAN_SQL);
+    try {
+      await this.runSqliteScript(dbPath, DEEP_CLEAN_SQL);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `Deep clean failed after backup ${backupPath}: ${message}`
+      );
+    }
 
     const afterDbBytes = await this.deps.fileSystem.getFileSize(dbPath);
     const bytesReclaimed = Math.max(0, beforeDbBytes - afterDbBytes);

@@ -1,6 +1,8 @@
 import './registerVscodeMock';
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { beforeEach, describe, it, mock } from 'node:test';
+import * as fs from 'node:fs/promises';
 import * as os from 'os';
 import * as path from 'path';
 import type * as vscode from 'vscode';
@@ -12,6 +14,8 @@ import type { InstanceDetector } from '../profiles/instanceDetector';
 import type { ProfileDetector } from '../profiles/profileDetector';
 import type { ProfileManager } from '../profiles/profileManager';
 import { StorageCleanupService } from '../services/storageCleanupService';
+import { getSqlite3Binary } from '../auth/sqliteBinary';
+import { NodeFileSystemService } from '../storage/nodeFileSystemService';
 
 const MESSAGES: Record<string, string> = {
   'errors.profileNotFound': 'Profile not found',
@@ -401,37 +405,51 @@ describe('VSCodeCacheService', () => {
 });
 
 describe('SqliteCleanupService', () => {
-  it('creates backup before invoking deep clean script', async () => {
+  it('creates a consistent backup before invoking deep clean script', async () => {
     const { SqliteCleanupService } = await import(
       '../storage/sqliteCleanupService'
     );
 
-    let backupCreated = false;
-    const fileSystem = {
-      getFileSize: async () => 4096,
-      copyFile: async (source: string, destination: string) => {
-        backupCreated = destination.includes('.backup-');
-        assert.match(source, /state\.vscdb$/);
-      },
-      stat: async () => null,
-      getPathSize: async () => 0,
-      removeDirectory: async () => ({ bytes: 0 }),
-    };
-
-    const service = new SqliteCleanupService({
-      extensionPath: process.cwd(),
-      fileSystem,
-    });
-
-    const dbPath = path.join(
-      os.homedir(),
-      '.cursor-sqlite-test',
-      'User',
-      'globalStorage',
-      'state.vscdb'
+    const tempDir = await fs.mkdtemp(
+      path.join(process.cwd(), '.sqlite-cleanup-test-')
     );
+    const dbPath = path.join(tempDir, 'state.vscdb');
 
-    await assert.rejects(service.deepClean(dbPath));
-    assert.equal(backupCreated, true);
+    try {
+      const sqliteBinary = getSqlite3Binary(process.cwd());
+      execFileSync(sqliteBinary, [
+        dbPath,
+        `CREATE TABLE cursorDiskKV (key TEXT PRIMARY KEY, value TEXT);
+         INSERT INTO cursorDiskKV (key, value) VALUES ('composerData:1', 'secret');
+         INSERT INTO cursorDiskKV (key, value) VALUES ('keep:1', 'retain');`,
+      ]);
+
+      const service = new SqliteCleanupService({
+        extensionPath: process.cwd(),
+        fileSystem: new NodeFileSystemService(),
+      });
+
+      const result = await service.deepClean(dbPath);
+      const backupRows = execFileSync(sqliteBinary, [
+        '-json',
+        result.backupPath,
+        'SELECT key, value FROM cursorDiskKV ORDER BY key;',
+      ], { encoding: 'utf8' });
+      const cleanedRows = execFileSync(sqliteBinary, [
+        '-json',
+        dbPath,
+        'SELECT key, value FROM cursorDiskKV ORDER BY key;',
+      ], { encoding: 'utf8' });
+
+      assert.deepEqual(JSON.parse(backupRows), [
+        { key: 'composerData:1', value: 'secret' },
+        { key: 'keep:1', value: 'retain' },
+      ]);
+      assert.deepEqual(JSON.parse(cleanedRows), [
+        { key: 'keep:1', value: 'retain' },
+      ]);
+    } finally {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    }
   });
 });

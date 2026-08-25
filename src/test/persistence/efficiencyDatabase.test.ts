@@ -130,4 +130,28 @@ describe('EfficiencyDatabase', () => {
     const size = await db.getDatabaseSize();
     assert.ok(size > 0);
   });
+
+  it('preserves database sidecars when recreating a failed database', async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'eff-db-'));
+    const dbPath = path.join(tempDir, 'efficiency.db');
+    await fs.writeFile(dbPath, 'corrupted database marker');
+    await fs.writeFile(`${dbPath}-wal`, 'uncheckpointed WAL marker');
+    await fs.writeFile(`${dbPath}-shm`, 'shared memory marker');
+
+    const db = new EfficiencyDatabase(dbPath, extensionPath);
+    await (db as unknown as { fallbackRecreate(): Promise<void> }).fallbackRecreate();
+
+    const entries = await fs.readdir(tempDir);
+    const backupName = entries.find((name) => /^efficiency\.db\.corrupted-\d+$/.test(name));
+    assert.ok(backupName);
+    assert.equal(
+      await fs.readFile(path.join(tempDir, `${backupName}-wal`), 'utf8'),
+      'uncheckpointed WAL marker'
+    );
+    assert.equal(
+      await fs.readFile(path.join(tempDir, `${backupName}-shm`), 'utf8'),
+      'shared memory marker'
+    );
+    assert.equal(await fs.stat(dbPath).then((stat) => stat.isFile()), true);
+  });
 });
