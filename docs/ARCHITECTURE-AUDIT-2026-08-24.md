@@ -834,6 +834,30 @@ The repository remains a deliberately narrow domain-port facade for now. The
 next SQLite slice must separate write operations from migration startup and
 cleanup only after preserving idempotency and multi-window tests.
 
+### SQLite write checkpoint — 2026-08-25
+
+`BetterSqliteAgentTrackingWriteStore` now owns conversation and agent upserts,
+token snapshots, token-delta aggregation, turn-ended writes, and the atomic
+delta idempotency ledger transaction. The repository facade retains migration
+verification, cleanup, and composition of the read/write adapters. The domain
+port shape is unchanged.
+
+Evidence for this follow-up:
+
+- SQLite integration tests: 6/6 passed;
+- `pnpm test`: 793/793 tests passed across 252 suites;
+- `pnpm run check:architecture`: passed for 435 TypeScript files;
+- `pnpm run check:docs`: passed for 43 Markdown files;
+- Graphify: 4,851 nodes and 9,807 edges;
+- Graphify degrees: facade 21, read store 12, write store 9;
+- source sizes: facade 175 lines, read store 360 lines, write store 250 lines;
+- Repowise `dead-code --safe-only --format json`: no findings.
+
+The facade's degree increased from 20 to 21 because it now references both
+focused adapters. This is expected composition coupling; SQL and write policy
+are no longer concentrated in the facade. Migration startup and retention
+cleanup remain the next infrastructure seam.
+
 ## 12. Prioritized remediation plan
 
 ### Phase 0 — Release blockers and deterministic validation

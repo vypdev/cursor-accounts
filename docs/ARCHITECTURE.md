@@ -33,7 +33,8 @@ Agent tracking uses **`better-sqlite3`** with persistent connections:
 - **Architecture**: Clean Architecture with dependency inversion
   - **Domain port**: `src/domain/ports/IDatabaseConnectionManager.ts`
   - **Infrastructure adapter**: `src/persistence/betterSqlite/betterSqliteConnectionManager.ts`
-  - **Write/lifecycle repository**: `BetterSqliteAgentTrackingRepository`
+  - **Domain-port facade**: `BetterSqliteAgentTrackingRepository`
+  - **Write adapter**: `BetterSqliteAgentTrackingWriteStore`
   - **Read-model adapter**: `BetterSqliteAgentTrackingReadStore`
 - **Benefits**: WAL mode + busy_timeout eliminates lock errors, supports transactions, 10-100x faster
 - **Multi-window**: Each VS Code window maintains its own connection; SQLite WAL handles concurrent access

@@ -77,6 +77,11 @@ Completed slices are recorded below so the plan cannot drift from the code.
   agent trees, and database-size queries. `BetterSqliteAgentTrackingRepository`
   retains migrations, writes, idempotency transactions, cleanup, and the domain
   port facade.
+- **SQLite write decomposition:** `BetterSqliteAgentTrackingWriteStore` now
+  owns conversation/agent upserts, token snapshots, token deltas, turn-ended
+  writes, and delta idempotency transactions. The repository facade retains
+  only migration verification, cleanup, read/write composition, and the domain
+  port contract.
 - **Security hardening started:** webview error rendering is text-safe, Windows
   process launch no longer enables `shell`, loopback validation ignores
   spoofable forwarding headers, persisted proxy headers redact credentials,
@@ -337,6 +342,13 @@ that historical baseline:
   TypeScript files, the full checkpoint passes 793/793 tests, Graphify reports
   4,842 nodes and 9,788 edges, and Repowise safe-only dead-code analysis
   reports no findings.
+- `BetterSqliteAgentTrackingWriteStore` now delegates the five write operations
+  from the SQLite repository facade. The facade is 175 lines with Graphify
+  degree 21; the write store is 250 lines with degree 9, while the read store
+  remains at degree 12. SQLite integration coverage remains 6/6, the full
+  checkpoint passes 793/793 tests, the architecture gate covers 435 TypeScript
+  files, Graphify reports 4,851 nodes and 9,807 edges, and Repowise safe-only
+  dead-code analysis reports no findings.
 
 ### 3.2 Target state
 
@@ -981,7 +993,8 @@ and one persistence use case. It should not contain all event policy branches.
 ### W4.4 SQLite repository decomposition
 
 Keep SQL and connection handling in infrastructure. The read-model seam is now
-separate from the write/lifecycle adapter. Continue separating:
+separate from the write adapter, and the domain facade no longer owns SQL for
+either side. Continue separating:
 
 - migration/schema initialization;
 - conversation and agent writes;
