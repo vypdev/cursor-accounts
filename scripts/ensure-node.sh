@@ -3,6 +3,11 @@
 # In CI (e.g. actions/setup-node), Node may already be on PATH without nvm.
 set -e
 
+# nvm rejects npm's global prefix configuration. It is commonly inherited from
+# Homebrew or a user-level npm setup and is unrelated to this repository's Node
+# runtime selection.
+unset npm_config_prefix
+
 REQUIRED_MAJOR=22
 
 ensure_node_version() {

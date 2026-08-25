@@ -153,6 +153,9 @@ The current-target packaging path now has reproducible local evidence:
 - The sanitized artifact is 28 MiB with 3,085 entries and retains the runtime
   `better_sqlite3.node` while removing the source tree and native build
   intermediates. `node scripts/verify-vsix.mjs` passes on that exact artifact.
+- The build was repeated after hardening `scripts/ensure-node.sh` against an
+  inherited `npm_config_prefix`; the resulting artifact still passes native,
+  dependency, and VSIX verification.
 
 QA-3 remains PARTIAL because a fresh empty-store installation and the complete
 darwin, Linux, and Windows target matrix have not yet been executed in this
