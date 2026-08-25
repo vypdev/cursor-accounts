@@ -21,7 +21,7 @@ export type { ProxyServerConfig } from '../application/types/proxyConfig';
 export type {
   MitmProxyHandlers,
   ProxyTrafficSummary,
-} from '../application/types/proxyTraffic';
+} from '../domain/types/proxyTraffic';
 export type { ProxyInsights } from '../application/types/proxyInsights';
 
 /** Options passed to http-mitm-proxy listen(). */

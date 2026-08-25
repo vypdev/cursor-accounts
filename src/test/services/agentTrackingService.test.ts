@@ -6,7 +6,7 @@ import type {
   ITokenTurnDetectionService,
 } from '../../domain/ports/ITokenTurnDetectionService';
 import { AgentTrackingService } from '../../services/agentTrackingService';
-import type { ProxyTrafficSummary } from '../../proxy/types';
+import type { ProxyTrafficUsageEvent } from '../../domain/types/proxyTraffic';
 
 class MockRepository implements IAgentTrackingRepository {
   conversations: Array<{ conversationId: string; timestamp: number }> = [];
@@ -191,9 +191,7 @@ describe('AgentTrackingService', () => {
 
     const summary = {
       timestamp: new Date(1_000_000).toISOString(),
-      kind: 'response',
       url: 'https://agent.cursor.sh/BidiAppend',
-      host: 'agent.cursor.sh',
       endpoint: '/BidiAppend',
       insights: {
         agent: {
@@ -203,7 +201,7 @@ describe('AgentTrackingService', () => {
           usageEvent: 'token_delta',
         },
       },
-    } satisfies ProxyTrafficSummary;
+    } satisfies ProxyTrafficUsageEvent;
 
     await service.ingestTraffic(summary);
 
@@ -231,9 +229,7 @@ describe('AgentTrackingService', () => {
 
     await service.ingestTraffic({
       timestamp: new Date(1_000_000).toISOString(),
-      kind: 'response',
       url: 'https://agent.api5.cursor.sh/agent.v1.AgentService/RunSSE',
-      host: 'agent.api5.cursor.sh',
       endpoint: '/agent.v1.AgentService/RunSSE',
       httpRequestId: 'http-req-1',
       insights: {
@@ -245,7 +241,7 @@ describe('AgentTrackingService', () => {
           { streamingTokens: 100, usageEvent: 'token_delta' },
         ],
       },
-    } satisfies ProxyTrafficSummary);
+    } satisfies ProxyTrafficUsageEvent);
 
     assert.equal(repo.conversations.length, 1);
     assert.equal(repo.conversations[0]?.conversationId, 'conv-from-db');
@@ -261,9 +257,7 @@ describe('AgentTrackingService', () => {
 
     const summary = {
       timestamp: new Date().toISOString(),
-      kind: 'response',
       url: 'https://agent.cursor.sh/BidiAppend',
-      host: 'agent.cursor.sh',
       endpoint: '/BidiAppend',
       insights: {
         agent: {
@@ -272,7 +266,7 @@ describe('AgentTrackingService', () => {
           usageEvent: 'token_delta',
         },
       },
-    } satisfies ProxyTrafficSummary;
+    } satisfies ProxyTrafficUsageEvent;
 
     await service.ingestTraffic(summary);
 
@@ -332,9 +326,7 @@ describe('AgentTrackingService', () => {
 
     const summary = {
       timestamp: new Date().toISOString(),
-      kind: 'response',
       url: 'https://agent.cursor.sh/BidiAppend',
-      host: 'agent.cursor.sh',
       endpoint: '/BidiAppend',
       insights: {
         agent: {
@@ -342,7 +334,7 @@ describe('AgentTrackingService', () => {
           conversationId: 'conv-1',
         },
       },
-    } satisfies ProxyTrafficSummary;
+    } satisfies ProxyTrafficUsageEvent;
 
     await assert.doesNotReject(async () => {
       await service.ingestTraffic(summary);
@@ -364,9 +356,7 @@ describe('AgentTrackingService', () => {
 
     await service.ingestTraffic({
       timestamp: new Date(1_000_000).toISOString(),
-      kind: 'response',
       url: 'https://agent.api5.cursor.sh/agent.v1.AgentService/RunSSE',
-      host: 'agent.api5.cursor.sh',
       endpoint: '/agent.v1.AgentService/RunSSE',
       httpRequestId: 'http-req-1',
       insights: {
@@ -380,7 +370,7 @@ describe('AgentTrackingService', () => {
           { streamingTokens: 200, usageEvent: 'token_delta' },
         ],
       },
-    } satisfies ProxyTrafficSummary);
+    } satisfies ProxyTrafficUsageEvent);
 
     assert.equal(repo.tokens.length, 2);
     assert.equal(repo.tokens[0]?.requestId, 'bidi-req-1');
@@ -398,9 +388,7 @@ describe('AgentTrackingService', () => {
 
     await service.ingestTraffic({
       timestamp: new Date(1_000_000).toISOString(),
-      kind: 'response',
       url: 'https://agent.api5.cursor.sh/agent.v1.AgentService/RunSSE',
-      host: 'agent.api5.cursor.sh',
       endpoint: '/agent.v1.AgentService/RunSSE',
       httpRequestId: 'http-req-1',
       isLiveTokenUpdate: true,
@@ -413,7 +401,7 @@ describe('AgentTrackingService', () => {
           usageEvent: 'token_delta',
         },
       },
-    } satisfies ProxyTrafficSummary);
+    } satisfies ProxyTrafficUsageEvent);
 
     assert.equal(repo.deltas.length, 1);
     assert.equal(repo.deltas[0]?.streamingTokens, 12);
@@ -426,9 +414,7 @@ describe('AgentTrackingService', () => {
 
     const result = await service.ingestTraffic({
       timestamp: new Date(1_000_000).toISOString(),
-      kind: 'response',
       url: 'https://agent.api5.cursor.sh/agent.v1.AgentService/RunSSE',
-      host: 'agent.api5.cursor.sh',
       endpoint: '/agent.v1.AgentService/RunSSE',
       isLiveTokenUpdate: true,
       liveTokenData: { accumulatedTokens: 12, latestDelta: 12 },
@@ -440,7 +426,7 @@ describe('AgentTrackingService', () => {
           usageEvent: 'token_delta',
         },
       },
-    } satisfies ProxyTrafficSummary);
+    } satisfies ProxyTrafficUsageEvent);
 
     assert.deepEqual(result, {
       conversationId: 'conv-456',
@@ -457,9 +443,7 @@ describe('AgentTrackingService', () => {
 
     const result = await service.ingestTraffic({
       timestamp: new Date(1_000_000).toISOString(),
-      kind: 'response',
       url: 'https://agent.api5.cursor.sh/agent.v1.AgentService/RunSSE',
-      host: 'agent.api5.cursor.sh',
       endpoint: '/agent.v1.AgentService/RunSSE',
       insights: {
         agent: {
@@ -470,7 +454,7 @@ describe('AgentTrackingService', () => {
           usageEvent: 'token_details',
         },
       },
-    } satisfies ProxyTrafficSummary);
+    } satisfies ProxyTrafficUsageEvent);
 
     assert.deepEqual(result, {
       conversationId: 'conv-456',
@@ -490,9 +474,7 @@ describe('AgentTrackingService', () => {
 
     await service.ingestTraffic({
       timestamp: new Date(1_000_000).toISOString(),
-      kind: 'response',
       url: 'https://agent.api5.cursor.sh/agent.v1.AgentService/RunSSE',
-      host: 'agent.api5.cursor.sh',
       endpoint: '/agent.v1.AgentService/RunSSE',
       isLiveTokenUpdate: true,
       liveTokenData: {
@@ -508,7 +490,7 @@ describe('AgentTrackingService', () => {
           usageEvent: 'token_delta',
         },
       },
-    } satisfies ProxyTrafficSummary);
+    } satisfies ProxyTrafficUsageEvent);
 
     assert.equal(repo.deltas[0]?.costCents, 0.25);
   });
@@ -527,9 +509,7 @@ describe('AgentTrackingService', () => {
 
     await service.ingestTraffic({
       timestamp: new Date(1_000_000).toISOString(),
-      kind: 'response',
       url: 'https://agent.api5.cursor.sh/agent.v1.AgentService/RunSSE',
-      host: 'agent.api5.cursor.sh',
       endpoint: '/agent.v1.AgentService/RunSSE',
       isLiveTokenUpdate: true,
       liveTokenData: { accumulatedTokens: 20, latestDelta: 20 },
@@ -542,7 +522,7 @@ describe('AgentTrackingService', () => {
           modelName: 'composer-2.5',
         },
       },
-    } satisfies ProxyTrafficSummary);
+    } satisfies ProxyTrafficUsageEvent);
 
     assert.equal(repo.deltas[0]?.costCents, 0.2);
   });
@@ -554,9 +534,7 @@ describe('AgentTrackingService', () => {
 
     await service.ingestTraffic({
       timestamp: new Date(1_000_000).toISOString(),
-      kind: 'response',
       url: 'https://agent.api5.cursor.sh/agent.v1.AgentService/RunSSE',
-      host: 'agent.api5.cursor.sh',
       endpoint: '/agent.v1.AgentService/RunSSE',
       httpRequestId: 'http-req-1',
       insights: {
@@ -568,7 +546,7 @@ describe('AgentTrackingService', () => {
         },
         streamingTurnsAlreadyPersisted: true,
       },
-    } satisfies ProxyTrafficSummary);
+    } satisfies ProxyTrafficUsageEvent);
 
     assert.equal(repo.deltas.length, 1);
     assert.equal(repo.deltas[0]?.streamingTokens, 42);
@@ -581,9 +559,7 @@ describe('AgentTrackingService', () => {
 
     await service.ingestTraffic({
       timestamp: new Date(1_000_000).toISOString(),
-      kind: 'response',
       url: 'https://agent.api5.cursor.sh/agent.v1.AgentService/RunSSE',
-      host: 'agent.api5.cursor.sh',
       endpoint: '/agent.v1.AgentService/RunSSE',
       httpRequestId: 'http-req-1',
       isTurnEnded: true,
@@ -598,7 +574,7 @@ describe('AgentTrackingService', () => {
         },
         streamingTurnsAlreadyPersisted: true,
       },
-    } satisfies ProxyTrafficSummary);
+    } satisfies ProxyTrafficUsageEvent);
 
     assert.equal(repo.turnEnded.length, 1);
     assert.equal(repo.turnEnded[0]?.inputTokens, 1000);

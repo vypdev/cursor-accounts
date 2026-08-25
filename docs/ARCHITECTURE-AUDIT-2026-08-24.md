@@ -589,8 +589,8 @@ baseline, but it is not presented as a completed final audit.
 ### Updated Repowise and Graphify signals
 
 Repowise and Graphify were re-run after the latest proxy, Accounts Panel,
-model-efficiency, and profile-port extractions. The graph now contains 4,783
-nodes and 9,633 edges; nine SQL files remain
+model-efficiency, profile-port, and traffic-contract extractions. The graph now
+contains 4,783 nodes and 9,631 edges; nine SQL files remain
 unparsed because
 the installed Graphify environment does not include `tree_sitter_sql`. The
 largest remaining source-level hubs are `ProxyManager`, `ProxyTrafficSummary`,
@@ -716,6 +716,13 @@ model-efficiency, and Accounts panel consumers. The concrete adapter remains
 only at the composition boundary; its Graphify degree falls from 41 to 18,
 while the shared port has degree 43. The complete extension-host checkpoint
 remains 785/785 tests.
+
+`ProxyTrafficUsageEvent` now isolates the timestamp, endpoint, correlation,
+profile, insight, and live-token fields required by agent usage and persistence
+workflows. Those consumers no longer depend on the full transport/body/error
+summary; Graphify reports the broad `ProxyTrafficSummary` at degree 56 and the
+usage event at degree 12. The compatibility export remains available, and the
+full extension-host checkpoint passes 785/785 tests.
 
 Repowise still identifies low-coverage or high-coupling targets including
 `proxyDecode`, `ProxyManager`, `efficiencyAnalyzer`, `efficiencyService`,

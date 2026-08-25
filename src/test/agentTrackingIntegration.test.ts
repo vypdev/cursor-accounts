@@ -8,7 +8,7 @@ import type { IAgentTrackingRepository } from '../domain/ports/IAgentTrackingRep
 import { BetterSqliteAgentTrackingRepository } from '../persistence/betterSqlite/betterSqliteAgentTrackingRepository';
 import { BetterSqliteConnectionManager } from '../persistence/betterSqlite/betterSqliteConnectionManager';
 import { AgentTrackingService } from '../services/agentTrackingService';
-import type { ProxyTrafficSummary } from '../proxy/types';
+import type { ProxyTrafficUsageEvent } from '../domain/types/proxyTraffic';
 
 const extensionPath = path.join(__dirname, '..', '..');
 
@@ -50,9 +50,7 @@ describe('AgentTracking integration', () => {
 
     await service.ingestTraffic({
       timestamp: new Date(1_000_000).toISOString(),
-      kind: 'response',
       url: 'https://agent.cursor.sh/BidiAppend',
-      host: 'agent.cursor.sh',
       endpoint: '/BidiAppend',
       insights: {
         agent: {
@@ -65,13 +63,11 @@ describe('AgentTracking integration', () => {
           modelName: 'claude-sonnet',
         },
       },
-    } satisfies ProxyTrafficSummary);
+    } satisfies ProxyTrafficUsageEvent);
 
     await service.ingestTraffic({
       timestamp: new Date(2_000_000).toISOString(),
-      kind: 'response',
       url: 'https://agent.cursor.sh/BidiPoll',
-      host: 'agent.cursor.sh',
       endpoint: '/BidiPoll',
       insights: {
         agent: {
@@ -87,7 +83,7 @@ describe('AgentTracking integration', () => {
           modelName: 'claude-sonnet',
         },
       },
-    } satisfies ProxyTrafficSummary);
+    } satisfies ProxyTrafficUsageEvent);
 
     const result = await service.getConversationTokens('conv-1');
     assert.equal(result.agentCount, 1);
@@ -107,8 +103,6 @@ describe('AgentTracking integration', () => {
     await service.initialize();
 
     const base = {
-      kind: 'response',
-      host: 'agent.cursor.sh',
       endpoint: '/BidiAppend',
     } as const;
 
@@ -124,7 +118,7 @@ describe('AgentTracking integration', () => {
           streamingTokens: 10,
         },
       },
-    } satisfies ProxyTrafficSummary);
+    } satisfies ProxyTrafficUsageEvent);
 
     await service.ingestTraffic({
       ...base,
@@ -139,7 +133,7 @@ describe('AgentTracking integration', () => {
           streamingTokens: 20,
         },
       },
-    } satisfies ProxyTrafficSummary);
+    } satisfies ProxyTrafficUsageEvent);
 
     await service.ingestTraffic({
       ...base,
@@ -154,7 +148,7 @@ describe('AgentTracking integration', () => {
           streamingTokens: 30,
         },
       },
-    } satisfies ProxyTrafficSummary);
+    } satisfies ProxyTrafficUsageEvent);
 
     const tree = await service.getAgentTree('conv-1');
     assert.equal(tree.length, 1);
@@ -174,9 +168,7 @@ describe('AgentTracking integration', () => {
 
     const liveSummary = {
       timestamp: new Date(1_000_000).toISOString(),
-      kind: 'response',
       url: 'https://agent.api5.cursor.sh/agent.v1.AgentService/RunSSE',
-      host: 'agent.api5.cursor.sh',
       endpoint: '/agent.v1.AgentService/RunSSE',
       httpRequestId: 'http-replay-test',
       isLiveTokenUpdate: true,
@@ -192,7 +184,7 @@ describe('AgentTracking integration', () => {
           eventSequence: 3,
         },
       },
-    } satisfies ProxyTrafficSummary;
+    } satisfies ProxyTrafficUsageEvent;
 
     await service.ingestTraffic(liveSummary);
     await service.ingestTraffic(liveSummary);
@@ -280,9 +272,7 @@ describe('AgentTracking integration', () => {
 
     await service.ingestTraffic({
       timestamp: new Date(1_000_000).toISOString(),
-      kind: 'response',
       url: 'https://agent.api5.cursor.sh/agent.v1.AgentService/RunSSE',
-      host: 'agent.api5.cursor.sh',
       endpoint: '/agent.v1.AgentService/RunSSE',
       httpRequestId: 'http-req-runsse',
       insights: {
@@ -296,7 +286,7 @@ describe('AgentTracking integration', () => {
           { streamingTokens: 250, usageEvent: 'token_delta' },
         ],
       },
-    } satisfies ProxyTrafficSummary);
+    } satisfies ProxyTrafficUsageEvent);
 
     const breakdown = await service.getAgentTokens('req-runsse');
     assert.ok(breakdown);
@@ -331,9 +321,7 @@ ORDER BY turn_index ASC;
     await service.initialize();
 
     const base = {
-      kind: 'response',
       url: 'https://agent.api5.cursor.sh/agent.v1.AgentService/RunSSE',
-      host: 'agent.api5.cursor.sh',
       endpoint: '/agent.v1.AgentService/RunSSE',
       httpRequestId: 'http-req-runsse',
     } as const;
@@ -347,7 +335,7 @@ ORDER BY turn_index ASC;
           conversationId: 'conv-runsse',
         },
       },
-    } satisfies ProxyTrafficSummary);
+    } satisfies ProxyTrafficUsageEvent);
 
     for (let i = 0; i < 5; i++) {
       await service.ingestTraffic({
@@ -362,7 +350,7 @@ ORDER BY turn_index ASC;
             usageEvent: 'token_delta',
           },
         },
-      } satisfies ProxyTrafficSummary);
+      } satisfies ProxyTrafficUsageEvent);
     }
 
     await service.ingestTraffic({
@@ -378,7 +366,7 @@ ORDER BY turn_index ASC;
         },
         streamingTurnsAlreadyPersisted: true,
       },
-    } satisfies ProxyTrafficSummary);
+    } satisfies ProxyTrafficUsageEvent);
 
     const conn = await connectionManager.getConnection(dbPath);
     const deltaRows = conn.all<{
@@ -418,9 +406,7 @@ WHERE request_id = ?;
 
     await service.ingestTraffic({
       timestamp: new Date(baseSecond * 1000).toISOString(),
-      kind: 'response',
       url: 'https://agent.api5.cursor.sh/agent.v1.AgentService/RunSSE',
-      host: 'agent.api5.cursor.sh',
       endpoint: '/agent.v1.AgentService/RunSSE',
       insights: {
         agent: {
@@ -428,15 +414,13 @@ WHERE request_id = ?;
           conversationId: 'conv-live',
         },
       },
-    } satisfies ProxyTrafficSummary);
+    } satisfies ProxyTrafficUsageEvent);
 
     for (let minute = 0; minute < perMinute.length; minute++) {
       for (let i = 0; i < perMinute[minute]!; i++) {
         await service.ingestTraffic({
           timestamp: new Date((baseSecond + minute * 60 + i) * 1000).toISOString(),
-          kind: 'response',
           url: 'https://agent.api5.cursor.sh/agent.v1.AgentService/RunSSE',
-          host: 'agent.api5.cursor.sh',
           endpoint: '/agent.v1.AgentService/RunSSE',
           isLiveTokenUpdate: true,
           liveTokenData: {
@@ -451,7 +435,7 @@ WHERE request_id = ?;
               usageEvent: 'token_delta',
             },
           },
-        } satisfies ProxyTrafficSummary);
+        } satisfies ProxyTrafficUsageEvent);
       }
     }
 

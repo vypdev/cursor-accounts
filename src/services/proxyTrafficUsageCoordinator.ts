@@ -1,5 +1,5 @@
 import type { ConversationUsagePersistedEvent } from '../domain/ports/IProxyTraffic';
-import type { ProxyTrafficSummary } from '../domain/types/proxyTraffic';
+import type { ProxyTrafficUsageEvent } from '../domain/types/proxyTraffic';
 import type { AgentTrackingService } from './agentTrackingService';
 import * as extensionLog from '../logging/extensionLog';
 import { SHARED_PROXY_RUNTIME_KEY } from '../proxy/types';
@@ -15,7 +15,7 @@ function shortId(value?: string): string {
   return value ? `${value.slice(0, 8)}…` : '(none)';
 }
 
-function isAgentTraffic(summary: ProxyTrafficSummary): boolean {
+function isAgentTraffic(summary: ProxyTrafficUsageEvent): boolean {
   const agent = summary.insights?.agent;
   return (
     summary.isLiveTokenUpdate === true ||
@@ -32,7 +32,7 @@ export class ProxyTrafficUsageCoordinator {
   ) {}
 
   async handle(
-    summary: ProxyTrafficSummary,
+    summary: ProxyTrafficUsageEvent,
     profileId?: string
   ): Promise<string | undefined> {
     const effectiveProfileId = summary.profileId ?? profileId;

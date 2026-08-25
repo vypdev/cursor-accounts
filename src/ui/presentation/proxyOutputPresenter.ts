@@ -4,7 +4,7 @@ import {
   formatTrafficLine,
   PROXY_TRAFFIC_TAG,
 } from '../../proxy/proxyTrafficFormat';
-import type { ProxyTrafficSummary } from '../../application/types/proxyTraffic';
+import type { ProxyTrafficSummary } from '../../domain/types/proxyTraffic';
 import type {
   IProxyOutputPresenter,
   ProxyOutputSettings,

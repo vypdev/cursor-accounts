@@ -1,7 +1,7 @@
 import type { IngestTrafficResult } from '../application/types/agentPersistence';
 import { AgentTrackingPersistenceCoordinator } from '../application/services/agentTrackingPersistenceCoordinator';
 import type { AgentSessionInfo } from '../application/types/agentTracking';
-import type { ProxyTrafficSummary } from '../application/types/proxyTraffic';
+import type { ProxyTrafficUsageEvent } from '../domain/types/proxyTraffic';
 import type { IAgentTrackingRepository } from '../domain/ports/IAgentTrackingRepository';
 import type { IProxyLiveCostCalculator } from '../domain/ports/IProxyLiveCostCalculator';
 import type { ITokenTurnDetectionService } from '../domain/ports/ITokenTurnDetectionService';
@@ -43,7 +43,7 @@ export class AgentTrackingService {
   }
 
   async ingestTraffic(
-    summary: ProxyTrafficSummary
+    summary: ProxyTrafficUsageEvent
   ): Promise<IngestTrafficResult | void> {
     const ingestKind = summary.isLiveTokenUpdate
       ? 'live'

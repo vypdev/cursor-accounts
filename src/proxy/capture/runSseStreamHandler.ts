@@ -1,4 +1,4 @@
-import type { ProxyTrafficSummary } from '../../application/types/proxyTraffic';
+import type { ProxyTrafficSummary } from '../../domain/types/proxyTraffic';
 import type { IProxyLiveCostCalculator } from '../../domain/ports/IProxyLiveCostCalculator';
 import type { LiveTokenUpdate, TurnEndedEvent } from '../streamingAgentDecoder';
 import { formatEndpoint } from '../proxyTrafficFormat';

@@ -1,5 +1,5 @@
 import type { ProxyStatistics } from '@cursor-accounts/types';
-import type { ProxyTrafficSummary } from '../application/types/proxyTraffic';
+import type { ProxyTrafficSummary } from '../domain/types/proxyTraffic';
 import type {
   IProxyTrafficIngress,
   TrafficIngressMode,

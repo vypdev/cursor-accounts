@@ -3,7 +3,7 @@ import type { IProxyLiveCostCalculator } from '../../domain/ports/IProxyLiveCost
 import type { ITokenTurnDetectionService } from '../../domain/ports/ITokenTurnDetectionService';
 import type { AgentSessionInfo } from '../types/agentTracking';
 import type { ProxyInsights } from '../types/proxyInsights';
-import type { ProxyTrafficSummary } from '../types/proxyTraffic';
+import type { ProxyTrafficUsageEvent } from '../../domain/types/proxyTraffic';
 
 export type AgentPersistenceEventKind =
   | 'turn_ended'
@@ -18,7 +18,7 @@ export interface AgentPersistenceResult {
 }
 
 export interface AgentPersistenceContext {
-  summary: ProxyTrafficSummary;
+  summary: ProxyTrafficUsageEvent;
   insights: ProxyInsights;
   agent: AgentSessionInfo;
   timestamp: number;

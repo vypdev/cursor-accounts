@@ -155,7 +155,8 @@ that historical baseline:
 - Documentation validation covers 43 Markdown files and caught stale links to
   the former application-layer proxy ingress path before the gate was enabled.
 - Graphify was refreshed after the latest proxy, Accounts Panel, model-efficiency,
-  and profile-port extractions; the graph now contains 4,781 nodes and 9,622 edges.
+  profile-port, and traffic-contract extractions; the graph now contains 4,783
+  nodes and 9,631 edges.
   Repowise reports zero safe-only dead-code
   findings; its 30 medium-confidence candidates remain retained pending
   runtime/public-contract evidence.
@@ -258,6 +259,12 @@ that historical baseline:
   composition boundary and its Graphify degree falls from 41 to 18; the shared
   port has degree 43. The complete extension-host checkpoint remains 785/785
   tests.
+- `ProxyTrafficUsageEvent` now isolates the timestamp, endpoint, correlation,
+  profile, insight, and live-token fields required by agent usage and persistence
+  workflows. Those consumers no longer depend on the full transport/body/error
+  summary; Graphify reports the broad `ProxyTrafficSummary` at degree 56 and
+  the usage event at degree 12. The compatibility export remains available, and
+  the full extension-host checkpoint passes 785/785 tests.
 - `CursorProcessScanner` now owns platform-specific process inspection and
   parser dispatch; `InstanceDetector` retains profile matching, cached state,
   polling, and notifications. Its focused cross-platform tests cover injected

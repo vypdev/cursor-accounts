@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { t } from '../../l10n';
 import type { AgentSessionInfo } from '../../application/types/agentTracking';
-import type { ProxyTrafficSummary } from '../../application/types/proxyTraffic';
+import type { ProxyTrafficSummary } from '../../domain/types/proxyTraffic';
 import type { ITokenDetectorOutputPresenter } from '../../domain/ports/IProxyOutputPresenter';
 
 export const TOKEN_DETECTOR_TAG = '[TokenDetector]';

@@ -57,6 +57,10 @@ export * from './ports/IProfileStorageAnalyzer';
 export * from './ports/IProfileManager';
 export * from './ports/IProfileReader';
 export * from './ports/IProfileWriter';
+export type {
+  ProxyLiveTokenData,
+  ProxyTrafficUsageEvent,
+} from './types/proxyTraffic';
 export * from './ports/IProfileDetector';
 export * from './ports/IProfileLauncher';
 export * from './ports/IInstanceDetector';

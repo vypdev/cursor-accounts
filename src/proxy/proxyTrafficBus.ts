@@ -1,4 +1,4 @@
-import type { ProxyTrafficSummary } from '../application/types/proxyTraffic';
+import type { ProxyTrafficSummary } from '../domain/types/proxyTraffic';
 import type {
   IProxyTrafficBus,
   TrafficListener,
