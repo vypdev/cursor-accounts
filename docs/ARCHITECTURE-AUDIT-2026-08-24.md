@@ -758,7 +758,34 @@ release-platform VSIX matrix plus installed-extension acceptance test remain
 open. These items are intentionally carried forward rather than hidden by the
 improved global metrics.
 
-## 11. Prioritized remediation plan
+## 11. Current implementation checkpoint — 2026-08-25
+
+The latest verified slice extracted `ProxyManagerOutputCoordinator` from the
+`ProxyManager` facade. The coordinator owns output-channel presentation,
+token-detector presentation, traffic publication, tailer delegation,
+log-directory access, and stopped-runtime log cleanup. Diagnostics-summary
+policy remains in `ProxyManager` because its callback is created during the
+manager's default dependency composition and requires a separate ownership
+decision.
+
+Evidence for this checkpoint:
+
+- `pnpm test`: 789/789 tests passed across 251 suites;
+- `pnpm exec tsc --noEmit` and targeted ESLint: passed;
+- `pnpm run check:architecture`: passed for 430 TypeScript files;
+- `pnpm run check:docs`: passed for 43 Markdown files;
+- Graphify: 4,803 nodes, 9,685 edges; `ProxyManager` degree 67;
+- Repowise `dead-code --safe-only --format json`: no findings;
+- focused coordinator tests: 4/4 passed.
+
+Graphify's `ProxyManager` degree increased by one because the facade now has an
+explicit dependency on the new coordinator. This is an intentional structural
+trade-off: the output responsibilities have a named owner and a direct test
+surface, while the manager remains a compatibility facade. The next review
+should measure source size, complexity, and responsibility concentration rather
+than treating degree alone as a success criterion.
+
+## 12. Prioritized remediation plan
 
 ### Phase 0 — Release blockers and deterministic validation
 
@@ -829,7 +856,7 @@ improved global metrics.
 4. Re-run this audit after Phases 0–2 and compare hotspot, coverage, and
    boundary metrics rather than optimizing one tool score in isolation.
 
-## 12. Definition of done for the next audit
+## 13. Definition of done for the next audit
 
 The next audit should not be considered complete until:
 

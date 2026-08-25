@@ -60,6 +60,12 @@ Completed slices are recorded below so the plan cannot drift from the code.
 - **Ingress decomposition:** API/JSONL mode selection, attach/restart state,
   and output notifications now live in `ProxyTrafficIngressCoordinator`;
   `ProxyManager` delegates ingress setup while retaining lifecycle ownership.
+- **Output decomposition:** `ProxyManagerOutputCoordinator` now owns output
+  channel presentation, token-detector presentation, traffic publication,
+  tailer delegation, log-directory access, and stopped-runtime log cleanup.
+  `ProxyManager` remains the compatibility facade and supplies runtime state
+  and tailer callbacks through dependency injection. Four focused tests protect
+  the extracted behavior.
 - **Security hardening started:** webview error rendering is text-safe, Windows
   process launch no longer enables `shell`, loopback validation ignores
   spoofable forwarding headers, persisted proxy headers redact credentials,
@@ -297,6 +303,13 @@ that historical baseline:
 - `AccountsPanelStorageHandlers` now owns storage inspection and cleanup
   actions; missing profiles, cleanup failures, and refreshed post-cleanup
   breakdowns remain covered by the existing handler tests.
+- `ProxyManagerOutputCoordinator` now owns the output/tailing and log-cleanup
+  seam described in W4.1. The coordinator is 72 lines, has direct tests for
+  enabled/disabled presentation and cleanup guards, and keeps presenter and
+  filesystem concerns outside the manager's orchestration methods. The latest
+  checkpoint passes 789/789 tests, the architecture gate covers 430 TypeScript
+  files, Graphify reports 4,803 nodes and 9,685 edges, and Repowise safe-only
+  dead-code analysis reports no findings.
 
 ### 3.2 Target state
 
@@ -812,7 +825,7 @@ pure function where appropriate, characterization tests, and a rollback path.
 
 ### W4.1 `ProxyManager` decomposition
 
-Current risk: 746 lines and Graphify degree 66, combining
+Current risk: 747 lines and Graphify degree 67, combining
 profile lifecycle, shared proxy coordination, state persistence, certificate
 operations, traffic ingress, agent tracking, output/tailing, and notifications.
 
@@ -828,8 +841,11 @@ Proposed seams:
    `ProxyTrafficUsageCoordinator` now implements the tracking-ingress portion
    with focused tests; the remaining bus/subscription concerns stay in the
    facade until their ownership is characterized.
-5. `ProxyOutputCoordinator` — JSONL tailers, output channels, and diagnostics
-   presentation.
+5. `ProxyManagerOutputCoordinator` — output channels, traffic presentation,
+   tailer delegation, log-directory access, and stopped-runtime log cleanup.
+   Diagnostics summary policy remains in the facade until its construction and
+   callback ownership can be extracted without widening the coordinator's
+   dependency surface.
 6. `ProxyCertificateFacade` — only if the existing certificate service does not
    already own the full behavior.
 7. A thin `ProxyManager` facade retained temporarily for compatibility.
@@ -843,8 +859,9 @@ Completed in this phase:
   `ProxyProfileLifecycleCoordinator`;
 - profile status reconciliation and traffic-tail routing are implemented by
   `ProxyStatusCoordinator` and `ProxyTrafficTailerCoordinator`; the next
-  candidates are configuration assembly and the remaining facade-level listener
-  and process-cleanup helpers.
+  candidates are configuration assembly, remaining facade-level listener and
+  process-cleanup helpers, and the persistence coordinator's policy-heavy
+  `persist` method.
 
 Execution order:
 

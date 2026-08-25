@@ -116,7 +116,7 @@ graph TB
 | Active conversation | `src/cursor/`, `src/services/activeConversationTracker.ts` | Read workspace `composer.composerData`, poll focus changes |
 | Efficiency | `src/modelEfficiency/` | Composer DB poll, SDK classify, output channel, model catalog + pricing adapters |
 | Pricing (display) | `src/services/modelPricingService.ts` | Combine catalog + official per-model pricing for Accounts panel modal |
-| Proxy (optional) | `src/proxy/`, `src/services/proxyManager.ts` | MITM child process, decode, traffic tail, live usage status bar |
+| Proxy (optional) | `src/proxy/`, `src/services/proxyManager.ts`, `src/services/proxyManagerOutputCoordinator.ts` | MITM child process, decode, traffic tail, output presentation, log cleanup, live usage status bar |
 | Webview | `webview/src/` | React Accounts panel (profiles, quotas, actions) |
 
 ## Architectural patterns
@@ -346,6 +346,7 @@ Decoded traffic summaries and lifecycle control use a **localhost HTTP/WebSocket
 flowchart TB
   subgraph Application
     PM[ProxyManager_facade]
+    OC[ProxyManagerOutputCoordinator]
     PP[NodeProxyProcess]
     AC[ProxyApiClient]
     CB[ProxyCertificateService]
@@ -364,6 +365,7 @@ flowchart TB
     AT[AgentTrackingService]
   end
   PM --> PP
+  PM --> OC
   PP --> MITM
   MITM --> API
   MITM --> RSSE

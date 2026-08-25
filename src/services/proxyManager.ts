@@ -45,7 +45,6 @@ import {
   ProxyApiClient,
   resolveProxyApiPort,
 } from '../proxy/api/proxyApiClient';
-import { clearProxyLogDirectory } from '../proxy/proxyLogCleanup';
 import { SharedProxyStateStore } from '../proxy/sharedProxyStateStore';
 import { isPortAvailable } from '../proxy/portUtils';
 import {
@@ -77,6 +76,7 @@ import { ProxyProfileRoutingConfiguration } from './proxyProfileRoutingConfigura
 import { ProxyChildProcessStopCoordinator } from './proxyChildProcessStopCoordinator';
 import { ProxyServerConfigurationBuilder } from './proxyServerConfigurationBuilder';
 import { ProxyCertificateService } from './proxyCertificateService';
+import { ProxyManagerOutputCoordinator } from './proxyManagerOutputCoordinator';
 import type { ProxySettingsService } from './proxySettingsService';
 
 export type { ConversationUsagePersistedEvent, ConversationUsagePersistedListener, ProxyTrafficListener } from '../domain/ports/IProxyTraffic';
@@ -110,6 +110,7 @@ export class ProxyManager implements IProxyManager {
   private readonly childProcessStopCoordinator: ProxyChildProcessStopCoordinator;
   private readonly serverConfigurationBuilder: ProxyServerConfigurationBuilder;
   private readonly sharedProxyStateStore: SharedProxyStateStore;
+  private readonly outputCoordinator: ProxyManagerOutputCoordinator;
   private readonly storageDir: string;
   private readonly logDir: string;
   private lastDiagnosticsOutputAt = 0;
@@ -287,6 +288,16 @@ export class ProxyManager implements IProxyManager {
       ensureTrafficIngress: (profileId, mitmPort, apiPort, options) =>
         this.ensureTrafficIngress(profileId, mitmPort, apiPort, options),
     });
+    this.outputCoordinator = new ProxyManagerOutputCoordinator({
+      logDir: this.logDir,
+      getOutputConfig: this.getOutputConfig,
+      getRuntimeCount: () => this.runtimes.size,
+      outputPresenter: this.outputPresenter,
+      tokenDetectorPresenter: this.tokenDetectorPresenter,
+      ensureOutputTailer: (profileId, options) =>
+        this.trafficTailerCoordinator.ensureOutputTailer(profileId, options),
+      ensureTrafficTailer: () => this.trafficTailerCoordinator.ensureTrafficTailer(),
+    });
     this.profileRoutingConfiguration = new ProxyProfileRoutingConfiguration({
       authReader: this.deps.authReader,
     });
@@ -409,10 +420,7 @@ export class ProxyManager implements IProxyManager {
       summary,
       profileId
     );
-    this.tokenDetectorPresenter?.appendTraffic(summary, effectiveProfileId);
-    if (this.getOutputConfig().logTrafficToOutput) {
-      this.outputPresenter?.appendTraffic(summary);
-    }
+    this.outputCoordinator.presentTraffic(summary, effectiveProfileId);
   }
 
   onStatusChange(callback: () => void): void {
@@ -572,40 +580,33 @@ export class ProxyManager implements IProxyManager {
   }
 
   getLogDirectory(): string {
-    return this.logDir;
+    return this.outputCoordinator.getLogDirectory();
   }
 
   async clearLogFiles(): Promise<{
     deletedFiles: number;
     deletedBytes: number;
   }> {
-    if (this.runtimes.size > 0) {
-      throw new Error('Stop the proxy before deleting its logs');
-    }
-    return clearProxyLogDirectory(this.logDir);
+    return this.outputCoordinator.clearLogFiles();
   }
 
   showTokenDetectorChannel(): void {
-    this.tokenDetectorPresenter?.show();
+    this.outputCoordinator.showTokenDetectorChannel();
   }
 
   async ensureOutputTailer(
     profileId: string,
     options?: ProxyTrafficTailerOptions
   ): Promise<void> {
-    await this.trafficTailerCoordinator.ensureOutputTailer(profileId, options);
+    await this.outputCoordinator.ensureOutputTailer(profileId, options);
   }
 
   async ensureTrafficTailer(): Promise<void> {
-    await this.trafficTailerCoordinator.ensureTrafficTailer();
+    await this.outputCoordinator.ensureTrafficTailer();
   }
 
   showOutputChannel(): void {
-    const settings = this.getOutputConfig();
-    this.outputPresenter?.show();
-    if (!settings.logTrafficToOutput) {
-      this.outputPresenter?.appendLogDisabled();
-    }
+    this.outputCoordinator.showOutputChannel();
   }
 
   async getProxyInstallGuide(): Promise<ProxyInstallGuide> {
