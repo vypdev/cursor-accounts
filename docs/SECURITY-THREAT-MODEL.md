@@ -83,9 +83,11 @@ Decision: JSONL rotation and body pruning enforce a configured total-size cap;
 explicit cleanup removes recognized logs and sidecars. Existing tests cover
 rotation and selective cleanup.
 
-Residual risk: disk-full and partial-deletion behavior, WAL/SQLite backup
-artifacts, and crash recovery require dedicated failure-injection tests in
-QA-6/QA-7 before this threat is closed.
+Residual risk: disk-full and partial-deletion behavior, restore automation,
+long-lived-reader checkpoint starvation, and crash recovery require dedicated
+failure-injection tests in QA-6/QA-7 before this threat is closed. Deep-clean
+now uses SQLite `VACUUM INTO` for a consistent snapshot, and efficiency-database
+recreation preserves the main file together with its `-wal`/`-shm` sidecars.
 
 ### T6 — Webview or API renders attacker-controlled text as markup
 
@@ -102,12 +104,13 @@ Unknown webview messages are validated at the message boundary.
 | Safe API error serialization | `src/test/proxy/api/errorHandler.test.ts` |
 | Header/body redaction | `src/test/requestLogger.test.ts`, `src/test/bodyCapture.test.ts` |
 | Sidecar traversal/symlink safety | `src/test/bodyCapture.test.ts`, `src/test/proxyLogCleanup.test.ts` |
-| History secret scan | `repowise security scan --history --format json` — zero findings on 211 commits, 4,522 blobs, and 2,572 files on 2026-08-25 |
+| History secret scan | `repowise security scan --history --format json` — zero findings on 213 commits, 4,536 blobs, and 2,576 files on 2026-08-25 |
+| SQLite snapshot and sidecar recovery | `src/test/storageCleanupService.full.test.ts`, `src/test/persistence/efficiencyDatabase.test.ts` |
 | Full regression gates | `CI=true npx --yes pnpm@10.34.0 run audit` |
 
 ## Open actions
 
-1. Add disk-full, partial deletion, WAL/backup, and crash-restart tests.
+1. Add disk-full, partial deletion, restore, long-lived-reader checkpoint, and crash-restart tests.
 2. Decide whether production should make the capability token mandatory in the
    server schema and remove the legacy optional path.
 3. Evaluate metadata-only capture as the default and document explicit user
