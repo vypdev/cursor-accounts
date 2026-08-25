@@ -41,6 +41,18 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Audit production supply chain
+        run: pnpm run audit:supply-chain -- --output .tmp/supply-chain-report.json
+
+      - name: Upload supply-chain evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: supply-chain-report-${{ matrix.platform }}-${{ github.run_id }}
+          path: .tmp/supply-chain-report.json
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Check architecture boundaries
         run: pnpm run check:architecture
 

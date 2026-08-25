@@ -66,6 +66,27 @@ resolved production lockfile graph and deliberately does not prove the final
 VSIX contents. pnpm documents SBOM generation as a pnpm 11 feature in the
 [pnpm SBOM documentation](https://pnpm.io/11.x/cli/sbom).
 
+### Automated evidence collection
+
+The repository now exposes the reproducible command:
+
+```text
+pnpm run audit:supply-chain -- --output .tmp/supply-chain-report.json
+```
+
+The command first enforces the Node 24/pnpm 10 project contract, then runs the
+production advisory and license checks with the pinned toolchain. It installs
+pnpm 11.19.0 into a temporary directory for the signature and SBOM commands,
+removes that directory in a `finally` block, and writes only the summarized
+evidence report to the requested path. The generated report is ignored by Git
+because it is derived evidence rather than source material.
+
+Pull-request CI, release preparation, and hotfix preparation execute this
+command and upload the report as a short-lived workflow artifact with a
+14-day retention period. The retention period is an operational default, not
+the final compliance policy; QA-2 remains open until the repository owner
+decides whether release SBOMs must be retained longer or attached to releases.
+
 ### Production license inventory
 
 The pinned pnpm 10.34.0 toolchain installed the lockfile into an empty external
@@ -112,7 +133,8 @@ policy must be recorded before QA-2 can be marked complete.
 - Registry signatures: passed for the current production graph with the
   isolated pnpm 11.19.0 auditor.
 - SBOM: generated and structurally inspected; release-artifact retention is a
-  separate policy decision.
+  separate policy decision; automated workflow collection is implemented with
+  a 14-day default retention.
 - License compliance: open until the Cursor vendor terms and semaphore MIT
   attribution are explicitly reviewed and recorded.
 - Shipped VSIX closure: governed separately by the runtime-tree and VSIX

@@ -6,6 +6,11 @@ const checks = [
     command: 'pnpm',
     args: ['run', 'verify:toolchain'],
   },
+  {
+    label: 'production supply-chain evidence',
+    command: 'pnpm',
+    args: ['run', 'audit:supply-chain', '--', '--output', '.tmp/supply-chain-report.json'],
+  },
   { label: 'lint and type checks', command: 'pnpm', args: ['run', 'lint'] },
   {
     label: 'architecture rules',
