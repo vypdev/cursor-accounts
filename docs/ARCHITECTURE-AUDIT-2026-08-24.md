@@ -809,6 +809,31 @@ The first implementation attempt created a coordinator/writer type-import
 cycle. The architecture gate caught it before commit; the shared contracts
 were moved to the independent types module and the gate then passed.
 
+### SQLite read-model checkpoint — 2026-08-25
+
+`BetterSqliteAgentTrackingReadStore` now owns the six read-side projections:
+conversation totals, delta totals, turn history, agent breakdowns, agent trees,
+and database size. `BetterSqliteAgentTrackingRepository` retains migrations,
+conversation/agent/token writes, idempotency transactions, cleanup, and the
+`IAgentTrackingRepository` compatibility facade. The extraction preserves the
+same connection manager and SQL result mapping; it does not change schemas or
+transaction boundaries.
+
+Evidence for this follow-up:
+
+- SQLite integration tests: 6/6 passed;
+- `pnpm test`: 793/793 tests passed across 252 suites;
+- `pnpm run check:architecture`: passed for 434 TypeScript files;
+- `pnpm run check:docs`: passed for 43 Markdown files;
+- Graphify: 4,842 nodes and 9,788 edges;
+- Graphify degrees: repository 20, read store 12;
+- source sizes: repository 369 lines, read store 360 lines;
+- Repowise `dead-code --safe-only --format json`: no findings.
+
+The repository remains a deliberately narrow domain-port facade for now. The
+next SQLite slice must separate write operations from migration startup and
+cleanup only after preserving idempotency and multi-window tests.
+
 ## 12. Prioritized remediation plan
 
 ### Phase 0 — Release blockers and deterministic validation

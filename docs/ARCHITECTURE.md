@@ -33,7 +33,8 @@ Agent tracking uses **`better-sqlite3`** with persistent connections:
 - **Architecture**: Clean Architecture with dependency inversion
   - **Domain port**: `src/domain/ports/IDatabaseConnectionManager.ts`
   - **Infrastructure adapter**: `src/persistence/betterSqlite/betterSqliteConnectionManager.ts`
-  - **Repositories**: `BetterSqliteAgentTrackingRepository`
+  - **Write/lifecycle repository**: `BetterSqliteAgentTrackingRepository`
+  - **Read-model adapter**: `BetterSqliteAgentTrackingReadStore`
 - **Benefits**: WAL mode + busy_timeout eliminates lock errors, supports transactions, 10-100x faster
 - **Multi-window**: Each VS Code window maintains its own connection; SQLite WAL handles concurrent access
 
@@ -401,7 +402,7 @@ The live usage status bar keys sessions by bidi `request_id` and **sums** all ac
 
 ### Live agent tokens and turn persistence
 
-**Live UI (primary):** [`StreamingAgentDecoder`](../src/proxy/streamingAgentDecoder.ts) in `mitmProxyServer` emits incremental `token_delta` summaries (`isLiveTokenUpdate`) and billing-grade `turn_ended` rows (`isTurnEnded`) to the proxy API WebSocket. [`AgentLiveUsageStatusBar`](../src/ui/agentLiveUsageStatusBar.ts) sums active sessions; [`AgentTrackingService`](../src/services/agentTrackingService.ts) resolves identity and upserts conversation/agent records, then [`AgentTrackingPersistenceCoordinator`](../src/application/services/agentTrackingPersistenceCoordinator.ts) selects the persistence path and [`AgentTrackingPersistenceWriter`](../src/application/services/agentTrackingPersistenceWriter.ts) builds repository records without exposing SQL to the application layer.
+**Live UI (primary):** [`StreamingAgentDecoder`](../src/proxy/streamingAgentDecoder.ts) in `mitmProxyServer` emits incremental `token_delta` summaries (`isLiveTokenUpdate`) and billing-grade `turn_ended` rows (`isTurnEnded`) to the proxy API WebSocket. [`AgentLiveUsageStatusBar`](../src/ui/agentLiveUsageStatusBar.ts) sums active sessions; [`AgentTrackingService`](../src/services/agentTrackingService.ts) resolves identity and upserts conversation/agent records, then [`AgentTrackingPersistenceCoordinator`](../src/application/services/agentTrackingPersistenceCoordinator.ts) selects the persistence path and [`AgentTrackingPersistenceWriter`](../src/application/services/agentTrackingPersistenceWriter.ts) builds repository records without exposing SQL to the application layer. Read-side projections are served by [`BetterSqliteAgentTrackingReadStore`](../src/persistence/betterSqlite/betterSqliteAgentTrackingReadStore.ts), while the domain-compatible repository facade remains responsible for composition and writes.
 
 **Batch / offline heuristic (secondary):** [`TokenTurnDetectionService`](../src/domain/services/tokenTurnDetectionService.ts) applies peak/reset thresholds (≥300 / ≤150) only when `AgentTrackingService` ingests traffic with `allTokenFrames[]` (e.g. full RunSSE body replay). It is **not** used for live status bar updates.
 

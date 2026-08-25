@@ -72,6 +72,11 @@ Completed slices are recorded below so the plan cannot drift from the code.
   keys, minute buckets, delta-cost resolution, and turn-snapshot writes. The
   coordinator has no direct repository writes, and direct writer tests cover
   live deltas, no-op deltas, detected turns, and incomplete turn-ended events.
+- **SQLite read-model decomposition:** `BetterSqliteAgentTrackingReadStore`
+  now owns conversation totals, delta totals, turn history, agent breakdowns,
+  agent trees, and database-size queries. `BetterSqliteAgentTrackingRepository`
+  retains migrations, writes, idempotency transactions, cleanup, and the domain
+  port facade.
 - **Security hardening started:** webview error rendering is text-safe, Windows
   process launch no longer enables `shell`, loopback validation ignores
   spoofable forwarding headers, persisted proxy headers redact credentials,
@@ -325,6 +330,13 @@ that historical baseline:
   dead-code analysis reports no findings. The cycle introduced during the first
   extraction attempt was rejected by the architecture gate and removed by
   moving shared persistence contracts to `agentTrackingPersistenceTypes.ts`.
+- `BetterSqliteAgentTrackingRepository` now delegates six read-model queries to
+  `BetterSqliteAgentTrackingReadStore`. The repository is 369 lines and has
+  Graphify degree 20; the read store is 360 lines with degree 12. SQLite
+  integration coverage remains 6/6, the architecture gate covers 434
+  TypeScript files, the full checkpoint passes 793/793 tests, Graphify reports
+  4,842 nodes and 9,788 edges, and Repowise safe-only dead-code analysis
+  reports no findings.
 
 ### 3.2 Target state
 
@@ -968,7 +980,8 @@ and one persistence use case. It should not contain all event policy branches.
 
 ### W4.4 SQLite repository decomposition
 
-Keep SQL and connection handling in infrastructure, but separate:
+Keep SQL and connection handling in infrastructure. The read-model seam is now
+separate from the write/lifecycle adapter. Continue separating:
 
 - migration/schema initialization;
 - conversation and agent writes;
