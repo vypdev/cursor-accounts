@@ -188,6 +188,11 @@ virtual store to visible `node_modules` paths before npm-packlist runs. This is
 required for packages such as `undici` to be shipped in the VSIX. Do not run
 `pnpm run package` directly; use `pnpm run build:current` instead.
 
+Keep any pnpm content-addressable store outside the repository checkout (the
+clean-room release procedure does this explicitly). `.vscodeignore` and the
+VSIX verifier also reject `.pnpm-store/` and `pnpm-store/` if a local setup has
+created either directory inside the checkout.
+
 ## Legacy Scripts
 
 The following scripts remain for compatibility but are deprecated:

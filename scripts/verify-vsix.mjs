@@ -73,6 +73,8 @@ for (const vsix of vsixFiles) {
     'extension/webview/node_modules/',
     'extension/.build-backup/',
     'extension/.tmp-proto-test/',
+    'extension/.pnpm-store/',
+    'extension/pnpm-store/',
     'extension/packages/',
     'extension/docs/',
     'extension/scripts/',

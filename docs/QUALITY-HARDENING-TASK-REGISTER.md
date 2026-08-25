@@ -23,8 +23,8 @@ acceptance criteria and evidence are recorded.
 |---|---|---|---|---|
 | QA-0 | Baseline and finding reclassification | COMPLETE | pnpm run audit passes; current Graphify/Repowise/dependency evidence captured on 2026-08-25 | Keep this baseline immutable and update it after every cross-cutting change |
 | QA-1 | CI, tests, localization, lint | PARTIAL | Full audit passes with 864 host tests, 79.84% lines, 74.15% branches, and 79.05% functions; localization is 26 locales/428 keys and webview is 18/18 | Add repeated host-run evidence and review generated-artifact/source-lint policy |
-| QA-2 | Dependencies and supply chain | PARTIAL | SDK `1.0.28`, legacy npm `sqlite3` removed, targeted `uuid@11.1.1` and `undici@6.28.0` overrides resolve; `pnpm audit --prod` reports 0 advisories and signatures remain valid | Add clean-room shipped-tree scan, package-size review, and independent compatibility evidence before marking complete |
-| QA-3 | Native runtime and packaging | PARTIAL | Current-target clean build passes with dynamic Electron ABI 128, official SHA-256 validation, sanitized runtime native tree, and VSIX verification under Node 24/pnpm 10 | Execute clean-room install from an empty store/workspace and expand evidence across the supported target matrix |
+| QA-2 | Dependencies and supply chain | PARTIAL | SDK `1.0.28`, legacy npm `sqlite3` removed, targeted `uuid@11.1.1` and `undici@6.28.0` overrides resolve; pinned pnpm 10.34 production audit reports 0 advisories; clean VSIX tree has no package-manager store | Add a supported signature-audit utility, SBOM/license review, and independent compatibility evidence before marking complete |
+| QA-3 | Native runtime and packaging | PARTIAL | Current-target clean build passes with dynamic Electron ABI 128, official SHA-256 validation, sanitized runtime native tree, clean-room Node 24/pnpm 10 installation, and 49.66 MiB VSIX verification | Expand evidence across the complete darwin, Linux, and Windows target matrix |
 | QA-4 | Token and cost correctness | PARTIAL | Accounting contract, authoritative server-cost precedence, model-aware fallback calculation, non-finite input guards, and SQLite replay golden test are implemented | Expand coverage across all decoder shapes, pricing refresh/versioning, rounding policy, and unknown/cache-rate reconciliation |
 | QA-5 | Clean Architecture enforcement | PARTIAL | TypeScript-AST resolver-backed checker passes for 296 production files; negative fixtures cover domain/application/package/cycle cases; the new restore contract remains behind the domain port and adapter boundary; current Graphify/Repowise hotspots remain | Refactor the highest-risk low-coverage infrastructure modules without weakening the contract, then add characterization and failure-path tests |
 | QA-6 | Security and privacy | PARTIAL | Threat model recorded; API error details are generic; loopback/token parity, redaction, sidecar safety, text-safe webview rendering, certificate platform validation, injected certificate-process failure tests, bounded certificate-process timeout/kill escalation, fail-closed migration execution, SQLite snapshot backup/restore validation, sidecar preservation, partial-cleanup accounting, and Repowise history scan are evidenced | Complete disk-full/crash-restart testing, native privileged command execution review on supported OS runners, protocol-specific redaction, and the legacy optional-token decision |
@@ -155,9 +155,16 @@ The immutable pre-remediation pnpm audit --prod baseline reports 240 dependencie
 | Moderate | 13 |
 | Low | 3 |
 
-pnpm audit signatures --json verified 852 packages with no invalid or missing
-signatures. Signature validity does not remediate vulnerable package versions;
-QA-2 remains open.
+The historical baseline used `pnpm audit signatures --json` while the local
+environment was still running a pnpm 11 fallback. The repository now pins pnpm
+10.34.0, and the official pnpm documentation records the signature command as
+introduced in pnpm 11.1.0. Running that command with the pinned tool therefore
+does not provide signature evidence; it re-enters the normal advisory audit
+path. This is intentionally not reported as a current signature pass. The
+[pnpm audit documentation](https://pnpm.io/cli/audit) is the source for this
+version boundary. QA-2
+remains open until a separate, explicitly versioned signature-audit utility is
+approved and recorded.
 
 ## Post-remediation checkpoint — 2026-08-25
 
@@ -185,9 +192,9 @@ The current post-remediation signature check reports 830 verified packages,
 with zero invalid and zero missing signatures; the immutable pre-remediation
 baseline reported 852.
 
-QA-2 remains PARTIAL until clean-room packaging proves that build-only
-dependencies are not shipped accidentally and the exact staged runtime closure
-is reviewed.
+QA-2 remains PARTIAL until the clean shipped-tree evidence is complemented by
+the supported signature-audit utility, SBOM/license review, and an independent
+compatibility decision for the remaining build-only dependency paths.
 
 ## QA-3 packaging checkpoint — 2026-08-25
 
@@ -209,10 +216,24 @@ The current-target packaging path now has reproducible local evidence:
 - The build was repeated after hardening `scripts/ensure-node.sh` against an
   inherited `npm_config_prefix`; the resulting artifact still passes native,
   dependency, and VSIX verification.
+- A clean-room installation from the pushed commit downloaded 723 packages
+  into an empty external store under Node `v24.19.0` and pnpm `10.34.0`. The
+  current-target build and `pnpm run verify:vsix` both passed.
+- A deliberately invalid first clean-room experiment placed the pnpm store
+  inside the checkout and produced a 1.3 GB artifact. The corrected run keeps
+  the store outside the checkout and produces a 49.46 MB artifact. The local
+  `.pnpm-store/` and `pnpm-store/` paths are now excluded by `.vscodeignore`,
+  and both build-time and standalone VSIX verification reject them if they are
+  ever packaged.
+- The current local artifact is 49,429,715 bytes with 12,360 ZIP entries and
+  700 package manifests. It contains `@cursor/sdk`, `undici`, `bindings`, the
+  Electron ABI 128 `better_sqlite3.node`, and the efficiency migrations; no
+  package-manager store is shipped. The extracted native file is a Mach-O
+  arm64 binary.
 
-QA-3 remains PARTIAL because a fresh empty-store installation and the complete
-darwin, Linux, and Windows target matrix have not yet been executed in this
-environment.
+QA-3 remains PARTIAL because the clean-room evidence covers the current
+darwin-arm64 target only; the complete darwin, Linux, and Windows target matrix
+has not yet been executed in this environment.
 
 ## QA-4 accounting checkpoint — 2026-08-25
 
@@ -810,6 +831,7 @@ The following historical findings are reclassified from the current baseline:
 | 2026-08-25 | QA-7.10/QA-8.10 SQLite fail-closed and multi-process slice | 6cce35c | Added SQLite CLI fail-fast execution, migration-result propagation, rollback/retry characterization, schema-initializer failure coverage, and two-process WAL/reopen coverage; 16/16 focused tests; full audit at 79.75%/74.17%/78.86%; Graphify 3,942 nodes/10,681 edges; Repowise 4,049 nodes/10,241 edges; remote workflow 32848056357 green |
 | 2026-08-25 | QA-6.6/QA-7.11/QA-8.11 SQLite artifact and child-stop recovery slice | 87ff608 | Replaced raw database copying with `VACUUM INTO`, preserved corrupted database sidecars, added real SIGTERM-ignore/SIGKILL escalation coverage, 56/56 focused tests, full audit at 79.79%/74.19%/78.94%, Graphify 5,207 nodes/12,180 raw edges, Repowise average health 8.46/10 and safe-only dead-code empty, remote workflow 32850441389 green |
 | 2026-08-25 | QA-6.7/QA-7.12/QA-8.12 SQLite restore and partial-failure slice | 57d4314 | Added validated SQLite backup restore, corrupt-backup rejection, partial cleanup byte reporting, separate-process long-reader checkpoint evidence, 27/27 focused storage/concurrency tests, full audit at 79.84%/74.15%/79.05%, Graphify 5,215 nodes/12,200 raw edges, Repowise health 8.46/10, safe-only dead-code empty, and zero history security findings |
+| 2026-08-25 | QA-2/QA-3 clean-room packaging and store-exclusion evidence | Pending | Empty external pnpm store, Node 24.19.0, pnpm 10.34.0, current-target build and VSIX verification passed; local store contamination reproduced and prevented; production audit 0 advisories; signature audit remains explicitly open because pinned pnpm 10 does not provide the documented pnpm 11 command |
 
 This register must be updated in the same commit as each task's implementation
 or evidence change.

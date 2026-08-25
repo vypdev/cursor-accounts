@@ -17,6 +17,8 @@ docs/**
 scripts/**
 .tmp/**
 .tmp-proto-test/**
+.pnpm-store/**
+pnpm-store/**
 .repowise/**
 graphify-out/**
 coverage/**
