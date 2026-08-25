@@ -28,7 +28,7 @@ acceptance criteria and evidence are recorded.
 | QA-4 | Token and cost correctness | PARTIAL | Accounting contract, authoritative server-cost precedence, model-aware fallback calculation, non-finite input guards, and SQLite replay golden test are implemented | Expand coverage across all decoder shapes, pricing refresh/versioning, rounding policy, and unknown/cache-rate reconciliation |
 | QA-5 | Clean Architecture enforcement | PARTIAL | TypeScript-AST resolver-backed checker passes for 282 production files; negative fixtures cover domain/application/package/cycle cases; current Graphify/Repowise hotspots remain | Refactor the highest-risk low-coverage infrastructure modules without weakening the contract, then add characterization and failure-path tests |
 | QA-6 | Security and privacy | PARTIAL | Threat model recorded; API error details are now generic; loopback/token parity, redaction, sidecar safety, text-safe webview rendering, and Repowise history scan are evidenced | Complete retention/disk-full/WAL tests, process and certificate review, protocol-specific redaction, and the legacy optional-token decision |
-| QA-7 | Reliability and lifecycle | OPEN | SQLite cleanup has selective and rollback tests | Add concurrency, failure injection, migration recovery, and disk lifecycle tests |
+| QA-7 | Reliability and lifecycle | PARTIAL | `ProxyAgentTrackingIngress` now serializes per-profile persistence and makes concurrent shutdown idempotent; focused lifecycle tests pass 4/4 | Add multi-process/WAL, failure-injection, migration-recovery, disk-lifecycle, and child-process hang tests |
 | QA-8 | Local test confidence | PARTIAL | `proxyDecode.ts` now has 91.7% c8 lines and 100% c8 branches with 22 focused tests; Repowise still identifies remaining low-coverage hotspots and retains a stale 27.17% coverage index for this file | Reconcile static-analysis coverage ingestion, add risk-based floors, and cover the next proxy/profile/process hotspots |
 | QA-9 | Documentation and operations | PARTIAL | Plan, audit links, dependency inventory, advisory register, and English docs are synchronized for this slice | Add task/decision records, reproducible audit artifact output, and runbooks |
 | QA-10 | Independent final audit and release rehearsal | OPEN | Not started | Run only after QA-1 through QA-9 have current evidence |
@@ -40,7 +40,7 @@ acceptance criteria and evidence are recorded.
 | Item | Value |
 |---|---|
 | Branch | feature/3-mitm-proxy |
-| Latest implementation commit | 2d9fe05 |
+| Latest implementation commit | 2f0352f |
 | Latest documentation commit | 6215933 |
 | Node | v22.23.1 |
 | pnpm | 11.19.0 |
@@ -246,6 +246,25 @@ protobuf redaction, and removal of the legacy optional-token path remain open.
 QA-6 remains PARTIAL until those residual risks have tests and an explicit
 compatibility decision.
 
+## QA-7.1 proxy tracking shutdown checkpoint — 2026-08-25
+
+Commit `2f0352f` hardens the shared proxy's tracking ingress lifecycle. The
+ingress still rejects new agent-metrics work after shutdown begins, drains all
+per-profile tails before closing the database pool, and now shares one in-flight
+close promise across concurrent shutdown callers. This prevents duplicate pool
+closure when API shutdown, process cleanup, or an overlapping lifecycle path
+reaches the same ingress.
+
+The focused suite passes 4/4 tests, including per-profile ordering,
+independent profiles, drain-before-close, and concurrent-close idempotency.
+The implementation remains intentionally small and inside the application
+boundary: the ingress coordinates the domain service and the database port;
+the concrete SQLite pool remains in infrastructure.
+
+This checkpoint does not close QA-7. Multi-process SQLite/WAL behavior,
+failure-injection, migration recovery, disk-full/partial-cleanup behavior, and
+child-process hang/crash recovery still require dedicated evidence.
+
 ## QA-8.1 decoder hotspot checkpoint — 2026-08-25
 
 Commit `2d9fe05` refactored `src/proxy/proxyDecode.ts` into explicit
@@ -302,6 +321,7 @@ The following historical findings are reclassified from the current baseline:
 | 2026-08-25 | QA-5 Clean Architecture enforcement slice | 7618984 | TypeScript-AST/resolver checker, package-source fallback, production test exclusion, line/rule/JSON diagnostics, negative fixtures, architecture contract, contributor guidance, full audit pass |
 | 2026-08-25 | QA-6.1 safe API error serialization slice | c7c28a8 | Generic public API errors, sensitive-message regression test, security threat model, focused 16/16 security tests, Repowise history scan with zero findings, and full audit pass |
 | 2026-08-25 | QA-8.1 proxy decoder hotspot slice | 2d9fe05 | Decoder branch extraction, 22/22 focused tests, c8 91.7% lines and 100% branches for proxyDecode.ts, Repowise CCN/nesting/duplication improvement, full audit pass, remote workflow success |
+| 2026-08-25 | QA-7.1 tracking ingress shutdown lifecycle slice | 2f0352f | Idempotent concurrent close, drain-before-close guarantee, 4/4 focused tests, CI-mode lint/typecheck/pretest pass, Graphify refresh; multi-process and failure-injection evidence remain open |
 
 This register must be updated in the same commit as each task's implementation
 or evidence change.
