@@ -40,14 +40,14 @@ acceptance criteria and evidence are recorded.
 | Item | Value |
 |---|---|
 | Branch | feature/3-mitm-proxy |
-| Latest implementation commit | 57d4314 |
-| Latest documentation commit | See the commit and evidence log below |
+| Latest implementation commit | a992832 |
+| Latest documentation commit | 1cdff99 |
 | Node | v24.19.0 (nvm-managed via `.nvmrc`) |
 | pnpm | 10.34.0 (Corepack, declared by `package.json#packageManager`) |
 | Graphify | 0.9.48 |
 | Repowise | 0.45.0 |
 | Architecture gate | 296 production TypeScript files; tests excluded by contract |
-| Documentation gate | 49 Markdown files |
+| Documentation gate | 50 Markdown files |
 
 ### Reproducible audit
 
@@ -170,11 +170,12 @@ environment was still running a pnpm 11 fallback. The repository now pins pnpm
 10.34.0, and the official pnpm documentation records the signature command as
 introduced in pnpm 11.1.0. Running that command with the pinned tool therefore
 does not provide signature evidence; it re-enters the normal advisory audit
-path. This is intentionally not reported as a current signature pass. The
-[pnpm audit documentation](https://pnpm.io/cli/audit) is the source for this
-version boundary. QA-2
-remains open until a separate, explicitly versioned signature-audit utility is
-approved and recorded.
+path. This paragraph records the historical limitation and is intentionally
+not a current signature result. The current evidence uses an explicitly
+isolated pnpm 11.19.0 auditor and is recorded in
+[SUPPLY-CHAIN-EVIDENCE-2026-08-25.md](SUPPLY-CHAIN-EVIDENCE-2026-08-25.md).
+The [pnpm audit documentation](https://pnpm.io/cli/audit) is the source for
+the version boundary.
 
 ## Post-remediation checkpoint — 2026-08-25
 
@@ -198,9 +199,11 @@ acceptance tests:
   acceptance tests failed with `EPERM`, so that run is not considered product
   evidence. The escalated run passed those tests.
 
-The current post-remediation signature check reports 830 verified packages,
-with zero invalid and zero missing signatures; the immutable pre-remediation
-baseline reported 852.
+The historical post-remediation signature check reported 830 verified
+packages, with zero invalid and zero missing signatures; the immutable
+pre-remediation baseline reported 852. The current production graph has a
+separate 163/163 signature result documented in the current supply-chain
+evidence checkpoint.
 
 QA-2 remains PARTIAL until the clean shipped-tree evidence is complemented by
 the supported signature-audit utility, SBOM/license review, and an independent
@@ -857,9 +860,9 @@ The following historical findings are reclassified from the current baseline:
 | 2026-08-25 | QA-7.10/QA-8.10 SQLite fail-closed and multi-process slice | 6cce35c | Added SQLite CLI fail-fast execution, migration-result propagation, rollback/retry characterization, schema-initializer failure coverage, and two-process WAL/reopen coverage; 16/16 focused tests; full audit at 79.75%/74.17%/78.86%; Graphify 3,942 nodes/10,681 edges; Repowise 4,049 nodes/10,241 edges; remote workflow 32848056357 green |
 | 2026-08-25 | QA-6.6/QA-7.11/QA-8.11 SQLite artifact and child-stop recovery slice | 87ff608 | Replaced raw database copying with `VACUUM INTO`, preserved corrupted database sidecars, added real SIGTERM-ignore/SIGKILL escalation coverage, 56/56 focused tests, full audit at 79.79%/74.19%/78.94%, Graphify 5,207 nodes/12,180 raw edges, Repowise average health 8.46/10 and safe-only dead-code empty, remote workflow 32850441389 green |
 | 2026-08-25 | QA-6.7/QA-7.12/QA-8.12 SQLite restore and partial-failure slice | 57d4314 | Added validated SQLite backup restore, corrupt-backup rejection, partial cleanup byte reporting, separate-process long-reader checkpoint evidence, 27/27 focused storage/concurrency tests, full audit at 79.84%/74.15%/79.05%, Graphify 5,215 nodes/12,200 raw edges, Repowise health 8.46/10, safe-only dead-code empty, and zero history security findings |
-| 2026-08-25 | QA-2/QA-3 clean-room packaging and store-exclusion evidence | Pending | Empty external pnpm store, Node 24.19.0, pnpm 10.34.0, current-target build and VSIX verification passed; local store contamination reproduced and prevented; production audit 0 advisories; signature audit remains explicitly open because pinned pnpm 10 does not provide the documented pnpm 11 command |
-| 2026-08-25 | QA-2 signature, SBOM, and license evidence slice | Pending | Isolated pnpm 11.19 signature audit verified 163/163 production packages; lockfile-only CycloneDX 1.5 SBOM contains 163 components; pnpm 10.34 production license inventory contains 157 records in 10 groups, with unknown licenses for `@cursor/sdk` and `semaphore`; compliance resolution remains open |
-| 2026-08-25 | QA-3 toolchain contract and target-matrix documentation slice | Pending | Runtime contract validation added to audit/build/CI/release/hotfix; Node 24.19.0/pnpm 10.34.0 full audit and current-target build passed; six-target packaging remains a remote runner gate |
+| 2026-08-25 | QA-2/QA-3 clean-room packaging and store-exclusion evidence | 9a9c8bf | Empty external pnpm store, Node 24.19.0, pnpm 10.34.0, current-target build and VSIX verification passed; local store contamination reproduced and prevented; production audit 0 advisories; signature/SBOM evidence was completed separately |
+| 2026-08-25 | QA-2 signature, SBOM, and license evidence slice | 1cdff99 | Isolated pnpm 11.19 signature audit verified 163/163 production packages; lockfile-only CycloneDX 1.5 SBOM contains 163 components; pnpm 10.34 production license inventory contains 157 records in 10 groups; Cursor vendor terms and semaphore attribution remain under review |
+| 2026-08-25 | QA-3 toolchain contract and target-matrix documentation slice | a992832 | Runtime contract validation added to audit/build/CI/release/hotfix; Node 24.19.0/pnpm 10.34.0 full audit and current-target build passed; six-target packaging remains a remote runner gate |
 
 This register must be updated in the same commit as each task's implementation
 or evidence change.
