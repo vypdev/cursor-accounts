@@ -153,7 +153,7 @@ The following historical findings are reclassified from the current baseline:
 | Date | Task | Commit | Evidence |
 |---|---|---|---|
 | 2026-08-25 | QA-0 baseline capture and register creation | fa1bb12 | Current audit outputs in /private/tmp/qa0-*; immutable baseline recorded before remediation |
-| 2026-08-25 | QA-2 dependency/native cleanup slice | Pending | SDK upgrade, sqlite3 removal, targeted overrides, clean install, production audit 0, and full audit pass; update with the implementation commit after commit |
+| 2026-08-25 | QA-2 dependency/native cleanup slice | 03b9fe6 | SDK upgrade, sqlite3 removal, targeted overrides, clean install, production audit 0, native smoke test, and full audit pass |
 
 This register must be updated in the same commit as each task's implementation
 or evidence change.
