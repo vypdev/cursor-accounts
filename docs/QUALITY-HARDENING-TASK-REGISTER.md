@@ -40,8 +40,8 @@ acceptance criteria and evidence are recorded.
 | Item | Value |
 |---|---|
 | Branch | feature/3-mitm-proxy |
-| Latest implementation commit | a2b761b |
-| Latest documentation commit | 8c27f24 |
+| Latest implementation commit | 50bdcc2 |
+| Latest documentation commit | 50bdcc2 |
 | Node | v22.23.1 |
 | pnpm | 11.19.0 |
 | Graphify | 0.9.48 |
@@ -180,6 +180,7 @@ The following historical findings are reclassified from the current baseline:
 |---|---|---|---|
 | 2026-08-25 | QA-0 baseline capture and register creation | fa1bb12 | Current audit outputs in /private/tmp/qa0-*; immutable baseline recorded before remediation |
 | 2026-08-25 | QA-2 dependency/native cleanup slice | 03b9fe6 | SDK upgrade, sqlite3 removal, targeted overrides, clean install, production audit 0, native smoke test, and full audit pass |
+| 2026-08-25 | QA-3 native packaging reproducibility slice | 50bdcc2 | Dynamic Electron ABI, official prebuild digest verification, native archive tests, runtime-tree sanitization, pnpm 10.34 frozen install, current-target build, production audit 0, signatures 830/830, and full audit pass |
 
 This register must be updated in the same commit as each task's implementation
 or evidence change.
