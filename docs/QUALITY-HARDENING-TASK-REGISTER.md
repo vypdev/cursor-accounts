@@ -27,9 +27,9 @@ acceptance criteria and evidence are recorded.
 | QA-3 | Native runtime and packaging | PARTIAL | Current-target clean build passes with dynamic Electron ABI 128, official SHA-256 validation, sanitized runtime native tree, and VSIX verification | Execute clean-room install from an empty store/workspace and expand evidence across the supported target matrix |
 | QA-4 | Token and cost correctness | PARTIAL | Accounting contract, authoritative server-cost precedence, model-aware fallback calculation, non-finite input guards, and SQLite replay golden test are implemented | Expand coverage across all decoder shapes, pricing refresh/versioning, rounding policy, and unknown/cache-rate reconciliation |
 | QA-5 | Clean Architecture enforcement | PARTIAL | TypeScript-AST resolver-backed checker passes for 282 production files; negative fixtures cover domain/application/package/cycle cases; current Graphify/Repowise hotspots remain | Refactor the highest-risk low-coverage infrastructure modules without weakening the contract, then add characterization and failure-path tests |
-| QA-6 | Security and privacy | PARTIAL | Threat model recorded; API error details are now generic; loopback/token parity, redaction, sidecar safety, text-safe webview rendering, and Repowise history scan are evidenced | Complete retention/disk-full/WAL tests, process and certificate review, protocol-specific redaction, and the legacy optional-token decision |
+| QA-6 | Security and privacy | PARTIAL | Threat model recorded; API error details are generic; loopback/token parity, redaction, sidecar safety, text-safe webview rendering, certificate platform validation, and Repowise history scan are evidenced | Complete retention/disk-full/WAL tests, process and certificate command failure review, protocol-specific redaction, and the legacy optional-token decision |
 | QA-7 | Reliability and lifecycle | PARTIAL | Tracking ingress shutdown is idempotent; proxy startup failures now attempt MITM/ingress/API cleanup; direct `SIGTERM`/`SIGINT` uses graceful shutdown; focused lifecycle/entrypoint tests pass 9/9 | Add multi-process/WAL, failure-injection, migration-recovery, disk-lifecycle, and child-process hang tests |
-| QA-8 | Local test confidence | PARTIAL | `proxyDecode.ts` now has 91.7% c8 lines and 100% c8 branches with 22 focused tests; Repowise still identifies remaining low-coverage hotspots and retains a stale 27.17% coverage index for this file | Reconcile static-analysis coverage ingestion, add risk-based floors, and cover the next proxy/profile/process hotspots |
+| QA-8 | Local test confidence | PARTIAL | `proxyDecode.ts` has 91.7% c8 lines and 100% c8 branches with 22 focused tests; certificate platform boundaries have 11/11 focused tests and 39.39% c8 lines; Repowise still identifies remaining hotspots and retains a stale 27.17% coverage index for `proxyDecode.ts` | Reconcile static-analysis coverage ingestion, add risk-based floors, and cover the next proxy/profile/process hotspots |
 | QA-9 | Documentation and operations | PARTIAL | Plan, audit links, dependency inventory, advisory register, and English docs are synchronized for this slice | Add task/decision records, reproducible audit artifact output, and runbooks |
 | QA-10 | Independent final audit and release rehearsal | OPEN | Not started | Run only after QA-1 through QA-9 have current evidence |
 
@@ -40,7 +40,7 @@ acceptance criteria and evidence are recorded.
 | Item | Value |
 |---|---|
 | Branch | feature/3-mitm-proxy |
-| Latest implementation commit | e9cdc6c |
+| Latest implementation commit | 91f3586 |
 | Latest documentation commit | f64cb11 |
 | Node | v22.23.1 |
 | pnpm | 11.19.0 |
@@ -265,6 +265,23 @@ This checkpoint does not close QA-7. Multi-process SQLite/WAL behavior,
 failure-injection, migration recovery, disk-full/partial-cleanup behavior, and
 child-process hang/crash recovery still require dedicated evidence.
 
+## QA-6.4 certificate platform-boundary checkpoint — 2026-08-25
+
+Commit `91f3586` fixes an unsupported-platform correctness and safety defect in
+the certificate lifecycle. `installCaCertificateElevated` and
+`uninstallCaCertificate` now reject platforms other than macOS and Windows
+before running verification or spawning a process. Linux continues to return
+the documented manual-install/manual-removal instructions. Previously,
+uninstalling on an unknown platform could return success merely because the
+certificate was not found.
+
+The focused certificate suite passes 11/11 tests, including shell escaping,
+command construction, Linux policy, unsupported-platform behavior, and the
+regression case. The full CI-equivalent audit passes. Native process exit,
+UAC/certificate command failure injection, and cross-platform execution remain
+open because they require supported operating-system runners or injectable
+process seams.
+
 ## QA-7.2 proxy child failure cleanup checkpoint — 2026-08-25
 
 Commit `e9cdc6c` closes two resource-lifecycle gaps in the standalone proxy
@@ -340,6 +357,7 @@ The following historical findings are reclassified from the current baseline:
 | 2026-08-25 | QA-8.1 proxy decoder hotspot slice | 2d9fe05 | Decoder branch extraction, 22/22 focused tests, c8 91.7% lines and 100% branches for proxyDecode.ts, Repowise CCN/nesting/duplication improvement, full audit pass, remote workflow success |
 | 2026-08-25 | QA-7.1 tracking ingress shutdown lifecycle slice | 2f0352f | Idempotent concurrent close, drain-before-close guarantee, 4/4 focused tests, CI-mode lint/typecheck/pretest pass, Graphify refresh; multi-process and failure-injection evidence remain open |
 | 2026-08-25 | QA-7.2 proxy child failure cleanup slice | e9cdc6c | Startup failure cleanup, graceful SIGTERM/SIGINT handling, 5/5 proxy entrypoint tests, 4/4 ingress lifecycle tests, full audit pass, remote workflow pending |
+| 2026-08-25 | QA-6.4 certificate platform-boundary slice | 91f3586 | Unsupported-platform uninstall bug fixed, Linux policy preserved, 11/11 focused tests, c8 certificate coverage 39.39%, full audit pass, remote workflow pending |
 
 This register must be updated in the same commit as each task's implementation
 or evidence change.
