@@ -30,6 +30,8 @@ describe('sensitiveRedaction', () => {
       string,
       unknown
     >;
+    assert.equal(redactSensitive('plain'), 'plain');
+    assert.equal(redactSensitive(null), null);
     assert.equal(result.value, 1);
     assert.equal(
       (result.nested as Record<string, unknown>).child !== undefined,
