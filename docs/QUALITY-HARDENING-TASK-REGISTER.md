@@ -21,7 +21,7 @@ acceptance criteria and evidence are recorded.
 
 | ID | Area | Status | Current evidence | Next required action |
 |---|---|---|---|---|
-| QA-0 | Baseline and finding reclassification | COMPLETE | `pnpm run audit` passes; current Graphify/Repowise/dependency evidence is captured on 2026-08-26 at `f21e8d3` | Keep this baseline immutable and update it after every cross-cutting change |
+| QA-0 | Baseline and finding reclassification | COMPLETE | `pnpm run audit` passes at `f21e8d3`; current Graphify/Repowise/dependency evidence is captured on 2026-08-26 at `317dc52` | Keep this baseline immutable and update it after every cross-cutting change |
 | QA-1 | CI, tests, localization, lint | PARTIAL | Full audit passes with 961 host tests, 83.34% lines, 77.01% branches, and 80.84% functions; localization is 26 locales/428 keys and webview is 51/51 across 13 files with 84.97% lines, 78.21% branches, 83.87% functions, and explicit risk-based floors; the Cursor protobuf extractor has an additional 6/6 hermetic contract suite, the Agent Tracking ingestion policy has 4/4 direct tests, and token resolution/OAuth transport has 19/19 focused tests | Add repeated host/webview-run evidence and review generated-artifact/source-lint policy |
 | QA-2 | Dependencies and supply chain | PARTIAL | SDK `1.0.28`, legacy npm `sqlite3` removed, targeted `uuid@11.1.1` and `undici@6.28.0` overrides resolve; pinned pnpm 10.34 production audit reports 0 advisories; isolated pnpm 11.19 signature audit verifies 163/163 packages; CycloneDX 1.5 SBOM contains 163 components; clean VSIX tree has no package-manager store; `audit:supply-chain` now automates the checks and CI/release/hotfix upload the report for 14 days | Review Cursor vendor terms and semaphore MIT attribution, decide release SBOM retention, and close the final attribution policy before marking complete |
 | QA-3 | Native runtime and packaging | PARTIAL | Current-target clean build passes with target-specific Electron ABI 128, official SHA-256 validation, sanitized runtime native tree, clean-room Node 24/pnpm 10 installation, and 49,430,263-byte (47.14 MiB) VSIX verification; darwin-arm64 and linux-arm64 cross-target builds pass with embedded native-header validation; the shared VSIX verifier contract is covered by 4/4 tests and used by both build-time and standalone verification | Expand evidence across the complete darwin, Linux, and Windows target matrix on their intended runners |
@@ -112,8 +112,8 @@ evidence is recorded in
 ### Graphify
 
 The latest graph was generated with Graphify `0.9.48` for the code tree at
-`f21e8d3` using no clustering. It contains 5,733 nodes and 13,821 raw edges,
-and the post-build graph contains 11,898 edges.
+`317dc52` using no clustering. It contains 5,734 nodes and 13,822 raw edges,
+and the post-build graph contains 11,899 edges.
 The highest relevant
 hotspots include:
 
@@ -124,7 +124,7 @@ hotspots include:
 - scripts: degree 69;
 - IProfileDetector: degree 49;
 - IProfileReader: degree 49;
-- Quality Hardening Task Register: degree 65;
+- Quality Hardening Task Register: degree 66;
 - IAgentTrackingRepository: degree 38;
 - VSCodeAPI: degree 38;
 - AgentSessionInfo: degree 38;
@@ -151,7 +151,7 @@ graph is ignored by Git and is not a release artifact.
   `webview/src/components/ProfileCard.tsx`, `src/proxy/mitmProxyServer.ts`,
   `src/modelEfficiency/efficiencyService.ts`, and high-fan-out type barrels.
 
-The latest Repowise index covers the code tree at `f21e8d3`; the host and
+The latest Repowise index covers the code tree at `317dc52`; the host and
 webview lcov reports were explicitly merged with `repowise coverage add
 coverage/lcov.info webview/coverage/lcov.info`. The coverage index reports 292
 files after resolving the merged inputs. Detailed health reports average health
@@ -2343,13 +2343,13 @@ Evidence for this checkpoint:
 - the webview gate remains green with 51 tests across 13 files and 84.97%
   lines, 78.21% branches, and 83.87% functions; the architecture checker
   passes for 335 production TypeScript files;
-- Repowise is synchronized to `f21e8d3`, with merged LCOV ingestion for 292
+- Repowise is synchronized to `317dc52`, with merged LCOV ingestion for 292
   coverage inputs (268 exact and 24 resolved), average health 8.69/10,
   hotspot health 6.21/10, worst hotspot
   `src/services/multiProfileQuotaService.ts` at 4.23/10, and 107 performance
   findings. `src/auth/tokenRefresh.ts` is now 4.90/10 with NLOC 127 and
   maximum CCN 9;
-- Graphify `0.9.48` reports 5,733 nodes, 13,821 raw edges, 11,898 post-build
+- Graphify `0.9.48` reports 5,734 nodes, 13,822 raw edges, 11,899 post-build
   edges, 1,715 dangling endpoint edges, one self-loop, and 117 same-endpoint
   relation groups. The new application policy and OAuth port follow the
   existing dependency direction and introduce no architecture violation.
@@ -2445,7 +2445,7 @@ The following historical findings are reclassified from the current baseline:
 | 2026-08-26 | QA-5/QA-7/QA-8.43 ProxyManager event and diagnostics coordination boundaries | 3d799bc | Extracted event-listener ownership and diagnostics throttling into focused application boundaries; direct boundary tests 4/4 and affected ProxyManager suites 18/18; complete Node 24.19.0/pnpm 10.34.0 audit passes with 945 host and 51 webview tests, 83.14%/76.83%/80.76% host coverage, Graphify 5,686 nodes/13,663 raw edges, and Repowise 8.66 average / 6.14 hotspot health |
 | 2026-08-26 | QA-3/QA-5/QA-8.44 current Cursor protobuf extraction boundary | bef616d | Split configuration, descriptor parsing, proto rendering, and CLI/filesystem orchestration; added current/legacy descriptor support and 6/6 hermetic tests; isolated current-bundle extraction parsed 5,532 symbols, 5,147 messages, 474 enums, and 74 services; complete audit passed; Graphify 5,702 nodes/13,729 raw edges; Repowise 8.68 average / 6.16 hotspot health |
 | 2026-08-26 | QA-5/QA-8.45 Agent Tracking ingestion policy boundary | 593dd0d | Extracted event classification, timestamp normalization, model precedence, and persistence-result mapping into a pure application policy; direct policy tests 4/4 and affected service/integration suites 24/24; complete Node 24.19.0/pnpm 10.34.0 audit passed with 949 host tests, Graphify 5,710 nodes/13,765 raw edges, and Repowise 8.69 average / 6.18 hotspot health |
-| 2026-08-26 | QA-5/QA-8.46 Token resolution and OAuth transport boundaries | f21e8d3 | Extracted pure source-selection policy, introduced `IOAuthTokenClient` and injectable OAuth transport, preserved precedence/rotation/email behavior, added 19/19 focused tests including refresh-only recovery and AbortSignal forwarding, complete Node 24.19.0/pnpm 10.34.0 audit passed with 961 host tests, Graphify 5,733 nodes/13,821 raw edges, and Repowise 8.69 average / 6.21 hotspot health |
+| 2026-08-26 | QA-5/QA-8.46 Token resolution and OAuth transport boundaries | f21e8d3 | Extracted pure source-selection policy, introduced `IOAuthTokenClient` and injectable OAuth transport, preserved precedence/rotation/email behavior, added 19/19 focused tests including refresh-only recovery and AbortSignal forwarding, complete Node 24.19.0/pnpm 10.34.0 audit passed with 961 host tests, Graphify 5,734 nodes/13,822 raw edges, and Repowise 8.69 average / 6.21 hotspot health |
 
 This register must be updated in the same commit as each task's implementation
 or evidence change.
