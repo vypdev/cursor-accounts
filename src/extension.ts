@@ -50,6 +50,16 @@ import { StatusBarManager } from './ui/statusBarManager';
 import { EfficiencyService } from './modelEfficiency/efficiencyService';
 import { EfficiencyStatsStorage } from './modelEfficiency/efficiencyStatsStorage';
 import { closeAllConnections } from './persistence/agentTrackingRepositoryFactory';
+import type { IProfileStorage } from './domain/ports/IProfileStorage';
+
+/**
+ * Composition-root overrides used by deterministic integration tests.
+ * Production activation uses the platform storage locations by default.
+ */
+export interface ExtensionActivationDependencies {
+  createProfileStorage?: () => IProfileStorage;
+  getSharedProxyStorageDir?: () => string;
+}
 
 let refreshService: RefreshService | undefined;
 let multiProfileQuotaService: MultiProfileQuotaService | undefined;
@@ -59,8 +69,12 @@ let proxyManagerRef: ProxyManager | undefined;
 let proxyOutputPresenterRef: ProxyOutputPresenter | undefined;
 let tokenDetectorPresenterRef: TokenDetectorOutputPresenter | undefined;
 let activationGeneration = 0;
+let activationInitialization: Promise<void> | undefined;
 
-export function activate(context: vscode.ExtensionContext): void {
+export function activate(
+  context: vscode.ExtensionContext,
+  dependencies: ExtensionActivationDependencies = {}
+): void {
   const currentGeneration = ++activationGeneration;
   const isCurrentActivation = (): boolean =>
     currentGeneration === activationGeneration;
@@ -93,11 +107,14 @@ export function activate(context: vscode.ExtensionContext): void {
     }
   });
 
-  const profileManager = new ProfileManager(new ProfileStorage());
+  const profileManager = new ProfileManager(
+    dependencies.createProfileStorage?.() ?? new ProfileStorage()
+  );
   const profileDetector = new ProfileDetector(profileManager, context);
   const instanceDetector = new InstanceDetector(profileManager);
   instanceDetectorRef = instanceDetector;
-  const sharedProxyDir = getSharedProxyStorageDir();
+  const sharedProxyDir =
+    dependencies.getSharedProxyStorageDir?.() ?? getSharedProxyStorageDir();
   const proxyStateStore = new ProxyStateFileStore();
   const profileSettingsManager = new ProfileSettingsManager();
   const proxySettingsService = new ProxySettingsService(
@@ -255,7 +272,7 @@ export function activate(context: vscode.ExtensionContext): void {
     timestamp: activateTimestamp,
   });
 
-  void profileManager.initialize().then(async () => {
+  activationInitialization = profileManager.initialize().then(async () => {
     if (!isCurrentActivation()) {
       return;
     }
@@ -480,6 +497,8 @@ export async function deactivate(): Promise<void> {
   extensionLog.info('[Extension] Cursor Accounts deactivated');
 
   activationGeneration += 1;
+  const pendingInitialization = activationInitialization;
+  activationInitialization = undefined;
 
   proxyManagerRef?.dispose();
   proxyManagerRef = undefined;
@@ -496,4 +515,6 @@ export async function deactivate(): Promise<void> {
   instanceDetectorRef = undefined;
   efficiencyService?.dispose();
   efficiencyService = undefined;
+
+  await pendingInitialization;
 }

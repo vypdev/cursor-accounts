@@ -1,7 +1,11 @@
 import './registerVscodeMock';
 import assert from 'node:assert/strict';
+import { mkdtemp, rm } from 'node:fs/promises';
 import { describe, it } from 'node:test';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import * as vscode from 'vscode';
+import { ProfileStorage } from '../profiles/profileStorage';
 
 const registeredCommands = new Set<string>();
 
@@ -14,12 +18,21 @@ const registeredCommands = new Set<string>();
 describe('extension activate', () => {
   it('registers core extension commands on activate', async () => {
     const { activate, deactivate } = await import('../extension');
+    const testRoot = await mkdtemp(
+      path.join(os.tmpdir(), 'cursor-accounts-extension-test-')
+    );
 
     const context = {
       extensionPath: process.cwd(),
       subscriptions: [] as { dispose: () => void }[],
       globalStorageUri: {
-        fsPath: '/tmp/cursor-accounts-test/globalStorage',
+        fsPath: path.join(
+          testRoot,
+          'cursor-user-data',
+          'User',
+          'globalStorage',
+          'vypdev.cursor-accounts'
+        ),
       },
       globalState: {
         get: () => undefined,
@@ -32,7 +45,11 @@ describe('extension activate', () => {
     };
 
     registeredCommands.clear();
-    activate(context as never);
+    await activate(context as never, {
+      createProfileStorage: () =>
+        new ProfileStorage(path.join(testRoot, 'profile-config')),
+      getSharedProxyStorageDir: () => path.join(testRoot, 'proxy'),
+    });
 
     const expected = [
       'cursorAccounts.openAccounts',
@@ -56,5 +73,11 @@ describe('extension activate', () => {
     for (const subscription of [...context.subscriptions].reverse()) {
       subscription.dispose();
     }
+    await rm(testRoot, {
+      recursive: true,
+      force: true,
+      maxRetries: 10,
+      retryDelay: 50,
+    });
   });
 });
