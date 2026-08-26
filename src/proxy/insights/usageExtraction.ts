@@ -2,27 +2,9 @@ import type {
   BillingInfo,
   TokenUsageInfo,
 } from '../../application/types/proxyInsights';
+import { asNumber, pickField } from './fieldNormalization';
 
 export type { BillingInfo, TokenUsageInfo } from '../../application/types/proxyInsights';
-
-export function asNumber(value: unknown): number | undefined {
-  if (value == null) {
-    return undefined;
-  }
-  const n = Number(value);
-  return Number.isFinite(n) ? n : undefined;
-}
-
-export function pickField(
-  decoded: Record<string, unknown>,
-  snake: string,
-  camel: string
-): unknown {
-  if (decoded[snake] !== undefined) {
-    return decoded[snake];
-  }
-  return decoded[camel];
-}
 
 function centsToUsd(cents: unknown): number | undefined {
   const n = asNumber(cents);
