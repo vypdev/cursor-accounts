@@ -25,6 +25,7 @@ import {
 import type { MitmProxyHandlers, ProxyServerConfig } from './types';
 import { ProxyTrafficSessionCoordinator } from './proxyTrafficSessionCoordinator';
 import { createMitmProxyErrorHandler } from './mitmProxyErrorHandler';
+import { closeMitmProxy, listenToMitmProxy } from './mitmProxyLifecycle';
 
 /**
  * HTTP/HTTPS MITM proxy using http-mitm-proxy.
@@ -48,6 +49,7 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
   );
   private readonly sessionCoordinator: ProxyTrafficSessionCoordinator;
   private readonly trafficSummaryDispatcher: ProxyTrafficSummaryDispatcher;
+  private startPromise: Promise<void> | undefined;
 
   constructor(
     private readonly certificateManager: CertificateManager,
@@ -90,9 +92,28 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
     if (this.proxy) {
       return;
     }
+    if (this.startPromise) {
+      return this.startPromise;
+    }
+
+    const startPromise = this.startInternal(config);
+    this.startPromise = startPromise;
+    try {
+      await startPromise;
+    } finally {
+      if (this.startPromise === startPromise) {
+        this.startPromise = undefined;
+      }
+    }
+  }
+
+  private async startInternal(config: ProxyServerConfig): Promise<void> {
+    let proxy: Proxy | undefined;
+    let loggerInitialized = false;
 
     const sslCaDir = await this.certificateManager.ensureCaDirectoryForMitm();
     await this.requestLogger.initialize();
+    loggerInitialized = true;
 
     try {
       await getProtoRegistry();
@@ -101,71 +122,67 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
       process.stderr.write(`[proxy] proto registry init failed: ${message}\n`);
     }
 
-    const proxy = this.createMitmProxy();
-    this.proxy = proxy;
-    if (config.userIdToProfileId) {
-      this.sessionCoordinator.setUserIdToProfileId(
-        new Map(Object.entries(config.userIdToProfileId))
+    try {
+      proxy = this.createMitmProxy();
+      if (config.userIdToProfileId) {
+        this.sessionCoordinator.setUserIdToProfileId(
+          new Map(Object.entries(config.userIdToProfileId))
+        );
+      }
+      this.diagnostics = config.trafficDiagnostics
+        ? new ProxyTrafficDiagnosticsCollector()
+        : null;
+
+      proxy.onError(
+        createMitmProxyErrorHandler({
+          requestLogger: this.requestLogger,
+          getDiagnostics: () => this.diagnostics,
+          buildRequestUrl: (ctx) => this.buildRequestUrl(ctx),
+          onProxyError: (summary) => this.handlers?.onProxyError?.(summary),
+          emitError: (error) => this.emit('error', error),
+        })
       );
+
+      proxy.onRequest(
+        createMitmProxyRequestHandler({
+          statistics: this.statistics,
+          requestStartedAt: this.requestStartedAt,
+          requestLogger: this.requestLogger,
+          getDiagnostics: () => this.diagnostics,
+          buildRequestUrl: (ctx) => this.buildRequestUrl(ctx),
+          protocolVersionFor: (req) => this.protocolVersionFor(req),
+          recordDiagnostics: (input) => this.recordDiagnostics(input),
+          emitTrafficSummary: this.trafficSummaryDispatcher,
+        })
+      );
+
+      proxy.onResponse(
+        createMitmProxyResponseHandler({
+          statistics: this.statistics,
+          requestStartedAt: this.requestStartedAt,
+          streamingDecoders: this.streamingDecoders,
+          requestLogger: this.requestLogger,
+          runSseHandler: this.runSseHandler,
+          getDiagnostics: () => this.diagnostics,
+          getProtoRegistry,
+          buildRequestUrl: (ctx) => this.buildRequestUrl(ctx),
+          protocolVersionFor: (req) => this.protocolVersionFor(req),
+          recordDiagnostics: (input) => this.recordDiagnostics(input),
+          emitTrafficSummary: this.trafficSummaryDispatcher,
+        })
+      );
+
+      const listenOptions = this.getMitmListenOptions(sslCaDir, config.port);
+      await listenToMitmProxy(proxy, listenOptions);
+      this.proxy = proxy;
+    } catch (error) {
+      await this.cleanupFailedStart(proxy, loggerInitialized);
+      throw error;
     }
-    this.diagnostics = config.trafficDiagnostics
-      ? new ProxyTrafficDiagnosticsCollector()
-      : null;
-
-    proxy.onError(
-      createMitmProxyErrorHandler({
-        requestLogger: this.requestLogger,
-        getDiagnostics: () => this.diagnostics,
-        buildRequestUrl: (ctx) => this.buildRequestUrl(ctx),
-        onProxyError: (summary) => this.handlers?.onProxyError?.(summary),
-        emitError: (error) => this.emit('error', error),
-      })
-    );
-
-    proxy.onRequest(
-      createMitmProxyRequestHandler({
-        statistics: this.statistics,
-        requestStartedAt: this.requestStartedAt,
-        requestLogger: this.requestLogger,
-        getDiagnostics: () => this.diagnostics,
-        buildRequestUrl: (ctx) => this.buildRequestUrl(ctx),
-        protocolVersionFor: (req) => this.protocolVersionFor(req),
-        recordDiagnostics: (input) => this.recordDiagnostics(input),
-        emitTrafficSummary: this.trafficSummaryDispatcher,
-      })
-    );
-
-    proxy.onResponse(
-      createMitmProxyResponseHandler({
-        statistics: this.statistics,
-        requestStartedAt: this.requestStartedAt,
-        streamingDecoders: this.streamingDecoders,
-        requestLogger: this.requestLogger,
-        runSseHandler: this.runSseHandler,
-        getDiagnostics: () => this.diagnostics,
-        getProtoRegistry,
-        buildRequestUrl: (ctx) => this.buildRequestUrl(ctx),
-        protocolVersionFor: (req) => this.protocolVersionFor(req),
-        recordDiagnostics: (input) => this.recordDiagnostics(input),
-        emitTrafficSummary: this.trafficSummaryDispatcher,
-      })
-    );
-
-    const listenOptions = this.getMitmListenOptions(sslCaDir, config.port);
-
-    await new Promise<void>((resolve, reject) => {
-      proxy.listen(listenOptions, (err?: Error) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve();
-          }
-        }
-      );
-    });
   }
 
   async stop(): Promise<void> {
+    await this.startPromise?.catch(() => undefined);
     if (!this.proxy) {
       return;
     }
@@ -173,22 +190,30 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
     const closing = this.proxy;
     this.proxy = null;
 
-    await Promise.race([
-      new Promise<void>((resolve) => {
-        closing.close(() => {
-          resolve();
-        });
-      }),
-      new Promise<void>((resolve) => {
-        setTimeout(resolve, 2_000);
-      }),
-    ]);
+    await closeMitmProxy(closing);
 
     this.requestStartedAt.clear();
     this.sessionCoordinator.clear();
     this.streamingDecoders.clear();
     this.diagnostics = null;
     await this.requestLogger.close();
+  }
+
+  private async cleanupFailedStart(
+    proxy: Proxy | undefined,
+    loggerInitialized: boolean
+  ): Promise<void> {
+    if (proxy) {
+      await closeMitmProxy(proxy).catch(() => undefined);
+    }
+    this.proxy = null;
+    this.requestStartedAt.clear();
+    this.sessionCoordinator.clear();
+    this.streamingDecoders.clear();
+    this.diagnostics = null;
+    if (loggerInitialized) {
+      await this.requestLogger.close().catch(() => undefined);
+    }
   }
 
   getStatistics(): ProxyStatistics {
