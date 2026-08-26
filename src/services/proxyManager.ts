@@ -60,6 +60,7 @@ export class ProxyManager implements IProxyManager {
   private readonly statusCallbacks: Array<() => void> = [];
   private readonly usagePersistedListeners: ConversationUsagePersistedListener[] =
     [];
+  private readonly trafficListenerUnsubscribers: Array<() => void> = [];
   private lastDiagnosticsOutputAt = 0;
   private disposed = false;
   private readonly deps: ProxyManagerDependencies;
@@ -148,6 +149,10 @@ export class ProxyManager implements IProxyManager {
     }
     this.disposed = true;
     this.unsubscribeTraffic();
+    for (const unsubscribe of this.trafficListenerUnsubscribers) {
+      unsubscribe();
+    }
+    this.trafficListenerUnsubscribers.length = 0;
     this.deps.trafficIngress.stopAll();
   }
 
@@ -170,7 +175,12 @@ export class ProxyManager implements IProxyManager {
   }
 
   onTraffic(listener: ProxyTrafficListener): void {
-    this.deps.trafficBus.subscribe(listener);
+    if (this.disposed) {
+      return;
+    }
+    this.trafficListenerUnsubscribers.push(
+      this.deps.trafficBus.subscribe(listener)
+    );
   }
 
   onConversationUsagePersisted(

@@ -168,7 +168,7 @@ describe('ProxyManager facade', () => {
 
     manager.dispose();
     manager.dispose();
-    assert.deepEqual(unsubscriptions, [0]);
+    assert.deepEqual(unsubscriptions, [0, 1]);
     assert.deepEqual(calls, [
       'traffic-handle',
       'traffic-present',
