@@ -1,5 +1,5 @@
 import type { CostSource } from '../../domain/types/costProvenance';
-import { mergeAgentSessionInfo } from '../../domain/services/agentSessionInfo';
+import { mergeAgentSessionFields } from '../../domain/services/agentSessionInfo';
 import type { AgentSessionInfo } from '../types/agentTracking';
 
 export interface StreamingAgentPolicyState {
@@ -52,6 +52,62 @@ export function createStreamingAgentPolicyState(): StreamingAgentPolicyState {
   };
 }
 
+function createLiveTokenUpdate(
+  relationshipIds: Partial<AgentSessionInfo>,
+  accumulatedTokens: number,
+  latestDelta: number,
+  eventSequence: number
+): LiveTokenUpdate {
+  return {
+    accumulatedTokens,
+    latestDelta,
+    agent: mergeAgentSessionFields(relationshipIds, {
+      streamingTokens: accumulatedTokens,
+      usageEvent: 'token_delta',
+      eventSequence,
+    }),
+  };
+}
+
+function createTurnEndedEvent(
+  relationshipIds: Partial<AgentSessionInfo>,
+  insight: AgentSessionInfo,
+  eventSequence: number
+): TurnEndedEvent {
+  return {
+    inputTokens: insight.inputTokens ?? 0,
+    outputTokens: insight.outputTokens ?? 0,
+    cacheReadTokens: insight.cacheReadTokens,
+    cacheWriteTokens: insight.cacheWriteTokens,
+    totalCents: insight.totalCents,
+    agent: mergeAgentSessionFields(relationshipIds, {
+      inputTokens: insight.inputTokens,
+      outputTokens: insight.outputTokens,
+      cacheReadTokens: insight.cacheReadTokens,
+      cacheWriteTokens: insight.cacheWriteTokens,
+      totalCents: insight.totalCents,
+      usageEvent: 'turn_ended',
+      eventSequence,
+    }),
+  };
+}
+
+function createTokenDetailsUpdate(
+  relationshipIds: Partial<AgentSessionInfo>,
+  accumulatedTokens: number,
+  insight: AgentSessionInfo,
+  eventSequence: number
+): LiveTokenUpdate {
+  return {
+    accumulatedTokens,
+    latestDelta: 0,
+    agent: mergeAgentSessionFields(relationshipIds, {
+      ...insight,
+      eventSequence,
+    }),
+  };
+}
+
 /**
  * Apply one decoded AgentServerMessage to the live stream state.
  *
@@ -63,9 +119,10 @@ export function applyStreamingAgentMessage(
   state: StreamingAgentPolicyState,
   input: StreamingAgentPolicyInput
 ): StreamingAgentPolicyResult {
-  const relationshipIds =
-    mergeAgentSessionInfo(state.relationshipIds, input.relationshipIds) ??
-    state.relationshipIds;
+  const relationshipIds = mergeAgentSessionFields(
+    state.relationshipIds,
+    input.relationshipIds
+  );
   const messageCount = state.messageCount + 1;
   const nextState: StreamingAgentPolicyState = {
     messageCount,
@@ -77,74 +134,43 @@ export function applyStreamingAgentMessage(
     return { state: nextState };
   }
 
-  if (
-    input.insight.usageEvent === 'token_delta' &&
-    input.insight.streamingTokens != null
-  ) {
-    const latestDelta = input.insight.streamingTokens;
-    const accumulatedTokens = state.accumulatedTokens + latestDelta;
-    return {
-      state: { ...nextState, accumulatedTokens },
-      liveUpdate: {
-        accumulatedTokens,
-        latestDelta,
-        agent:
-          mergeAgentSessionInfo(relationshipIds, {
-            streamingTokens: accumulatedTokens,
-            usageEvent: 'token_delta',
-            eventSequence: messageCount,
-          }) ?? {
-            streamingTokens: accumulatedTokens,
-            usageEvent: 'token_delta',
-            eventSequence: messageCount,
-          },
-      },
-    };
+  switch (input.insight.usageEvent) {
+    case 'token_delta': {
+      const latestDelta = input.insight.streamingTokens;
+      if (latestDelta == null) {
+        return { state: nextState };
+      }
+      const accumulatedTokens = state.accumulatedTokens + latestDelta;
+      return {
+        state: { ...nextState, accumulatedTokens },
+        liveUpdate: createLiveTokenUpdate(
+          relationshipIds,
+          accumulatedTokens,
+          latestDelta,
+          messageCount
+        ),
+      };
+    }
+    case 'turn_ended':
+      return {
+        state: { ...nextState, accumulatedTokens: 0 },
+        turnEndedEvent: createTurnEndedEvent(
+          relationshipIds,
+          input.insight,
+          messageCount
+        ),
+      };
+    case 'token_details':
+      return {
+        state: nextState,
+        liveUpdate: createTokenDetailsUpdate(
+          relationshipIds,
+          state.accumulatedTokens,
+          input.insight,
+          messageCount
+        ),
+      };
+    default:
+      return { state: nextState };
   }
-
-  if (input.insight.usageEvent === 'turn_ended') {
-    return {
-      state: { ...nextState, accumulatedTokens: 0 },
-      turnEndedEvent: {
-        inputTokens: input.insight.inputTokens ?? 0,
-        outputTokens: input.insight.outputTokens ?? 0,
-        cacheReadTokens: input.insight.cacheReadTokens,
-        cacheWriteTokens: input.insight.cacheWriteTokens,
-        totalCents: input.insight.totalCents,
-        agent:
-          mergeAgentSessionInfo(relationshipIds, {
-            inputTokens: input.insight.inputTokens,
-            outputTokens: input.insight.outputTokens,
-            cacheReadTokens: input.insight.cacheReadTokens,
-            cacheWriteTokens: input.insight.cacheWriteTokens,
-            totalCents: input.insight.totalCents,
-            usageEvent: 'turn_ended',
-            eventSequence: messageCount,
-          }) ?? {
-            usageEvent: 'turn_ended',
-            eventSequence: messageCount,
-          },
-      },
-    };
-  }
-
-  if (input.insight.usageEvent === 'token_details') {
-    return {
-      state: nextState,
-      liveUpdate: {
-        accumulatedTokens: state.accumulatedTokens,
-        latestDelta: 0,
-        agent:
-          mergeAgentSessionInfo(relationshipIds, {
-            ...input.insight,
-            eventSequence: messageCount,
-          }) ?? {
-            ...input.insight,
-            eventSequence: messageCount,
-          },
-      },
-    };
-  }
-
-  return { state: nextState };
 }

@@ -105,6 +105,25 @@ describe('streamingAgentDecoderPolicy', () => {
     assert.equal(result.liveUpdate?.agent.eventSequence, 5);
   });
 
+  it('ignores incomplete or unrelated usage insights', () => {
+    const incomplete = applyStreamingAgentMessage(
+      createStreamingAgentPolicyState(),
+      {
+        relationshipIds: {},
+        insight: { usageEvent: 'token_delta' },
+      }
+    );
+    const unrelated = applyStreamingAgentMessage(incomplete.state, {
+      relationshipIds: {},
+      insight: { usageEvent: 'usage_uuid', usageUuid: 'usage-1' },
+    });
+
+    assert.equal(incomplete.liveUpdate, undefined);
+    assert.equal(unrelated.liveUpdate, undefined);
+    assert.equal(unrelated.turnEndedEvent, undefined);
+    assert.equal(unrelated.state.messageCount, 2);
+  });
+
   it('does not mutate the input state or relationship fields', () => {
     const state = {
       messageCount: 1,
