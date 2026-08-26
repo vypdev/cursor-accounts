@@ -65,8 +65,13 @@ export class ProxyProfileAttachUseCase {
     state: ProxyStateFile,
     shared: boolean
   ): Promise<boolean> {
+    const port = state.port;
+    if (port == null) {
+      return false;
+    }
+
     const apiPort = this.dependencies.resolveApiPort(
-      state.port!,
+      port,
       state.apiPort
     );
 
@@ -83,10 +88,10 @@ export class ProxyProfileAttachUseCase {
       }
 
       await this.initializeTracking(profile);
-      await this.dependencies.applyProxySettings(profile.userDataDir, state.port!);
+      await this.dependencies.applyProxySettings(profile.userDataDir, port);
       await this.dependencies.ensureTrafficIngress(
         runtimeId,
-        state.port!,
+        port,
         apiPort,
         { forceRestart: true, apiToken: state.apiToken }
       );
