@@ -6,6 +6,10 @@ export interface TokenUsageInfo {
   completionTokens?: number;
   totalTokens?: number;
   cachedTokens?: number;
+  /** Cache-read token count when the source exposes the explicit field. */
+  cacheReadTokens?: number;
+  /** Cache-write token count when the source exposes the explicit field. */
+  cacheWriteTokens?: number;
   /** Server-reported model cost in USD cents. */
   totalCents?: number;
 }

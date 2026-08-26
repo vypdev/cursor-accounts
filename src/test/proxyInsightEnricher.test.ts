@@ -34,6 +34,8 @@ describe('proxyInsightEnricher', () => {
           completionTokens: 30,
           totalTokens: 150,
           cachedTokens: 10,
+          cacheReadTokens: 10,
+          cacheWriteTokens: undefined,
           totalCents: 4,
         },
       }

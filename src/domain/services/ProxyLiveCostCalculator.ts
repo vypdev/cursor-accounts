@@ -3,15 +3,9 @@ import type {
   IProxyLiveCostCalculator,
   TurnTokenBreakdown,
 } from '../ports/IProxyLiveCostCalculator';
+import { normalizeTokenCount, roundCostCents } from './tokenAccounting';
 
 const DEFAULT_FALLBACK_DOLLARS_PER_M = 4;
-
-function normalizeTokenCount(value: number | undefined): number {
-  if (value == null || !Number.isFinite(value) || value <= 0) {
-    return 0;
-  }
-  return value;
-}
 
 function normalizeRate(value: number | undefined): number {
   if (value == null || !Number.isFinite(value) || value <= 0) {
@@ -94,7 +88,7 @@ export class ProxyLiveCostCalculator implements IProxyLiveCostCalculator {
       );
     }
 
-    return costCents;
+    return roundCostCents(costCents);
   }
 
   private tokensToCents(tokens: number, dollarsPerMillion: number): number {
@@ -103,6 +97,8 @@ export class ProxyLiveCostCalculator implements IProxyLiveCostCalculator {
     if (normalizedTokens === 0 || normalizedRate === 0) {
       return 0;
     }
-    return (normalizedTokens / 1_000_000) * normalizedRate * 100;
+    return roundCostCents(
+      (normalizedTokens / 1_000_000) * normalizedRate * 100
+    );
   }
 }

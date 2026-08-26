@@ -135,17 +135,37 @@ export function extractTokenUsage(decoded: Record<string, unknown> | null | unde
   const directOutput = asNumber(
     decoded.output_tokens ?? decoded.outputTokens
   );
-  if (directInput != null || directOutput != null) {
+  const directCacheRead = asNumber(
+    decoded.cache_read_tokens ??
+      decoded.cacheReadTokens ??
+      decoded.cached_tokens ??
+      decoded.cachedTokens
+  );
+  const directCacheWrite = asNumber(
+    decoded.cache_write_tokens ?? decoded.cacheWriteTokens
+  );
+  const directTotal = asNumber(decoded.total_tokens ?? decoded.totalTokens);
+  const directCents = asNumber(decoded.total_cents ?? decoded.totalCents);
+  if (
+    directInput != null ||
+    directOutput != null ||
+    directCacheRead != null ||
+    directCacheWrite != null ||
+    directTotal != null ||
+    directCents != null
+  ) {
     return {
       promptTokens: directInput,
       completionTokens: directOutput,
+      cachedTokens: directCacheRead,
+      cacheReadTokens: directCacheRead,
+      cacheWriteTokens: directCacheWrite,
       totalTokens:
-        directInput != null && directOutput != null
+        directTotal ??
+        (directInput != null && directOutput != null
           ? directInput + directOutput
-          : undefined,
-      totalCents: asNumber(
-        decoded.total_cents ?? decoded.totalCents
-      ),
+          : undefined),
+      totalCents: directCents,
     };
   }
 
@@ -169,7 +189,21 @@ export function extractTokenUsage(decoded: Record<string, unknown> | null | unde
         usage.outputTokens
     ),
     totalTokens: asNumber(usage.total_tokens ?? usage.totalTokens),
-    cachedTokens: asNumber(usage.cached_tokens ?? usage.cachedTokens),
+    cachedTokens: asNumber(
+      usage.cached_tokens ??
+        usage.cachedTokens ??
+        usage.cache_read_tokens ??
+        usage.cacheReadTokens
+    ),
+    cacheReadTokens: asNumber(
+      usage.cache_read_tokens ??
+        usage.cacheReadTokens ??
+        usage.cached_tokens ??
+        usage.cachedTokens
+    ),
+    cacheWriteTokens: asNumber(
+      usage.cache_write_tokens ?? usage.cacheWriteTokens
+    ),
     totalCents: asNumber(usage.total_cents ?? usage.totalCents),
   };
 }

@@ -178,6 +178,48 @@ describe('AgentLiveUsageStatusBar', () => {
     assert.equal(session?.liveAccumulatedCostCents, 0);
   });
 
+  it('keeps a server-reported zero cost authoritative', () => {
+    const statusBar = createStatusBar();
+    const requestId = 'req-free-turn';
+
+    statusBar.ingest(
+      baseSummary({
+        isTurnEnded: true,
+        insights: {
+          agent: {
+            requestId,
+            inputTokens: 100,
+            outputTokens: 0,
+            totalCents: 0,
+            usageEvent: 'turn_ended',
+          },
+          tokens: {
+            promptTokens: 100,
+            completionTokens: 0,
+            totalCents: 0,
+          },
+        },
+      })
+    );
+
+    const sessions = (
+      statusBar as unknown as {
+        sessions: Map<
+          string,
+          { turnTotalCents?: number; turnCostFromServer?: boolean }
+        >;
+      }
+    ).sessions;
+    const session = sessions.get(requestId);
+    assert.equal(session?.turnTotalCents, 0);
+    assert.equal(session?.turnCostFromServer, true);
+
+    const item = (
+      statusBar as unknown as { item: { text: string } }
+    ).item;
+    assert.match(item.text, /<\$0\.01/);
+  });
+
   it('shows only accumulated tokens and cost without context or in/out on turn_ended', () => {
     const statusBar = createStatusBar();
     const requestId = 'req-display';

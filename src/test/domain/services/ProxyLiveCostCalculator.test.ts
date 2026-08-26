@@ -40,6 +40,31 @@ describe('ProxyLiveCostCalculator', () => {
     const calculator = new ProxyLiveCostCalculator(mockProvider(null));
     assert.equal(calculator.calculateDeltaCost(0, 'composer-2.5'), 0);
     assert.equal(calculator.calculateDeltaCost(-5, 'composer-2.5'), 0);
+    assert.equal(
+      calculator.calculateDeltaCost(Number.MAX_SAFE_INTEGER + 1, 'composer-2.5'),
+      0
+    );
+  });
+
+  it('rounds floating-point noise without discarding fractional cents', () => {
+    const calculator = new ProxyLiveCostCalculator(
+      mockProvider({
+        modelId: 'fractional-model',
+        displayName: 'Fractional Model',
+        provider: 'Unknown',
+        inputPer1M: 0.1,
+        outputPer1M: 0.2,
+        hiddenByDefault: false,
+      })
+    );
+
+    assert.equal(
+      calculator.calculateTurnCost(
+        { inputTokens: 3, outputTokens: 3 },
+        'fractional-model'
+      ),
+      0.00009
+    );
   });
 
   it('ignores non-finite and negative token counts', () => {

@@ -147,6 +147,50 @@ describe('AgentTrackingPersistenceWriter', () => {
     assert.equal(repository.deltas.length, 0);
   });
 
+  it('rejects non-finite live deltas before reaching persistence', async () => {
+    const repository = new RecordingRepository();
+    const writer = new AgentTrackingPersistenceWriter(repository);
+    const context = createContext({
+      summary: {
+        ...createContext().summary,
+        isLiveTokenUpdate: true,
+        liveTokenData: {
+          accumulatedTokens: Number.NaN,
+          latestDelta: Number.POSITIVE_INFINITY,
+        },
+      },
+      agent: { requestId: 'request-1', usageEvent: 'token_delta' },
+    });
+
+    assert.equal(await writer.writeLiveDelta(context), false);
+    assert.equal(repository.deltas.length, 0);
+  });
+
+  it('honors a valid precomputed zero live estimate', async () => {
+    const repository = new RecordingRepository();
+    const writer = new AgentTrackingPersistenceWriter(repository, undefined, {
+      calculateDeltaCost: () => {
+        throw new Error('the precomputed estimate must win');
+      },
+      calculateTurnCost: () => 0,
+    });
+    const context = createContext({
+      summary: {
+        ...createContext().summary,
+        isLiveTokenUpdate: true,
+        liveTokenData: {
+          accumulatedTokens: 12,
+          latestDelta: 12,
+          deltaCostCents: 0,
+        },
+      },
+      agent: { requestId: 'request-1', usageEvent: 'token_delta' },
+    });
+
+    assert.equal(await writer.writeLiveDelta(context), true);
+    assert.equal(repository.deltas[0]?.costCents, 0);
+  });
+
   it('writes each detected turn as a snapshot', async () => {
     const repository = new RecordingRepository();
     const turnDetection: ITokenTurnDetectionService = {
@@ -264,5 +308,41 @@ describe('AgentTrackingPersistenceWriter', () => {
     );
     assert.equal(repository.turnEnded[0]?.inputTokens, 0);
     assert.equal(repository.turnEnded[0]?.cacheReadTokens, 25);
+  });
+
+  it('normalizes invalid turn counts while preserving an authoritative zero cost', async () => {
+    const repository = new RecordingRepository();
+    const writer = new AgentTrackingPersistenceWriter(repository);
+
+    assert.equal(
+      await writer.writeTurnEnded(
+        createContext({
+          agent: {
+            requestId: 'request-1',
+            inputTokens: Number.NaN,
+            outputTokens: Number.POSITIVE_INFINITY,
+            cacheReadTokens: -1,
+            totalCents: 0,
+            usageEvent: 'turn_ended',
+          },
+        })
+      ),
+      true
+    );
+
+    assert.deepEqual(repository.turnEnded[0], {
+      requestId: 'request-1',
+      inputTokens: 0,
+      outputTokens: 0,
+      cacheReadTokens: undefined,
+      cacheWriteTokens: undefined,
+      totalTokens: undefined,
+      totalCents: 0,
+      usageUuid: undefined,
+      recordedAt: 120,
+      modelName: 'composer-2.5',
+      httpRequestId: undefined,
+      eventKey: repository.turnEnded[0]?.eventKey,
+    });
   });
 });

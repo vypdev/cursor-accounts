@@ -77,6 +77,46 @@ describe('proxyInsightExtractor', () => {
     assert.equal(tokens?.totalCents, 45.5);
   });
 
+  it('preserves explicit cache fields from direct usage shapes', () => {
+    const tokens = extractTokenUsage({
+      input_tokens: 100,
+      output_tokens: 25,
+      cache_read_tokens: 40,
+      cache_write_tokens: 5,
+      total_tokens: 170,
+      total_cents: 2.5,
+    });
+
+    assert.deepEqual(tokens, {
+      promptTokens: 100,
+      completionTokens: 25,
+      cachedTokens: 40,
+      cacheReadTokens: 40,
+      cacheWriteTokens: 5,
+      totalTokens: 170,
+      totalCents: 2.5,
+    });
+  });
+
+  it('preserves cache read/write fields from nested camelCase usage shapes', () => {
+    const tokens = extractTokenUsage({
+      metadata: {
+        tokenUsage: {
+          inputTokens: 100,
+          outputTokens: 25,
+          cacheReadTokens: 40,
+          cacheWriteTokens: 5,
+        },
+      },
+    });
+
+    assert.equal(tokens?.promptTokens, 100);
+    assert.equal(tokens?.completionTokens, 25);
+    assert.equal(tokens?.cachedTokens, 40);
+    assert.equal(tokens?.cacheReadTokens, 40);
+    assert.equal(tokens?.cacheWriteTokens, 5);
+  });
+
   it('extracts model from runRequest via extractAgentRunRequestInfo', () => {
     const info = extractAgentRunRequestInfo({
       runRequest: {

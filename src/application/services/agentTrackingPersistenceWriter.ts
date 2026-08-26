@@ -3,6 +3,11 @@ import type { IProxyLiveCostCalculator } from '../../domain/ports/IProxyLiveCost
 import type { ITokenTurnDetectionService } from '../../domain/ports/ITokenTurnDetectionService';
 import type { AgentSessionInfo } from '../types/agentTracking';
 import type { AgentPersistenceContext } from './agentTrackingPersistenceTypes';
+import {
+  normalizeCostCents,
+  normalizeOptionalTokenCount,
+  normalizeTokenCount,
+} from '../../domain/services/tokenAccounting';
 
 /** Writes one normalized agent-persistence strategy without choosing its priority. */
 export class AgentTrackingPersistenceWriter {
@@ -19,13 +24,17 @@ export class AgentTrackingPersistenceWriter {
     }
 
     const totalCents = this.resolveTurnCostCents(agent, modelName);
+    const inputTokens = normalizeTokenCount(agent.inputTokens);
+    const outputTokens = normalizeTokenCount(agent.outputTokens);
+    const cacheReadTokens = normalizeOptionalTokenCount(agent.cacheReadTokens);
+    const cacheWriteTokens = normalizeOptionalTokenCount(agent.cacheWriteTokens);
 
     await this.repository.insertTurnEnded({
       requestId: agent.requestId!,
-      inputTokens: agent.inputTokens ?? 0,
-      outputTokens: agent.outputTokens ?? 0,
-      cacheReadTokens: agent.cacheReadTokens,
-      cacheWriteTokens: agent.cacheWriteTokens,
+      inputTokens,
+      outputTokens,
+      cacheReadTokens,
+      cacheWriteTokens,
       totalTokens: this.resolveTotalTokens(agent),
       totalCents,
       usageUuid: agent.usageUuid,
@@ -71,7 +80,9 @@ export class AgentTrackingPersistenceWriter {
       return undefined;
     }
 
-    const increment = summary.liveTokenData?.latestDelta ?? agent.streamingTokens;
+    const increment = normalizeOptionalTokenCount(
+      summary.liveTokenData?.latestDelta ?? agent.streamingTokens
+    );
     if (increment == null || increment <= 0) {
       return false;
     }
@@ -119,11 +130,12 @@ export class AgentTrackingPersistenceWriter {
     if (agent.usageEvent !== 'token_delta') {
       return undefined;
     }
-    if (agent.streamingTokens == null || agent.streamingTokens <= 0) {
+    const increment = normalizeOptionalTokenCount(agent.streamingTokens);
+    if (increment == null || increment <= 0) {
       return false;
     }
 
-    await this.persistDelta(context, agent.streamingTokens, 'batch_token_delta');
+    await this.persistDelta(context, increment, 'batch_token_delta');
     return true;
   }
 
@@ -137,11 +149,11 @@ export class AgentTrackingPersistenceWriter {
     await this.repository.insertTokenSnapshot({
       requestId: agent.requestId!,
       tokenType: this.mapTokenType(agent.usageEvent),
-      streamingTokens: agent.streamingTokens,
-      inputTokens: agent.inputTokens,
-      outputTokens: agent.outputTokens,
-      cacheReadTokens: agent.cacheReadTokens,
-      cacheWriteTokens: agent.cacheWriteTokens,
+      streamingTokens: normalizeOptionalTokenCount(agent.streamingTokens),
+      inputTokens: normalizeOptionalTokenCount(agent.inputTokens),
+      outputTokens: normalizeOptionalTokenCount(agent.outputTokens),
+      cacheReadTokens: normalizeOptionalTokenCount(agent.cacheReadTokens),
+      cacheWriteTokens: normalizeOptionalTokenCount(agent.cacheWriteTokens),
       totalTokens,
       usageUuid: agent.usageUuid,
       recordedAt: timestamp,
@@ -159,10 +171,12 @@ export class AgentTrackingPersistenceWriter {
   }
 
   hasPersistableContext(agent: AgentSessionInfo): boolean {
+    const contextUsedTokens = normalizeOptionalTokenCount(
+      agent.contextUsedTokens
+    );
+    const maxTokens = normalizeOptionalTokenCount(agent.maxTokens);
     return (
-      agent.contextUsedTokens != null &&
-      agent.maxTokens != null &&
-      agent.maxTokens > 0
+      contextUsedTokens != null && maxTokens != null && maxTokens > 0
     );
   }
 
@@ -177,9 +191,11 @@ export class AgentTrackingPersistenceWriter {
       agent.requestedModelId ??
       agent.modelName ??
       modelName;
-    const precomputed = summary.liveTokenData?.deltaCostCents;
+    const precomputed = normalizeCostCents(
+      summary.liveTokenData?.deltaCostCents
+    );
     const costCents =
-      precomputed != null && precomputed > 0
+      precomputed != null
         ? precomputed
         : this.costCalculator?.calculateDeltaCost(increment, modelId) ?? 0;
 
@@ -187,9 +203,9 @@ export class AgentTrackingPersistenceWriter {
       requestId: agent.requestId!,
       minuteBucket: this.minuteBucket(timestamp),
       streamingTokens: increment,
-      costCents: costCents > 0 ? costCents : undefined,
-      contextUsedTokens: agent.contextUsedTokens,
-      contextMaxTokens: agent.maxTokens,
+      costCents: normalizeCostCents(costCents) ?? undefined,
+      contextUsedTokens: normalizeOptionalTokenCount(agent.contextUsedTokens),
+      contextMaxTokens: normalizeOptionalTokenCount(agent.maxTokens),
       recordedAt: timestamp,
       modelName,
       eventKey: this.buildEventKey(kind, context, {
@@ -234,34 +250,34 @@ export class AgentTrackingPersistenceWriter {
 
   private hasTokenData(agent: AgentSessionInfo): boolean {
     return (
-      agent.streamingTokens != null ||
-      agent.inputTokens != null ||
-      agent.outputTokens != null ||
-      agent.cacheReadTokens != null ||
-      agent.cacheWriteTokens != null
+      normalizeOptionalTokenCount(agent.streamingTokens) != null ||
+      normalizeOptionalTokenCount(agent.inputTokens) != null ||
+      normalizeOptionalTokenCount(agent.outputTokens) != null ||
+      normalizeOptionalTokenCount(agent.cacheReadTokens) != null ||
+      normalizeOptionalTokenCount(agent.cacheWriteTokens) != null
     );
   }
 
   private resolveTotalTokens(agent: AgentSessionInfo, tokenTotal?: number): number | undefined {
-    if (tokenTotal != null) return tokenTotal;
+    const normalizedTokenTotal = normalizeOptionalTokenCount(tokenTotal);
+    if (normalizedTokenTotal != null) return normalizedTokenTotal;
     const billed =
-      (agent.inputTokens ?? 0) +
-      (agent.outputTokens ?? 0) +
-      (agent.cacheReadTokens ?? 0) +
-      (agent.cacheWriteTokens ?? 0);
-    return billed > 0 ? billed : agent.streamingTokens;
+      normalizeTokenCount(agent.inputTokens) +
+      normalizeTokenCount(agent.outputTokens) +
+      normalizeTokenCount(agent.cacheReadTokens) +
+      normalizeTokenCount(agent.cacheWriteTokens);
+    return billed > 0
+      ? billed
+      : normalizeOptionalTokenCount(agent.streamingTokens);
   }
 
   private resolveTurnCostCents(
     agent: AgentSessionInfo,
     modelName?: string
   ): number | undefined {
-    if (
-      agent.totalCents != null &&
-      Number.isFinite(agent.totalCents) &&
-      agent.totalCents >= 0
-    ) {
-      return agent.totalCents;
+    const serverCost = normalizeCostCents(agent.totalCents);
+    if (serverCost != null) {
+      return serverCost;
     }
 
     if (!this.costCalculator) {
@@ -278,16 +294,16 @@ export class AgentTrackingPersistenceWriter {
       agent.requestedModelId ?? agent.modelName ?? modelName
     );
 
-    return Number.isFinite(calculated) && calculated >= 0 ? calculated : undefined;
+    return normalizeCostCents(calculated);
   }
 
   private hasTurnUsage(agent: AgentSessionInfo): boolean {
     return (
-      agent.inputTokens != null ||
-      agent.outputTokens != null ||
-      agent.cacheReadTokens != null ||
-      agent.cacheWriteTokens != null ||
-      agent.totalCents != null
+      normalizeOptionalTokenCount(agent.inputTokens) != null ||
+      normalizeOptionalTokenCount(agent.outputTokens) != null ||
+      normalizeOptionalTokenCount(agent.cacheReadTokens) != null ||
+      normalizeOptionalTokenCount(agent.cacheWriteTokens) != null ||
+      normalizeCostCents(agent.totalCents) != null
     );
   }
 }

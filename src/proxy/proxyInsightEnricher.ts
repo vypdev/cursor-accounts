@@ -63,6 +63,8 @@ export function applyAgentSessionInsights(
           ? agent.inputTokens + agent.outputTokens
           : undefined,
       cachedTokens: agent.cacheReadTokens,
+      cacheReadTokens: agent.cacheReadTokens,
+      cacheWriteTokens: agent.cacheWriteTokens,
       totalCents: agent.totalCents,
     };
   } else if (agent.streamingTokens != null) {

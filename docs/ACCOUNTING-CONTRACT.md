@@ -42,6 +42,20 @@ component remains visible in token totals but is excluded from the model-aware
 cost estimate. Unknown models use the configured fallback rate across the
 available token total.
 
+The domain accepts only safe non-negative integer token counts. Invalid counts
+are discarded at the application boundary and never reach SQLite. Cost values
+are non-negative finite numbers expressed in USD cents. Estimates retain six
+decimal places of a cent to remove binary floating-point noise without
+rounding small estimates to zero or to a whole cent. The server's
+`total_cents` value is normalized with the same precision while preserving an
+authoritative zero.
+
+Legacy JSON and Connect shapes are normalized before accounting. The extractor
+accepts snake_case and camelCase input/output/cache fields, direct usage
+objects, and nested `metadata.token_usage` / `metadata.tokenUsage` objects.
+`cachedTokens` remains a compatibility alias for cache-read tokens; explicit
+`cacheReadTokens` and `cacheWriteTokens` are retained when supplied.
+
 ## Reconciliation invariants
 
 - Replaying the same event key does not change any aggregate or completion total.
