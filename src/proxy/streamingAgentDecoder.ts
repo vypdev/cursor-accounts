@@ -1,7 +1,7 @@
 import {
   decodeAgentServerPayload,
-  tryConnectFrame,
 } from './agentStreamDecode';
+import { ConnectFrameAccumulator } from './connectFrameAccumulator';
 import type { ProtoRegistry } from './protoRegistry';
 import {
   extractAgentInnerInsights,
@@ -14,8 +14,6 @@ import {
   type LiveTokenUpdate,
   type TurnEndedEvent,
 } from '../application/services/streamingAgentDecoderPolicy';
-
-const MAX_CONNECT_FRAME_BYTES = 5_000_000;
 
 export interface StreamingDecoderState {
   bufferLength: number;
@@ -37,7 +35,7 @@ export interface FeedChunkResult {
  * Emits every token_delta for live UI and server turn_ended for persistence.
  */
 export class StreamingAgentDecoder {
-  private buffer = Buffer.alloc(0);
+  private readonly frameAccumulator = new ConnectFrameAccumulator();
   private policyState = createStreamingAgentPolicyState();
 
   constructor(private readonly registry: ProtoRegistry) {}
@@ -47,24 +45,11 @@ export class StreamingAgentDecoder {
       return { liveUpdates: [], turnEndedEvents: [] };
     }
 
-    this.buffer = Buffer.concat([this.buffer, chunk]);
     const liveUpdates: LiveTokenUpdate[] = [];
     const turnEndedEvents: TurnEndedEvent[] = [];
 
-    let offset = 0;
-    while (offset < this.buffer.length) {
-      const frame = tryConnectFrame(this.buffer, offset);
-      if (!frame) {
-        if (this.isIncompleteFrameAt(offset)) {
-          break;
-        }
-        offset += 1;
-        continue;
-      }
-
-      const decoded = decodeAgentServerPayload(this.registry, frame.payload);
-      offset = frame.nextOffset;
-
+    for (const payload of this.frameAccumulator.feed(chunk)) {
+      const decoded = decodeAgentServerPayload(this.registry, payload);
       if (!decoded) {
         continue;
       }
@@ -84,7 +69,6 @@ export class StreamingAgentDecoder {
       }
     }
 
-    this.buffer = offset > 0 ? this.buffer.subarray(offset) : this.buffer;
     return { liveUpdates, turnEndedEvents };
   }
 
@@ -99,28 +83,15 @@ export class StreamingAgentDecoder {
 
   getState(): StreamingDecoderState {
     return {
-      bufferLength: this.buffer.length,
+      bufferLength: this.frameAccumulator.bufferedLength,
       messageCount: this.policyState.messageCount,
       accumulatedTokens: this.policyState.accumulatedTokens,
       relationshipIds: { ...this.policyState.relationshipIds },
     };
   }
 
-  private isIncompleteFrameAt(offset: number): boolean {
-    if (offset + 5 > this.buffer.length) {
-      return true;
-    }
-
-    const length = this.buffer.readUInt32BE(offset + 1);
-    return (
-      length > 0 &&
-      length <= MAX_CONNECT_FRAME_BYTES &&
-      offset + 5 + length > this.buffer.length
-    );
-  }
-
   private resetStreamState(): void {
-    this.buffer = Buffer.alloc(0);
+    this.frameAccumulator.reset();
     this.policyState = createStreamingAgentPolicyState();
   }
 }
