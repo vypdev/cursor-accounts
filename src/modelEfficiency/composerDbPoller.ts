@@ -18,8 +18,7 @@ import {
 } from './composerPollerState';
 import type { EfficiencyAnalyzer } from './efficiencyAnalyzer';
 import { GitBranchDetector } from './gitBranchDetector';
-import type {
-  ModelCatalogEntry} from './modelConfigResolver';
+import type { ModelCatalogEntry } from './modelConfigResolver';
 import {
   parseModelCatalog,
   resolveModelConfig,
@@ -57,38 +56,73 @@ function getPollIntervalMs(): number {
   return clamped * 1000;
 }
 
+export interface PollerScheduler {
+  setInterval(
+    callback: () => void,
+    delayMs: number
+  ): ReturnType<typeof setInterval>;
+  clearInterval(handle: ReturnType<typeof setInterval>): void;
+}
+
+/** External boundaries used by the Composer state poller. */
+export interface ComposerDbPollerDependencies {
+  readItemTableKey: typeof readItemTableKey;
+  readCursorDiskKV: typeof readCursorDiskKV;
+  getProfileStateDbPath: typeof getProfileStateDbPath;
+  branchDetector: Pick<GitBranchDetector, 'getCurrentBranch'>;
+  now: () => number;
+  getPollIntervalMs: () => number;
+  scheduler: PollerScheduler;
+}
+
+const defaultDependencies: ComposerDbPollerDependencies = {
+  readItemTableKey,
+  readCursorDiskKV,
+  getProfileStateDbPath,
+  branchDetector: new GitBranchDetector(),
+  now: () => Date.now(),
+  getPollIntervalMs,
+  scheduler: {
+    setInterval: (callback, delayMs) => setInterval(callback, delayMs),
+    clearInterval: (handle) => clearInterval(handle),
+  },
+};
+
 export class ComposerDbPoller {
   private interval?: ReturnType<typeof setInterval>;
   private ticking = false;
-  private readonly branchDetector = new GitBranchDetector();
+  private readonly dependencies: ComposerDbPollerDependencies;
 
   constructor(
     private readonly context: vscode.ExtensionContext,
     private readonly profileDetector: IProfileDetector,
     private readonly extensionPath: string,
-    private readonly analyzer: EfficiencyAnalyzer
-  ) {}
+    private readonly analyzer: EfficiencyAnalyzer,
+    dependencies: Partial<ComposerDbPollerDependencies> = {}
+  ) {
+    this.dependencies = { ...defaultDependencies, ...dependencies };
+  }
 
   start(): void {
     if (this.interval) {
       return;
     }
 
-    const ms = getPollIntervalMs();
-    this.interval = setInterval(() => {
-      void this.tick();
+    const ms = this.dependencies.getPollIntervalMs();
+    this.interval = this.dependencies.scheduler.setInterval(() => {
+      void this.pollOnce();
     }, ms);
 
     extensionLog.info(
       `[ComposerDbPoller] Started (interval ${ms / 1000}s, state.vscdb)`
     );
 
-    void this.tick();
+    void this.pollOnce();
   }
 
   stop(): void {
     if (this.interval) {
-      clearInterval(this.interval);
+      this.dependencies.scheduler.clearInterval(this.interval);
       this.interval = undefined;
       extensionLog.info('[ComposerDbPoller] Stopped');
     }
@@ -110,7 +144,8 @@ export class ComposerDbPoller {
     await this.context.globalState.update(DB_POLLER_STATE_KEY, state);
   }
 
-  private async tick(): Promise<void> {
+  /** Run one poll cycle; scheduled and test/manual callers share this path. */
+  async pollOnce(): Promise<void> {
     if (this.ticking) {
       return;
     }
@@ -122,8 +157,10 @@ export class ComposerDbPoller {
         return;
       }
 
-      const dbPath = getProfileStateDbPath(profile.userDataDir);
-      const headersRaw = await readItemTableKey(
+      const dbPath = this.dependencies.getProfileStateDbPath(
+        profile.userDataDir
+      );
+      const headersRaw = await this.dependencies.readItemTableKey(
         dbPath,
         COMPOSER_HEADERS_KEY,
         this.extensionPath
@@ -135,13 +172,8 @@ export class ComposerDbPoller {
 
       const state = this.loadState();
       if (!state.enabledAt) {
-        state.enabledAt = new Date().toISOString();
-        await this.seedExistingBubbles(
-          dbPath,
-          headers.allComposers,
-          state,
-          profile
-        );
+        state.enabledAt = new Date(this.dependencies.now()).toISOString();
+        await this.seedExistingBubbles(dbPath, headers.allComposers, state);
         await this.saveState(state);
         return;
       }
@@ -173,8 +205,7 @@ export class ComposerDbPoller {
   private async seedExistingBubbles(
     dbPath: string,
     composers: ComposerHeaderEntry[],
-    state: DbPollerState,
-    _profile: Profile
+    state: DbPollerState
   ): Promise<void> {
     for (const header of composers) {
       const composerId = header.composerId;
@@ -182,7 +213,7 @@ export class ComposerDbPoller {
         continue;
       }
 
-      const dataRaw = await readCursorDiskKV(
+      const dataRaw = await this.dependencies.readCursorDiskKV(
         dbPath,
         composerDataKey(composerId),
         this.extensionPath
@@ -203,7 +234,7 @@ export class ComposerDbPoller {
   }
 
   private async loadModelCatalog(dbPath: string): Promise<ModelCatalogEntry[]> {
-    const raw = await readItemTableKey(
+    const raw = await this.dependencies.readItemTableKey(
       dbPath,
       APPLICATION_USER_KEY,
       this.extensionPath
@@ -230,7 +261,7 @@ export class ComposerDbPoller {
       return;
     }
 
-    const dataRaw = await readCursorDiskKV(
+    const dataRaw = await this.dependencies.readCursorDiskKV(
       dbPath,
       composerDataKey(composerId),
       this.extensionPath
@@ -244,7 +275,7 @@ export class ComposerDbPoller {
     const workspaceRoots = extractWorkspaceRoots(header);
     const workspaceRoot = workspaceRoots[0];
     const gitBranch = workspaceRoot
-      ? await this.branchDetector.getCurrentBranch(workspaceRoot)
+      ? await this.dependencies.branchDetector.getCurrentBranch(workspaceRoot)
       : undefined;
 
     for (const bubbleHeader of getUserBubbleHeaders(data)) {
@@ -255,7 +286,7 @@ export class ComposerDbPoller {
 
       markBubbleSeen(state, composerId, bubbleId);
 
-      const bubbleRaw = await readCursorDiskKV(
+      const bubbleRaw = await this.dependencies.readCursorDiskKV(
         dbPath,
         bubbleIdKey(composerId, bubbleId),
         this.extensionPath
