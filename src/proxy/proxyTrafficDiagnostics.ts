@@ -3,11 +3,13 @@ import type { HttpProtocolVersion } from '../domain/types/httpProtocol';
 import { parseRpcPath } from './proxyDecode';
 import {
   cloneProtocolByHost,
-  computeBypassHints,
-  createAgentSignalCounts,
   normalizeHostKey,
+} from './proxyTrafficDiagnosticsState';
+import { computeBypassHints } from './proxyTrafficDiagnosticsHints';
+import {
+  createAgentSignalCounts,
   recordAgentSignals,
-} from './proxyTrafficDiagnosticsPolicy';
+} from './proxyTrafficDiagnosticsSignals';
 import {
   formatDiagnosticsSummaryLines,
 } from './proxyTrafficDiagnosticsPresentation';
