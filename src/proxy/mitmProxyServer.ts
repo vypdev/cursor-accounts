@@ -8,27 +8,20 @@ import type { CertificateManager } from './certificateManager';
 import { detectHttpProtocolVersion } from './protocolDetection';
 import { shouldLogMitmClientError } from './mitmClientErrorFilter';
 import type { MitmListenOptions } from './types';
-import { decompressBodyBuffer } from './bodyFormat';
 import { getProtoRegistry } from './protoRegistry';
-import {
-  isConnectRpcContentType,
-  isCursorHost,
-  normalizeHeaders,
-  redactHeadersForLog,
-} from './utils/proxyRequestMetadata';
+import { isCursorHost } from './utils/proxyRequestMetadata';
 import type { ProxyTrafficLogger } from './nullLogger';
-import { isAgentIncrementalStreamUrl } from './agentStreamUrls';
 import {
   ProxyTrafficDiagnosticsCollector,
 } from './proxyTrafficDiagnostics';
-import { extractRequestId, toTrafficSummary } from './proxyTrafficFormat';
-import { bidiRequestIdFromRunSseHeaders } from './runSseCorrelation';
-import { StreamingAgentDecoder } from './streamingAgentDecoder';
+import { toTrafficSummary } from './proxyTrafficFormat';
+import type { StreamingAgentDecoder } from './streamingAgentDecoder';
 import { buildTrafficSummary } from './trafficSummaryBuilder';
 import { RunSseStreamHandler } from './capture/runSseStreamHandler';
 import { CursorModelPricingProvider } from '../modelEfficiency/cursorModelPricingProvider';
 import { ProxyLiveCostCalculator } from '../domain/services/ProxyLiveCostCalculator';
 import { createMitmProxyRequestHandler } from './mitmProxyRequestHandler';
+import { createMitmProxyResponseHandler } from './mitmProxyResponseHandler';
 import type {
   MitmProxyHandlers,
   ProxyLogEntry,
@@ -152,143 +145,22 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
       })
     );
 
-    proxy.onResponse((ctx, callback) => {
-      const host = ctx.clientToProxyRequest.headers.host ?? '';
-      const headers = normalizeHeaders(
-        ctx.serverToProxyResponse?.headers ?? {}
-      );
-      const contentType = headers['content-type'];
-      const url = this.buildRequestUrl(ctx);
-      const statusCode = ctx.serverToProxyResponse?.statusCode;
-      const requestHeaders = normalizeHeaders(
-        ctx.clientToProxyRequest.headers
-      );
-      const requestId = extractRequestId(requestHeaders);
-      const bidiRequestId = bidiRequestIdFromRunSseHeaders(requestHeaders);
-      const startedAt = requestId
-        ? this.requestStartedAt.get(requestId)
-        : undefined;
-      const durationMs =
-        startedAt != null ? Math.max(0, Date.now() - startedAt) : undefined;
-      if (requestId) {
-        this.requestStartedAt.delete(requestId);
-      }
-
-      const isRunSSE = isAgentIncrementalStreamUrl(url) && Boolean(requestId);
-      let decoderReady: Promise<void> | undefined;
-
-      if (isRunSSE && requestId) {
-        decoderReady = getProtoRegistry().then((registry) => {
-          if (!this.streamingDecoders.has(requestId)) {
-            this.streamingDecoders.set(
-              requestId,
-              new StreamingAgentDecoder(registry)
-            );
-          }
-        });
-      }
-
-      const bodyChunks: Buffer[] = [];
-      ctx.onResponseData((_ctx, chunk, cb) => {
-        bodyChunks.push(chunk);
-        if (isRunSSE && requestId) {
-          void this.processRunSSEChunk(
-            chunk,
-            requestId,
-            bidiRequestId,
-            decoderReady,
-            {
-              url,
-              host,
-              statusCode,
-              isCursorHost: isCursorHost(host),
-            }
-          );
-        }
-        cb(null, chunk);
-      });
-
-      ctx.onResponseEnd((_ctx, endCallback) => {
-        void (async () => {
-        this.statistics.activeConnections = Math.max(
-          0,
-          this.statistics.activeConnections - 1
-        );
-
-        let incrementalTurnsAlreadyPersisted = false;
-        if (isRunSSE && requestId) {
-          try {
-            await decoderReady;
-            const decoder = this.streamingDecoders.get(requestId);
-            if (decoder) {
-              incrementalTurnsAlreadyPersisted = true;
-              const finalLive = decoder.finalize();
-              const streamContext = {
-                url,
-                host,
-                statusCode,
-                bidiRequestId,
-                httpRequestId: requestId,
-                isCursorHost: isCursorHost(host),
-              };
-              if (finalLive) {
-                this.runSseHandler.emitLiveTokenUpdate(finalLive, streamContext);
-              }
-              this.streamingDecoders.delete(requestId);
-            }
-          } catch {
-            this.streamingDecoders.delete(requestId);
-          }
-        }
-
-        const rawBody = Buffer.concat(bodyChunks);
-        this.statistics.bytesTransferred += rawBody.length;
-        const contentEncoding = headers['content-encoding'];
-        const { body, decompressed } = decompressBodyBuffer(
-          rawBody,
-          contentEncoding
-        );
-        const spillKey = requestId
-          ? `${requestId}-response`
-          : undefined;
-        const formatted = this.requestLogger.formatBody(
-          body,
-          contentType,
-          spillKey
-        );
-        const entry: ProxyLogEntry = {
-          timestamp: new Date().toISOString(),
-          direction: 'response',
-          url,
-          host,
-          statusCode,
-          headers: redactHeadersForLog(headers),
-          ...formatted,
-          bodyDecompressed: decompressed || undefined,
-          isConnectRpc: isConnectRpcContentType(contentType),
-          isCursorHost: isCursorHost(host),
-          requestId,
-          protocolVersion: this.protocolVersionFor(ctx.clientToProxyRequest),
-        };
-        this.requestLogger.log(entry);
-        this.recordDiagnostics({
-          method: ctx.clientToProxyRequest.method,
-          url,
-          host,
-          direction: 'response',
-          protocolVersion: entry.protocolVersion,
-        });
-        this.emitTrafficSummary(entry, durationMs, {
-          bidiRequestId,
-          httpRequestId: requestId,
-          incrementalTurnsAlreadyPersisted,
-        });
-          endCallback();
-        })();
-      });
-
-      callback();
-    });
+    proxy.onResponse(
+      createMitmProxyResponseHandler({
+        statistics: this.statistics,
+        requestStartedAt: this.requestStartedAt,
+        streamingDecoders: this.streamingDecoders,
+        requestLogger: this.requestLogger,
+        runSseHandler: this.runSseHandler,
+        getDiagnostics: () => this.diagnostics,
+        getProtoRegistry,
+        buildRequestUrl: (ctx) => this.buildRequestUrl(ctx),
+        protocolVersionFor: (req) => this.protocolVersionFor(req),
+        recordDiagnostics: (input) => this.recordDiagnostics(input),
+        emitTrafficSummary: (entry, durationMs, correlation) =>
+          this.emitTrafficSummary(entry, durationMs, correlation),
+      })
+    );
 
     const listenOptions = this.getMitmListenOptions(sslCaDir, config.port);
 
@@ -350,43 +222,6 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
     protocolVersion?: HttpProtocolVersion;
   }): void {
     this.diagnostics?.recordRequest(input);
-  }
-
-  private async processRunSSEChunk(
-    chunk: Buffer,
-    requestId: string,
-    bidiRequestId: string | undefined,
-    decoderReady: Promise<void> | undefined,
-    context: {
-      url: string;
-      host: string;
-      statusCode?: number;
-      isCursorHost: boolean;
-    }
-  ): Promise<void> {
-    try {
-      await decoderReady;
-      const decoder = this.streamingDecoders.get(requestId);
-      if (!decoder) {
-        return;
-      }
-
-      const result = decoder.feedChunk(chunk);
-      const emitContext = {
-        ...context,
-        bidiRequestId,
-        httpRequestId: requestId,
-      };
-      for (const liveUpdate of result.liveUpdates) {
-        this.diagnostics?.recordLiveTokenUpdate();
-        this.runSseHandler.emitLiveTokenUpdate(liveUpdate, emitContext);
-      }
-      for (const turnEnded of result.turnEndedEvents) {
-        this.runSseHandler.emitTurnEnded(turnEnded, emitContext);
-      }
-    } catch {
-      // Ignore incremental decode errors; batch decode at stream end still logs.
-    }
   }
 
   private emitTrafficSummary(
