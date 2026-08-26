@@ -241,7 +241,7 @@ export class AccountsPanelProvider {
 
   private attachWebviewMessageListener(webview: vscode.Webview): void {
     webview.onDidReceiveMessage((message: FromWebviewMessage) => {
-      void this.handleMessage(message);
+      return this.handleMessage(message);
     });
   }
 

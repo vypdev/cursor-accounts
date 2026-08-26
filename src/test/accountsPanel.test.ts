@@ -30,7 +30,7 @@ interface MockWebview {
   postMessage(message: ToWebviewMessage): Promise<boolean>;
   asWebviewUri(uri: { fsPath: string }): { toString: () => string };
   onDidReceiveMessage: (
-    callback: (message: FromWebviewMessage) => void
+    callback: (message: FromWebviewMessage) => unknown
   ) => { dispose: () => void };
 }
 
@@ -172,7 +172,7 @@ function createMockStorageCleanupService(): IStorageCleanupService {
 }
 
 function createMockWebview(): MockWebview {
-  let messageHandler: ((message: FromWebviewMessage) => void) | undefined;
+  let messageHandler: ((message: FromWebviewMessage) => unknown) | undefined;
 
   const webview: MockWebview = {
     options: {},
@@ -199,11 +199,9 @@ function createMockWebview(): MockWebview {
     },
   };
 
-  (webview as MockWebview & { _emit: (m: FromWebviewMessage) => void })._emit =
+  (webview as MockWebview & { _emit: (m: FromWebviewMessage) => unknown })._emit =
     (message: FromWebviewMessage) => {
-      if (messageHandler) {
-        messageHandler(message);
-      }
+      return messageHandler?.(message);
     };
 
   return webview;
@@ -304,11 +302,12 @@ describe('AccountsPanelProvider', () => {
 
   async function emitMessage(message: FromWebviewMessage): Promise<void> {
     const emitter = mockWebview as MockWebview & {
-      _emit?: (m: FromWebviewMessage) => void;
+      _emit?: (m: FromWebviewMessage) => unknown;
     };
-    emitter._emit?.(message);
-    const waitMs = message.type === 'ready' ? 200 : 10;
-    await new Promise((resolve) => setTimeout(resolve, waitMs));
+    const result = emitter._emit?.(message);
+    if (result && typeof (result as PromiseLike<void>).then === 'function') {
+      await result;
+    }
   }
 
   it('opens editor panel and sets html with CSP and bundle references', () => {
