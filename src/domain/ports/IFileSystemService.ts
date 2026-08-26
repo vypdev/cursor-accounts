@@ -31,13 +31,13 @@ export interface IFileSystemService {
 
   /**
    * Remove a directory tree and return bytes reclaimed.
-   * @throws Error with code EACCES when permission is denied.
+   * @throws Error when permission is denied or the filesystem is full.
    */
   removeDirectory(dirPath: string): Promise<FileSystemOperationResult>;
 
   /**
    * Copy a file.
-   * @throws Error with code EACCES when permission is denied.
+   * @throws Error when permission is denied or the filesystem is full.
    */
   copyFile(source: string, destination: string): Promise<void>;
 }

@@ -5,6 +5,8 @@ import {
   isBusyError,
   isNotFoundError,
   isPermissionError,
+  isStorageFullError,
+  handleFileSystemError,
 } from '../utils/fileSystemErrors';
 
 describe('fileSystemErrors', () => {
@@ -21,6 +23,14 @@ describe('fileSystemErrors', () => {
 
   it('detects busy errors', () => {
     assert.equal(isBusyError({ code: 'EBUSY' }), true);
+  });
+
+  it('detects storage-full errors and provides an actionable message', () => {
+    assert.equal(isStorageFullError({ code: 'ENOSPC' }), true);
+    assert.throws(
+      () => handleFileSystemError({ code: 'ENOSPC' }, 0, 'Cannot write cache'),
+      /no space left on device/i
+    );
   });
 
   it('returns undefined code for non-errors', () => {

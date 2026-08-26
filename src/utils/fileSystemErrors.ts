@@ -1,5 +1,10 @@
 /** Known Node.js filesystem error codes used by storage operations. */
-export type FileSystemErrorCode = 'ENOENT' | 'EACCES' | 'EPERM' | 'EBUSY';
+export type FileSystemErrorCode =
+  | 'ENOENT'
+  | 'EACCES'
+  | 'EPERM'
+  | 'EBUSY'
+  | 'ENOSPC';
 
 /** Returns the errno code when present on an unknown error value. */
 export function getErrorCode(error: unknown): string | undefined {
@@ -30,6 +35,11 @@ export function isBusyError(error: unknown): boolean {
   return getErrorCode(error) === 'EBUSY';
 }
 
+/** True when the operation failed because the filesystem has no free space. */
+export function isStorageFullError(error: unknown): boolean {
+  return getErrorCode(error) === 'ENOSPC';
+}
+
 /**
  * Re-throw permission and busy errors with actionable context;
  * swallow ENOENT and return the fallback value.
@@ -50,6 +60,11 @@ export function handleFileSystemError<T>(
   if (isBusyError(error)) {
     throw new Error(
       `${context}: file is in use. Close all Cursor windows for this profile and try again.`
+    );
+  }
+  if (isStorageFullError(error)) {
+    throw new Error(
+      `${context}: no space left on device. Free disk space and try again.`
     );
   }
   throw error;

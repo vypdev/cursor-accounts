@@ -478,7 +478,9 @@ describe('VSCodeCacheService', () => {
           if (calls === 1) {
             return { bytes: 256 };
           }
-          throw new Error('disk full');
+          throw Object.assign(new Error('No space left on device'), {
+            code: 'ENOSPC',
+          });
         },
         copyFile: async () => undefined,
       },
@@ -493,7 +495,8 @@ describe('VSCodeCacheService', () => {
           error instanceof Error &&
           error.name === 'PartialCleanupError' &&
           'bytesReclaimed' in error &&
-          error.bytesReclaimed === 256
+          error.bytesReclaimed === 256 &&
+          error.message.includes('No space left on device')
         );
       }
     );
