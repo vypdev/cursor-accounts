@@ -336,6 +336,20 @@ describe('MultiProfileQuotaService', () => {
     });
   });
 
+  describe('fetchQuotaForProfile', () => {
+    it('delegates a single-profile fetch to the application use case', async () => {
+      const profile = await manager.createProfile({
+        email: 'single-profile@example.com',
+      });
+
+      const result = await service.fetchQuotaForProfile(profile);
+
+      assert.equal(result.profileId, profile.id);
+      assert.equal(result.quota, null);
+      assert.ok(result.error);
+    });
+  });
+
   describe('clearCache', () => {
     it('clears cached quotas', async () => {
       await manager.createProfile({ email: 'clear@example.com' });
