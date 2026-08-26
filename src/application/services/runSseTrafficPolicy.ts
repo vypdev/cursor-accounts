@@ -1,6 +1,7 @@
 import type { IProxyLiveCostCalculator } from '../../domain/ports/IProxyLiveCostCalculator';
 import { normalizeCostCents } from '../../domain/services/tokenAccounting';
 import type { CostSource } from '../../domain/types/costProvenance';
+import type { AgentSessionInfo } from '../../domain/types/agentTracking';
 import type { ProxyTrafficSummary } from '../../domain/types/proxyTraffic';
 import type {
   LiveTokenUpdate,
@@ -39,6 +40,26 @@ function baseSummary(context: RunSseTrafficContext): ProxyTrafficSummary {
     httpRequestId: context.httpRequestId,
     isCursorHost: context.isCursorHost,
   };
+}
+
+function withSessionContext(
+  agent: AgentSessionInfo,
+  context: RunSseTrafficContext,
+  fields: Partial<AgentSessionInfo> = {}
+): AgentSessionInfo {
+  return {
+    ...agent,
+    requestId: context.bidiRequestId,
+    conversationId: context.conversationId,
+    requestedModelId: context.modelId,
+    ...fields,
+  };
+}
+
+function conversationContext(
+  conversationId: string | undefined
+): { conversationId: string } | undefined {
+  return conversationId ? { conversationId } : undefined;
 }
 
 function supportedCostSource(
@@ -159,15 +180,8 @@ export function buildLiveTokenTrafficSummary(
       pricingSnapshotVersion: cost.pricingSnapshotVersion,
     },
     insights: {
-      agent: {
-        ...update.agent,
-        requestId: context.bidiRequestId,
-        conversationId: context.conversationId,
-        requestedModelId: context.modelId,
-      },
-      context: context.conversationId
-        ? { conversationId: context.conversationId }
-        : undefined,
+      agent: withSessionContext(update.agent, context),
+      context: conversationContext(context.conversationId),
     },
   };
 }
@@ -191,11 +205,7 @@ export function buildTurnEndedTrafficSummary(
     ...baseSummary(context),
     isTurnEnded: true,
     insights: {
-      agent: {
-        ...event.agent,
-        requestId: context.bidiRequestId,
-        conversationId: context.conversationId,
-        requestedModelId: context.modelId,
+      agent: withSessionContext(event.agent, context, {
         totalCents: cost.costSource != null ? cost.totalCents : undefined,
         costSource: cost.costSource,
         pricingSnapshotVersion: cost.pricingSnapshotVersion,
@@ -204,7 +214,7 @@ export function buildTurnEndedTrafficSummary(
         cacheReadTokens: event.cacheReadTokens,
         cacheWriteTokens: event.cacheWriteTokens,
         usageEvent: 'turn_ended',
-      },
+      }),
       tokens: {
         promptTokens: event.inputTokens,
         completionTokens: event.outputTokens,
@@ -212,9 +222,7 @@ export function buildTurnEndedTrafficSummary(
         totalCents: cost.serverTotalCents,
       },
       streamingTurnsAlreadyPersisted: true,
-      context: context.conversationId
-        ? { conversationId: context.conversationId }
-        : undefined,
+      context: conversationContext(context.conversationId),
     },
   };
 }
