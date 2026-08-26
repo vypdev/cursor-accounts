@@ -45,8 +45,8 @@ pnpm run build -- --target darwin-arm64
 1. **Bundles** the extension code with esbuild for optimal performance
 2. Compiles workspace packages (`@cursor-accounts/types`, `@cursor-accounts/shared`) and the Accounts webview
 3. Installs dependencies and prepares the `better-sqlite3` native binding for
-   the exact Electron ABI derived from the VS Code target; the prebuild
-   archive is SHA-256 verified against official GitHub release metadata
+   the exact Electron ABI and platform target; each target receives its own
+   prebuild archive, SHA-256 verified against official GitHub release metadata
 4. Converts workspace dependencies to a production layout compatible with `vsce`
 5. Removes hoisted devDependencies that break npm dependency validation, then prunes non-production top-level packages from `node_modules`
 6. Packages a platform-specific `.vsix` with bundled code and full production dependencies
@@ -101,8 +101,9 @@ The extension uses **esbuild** to bundle all TypeScript code into a single file,
 
 **Note**: `@cursor/sdk` is marked as `external` in the esbuild bundle because it has native dependencies and is dynamically imported. Its production dependency tree (`undici`, `bindings`, and platform SDK packages) is shipped in `node_modules/`; the obsolete npm `sqlite3` package is not shipped.
 
-**VSIX Size**: approximately 28 MB for the current `darwin-arm64` artifact
-after sanitization (3,085 entries). The package retains the runtime
+**VSIX Size**: approximately 47.14 MiB (49,430,263 bytes) for the current
+`darwin-arm64` artifact after sanitization (12,360 ZIP entries; `vsce` reports
+10,861 files). The package retains the runtime
 `better_sqlite3.node` binding and removes native build sources, intermediate
 objects, and other non-runtime artifacts.
 
@@ -158,7 +159,9 @@ pnpm run rebuild:native:electron
 
 The same workspace binding cannot serve Node.js tests and Electron at the same
 time. Rebuild explicitly when switching runtimes. `pnpm run rebuild:native`
-remains the Electron-default compatibility alias.
+remains the Electron-default compatibility alias. Packaging also replaces the
+workspace binding once per requested target, so `pnpm run build:all` does not
+silently reuse the host architecture's native module for another VSIX.
 
 For a clean test setup:
 

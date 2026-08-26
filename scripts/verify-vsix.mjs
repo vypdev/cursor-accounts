@@ -1,9 +1,11 @@
 #!/usr/bin/env node
-import { execSync } from 'child_process';
+import { execFileSync, execSync } from 'child_process';
 import { readdirSync, statSync } from 'fs';
 import { basename, resolve } from 'path';
+import { detectNativeTarget } from './native-binary-target.mjs';
 
 const root = process.cwd();
+const ZIP_MAX_BUFFER = 16 * 1024 * 1024;
 const requestedVsix = process.env.VSIX_FILE;
 const availableVsixFiles = readdirSync(root)
   .filter((f) => f.endsWith('.vsix'))
@@ -36,6 +38,23 @@ function targetFromVsixName(vsix) {
     /-(darwin-arm64|darwin-x64|linux-x64|linux-arm64|win32-x64|win32-arm64)-/
   );
   return match?.[1];
+}
+
+function readVsixEntry(vsix, pattern) {
+  const entries = execFileSync('unzip', ['-Z1', vsix], {
+    encoding: 'utf8',
+    maxBuffer: ZIP_MAX_BUFFER,
+  })
+    .split('\n')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  const entryName = entries.find((entry) => new RegExp(pattern).test(entry));
+  if (!entryName) {
+    throw new Error(`VSIX entry not found for pattern: ${pattern}`);
+  }
+  return execFileSync('unzip', ['-p', vsix, entryName], {
+    maxBuffer: ZIP_MAX_BUFFER,
+  });
 }
 
 for (const vsix of vsixFiles) {
@@ -92,6 +111,21 @@ for (const vsix of vsixFiles) {
       console.log(`  ✓ ${label}`);
     } catch {
       console.error(`  ✗ MISSING ${label}`);
+      allValid = false;
+    }
+  }
+
+  if (target) {
+    try {
+      const nativeTarget = detectNativeTarget(
+        readVsixEntry(vsix, 'extension/node_modules/better-sqlite3/.*/better_sqlite3\\.node$')
+      );
+      if (nativeTarget !== target) {
+        throw new Error(`expected ${target}, got ${nativeTarget}`);
+      }
+      console.log(`  ✓ better-sqlite3 native target (${target})`);
+    } catch (error) {
+      console.error(`  ✗ INVALID better-sqlite3 native target (${error.message})`);
       allValid = false;
     }
   }

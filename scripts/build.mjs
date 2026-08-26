@@ -1,11 +1,12 @@
 #!/usr/bin/env node
-import { execSync } from 'child_process';
+import { execFileSync, execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { cleanProductionDeps } from './clean-production-deps.mjs';
 import { prepareSdkForTarget } from './prepare-sdk-for-target.mjs';
 import { sanitizeVsix } from './sanitize-vsix.mjs';
 import { convertToProduction, restoreState, saveState } from './workspace-state.mjs';
+import { detectNativeTarget } from './native-binary-target.mjs';
 
 const ALL_TARGETS = [
   'darwin-arm64',
@@ -26,6 +27,7 @@ const PLATFORM_SDK_PACKAGE = {
 };
 
 const root = process.cwd();
+const ZIP_MAX_BUFFER = 16 * 1024 * 1024;
 
 function run(command, options = {}) {
   execSync(command, {
@@ -44,6 +46,10 @@ function parseArgs(argv) {
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
+
+    if (arg === '--') {
+      continue;
+    }
 
     if (arg === '--all') {
       args.all = true;
@@ -108,10 +114,6 @@ async function preparePackage() {
     env: { ...process.env, CI: 'true' },
   });
 
-  // Download better-sqlite3 prebuild for Electron (directly from GitHub releases)
-  console.log('Downloading better-sqlite3 prebuild for Electron…');
-  run('node scripts/download-electron-prebuild.mjs');
-
   const cursorDir = path.join(root, 'node_modules', '@cursor');
   if (!fs.existsSync(path.join(cursorDir, 'sdk', 'package.json'))) {
     throw new Error('Missing @cursor/sdk package in node_modules');
@@ -122,31 +124,18 @@ async function preparePackage() {
     .filter((entry) => entry.startsWith('sdk-'))
     .map((entry) => `@cursor/${entry}`);
 
-  const betterSqliteBinding = path.join(
-    root,
-    'node_modules',
-    'better-sqlite3',
-    'build',
-    'Release',
-    'better_sqlite3.node'
-  );
-
-  if (!fs.existsSync(betterSqliteBinding)) {
-    throw new Error(`Missing better-sqlite3 native binding: ${betterSqliteBinding}`);
-  }
-
   console.log(
     sdkPackages.length > 0
       ? `Found SDK packages: ${sdkPackages.join(', ')}`
       : 'Platform SDK packages will be installed per target during packaging'
   );
-  console.log(`Found better-sqlite3 binding: ${betterSqliteBinding}`);
 }
 
 function packageTarget(target) {
   console.log(`\n==> Packaging ${target}`);
 
   prepareSdkForTarget(target);
+  run(`node scripts/download-electron-prebuild.mjs ${target}`);
   run(`node scripts/prepare-bin-for-target.mjs ${target}`);
 
   const vsceArgs = [
@@ -299,6 +288,29 @@ function verifyVsix(target) {
       // The forbidden pattern was not found.
     }
   }
+
+  const entries = execFileSync('unzip', ['-Z1', vsixPath], {
+    encoding: 'utf8',
+    maxBuffer: ZIP_MAX_BUFFER,
+  })
+    .split('\n')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  const nativeEntry = entries.find(
+    (entry) => entry === 'extension/node_modules/better-sqlite3/build/Release/better_sqlite3.node'
+  );
+  if (!nativeEntry) {
+    throw new Error('VSIX verification failed: native binding entry not found');
+  }
+  const nativeTarget = detectNativeTarget(
+    execFileSync('unzip', ['-p', vsixPath, nativeEntry], { maxBuffer: ZIP_MAX_BUFFER })
+  );
+  if (nativeTarget !== target) {
+    throw new Error(
+      `VSIX verification failed: expected native target ${target}, got ${nativeTarget}`
+    );
+  }
+  console.log(`  ✓ better-sqlite3 native target (${target})`);
 }
 
 async function main() {

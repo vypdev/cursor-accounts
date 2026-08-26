@@ -27,13 +27,31 @@ const bindingPath = path.join(buildPath, 'better_sqlite3.node');
 const electronVersion = getElectronVersionForVSCode(packageJson.engines.vscode);
 const electronAbi = String(getAbi(electronVersion, 'electron'));
 const version = betterSqlitePackage.version;
-const platform = process.platform === 'win32' ? 'win32' : process.platform;
-const architecture = process.arch;
-const assetName = `better-sqlite3-v${version}-electron-v${electronAbi}-${platform}-${architecture}.tar.gz`;
-const releaseApiUrl = `https://api.github.com/repos/WiseLibs/better-sqlite3/releases/tags/v${version}`;
-const prebuildUrl = `https://github.com/WiseLibs/better-sqlite3/releases/download/v${version}/${assetName}`;
+const SUPPORTED_TARGETS = [
+  'darwin-arm64',
+  'darwin-x64',
+  'linux-x64',
+  'linux-arm64',
+  'win32-x64',
+  'win32-arm64',
+];
 
-async function resolveExpectedDigest() {
+function parseTarget(target = `${process.platform}-${process.arch}`) {
+  if (!SUPPORTED_TARGETS.includes(target)) {
+    throw new Error(
+      `Unsupported native target "${target}". Expected one of: ${SUPPORTED_TARGETS.join(', ')}`
+    );
+  }
+
+  const separatorIndex = target.indexOf('-');
+  return {
+    target,
+    platform: target.slice(0, separatorIndex),
+    architecture: target.slice(separatorIndex + 1),
+  };
+}
+
+async function resolveExpectedDigest(releaseApiUrl, assetName) {
   const response = await fetch(releaseApiUrl, {
     headers: {
       Accept: 'application/vnd.github+json',
@@ -85,22 +103,29 @@ function validateArchiveEntries(entries) {
   }
 }
 
-async function main() {
+async function main(targetArgument) {
   if (!existsSync(path.join(betterSqlitePath, 'package.json'))) {
     throw new Error(`better-sqlite3 package not found: ${betterSqlitePath}`);
   }
 
+  const { target, platform, architecture } = parseTarget(targetArgument);
+  const assetName = `better-sqlite3-v${version}-electron-v${electronAbi}-${platform}-${architecture}.tar.gz`;
+  const releaseApiUrl = `https://api.github.com/repos/WiseLibs/better-sqlite3/releases/tags/v${version}`;
+  const prebuildUrl = `https://github.com/WiseLibs/better-sqlite3/releases/download/v${version}/${assetName}`;
+
   // Never allow a binding from a previous target or failed attempt to satisfy
   // the post-download existence check.
   rmSync(bindingPath, { force: true });
-  const expectedDigest = await resolveExpectedDigest();
+  const expectedDigest = await resolveExpectedDigest(releaseApiUrl, assetName);
   const tempRoot = mkdtempSync(path.join(root, '.tmp', 'electron-prebuild-'));
   const archivePath = path.join(tempRoot, assetName);
   const extractionRoot = path.join(tempRoot, 'extracted');
   mkdirSync(extractionRoot, { recursive: true });
 
   try {
-    console.log(`[download-electron-prebuild] Electron ${electronVersion} / ABI ${electronAbi}`);
+    console.log(
+      `[download-electron-prebuild] ${target} / Electron ${electronVersion} / ABI ${electronAbi}`
+    );
     console.log(`[download-electron-prebuild] Downloading ${assetName}`);
     execFileSync(
       'curl',
@@ -146,10 +171,10 @@ async function main() {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  main().catch((error) => {
+  main(process.argv[2]).catch((error) => {
     console.error(`[download-electron-prebuild] ✗ Failed: ${error.message}`);
     process.exitCode = 1;
   });
 }
 
-export { findExtractedBinding, sha256, validateArchiveEntries };
+export { findExtractedBinding, parseTarget, sha256, validateArchiveEntries };

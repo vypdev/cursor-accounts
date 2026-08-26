@@ -17,7 +17,10 @@ No additional installation or configuration required.
 Platform support has two independent parts: the bundled SQLite CLI must match
 the target operating system and architecture, and the `better-sqlite3` native
 binding must match the Electron runtime used by the VS Code extension host.
-The latter cannot be proven by cross-packaging on an unrelated host.
+The build downloads the official `better-sqlite3` Electron prebuild for the
+requested target and verifies its release digest, so packaging can prepare a
+target binding on a different host. The final target runner remains required
+for an executable smoke test and release acceptance.
 
 The release workflows are configured with this target matrix:
 
