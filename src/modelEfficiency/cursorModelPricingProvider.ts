@@ -1,14 +1,33 @@
-import type { ModelPricing, ModelPricingProvider } from '@cursor-accounts/types';
+import type {
+  ModelPricing,
+  ModelPricingCatalogMetadata,
+  ModelPricingProvider,
+} from '@cursor-accounts/types';
 import type { IModelPricingProvider } from '../domain/ports/IModelPricingProvider';
 
+export const CURSOR_MODEL_PRICING_SOURCE_URL =
+  'https://cursor.com/docs/models-and-pricing';
+export const CURSOR_MODEL_PRICING_CATALOG_VERSION = 'cursor-docs-2026-08-26';
+export const CURSOR_MODEL_PRICING_RETRIEVED_ON = '2026-08-26';
+
+export const CURSOR_MODEL_PRICING_CATALOG_METADATA: ModelPricingCatalogMetadata =
+  Object.freeze({
+    version: CURSOR_MODEL_PRICING_CATALOG_VERSION,
+    sourceUrl: CURSOR_MODEL_PRICING_SOURCE_URL,
+    retrievedOn: CURSOR_MODEL_PRICING_RETRIEVED_ON,
+    coverage: 'official-visible-models-plus-legacy-compatibility',
+  });
+
+const CURRENT_CATALOG_NOTE =
+  'Verified against the official Cursor pricing table on 2026-08-26.';
+
 /**
- * Hardcoded Cursor model pricing from official documentation.
+ * Hardcoded Cursor model pricing from the reviewed official documentation
+ * snapshot.
  *
- * Source: https://cursor.com/docs/models-and-pricing
- * Retrieved: 2026-06-05
- *
- * Maintenance: review quarterly when Cursor updates pricing docs.
- * No public API exists for a model pricing catalog as of 2026-06-05.
+ * The catalog deliberately contains both currently verified entries and
+ * legacy compatibility entries. The metadata above identifies the source
+ * snapshot; it does not imply that every legacy entry is still offered.
  */
 
 type PricingSeed = Omit<ModelPricing, 'modelId'> & {
@@ -26,6 +45,8 @@ function anthropic(
   outputPer1M: number,
   options: {
     modelIds: string[];
+    cacheReadPer1M?: number;
+    cacheWritePer1M?: number;
     hiddenByDefault?: boolean;
     notes?: string;
   }
@@ -36,8 +57,14 @@ function anthropic(
     provider: 'Anthropic',
     inputPer1M,
     outputPer1M,
-    cacheReadPer1M: roundPrice(inputPer1M * 0.1, 3),
-    cacheWritePer1M: roundPrice(inputPer1M * 1.25, 3),
+    cacheReadPer1M: roundPrice(
+      options.cacheReadPer1M ?? inputPer1M * 0.1,
+      3
+    ),
+    cacheWritePer1M: roundPrice(
+      options.cacheWritePer1M ?? inputPer1M * 1.25,
+      3
+    ),
     hiddenByDefault: options.hiddenByDefault ?? true,
     notes: options.notes,
   };
@@ -49,6 +76,8 @@ function openAi(
   outputPer1M: number,
   options: {
     modelIds: string[];
+    cacheReadPer1M?: number;
+    cacheWritePer1M?: number;
     hiddenByDefault?: boolean;
     notes?: string;
   }
@@ -59,7 +88,11 @@ function openAi(
     provider: 'OpenAI',
     inputPer1M,
     outputPer1M,
-    cacheReadPer1M: roundPrice(inputPer1M * 0.1, 3),
+    cacheReadPer1M: roundPrice(
+      options.cacheReadPer1M ?? inputPer1M * 0.1,
+      3
+    ),
+    cacheWritePer1M: options.cacheWritePer1M,
     hiddenByDefault: options.hiddenByDefault ?? true,
     notes: options.notes,
   };
@@ -71,6 +104,7 @@ function google(
   outputPer1M: number,
   options: {
     modelIds: string[];
+    cacheReadPer1M?: number;
     hiddenByDefault?: boolean;
     notes?: string;
   }
@@ -81,7 +115,10 @@ function google(
     provider: 'Google',
     inputPer1M,
     outputPer1M,
-    cacheReadPer1M: roundPrice(inputPer1M * 0.1, 3),
+    cacheReadPer1M: roundPrice(
+      options.cacheReadPer1M ?? inputPer1M * 0.1,
+      3
+    ),
     hiddenByDefault: options.hiddenByDefault ?? true,
     notes: options.notes,
   };
@@ -112,16 +149,41 @@ function cursorModel(
 
 const PRICING_SEEDS: readonly PricingSeed[] = [
   {
-    modelIds: ['auto', 'default'],
-    displayName: 'Auto',
+    modelIds: ['legacy-enterprise-auto', 'enterprise-auto-legacy'],
+    displayName: 'Legacy Enterprise Auto',
     provider: 'Cursor',
     inputPer1M: 1.25,
     outputPer1M: 6,
     cacheReadPer1M: 0.25,
     cacheWritePer1M: 1.25,
-    hiddenByDefault: false,
-    notes: 'Auto + Composer pool pricing',
+    hiddenByDefault: true,
+    notes:
+      'Fixed legacy Enterprise Auto pricing is documented through 2026-09-07; normal Auto requests use the routed model rate.',
   },
+  cursorModel('Grok 4.6', 2, 6, {
+    modelIds: ['grok-4.6'],
+    cacheReadPer1M: 0.5,
+    hiddenByDefault: false,
+    notes: CURRENT_CATALOG_NOTE,
+  }),
+  cursorModel('Grok 4.6 (Fast)', 4, 12, {
+    modelIds: ['grok-4.6-fast'],
+    cacheReadPer1M: 1,
+    hiddenByDefault: false,
+    notes: CURRENT_CATALOG_NOTE,
+  }),
+  cursorModel('Grok 4.5', 2, 6, {
+    modelIds: ['grok-4.5'],
+    cacheReadPer1M: 0.5,
+    hiddenByDefault: false,
+    notes: CURRENT_CATALOG_NOTE,
+  }),
+  cursorModel('Grok 4.5 (Fast)', 4, 18, {
+    modelIds: ['grok-4.5-fast'],
+    cacheReadPer1M: 1,
+    hiddenByDefault: false,
+    notes: CURRENT_CATALOG_NOTE,
+  }),
   cursorModel('Composer 1', 1.25, 10, {
     modelIds: ['composer-1'],
     cacheReadPer1M: 0.125,
@@ -135,9 +197,57 @@ const PRICING_SEEDS: readonly PricingSeed[] = [
     cacheReadPer1M: 0.2,
   }),
   cursorModel('Composer 2.5', 0.5, 2.5, {
-    modelIds: ['composer-2.5', 'composer-2.5-fast'],
+    modelIds: ['composer-2.5'],
     cacheReadPer1M: 0.2,
     hiddenByDefault: false,
+    notes: CURRENT_CATALOG_NOTE,
+  }),
+  cursorModel('Composer 2.5 (Fast)', 3, 15, {
+    modelIds: ['composer-2.5-fast'],
+    cacheReadPer1M: 0.5,
+    hiddenByDefault: false,
+    notes: CURRENT_CATALOG_NOTE,
+  }),
+  anthropic('Claude Fable 5', 10, 50, {
+    modelIds: ['claude-fable-5'],
+    hiddenByDefault: false,
+    notes: CURRENT_CATALOG_NOTE,
+  }),
+  anthropic('Claude Opus 5', 5, 25, {
+    modelIds: ['claude-opus-5'],
+    hiddenByDefault: false,
+    notes: CURRENT_CATALOG_NOTE,
+  }),
+  anthropic('Claude Sonnet 5', 2, 10, {
+    modelIds: ['claude-sonnet-5'],
+    hiddenByDefault: false,
+    notes: CURRENT_CATALOG_NOTE,
+  }),
+  google('Gemini 3.7 Flash', 0.75, 3.5, {
+    modelIds: ['gemini-3.7-flash'],
+    hiddenByDefault: false,
+    notes: CURRENT_CATALOG_NOTE,
+  }),
+  openAi('GPT-5.6 Luna', 0.2, 1.2, {
+    modelIds: ['gpt-5.6-luna'],
+    cacheReadPer1M: 0.02,
+    cacheWritePer1M: 0.25,
+    hiddenByDefault: false,
+    notes: CURRENT_CATALOG_NOTE,
+  }),
+  openAi('GPT-5.6 Sol', 4, 20, {
+    modelIds: ['gpt-5.6-sol'],
+    cacheReadPer1M: 0.4,
+    cacheWritePer1M: 5,
+    hiddenByDefault: false,
+    notes: CURRENT_CATALOG_NOTE,
+  }),
+  openAi('GPT-5.6 Terra', 2, 12, {
+    modelIds: ['gpt-5.6-terra'],
+    cacheReadPer1M: 0.2,
+    cacheWritePer1M: 2.5,
+    hiddenByDefault: false,
+    notes: CURRENT_CATALOG_NOTE,
   }),
   anthropic('Claude 4 Sonnet', 3, 15, {
     modelIds: ['claude-4-sonnet', 'claude-sonnet-4'],
@@ -337,6 +447,10 @@ export function normalizePricingModelId(modelId: string): string {
 }
 
 export class CursorModelPricingProvider implements IModelPricingProvider {
+  getCatalogMetadata(): ModelPricingCatalogMetadata {
+    return CURSOR_MODEL_PRICING_CATALOG_METADATA;
+  }
+
   getPricingForModel(modelId: string): ModelPricing | null {
     const normalized = normalizePricingModelId(modelId);
     return PRICING_MAP.get(normalized) ?? null;
@@ -347,7 +461,14 @@ export class CursorModelPricingProvider implements IModelPricingProvider {
     const unique: ModelPricing[] = [];
 
     for (const pricing of CURSOR_MODEL_PRICING) {
-      const key = `${pricing.provider}:${pricing.displayName}:${pricing.inputPer1M}:${pricing.outputPer1M}`;
+      const key = [
+        pricing.provider,
+        pricing.displayName,
+        pricing.inputPer1M,
+        pricing.outputPer1M,
+        pricing.cacheReadPer1M ?? '',
+        pricing.cacheWritePer1M ?? '',
+      ].join(':');
       if (seen.has(key)) {
         continue;
       }

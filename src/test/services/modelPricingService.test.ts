@@ -38,6 +38,12 @@ describe('ModelPricingService', () => {
     ]);
 
     const mockPricing: IModelPricingProvider = {
+      getCatalogMetadata: () => ({
+        version: 'test-catalog',
+        sourceUrl: 'https://example.test/pricing',
+        retrievedOn: '2026-08-26',
+        coverage: 'official-visible-models-plus-legacy-compatibility',
+      }),
       getPricingForModel: mock.fn((modelId: string) => {
         if (modelId === 'composer-2.5' || modelId === 'composer-2.5-fast') {
           return {
@@ -114,6 +120,12 @@ describe('ModelPricingService', () => {
     const mockCatalog = createMockCatalog([], raw);
 
     const mockPricing: IModelPricingProvider = {
+      getCatalogMetadata: () => ({
+        version: 'test-catalog',
+        sourceUrl: 'https://example.test/pricing',
+        retrievedOn: '2026-08-26',
+        coverage: 'official-visible-models-plus-legacy-compatibility',
+      }),
       getPricingForModel: mock.fn((modelId: string) => ({
         modelId,
         displayName: modelId,
@@ -141,6 +153,12 @@ describe('ModelPricingService', () => {
     const mockCatalog = createMockCatalog([]);
 
     const mockPricing: IModelPricingProvider = {
+      getCatalogMetadata: () => ({
+        version: 'test-catalog',
+        sourceUrl: 'https://example.test/pricing',
+        retrievedOn: '2026-08-26',
+        coverage: 'official-visible-models-plus-legacy-compatibility',
+      }),
       getPricingForModel: mock.fn(() => null),
       getAllModelPricing: mock.fn(() => [
         {
@@ -168,6 +186,12 @@ describe('ModelPricingService', () => {
     const mockCatalog = createMockCatalog([{ name: 'unknown-model' }]);
 
     const mockPricing: IModelPricingProvider = {
+      getCatalogMetadata: () => ({
+        version: 'test-catalog',
+        sourceUrl: 'https://example.test/pricing',
+        retrievedOn: '2026-08-26',
+        coverage: 'official-visible-models-plus-legacy-compatibility',
+      }),
       getPricingForModel: mock.fn(() => null),
       getAllModelPricing: mock.fn(() => []),
     };
@@ -193,6 +217,12 @@ describe('ModelPricingService', () => {
     };
 
     const mockPricing: IModelPricingProvider = {
+      getCatalogMetadata: () => ({
+        version: 'test-catalog',
+        sourceUrl: 'https://example.test/pricing',
+        retrievedOn: '2026-08-26',
+        coverage: 'official-visible-models-plus-legacy-compatibility',
+      }),
       getPricingForModel: mock.fn(() => null),
       getAllModelPricing: mock.fn(() => []),
     };

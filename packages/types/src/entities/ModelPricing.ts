@@ -1,8 +1,14 @@
-/**
- * Model pricing information entity.
- * Source: https://cursor.com/docs/models-and-pricing
- * Last updated: 2026-06-05
- */
+/** Model pricing catalog provenance. */
+export interface ModelPricingCatalogMetadata {
+  /** Immutable identifier for the manually reviewed catalog snapshot. */
+  readonly version: string;
+  /** Official documentation page used as the pricing source. */
+  readonly sourceUrl: string;
+  /** Calendar date on which the source was reviewed (ISO 8601 date). */
+  readonly retrievedOn: string;
+  /** Describes the intentionally bounded scope of the catalog. */
+  readonly coverage: 'official-visible-models-plus-legacy-compatibility';
+}
 
 export type ModelPricingProvider =
   | 'Cursor'

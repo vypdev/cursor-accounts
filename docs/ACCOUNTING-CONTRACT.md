@@ -31,6 +31,27 @@ For a live delta, the event's already calculated `deltaCostCents` is preferred;
 otherwise the domain calculator estimates the delta. Live estimates are stored
 separately from completed-turn costs to prevent double counting.
 
+## Pricing catalog provenance
+
+Model-aware estimates come from the `IModelPricingProvider` port. Providers must
+expose immutable catalog metadata containing:
+
+- a catalog version identifying the exact reviewed snapshot;
+- the official source URL;
+- the retrieval date; and
+- the declared coverage of the snapshot.
+
+The current Cursor adapter uses catalog version `cursor-docs-2026-08-26` and
+the official [Models & Pricing documentation](https://cursor.com/docs/models-and-pricing).
+Normal `Auto` routing has no single fixed price, because Cursor charges the
+model selected for each request. The fixed `Legacy Enterprise Auto` rate is
+kept under explicit legacy IDs and hidden by default.
+
+The snapshot version is currently available at the provider boundary. A
+follow-up SQLite migration must persist the version and calculation source on
+each calculated cost before historical cost reports can be treated as
+reproducible billing evidence.
+
 ## Token normalization
 
 Token counts used for cost calculations must be finite and positive. Missing,

@@ -8,6 +8,12 @@ function mockProvider(
   pricing: ModelPricing | null
 ): IModelPricingProvider {
   return {
+    getCatalogMetadata: () => ({
+      version: 'test-catalog',
+      sourceUrl: 'https://example.test/pricing',
+      retrievedOn: '2026-08-26',
+      coverage: 'official-visible-models-plus-legacy-compatibility',
+    }),
     getPricingForModel: () => pricing,
     getAllModelPricing: () => (pricing ? [pricing] : []),
   };

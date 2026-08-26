@@ -15,6 +15,14 @@ import type { ProxyTrafficUsageEvent } from '../domain/types/proxyTraffic';
 const extensionPath = path.join(__dirname, '..', '..');
 
 const goldenPricingProvider: IModelPricingProvider = {
+  getCatalogMetadata() {
+    return {
+      version: 'test-catalog',
+      sourceUrl: 'https://example.test/pricing',
+      retrievedOn: '2026-08-26',
+      coverage: 'official-visible-models-plus-legacy-compatibility',
+    };
+  },
   getPricingForModel(modelId) {
     return modelId === 'golden-model'
       ? {

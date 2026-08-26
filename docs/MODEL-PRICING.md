@@ -2,7 +2,7 @@
 
 Reference for the model pricing system: where pricing data comes from, how it's stored, and how the extension displays it.
 
-**Last reviewed:** 2026-06-05
+**Last reviewed:** 2026-08-26
 
 **Related:** [ENABLED-MODELS-DETECTION.md](ENABLED-MODELS-DETECTION.md), [FEATURES.md](FEATURES.md), [RESEARCH.md](RESEARCH.md)
 
@@ -15,10 +15,10 @@ The **Cursor Accounts** extension displays per-model API pricing in the **Prices
 1. **Where pricing data comes from** (no public API exists)
 2. **How pricing is stored** (hardcoded in the extension)
 3. **How models are matched** (catalog entries → pricing lookup)
-4. **How to update prices** (quarterly maintenance from official docs)
+4. **How to update prices** (versioned manual snapshots from official docs)
 5. **Architecture** (ports, providers, service layer)
 
-**Key insight:** There is **no public Cursor API** for model pricing as of 2026-06-05. All pricing is manually maintained from the official Cursor documentation.
+**Key insight:** There is **no public Cursor API** for a complete model pricing catalog as of 2026-08-26. Pricing is therefore maintained as an explicitly versioned manual snapshot from the official Cursor documentation.
 
 ---
 
@@ -53,19 +53,24 @@ These messages exist for **per-request** or **historical** queries, but there's 
 ```typescript
 const PRICING_SEEDS: readonly PricingSeed[] = [
   {
-    modelIds: ['auto', 'default'],
-    displayName: 'Auto',
+    modelIds: ['legacy-enterprise-auto', 'enterprise-auto-legacy'],
+    displayName: 'Legacy Enterprise Auto',
     provider: 'Cursor',
     inputPer1M: 1.25,
     outputPer1M: 6,
     cacheReadPer1M: 0.25,
     cacheWritePer1M: 1.25,
-    hiddenByDefault: false,
-    notes: 'Auto + Composer pool pricing',
+    hiddenByDefault: true,
+    notes: 'Fixed legacy Enterprise Auto pricing through 2026-09-07',
   },
   cursorModel('Composer 2.5', 0.5, 2.5, {
-    modelIds: ['composer-2.5', 'composer-2.5-fast'],
+    modelIds: ['composer-2.5'],
     cacheReadPer1M: 0.2,
+    hiddenByDefault: false,
+  }),
+  cursorModel('Composer 2.5 (Fast)', 3, 15, {
+    modelIds: ['composer-2.5-fast'],
+    cacheReadPer1M: 0.5,
     hiddenByDefault: false,
   }),
   anthropic('Claude 4.5 Sonnet', 3, 15, {
@@ -197,11 +202,10 @@ if (!pricing) {
 }
 ```
 
-**Example:** 
+**Example:**
 - Variant: `composer-2.5-fast`
-- Not in pricing map (only `composer-2.5` is)
-- Fallback to base model `composer-2.5`
-- Result: Both "Composer 2.5" and "Composer 2.5 Fast" get `$0.50/$2.50` pricing
+- Exact variant pricing is found before the base-model fallback
+- Result: the fast variant receives `$3/$15` pricing and `$0.50` cache-read pricing
 
 **5. Combine catalog display data + pricing**
 
@@ -211,12 +215,12 @@ return {
   variantName: 'fast=true',
   displayName: 'Composer 2.5 Fast',  // From catalog (HTML stripped)
   pricing: {
-    modelId: 'composer-2.5',
-    displayName: 'Composer 2.5',     // From pricing provider
+    modelId: 'composer-2.5-fast',
+    displayName: 'Composer 2.5 (Fast)', // From pricing provider
     provider: 'Cursor',
-    inputPer1M: 0.5,
-    outputPer1M: 2.5,
-    cacheReadPer1M: 0.2
+    inputPer1M: 3,
+    outputPer1M: 15,
+    cacheReadPer1M: 0.5
   },
   parameters: [{ id: 'fast', value: 'true' }]
 };
@@ -290,6 +294,12 @@ Result: Show **only the hardcoded pricing table** (no catalog-specific variants)
 ```typescript
 export interface IModelPricingProvider {
   /**
+   * Get the provenance of the catalog used for all returned prices.
+   * @returns Immutable version, source URL, retrieval date, and coverage
+   */
+  getCatalogMetadata(): ModelPricingCatalogMetadata;
+
+  /**
    * Get pricing for a specific model by ID.
    * @param modelId Model slug (e.g. 'composer-2.5', 'claude-sonnet-4-5')
    * @returns Pricing data or null if not found
@@ -351,7 +361,18 @@ export interface IModelCatalogRepository {
 
 **Data source:** [cursor.com/docs/models-and-pricing](https://cursor.com/docs/models-and-pricing)
 
-**Update frequency:** Manual quarterly review (no automated sync)
+**Catalog snapshot:** `cursor-docs-2026-08-26`
+
+**Retrieved on:** `2026-08-26`
+
+**Coverage:** current models visible in the official pricing table plus
+explicitly marked legacy compatibility entries. The official page contains a
+larger expandable catalog; entries that are not verified in the visible table
+must not be described as current.
+
+**Update frequency:** Review immediately after a pricing/model announcement;
+otherwise at least quarterly. Every update must change the catalog version and
+retain the previous version in Git history.
 
 #### StateDbModelCatalogRepository
 
@@ -374,7 +395,8 @@ export interface IModelCatalogRepository {
 
 **Provider:** `'Cursor'`
 
-**Models:** `default`, `composer-1`, `composer-1.5`, `composer-2`, `composer-2.5`
+**Models:** `grok-4.5`, `grok-4.6`, `composer-1`, `composer-1.5`,
+`composer-2`, `composer-2.5`
 
 **Cache pricing:** Explicit (not calculated from input rate)
 
@@ -382,15 +404,25 @@ export interface IModelCatalogRepository {
 
 ```typescript
 cursorModel('Composer 2.5', 0.5, 2.5, {
-  modelIds: ['composer-2.5', 'composer-2.5-fast'],
+  modelIds: ['composer-2.5'],
   cacheReadPer1M: 0.2,  // Explicit
+  hiddenByDefault: false,
+})
+cursorModel('Composer 2.5 (Fast)', 3, 15, {
+  modelIds: ['composer-2.5-fast'],
+  cacheReadPer1M: 0.5,  // Explicit
   hiddenByDefault: false,
 })
 ```
 
 **Notes:**
-- Auto/default pool pricing: `$1.25/$6` (averaged across multiple models)
-- Fast variants inherit same pricing (billed by usage rate, not per-token)
+- Normal `Auto` has no single fixed rate: Cursor bills it at the rate of the
+  model selected for each request. The provider intentionally returns no
+  pricing for `auto` or `default`.
+- Legacy Enterprise Auto is retained under explicit legacy IDs through
+  `2026-09-07` and remains hidden by default.
+- Fast variants are separate catalog entries whenever Cursor publishes a
+  different rate.
 
 ### Anthropic Models
 
@@ -514,7 +546,8 @@ google('Gemini 3.1 Pro', 2, 12, {
 
 ### Update Process
 
-**Frequency:** Quarterly (or when Cursor announces pricing changes)
+**Frequency:** Immediately after a pricing announcement, and at least
+quarterly otherwise.
 
 **Steps:**
 
@@ -530,8 +563,10 @@ google('Gemini 3.1 Pro', 2, 12, {
    - Open Prices modal in dev mode
    - Spot-check 5-10 models against official docs
    - Verify cache pricing calculations (Anthropic/OpenAI/Google)
-6. **Update retrieval date:** Change `Retrieved: YYYY-MM-DD` comment in file header
-7. **Commit:** `git commit -m "chore: update model pricing from official docs (2026-MM-DD)"`
+6. **Update catalog identity:** Change `CURSOR_MODEL_PRICING_CATALOG_VERSION`
+   and `CURSOR_MODEL_PRICING_RETRIEVED_ON` together with the reviewed entries.
+7. **Run the complete audit:** `CI=true pnpm run audit`
+8. **Commit:** `git commit -m "chore: update model pricing from official docs (2026-MM-DD)"`
 
 ### When to Update
 
@@ -569,13 +604,15 @@ Source: https://cursor.com/docs/models-and-pricing
 
 ```typescript
 /**
- * Hardcoded Cursor model pricing from official documentation.
+ * Hardcoded Cursor model pricing from the reviewed official documentation
+ * snapshot.
  *
  * Source: https://cursor.com/docs/models-and-pricing
- * Retrieved: 2026-06-05
+ * Catalog version: cursor-docs-2026-08-26
+ * Retrieved on: 2026-08-26
  *
- * Maintenance: review quarterly when Cursor updates pricing docs.
- * No public API exists for a model pricing catalog as of 2026-06-05.
+ * The catalog contains current visible entries plus legacy compatibility
+ * entries. Legacy entries must not be described as current.
  */
 ```
 
@@ -712,10 +749,11 @@ function filterModels(
 ### Manual Testing Checklist
 
 - [ ] Open Prices modal from Accounts panel
-- [ ] Verify Cursor models (Auto, Composer 2.5) display correctly
-- [ ] Verify Anthropic models (Claude 4.5 Sonnet, Opus 4.8) display correctly
-- [ ] Verify OpenAI models (GPT-5.3 Codex, GPT-5.5) display correctly
-- [ ] Verify Google models (Gemini 3.1 Pro, Gemini 3.5 Flash) display correctly
+- [ ] Verify normal Auto is shown without a fabricated fixed price
+- [ ] Verify Cursor models (Grok 4.6, Grok 4.5, Composer 2.5 and Fast) display correctly
+- [ ] Verify Anthropic models (Claude Sonnet 5, Claude Opus 5) display correctly
+- [ ] Verify OpenAI models (GPT-5.6 Luna, Sol and Terra) display correctly
+- [ ] Verify Google models (Gemini 3.1 Pro, Gemini 3.7 Flash) display correctly
 - [ ] Test provider filter (select "Anthropic" → only Claude models)
 - [ ] Test parameter filter (select "Fast" → only fast variants)
 - [ ] Verify cache pricing shown (cacheReadPer1M, cacheWritePer1M columns)
@@ -736,9 +774,11 @@ function filterModels(
 - User may see incorrect estimates if using outdated extension version
 
 **Mitigation:**
-- Quarterly manual updates
+- Versioned manual snapshots with an explicit source URL and retrieval date
+- Immediate review after model or pricing announcements, plus quarterly review
 - Version extension on major pricing changes
-- Display "Last updated: YYYY-MM-DD" in modal footer
+- Persist the pricing snapshot version with calculated cost records (planned
+  follow-up migration)
 
 ### Plan-Level Discounts Not Reflected
 
@@ -755,15 +795,17 @@ function filterModels(
 
 ### Variant Pricing Ambiguity
 
-**Issue:** Some variants share pricing (e.g. Composer 2.5 Fast = Composer 2.5 base price).
+**Issue:** Cursor may publish a distinct price for a variant, while the local
+model catalog only exposes the variant relationship.
 
 **Impact:**
-- User may think Fast mode is "free" (actually billed by usage rate, not per-token)
+- Falling back to the base model can understate or overstate cost
 - Modal doesn't explain speed/quality tradeoffs
 
 **Mitigation:**
-- Add notes field: "Fast mode consumes usage faster but costs same per token"
-- Link to Cursor docs for variant explanations
+- Resolve exact variant slugs before the base-model fallback
+- Maintain separate entries whenever Cursor publishes separate rates
+- Add a regression test for every currently documented fast variant
 
 ### Missing Models
 
