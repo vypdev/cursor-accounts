@@ -325,6 +325,7 @@
     "extract:protos": "node scripts/extract-cursor-protos.mjs",
     "test:proto": "node scripts/test-proto-decode.mjs",
     "verify:proto-jsonl": "node scripts/verify-proto-jsonl.mjs",
+    "test:verify-proto-jsonl": "node --test scripts/verify-proto-jsonl.test.mjs",
     "test:native-prebuild": "node scripts/test-electron-prebuild.mjs",
     "analyze:proxy-traffic": "node scripts/analyze-proxy-traffic.mjs",
     "summarize:session-tokens": "node scripts/summarize-session-tokens.mjs",
