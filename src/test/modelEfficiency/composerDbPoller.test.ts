@@ -245,6 +245,29 @@ describe('composerDbPoller execution', () => {
 
     assert.equal(attempts, 2);
   });
+
+  it('does not overlap poll cycles while a state read is in flight', async () => {
+    let releaseRead!: () => void;
+    const readPending = new Promise<void>((resolve) => {
+      releaseRead = resolve;
+    });
+    let reads = 0;
+    const harness = createPollerHarness({
+      readItemTableKey: async () => {
+        reads += 1;
+        await readPending;
+        return JSON.stringify({ allComposers: [] });
+      },
+    });
+
+    const firstPoll = harness.poller.pollOnce();
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    await harness.poller.pollOnce();
+
+    assert.equal(reads, 1);
+    releaseRead();
+    await firstPoll;
+  });
 });
 
 describe('composerDbPoller dedup logic', () => {
