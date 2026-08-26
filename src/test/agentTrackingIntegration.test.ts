@@ -192,10 +192,15 @@ describe('AgentTracking integration', () => {
     assert.equal(totals.totalCacheWriteTokens, 100);
     assert.equal(totals.totalTokens, 1_800);
     assert.ok(Math.abs(totals.totalTurnCostCents - 0.2645) < 0.000001);
+    assert.deepEqual(totals.deltaCostSources, ['model_pricing']);
+    assert.deepEqual(totals.turnCostSources, ['model_pricing']);
+    assert.deepEqual(totals.pricingSnapshotVersions, ['test-catalog']);
 
     const completedTurns = await service.getConversationTurnEnded('conversation-golden');
     assert.equal(completedTurns.length, 1);
     assert.ok(Math.abs((completedTurns[0]?.totalCents ?? 0) - 0.2645) < 0.000001);
+    assert.equal(completedTurns[0]?.costSource, 'model_pricing');
+    assert.equal(completedTurns[0]?.pricingSnapshotVersion, 'test-catalog');
   });
 
   it('end-to-end parent-child subagent tree', async () => {
@@ -570,5 +575,65 @@ ORDER BY minute_bucket ASC;
     assert.equal(totals.minuteBuckets, 5);
     assert.equal(totals.totalStreamingTokens, 500);
     assert.ok(Math.abs(totals.totalCostCents - 10) < 0.0001);
+    assert.deepEqual(totals.costSources, ['provided']);
+  });
+
+  it('marks a minute aggregate mixed when pricing evidence changes', async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-provenance-'));
+    connectionManager = new BetterSqliteConnectionManager();
+    const dbPath = path.join(tempDir, 'efficiency.db');
+    const repo = await createRepository(dbPath, connectionManager);
+
+    await repo.upsertConversation('conv-provenance', 'prof-1', 1000);
+    await repo.upsertAgent({
+      requestId: 'req-provenance',
+      conversationId: 'conv-provenance',
+      startedAt: 1000,
+      isEof: false,
+      profileId: 'prof-1',
+    });
+
+    await repo.upsertTokenDelta({
+      requestId: 'req-provenance',
+      minuteBucket: 960,
+      streamingTokens: 100,
+      costCents: 0.1,
+      costSource: 'model_pricing',
+      pricingSnapshotVersion: 'catalog-1',
+      recordedAt: 961,
+      eventKey: 'provenance-event-1',
+    });
+    await repo.upsertTokenDelta({
+      requestId: 'req-provenance',
+      minuteBucket: 960,
+      streamingTokens: 200,
+      costCents: 0.2,
+      costSource: 'model_pricing',
+      pricingSnapshotVersion: 'catalog-2',
+      recordedAt: 962,
+      eventKey: 'provenance-event-2',
+    });
+    await repo.upsertTokenDelta({
+      requestId: 'req-provenance',
+      minuteBucket: 960,
+      streamingTokens: 100,
+      costCents: 0.1,
+      costSource: 'model_pricing',
+      pricingSnapshotVersion: 'catalog-1',
+      recordedAt: 961,
+      eventKey: 'provenance-event-1',
+    });
+
+    const totals = await repo.getTotalDeltaTokensByConversation('conv-provenance');
+    assert.equal(totals.totalStreamingTokens, 300);
+    assert.equal(totals.totalCostCents, 0.3);
+    assert.deepEqual(totals.costSources, ['mixed']);
+    assert.equal(totals.pricingSnapshotVersions, undefined);
+
+    const conversationTotals = await repo.getTotalConversationTokens(
+      'conv-provenance'
+    );
+    assert.deepEqual(conversationTotals.deltaCostSources, ['mixed']);
+    assert.equal(conversationTotals.pricingSnapshotVersions, undefined);
   });
 });

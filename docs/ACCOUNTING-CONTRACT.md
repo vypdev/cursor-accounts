@@ -47,10 +47,17 @@ Normal `Auto` routing has no single fixed price, because Cursor charges the
 model selected for each request. The fixed `Legacy Enterprise Auto` rate is
 kept under explicit legacy IDs and hidden by default.
 
-The snapshot version is currently available at the provider boundary. A
-follow-up SQLite migration must persist the version and calculation source on
-each calculated cost before historical cost reports can be treated as
-reproducible billing evidence.
+The SQLite persistence boundary stores both the calculation source and the
+pricing snapshot version on completed-turn rows, minute aggregates, and the
+event idempotency ledger. Rows created before migration 010 are explicitly
+labelled `unknown`; they are never presented as if a current pricing snapshot
+had produced them.
+
+For a minute aggregate, provenance is merged across all accepted events. A
+single source/version is retained when every contributing event agrees. The
+aggregate becomes `mixed` when sources or pricing versions differ, and a
+mixed aggregate has no pricing snapshot version. Conversation totals expose
+the distinct sources and pricing snapshots contributing to each cost family.
 
 ## Token normalization
 
@@ -84,6 +91,10 @@ objects, and nested `metadata.token_usage` / `metadata.tokenUsage` objects.
 - A completion row is not folded into live delta totals.
 - Conversation totals expose live delta tokens/cost and completed-turn
   tokens/cost as separate fields.
+- Every persisted cost row records its source; legacy rows use `unknown` and
+  heterogeneous aggregates use `mixed`.
+- A model-aware cost always records the exact catalog snapshot version used for
+  the calculation.
 - Every persisted cost is finite and greater than or equal to zero.
 - A missing model or missing server cost is observable through the fallback
   path; it is never silently represented as a fabricated server charge.

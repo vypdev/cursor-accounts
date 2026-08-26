@@ -1,4 +1,8 @@
 import type { IDatabaseConnectionManager } from '../../domain/ports/IDatabaseConnectionManager';
+import {
+  mergeCostProvenance,
+  normalizeCostSource,
+} from '../../domain/types/costProvenance';
 import * as extensionLog from '../../logging/extensionLog';
 import type {
   AgentRecord,
@@ -144,7 +148,38 @@ export class BetterSqliteAgentTrackingWriteStore {
       return;
     }
 
+    const deltaProvenance = {
+      source: normalizeCostSource(delta.costSource),
+      pricingSnapshotVersion:
+        delta.costSource === 'model_pricing'
+          ? delta.pricingSnapshotVersion
+          : undefined,
+    } as const;
+
     const writeAggregate = (): void => {
+      const existing = conn.get<{
+        cost_source: string | null;
+        pricing_snapshot_version: string | null;
+      }>(
+        `
+        SELECT cost_source, pricing_snapshot_version
+        FROM agent_tokens_delta
+        WHERE request_id = ? AND minute_bucket = ?
+        `,
+        delta.requestId,
+        delta.minuteBucket
+      );
+      const provenance = mergeCostProvenance(
+        existing
+          ? {
+              source: normalizeCostSource(existing.cost_source),
+              pricingSnapshotVersion:
+                existing.pricing_snapshot_version ?? undefined,
+            }
+          : undefined,
+        deltaProvenance
+      );
+
       conn.run(
         `
         INSERT INTO agent_tokens_delta (
@@ -154,14 +189,18 @@ export class BetterSqliteAgentTrackingWriteStore {
           delta_tokens,
           delta_cost,
           context_used,
-          context_max
+          context_max,
+          cost_source,
+          pricing_snapshot_version
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT (request_id, minute_bucket) DO UPDATE SET
           delta_tokens = agent_tokens_delta.delta_tokens + excluded.delta_tokens,
           delta_cost = agent_tokens_delta.delta_cost + excluded.delta_cost,
           context_used = COALESCE(excluded.context_used, agent_tokens_delta.context_used),
-          context_max = COALESCE(excluded.context_max, agent_tokens_delta.context_max)
+          context_max = COALESCE(excluded.context_max, agent_tokens_delta.context_max),
+          cost_source = excluded.cost_source,
+          pricing_snapshot_version = excluded.pricing_snapshot_version
         `,
         delta.requestId,
         agent.conversation_id,
@@ -169,7 +208,9 @@ export class BetterSqliteAgentTrackingWriteStore {
         delta.streamingTokens,
         delta.costCents ?? 0,
         delta.contextUsedTokens ?? null,
-        delta.contextMaxTokens ?? null
+        delta.contextMaxTokens ?? null,
+        provenance.source,
+        provenance.pricingSnapshotVersion ?? null
       );
     };
 
@@ -190,9 +231,11 @@ export class BetterSqliteAgentTrackingWriteStore {
           delta_cost,
           context_used,
           context_max,
+          cost_source,
+          pricing_snapshot_version,
           recorded_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         delta.eventKey,
         delta.requestId,
@@ -202,6 +245,8 @@ export class BetterSqliteAgentTrackingWriteStore {
         delta.costCents ?? 0,
         delta.contextUsedTokens ?? null,
         delta.contextMaxTokens ?? null,
+        deltaProvenance.source,
+        deltaProvenance.pricingSnapshotVersion ?? null,
         delta.recordedAt ?? null
       );
       const changes = conn.get<{ changes: number }>('SELECT changes() AS changes');
@@ -214,6 +259,11 @@ export class BetterSqliteAgentTrackingWriteStore {
 
   async insertTurnEnded(turnEnded: Omit<TurnEndedRecord, 'id'>): Promise<void> {
     const conn = await this.connectionManager.getConnection(this.dbPath);
+    const source = normalizeCostSource(turnEnded.costSource);
+    const pricingSnapshotVersion =
+      source === 'model_pricing'
+        ? turnEnded.pricingSnapshotVersion
+        : undefined;
 
     conn.run(
       `
@@ -225,13 +275,15 @@ export class BetterSqliteAgentTrackingWriteStore {
         cache_write_tokens,
         total_tokens,
         total_cents,
+        cost_source,
+        pricing_snapshot_version,
         usage_uuid,
         recorded_at,
         model_name,
         http_request_id,
         event_key
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       turnEnded.requestId,
       turnEnded.inputTokens,
@@ -240,6 +292,8 @@ export class BetterSqliteAgentTrackingWriteStore {
       turnEnded.cacheWriteTokens ?? null,
       turnEnded.totalTokens ?? null,
       turnEnded.totalCents ?? null,
+      source,
+      pricingSnapshotVersion ?? null,
       turnEnded.usageUuid ?? null,
       turnEnded.recordedAt,
       turnEnded.modelName ?? null,

@@ -61,7 +61,7 @@ describe('DatabaseMigrator', () => {
 
     const result = await migrator.migrate();
     assert.equal(result.success, true);
-    assert.equal(result.toVersion, 9);
+    assert.equal(result.toVersion, 10);
     assert.ok(result.migrationsApplied.includes('001_initial_schema.sql'));
     assert.ok(result.migrationsApplied.includes('002_agent_tracking.sql'));
     assert.ok(result.migrationsApplied.includes('003_agent_turn_tracking.sql'));
@@ -71,12 +71,13 @@ describe('DatabaseMigrator', () => {
     assert.ok(result.migrationsApplied.includes('007_agent_tokens_delta_context.sql'));
     assert.ok(result.migrationsApplied.includes('008_agent_tokens_delta_table.sql'));
     assert.ok(result.migrationsApplied.includes('009_agent_event_idempotency.sql'));
+    assert.ok(result.migrationsApplied.includes('010_cost_provenance.sql'));
 
     const validation = await migrator.validate();
     assert.equal(validation.valid, true);
 
     const version = await migrator.getCurrentVersion();
-    assert.equal(version, 9);
+    assert.equal(version, 10);
   });
 
   it('does not reapply migrations when already at target version', async () => {
@@ -88,6 +89,54 @@ describe('DatabaseMigrator', () => {
     const second = await migrator.migrate();
     assert.equal(second.success, true);
     assert.equal(second.migrationsApplied.length, 0);
+  });
+
+  it('adds cost provenance columns with safe defaults to legacy rows', async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'db-migrate-'));
+    const dbPath = path.join(tempDir, 'efficiency.db');
+    const migrator = new DatabaseMigrator(dbPath, extensionPath);
+
+    await applyMigrationsThrough(migrator, 9);
+    runSqlite(
+      dbPath,
+      `INSERT INTO conversations (conversation_id, profile_id, created_at, last_activity)
+       VALUES ('legacy-conv', 'legacy-profile', 1000, 1000);
+       INSERT INTO agents (request_id, conversation_id, started_at, is_eof, profile_id)
+       VALUES ('legacy-request', 'legacy-conv', 1000, 0, 'legacy-profile');
+       INSERT INTO agent_turn_ended (request_id, input_tokens, output_tokens, recorded_at)
+       VALUES ('legacy-request', 1, 2, 1000);
+       INSERT INTO agent_tokens_delta (request_id, conversation_id, minute_bucket)
+       VALUES ('legacy-request', 'legacy-conv', 960);
+       INSERT INTO agent_tokens_delta_events (
+         event_key, request_id, conversation_id, minute_bucket, delta_tokens
+       ) VALUES ('legacy-event', 'legacy-request', 'legacy-conv', 960, 1);`
+    );
+
+    const result = await migrator.migrate();
+    assert.equal(result.success, true);
+    assert.equal(result.toVersion, 10);
+
+    const rows = JSON.parse(
+      runSqlite(
+        dbPath,
+        `SELECT
+           (SELECT cost_source FROM agent_turn_ended WHERE request_id = 'legacy-request') AS turn_source,
+           (SELECT pricing_snapshot_version FROM agent_turn_ended WHERE request_id = 'legacy-request') AS turn_version,
+           (SELECT cost_source FROM agent_tokens_delta WHERE request_id = 'legacy-request') AS delta_source,
+           (SELECT pricing_snapshot_version FROM agent_tokens_delta WHERE request_id = 'legacy-request') AS delta_version,
+           (SELECT cost_source FROM agent_tokens_delta_events WHERE event_key = 'legacy-event') AS event_source,
+           (SELECT pricing_snapshot_version FROM agent_tokens_delta_events WHERE event_key = 'legacy-event') AS event_version;`
+      )
+    ) as Array<Record<string, string | null>>;
+
+    assert.deepEqual(rows[0], {
+      turn_source: 'unknown',
+      turn_version: null,
+      delta_source: 'unknown',
+      delta_version: null,
+      event_source: 'unknown',
+      event_version: null,
+    });
   });
 
   it('rolls back a failed migration and retries cleanly after the conflict is removed', async () => {
@@ -120,8 +169,8 @@ describe('DatabaseMigrator', () => {
     const retried = await migrator.migrate();
     assert.equal(retried.success, true);
     assert.equal(retried.fromVersion, 8);
-    assert.equal(retried.toVersion, 9);
-    assert.equal(await migrator.getCurrentVersion(), 9);
+    assert.equal(retried.toVersion, 10);
+    assert.equal(await migrator.getCurrentVersion(), 10);
   });
 
   it('fails schema initialization when migration fails instead of accepting partial state', async () => {

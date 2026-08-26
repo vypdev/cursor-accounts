@@ -111,11 +111,21 @@ describe('AgentTrackingPersistenceWriter', () => {
     assert.equal(await writer.writeLiveDelta(context), true);
     assert.deepEqual(
       repository.deltas.map(
-        ({ requestId, minuteBucket, streamingTokens, costCents, modelName }) => ({
+        ({
           requestId,
           minuteBucket,
           streamingTokens,
           costCents,
+          costSource,
+          pricingSnapshotVersion,
+          modelName,
+        }) => ({
+          requestId,
+          minuteBucket,
+          streamingTokens,
+          costCents,
+          costSource,
+          pricingSnapshotVersion,
           modelName,
         })
       ),
@@ -125,6 +135,8 @@ describe('AgentTrackingPersistenceWriter', () => {
           minuteBucket: 120,
           streamingTokens: 12,
           costCents: 0.25,
+          costSource: 'provided',
+          pricingSnapshotVersion: undefined,
           modelName: 'composer-2.5',
         },
       ]
@@ -173,6 +185,10 @@ describe('AgentTrackingPersistenceWriter', () => {
         throw new Error('the precomputed estimate must win');
       },
       calculateTurnCost: () => 0,
+      estimateDeltaCost: () => {
+        throw new Error('the precomputed estimate must win');
+      },
+      estimateTurnCost: () => ({ costCents: 0, source: 'provided' }),
     });
     const context = createContext({
       summary: {
@@ -248,6 +264,21 @@ describe('AgentTrackingPersistenceWriter', () => {
         assert.equal(modelId, 'model-from-agent');
         return 1.25;
       },
+      estimateDeltaCost: () => ({ costCents: 0, source: 'provided' }),
+      estimateTurnCost: (breakdown, modelId) => {
+        assert.deepEqual(breakdown, {
+          inputTokens: 100,
+          outputTokens: 50,
+          cacheReadTokens: 20,
+          cacheWriteTokens: undefined,
+        });
+        assert.equal(modelId, 'model-from-agent');
+        return {
+          costCents: 1.25,
+          source: 'model_pricing',
+          pricingSnapshotVersion: 'test-catalog',
+        };
+      },
     });
 
     assert.equal(
@@ -266,6 +297,11 @@ describe('AgentTrackingPersistenceWriter', () => {
       true
     );
     assert.equal(repository.turnEnded[0]?.totalCents, 1.25);
+    assert.equal(repository.turnEnded[0]?.costSource, 'model_pricing');
+    assert.equal(
+      repository.turnEnded[0]?.pricingSnapshotVersion,
+      'test-catalog'
+    );
   });
 
   it('keeps a valid server turn cost authoritative', async () => {
@@ -273,6 +309,10 @@ describe('AgentTrackingPersistenceWriter', () => {
     const writer = new AgentTrackingPersistenceWriter(repository, undefined, {
       calculateDeltaCost: () => 0,
       calculateTurnCost: () => 999,
+      estimateDeltaCost: () => ({ costCents: 0, source: 'provided' }),
+      estimateTurnCost: () => {
+        throw new Error('the server estimate must win');
+      },
     });
 
     await writer.writeTurnEnded(
@@ -288,6 +328,7 @@ describe('AgentTrackingPersistenceWriter', () => {
     );
 
     assert.equal(repository.turnEnded[0]?.totalCents, 4.5);
+    assert.equal(repository.turnEnded[0]?.costSource, 'server');
   });
 
   it('persists a cache-only completion when no input/output split is present', async () => {
@@ -338,6 +379,8 @@ describe('AgentTrackingPersistenceWriter', () => {
       cacheWriteTokens: undefined,
       totalTokens: undefined,
       totalCents: 0,
+      costSource: 'server',
+      pricingSnapshotVersion: undefined,
       usageUuid: undefined,
       recordedAt: 120,
       modelName: 'composer-2.5',

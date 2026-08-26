@@ -59,6 +59,8 @@ Stores **aggregated live `token_delta`** rows and legacy offline replay snapshot
 | cost_cents | REAL | Sum of estimated live delta cost (USD cents) in the minute bucket |
 | context_used_tokens | INTEGER | Context window usage at the latest event in this bucket |
 | context_max_tokens | INTEGER | Context window size at the latest event in this bucket |
+| cost_source | TEXT | `server`, `model_pricing`, `fallback`, `provided`, `unknown`, or `mixed` |
+| pricing_snapshot_version | TEXT | Exact model-pricing snapshot used for the aggregate, when unambiguous |
 
 ### Live token_delta aggregation
 
@@ -67,6 +69,7 @@ Live `token_delta` events from `StreamingAgentDecoder` are **not** stored one ro
 - 100 `token_delta` events over 5 minutes → **5 rows** (not 100)
 - UPSERT adds `latestDelta` to `streaming_tokens` within the same minute
 - UPSERT adds per-delta `cost_cents` (from model pricing or proxy-enriched `deltaCostCents`) into `cost_cents` within the same minute
+- UPSERT merges cost provenance; differing sources or pricing snapshots produce `mixed`
 - UPSERT overwrites `context_used_tokens` / `context_max_tokens` with the latest snapshot from the proxy (`token_delta` or `token_details`)
 - `recorded_at` stores the Unix seconds of the latest event in the bucket (used to pick the newest context for a conversation)
 
@@ -96,6 +99,8 @@ Billing-grade turn completions — **one row per server `turn_ended` event** (no
 | cache_write_tokens | INTEGER | Cache write tokens |
 | total_tokens | INTEGER | Resolved billed total |
 | total_cents | REAL | Server-reported cost in USD cents (when present) |
+| cost_source | TEXT | Evidence source for `total_cents`; legacy rows default to `unknown` |
+| pricing_snapshot_version | TEXT | Exact model-pricing snapshot used, when applicable |
 | usage_uuid | TEXT | Optional usage uuid |
 | recorded_at | INTEGER | Unix seconds |
 | model_name | TEXT | Model at turn end |
@@ -111,7 +116,9 @@ This is the idempotency ledger for minute-bucketed live deltas. Each accepted
 source event is inserted once, then its increment and cost are folded into
 `agent_tokens_delta`. A replay that has the same `event_key` does not modify the
 aggregate again. The ledger is intentionally separate from the aggregate so
-that one minute can contain many independently identifiable events.
+that one minute can contain many independently identifiable events. It stores
+the accepted event's `cost_source` and `pricing_snapshot_version` alongside
+the numeric cost before aggregation.
 
 ---
 
@@ -153,6 +160,7 @@ ORDER BY te.recorded_at DESC;
 | 7 | `007_agent_tokens_delta_context.sql` | Context window fields |
 | 8 | `008_agent_tokens_delta_table.sql` | Minute-bucketed delta aggregation table |
 | 9 | `009_agent_event_idempotency.sql` | Event keys and the live-delta idempotency ledger |
+| 10 | `010_cost_provenance.sql` | Cost source and pricing snapshot provenance for deltas and completed turns |
 
 ---
 

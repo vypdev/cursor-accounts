@@ -1,4 +1,6 @@
 /** Bidi/Agent poll session metadata (HTTP/1 api2 path). */
+import type { CostSource } from './costProvenance';
+
 export interface AgentSessionInfo {
   requestId?: string;
   conversationId?: string;
@@ -39,6 +41,10 @@ export interface AgentSessionInfo {
   subagentTypeName?: string;
   /** Server-reported model cost in USD cents (turn_ended / TokenUsage). */
   totalCents?: number;
+  /** Provenance of the cost currently carried by this session. */
+  costSource?: CostSource;
+  /** Pricing snapshot used for a model-aware estimate, when applicable. */
+  pricingSnapshotVersion?: string;
   /** What triggered the latest agent usage fields. */
   usageEvent?: 'token_delta' | 'turn_ended' | 'token_details' | 'usage_uuid';
 }

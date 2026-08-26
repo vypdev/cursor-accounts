@@ -1,6 +1,11 @@
 import type {
   AgentTokenBreakdown,
 } from '../../domain/ports/IAgentTrackingRepository';
+import {
+  normalizeCostSource,
+  type CostSource,
+} from '../../domain/types/costProvenance';
+import { normalizeCostCents } from '../../domain/services/tokenAccounting';
 import type { IDatabaseConnectionManager } from '../../domain/ports/IDatabaseConnectionManager';
 import type {
   AgentTreeNode,
@@ -42,6 +47,10 @@ export class BetterSqliteAgentTrackingReadStore {
       started_at: number | null;
       ended_at: number | null;
       models: string | null;
+      delta_cost_sources: string | null;
+      delta_pricing_snapshot_versions: string | null;
+      turn_cost_sources: string | null;
+      turn_pricing_snapshot_versions: string | null;
     }>(`
       WITH snapshot_agg AS (
         SELECT
@@ -61,11 +70,16 @@ export class BetterSqliteAgentTrackingReadStore {
           MAX(context_used) AS latest_context_used,
           MAX(context_max) AS latest_context_max,
           COUNT(*) AS delta_buckets
+          ,GROUP_CONCAT(DISTINCT COALESCE(cost_source, 'unknown')) AS delta_cost_sources
+          ,GROUP_CONCAT(DISTINCT pricing_snapshot_version) AS delta_pricing_snapshot_versions
         FROM agent_tokens_delta
         WHERE conversation_id = ?
       ),
       turn_agg AS (
-        SELECT COALESCE(SUM(total_cents), 0) AS total_turn_cost
+        SELECT
+          COALESCE(SUM(total_cents), 0) AS total_turn_cost,
+          GROUP_CONCAT(DISTINCT COALESCE(te.cost_source, 'unknown')) AS turn_cost_sources,
+          GROUP_CONCAT(DISTINCT te.pricing_snapshot_version) AS turn_pricing_snapshot_versions
         FROM agent_turn_ended te
         INNER JOIN agents a ON a.request_id = te.request_id
         WHERE a.conversation_id = ?
@@ -91,6 +105,10 @@ export class BetterSqliteAgentTrackingReadStore {
         d.latest_context_used,
         d.latest_context_max,
         d.delta_buckets,
+        d.delta_cost_sources,
+        d.delta_pricing_snapshot_versions,
+        t.turn_cost_sources,
+        t.turn_pricing_snapshot_versions,
         a.agent_count,
         a.started_at,
         a.ended_at,
@@ -109,11 +127,17 @@ export class BetterSqliteAgentTrackingReadStore {
       totalCacheWriteTokens: row.total_cache_write,
       totalTokens: row.total,
       totalDeltaTokens: row.total_delta,
-      totalDeltaCostCents: row.total_delta_cost,
-      totalTurnCostCents: row.total_turn_cost,
+      totalDeltaCostCents: normalizeCostCents(row.total_delta_cost) ?? 0,
+      totalTurnCostCents: normalizeCostCents(row.total_turn_cost) ?? 0,
       latestContextUsedTokens: row.latest_context_used ?? undefined,
       latestContextMaxTokens: row.latest_context_max ?? undefined,
       deltaMinuteBuckets: row.delta_buckets,
+      deltaCostSources: this.parseCostSources(row.delta_cost_sources),
+      turnCostSources: this.parseCostSources(row.turn_cost_sources),
+      pricingSnapshotVersions: this.mergeVersions(
+        this.parseVersions(row.delta_pricing_snapshot_versions),
+        this.parseVersions(row.turn_pricing_snapshot_versions)
+      ),
       agentCount: row.agent_count,
       startedAt: row.started_at ?? 0,
       endedAt: row.ended_at ?? 0,
@@ -130,11 +154,15 @@ export class BetterSqliteAgentTrackingReadStore {
       total_delta: number;
       total_cost: number;
       delta_buckets: number;
+      cost_sources: string | null;
+      pricing_snapshot_versions: string | null;
     }>(`
       SELECT
         COALESCE(SUM(delta_tokens), 0) AS total_delta,
         COALESCE(SUM(delta_cost), 0) AS total_cost,
-        COUNT(*) AS delta_buckets
+        COUNT(*) AS delta_buckets,
+        GROUP_CONCAT(DISTINCT COALESCE(cost_source, 'unknown')) AS cost_sources,
+        GROUP_CONCAT(DISTINCT pricing_snapshot_version) AS pricing_snapshot_versions
       FROM agent_tokens_delta
       WHERE conversation_id = ?
     `, conversationId);
@@ -145,8 +173,10 @@ export class BetterSqliteAgentTrackingReadStore {
 
     return {
       totalStreamingTokens: row.total_delta,
-      totalCostCents: row.total_cost,
+      totalCostCents: normalizeCostCents(row.total_cost) ?? 0,
       minuteBuckets: row.delta_buckets,
+      costSources: this.parseCostSources(row.cost_sources),
+      pricingSnapshotVersions: this.parseVersions(row.pricing_snapshot_versions),
     };
   }
 
@@ -169,6 +199,8 @@ export class BetterSqliteAgentTrackingReadStore {
       model_name: string | null;
       http_request_id: string | null;
       event_key: string | null;
+      cost_source: string | null;
+      pricing_snapshot_version: string | null;
     }>(`
       SELECT
         te.id,
@@ -184,13 +216,17 @@ export class BetterSqliteAgentTrackingReadStore {
         te.model_name,
         te.http_request_id,
         te.event_key
+        ,te.cost_source
+        ,te.pricing_snapshot_version
       FROM agent_turn_ended te
       INNER JOIN agents a ON a.request_id = te.request_id
       WHERE a.conversation_id = ?
       ORDER BY te.recorded_at DESC
     `, conversationId);
 
-    return rows.map((row) => ({
+    return rows.map((row) => {
+      const costSource = normalizeCostSource(row.cost_source);
+      return {
       id: row.id,
       requestId: row.request_id,
       inputTokens: row.input_tokens,
@@ -204,7 +240,13 @@ export class BetterSqliteAgentTrackingReadStore {
       modelName: row.model_name ?? undefined,
       httpRequestId: row.http_request_id ?? undefined,
       eventKey: row.event_key ?? undefined,
-    }));
+      costSource,
+      pricingSnapshotVersion:
+        costSource === 'model_pricing'
+          ? row.pricing_snapshot_version ?? undefined
+          : undefined,
+      };
+    });
   }
 
   async getAgentTokens(requestId: string): Promise<AgentTokenBreakdown | null> {
@@ -315,6 +357,24 @@ export class BetterSqliteAgentTrackingReadStore {
       startedAt: 0,
       endedAt: 0,
     };
+  }
+
+  private parseCostSources(value: string | null | undefined): CostSource[] | undefined {
+    if (!value) return undefined;
+    return [...new Set(value.split(',').map((item) => normalizeCostSource(item)))];
+  }
+
+  private parseVersions(value: string | null | undefined): string[] | undefined {
+    if (!value) return undefined;
+    return [...new Set(value.split(',').filter((item) => item.length > 0))];
+  }
+
+  private mergeVersions(
+    first: readonly string[] | undefined,
+    second: readonly string[] | undefined
+  ): string[] | undefined {
+    const versions = [...new Set([...(first ?? []), ...(second ?? [])])];
+    return versions.length > 0 ? versions : undefined;
   }
 
   private buildAgentTree(

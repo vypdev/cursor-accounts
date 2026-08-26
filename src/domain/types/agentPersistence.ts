@@ -6,8 +6,9 @@ export interface IngestTrafficResult {
   contextPersisted: boolean;
 }
 
-/** Persistence records for agent tracking (domain contract shapes). */
+import type { CostSource } from './costProvenance';
 
+/** Persistence records for agent tracking (domain contract shapes). */
 export interface ConversationRecord {
   conversationId: string;
   profileId: string;
@@ -61,6 +62,10 @@ export interface TokenDeltaMinuteRecord {
   streamingTokens: number;
   /** Estimated live delta cost in USD cents for this increment. */
   costCents?: number;
+  /** Origin of the incremental cost value. */
+  costSource?: CostSource;
+  /** Pricing snapshot used for a model-aware incremental estimate. */
+  pricingSnapshotVersion?: string;
   /** Context window usage at the time of this delta snapshot. */
   contextUsedTokens?: number;
   contextMaxTokens?: number;
@@ -81,6 +86,10 @@ export interface TurnEndedRecord {
   cacheWriteTokens?: number;
   totalTokens?: number;
   totalCents?: number;
+  /** Origin of the persisted turn cost. */
+  costSource?: CostSource;
+  /** Pricing snapshot used for a model-aware turn estimate. */
+  pricingSnapshotVersion?: string;
   usageUuid?: string;
   recordedAt: number;
   modelName?: string;
@@ -92,6 +101,10 @@ export interface ConversationDeltaTotals {
   /** Sum of minute-bucketed delta cost in USD cents. */
   totalCostCents: number;
   minuteBuckets: number;
+  /** Distinct provenance values contributing to the aggregate. */
+  costSources?: readonly CostSource[];
+  /** Distinct pricing snapshots contributing to the aggregate. */
+  pricingSnapshotVersions?: readonly string[];
 }
 
 export interface AgentTreeNode {
@@ -121,6 +134,12 @@ export interface ConversationTokenTotals {
   latestContextMaxTokens?: number;
   /** Distinct minute buckets with delta activity. */
   deltaMinuteBuckets: number;
+  /** Distinct provenance values contributing to minute-bucketed costs. */
+  deltaCostSources?: readonly CostSource[];
+  /** Distinct provenance values contributing to completed-turn costs. */
+  turnCostSources?: readonly CostSource[];
+  /** Distinct model-pricing snapshots contributing to either cost total. */
+  pricingSnapshotVersions?: readonly string[];
   agentCount: number;
   models: string[];
   startedAt: number;

@@ -504,6 +504,12 @@ describe('AgentTrackingService', () => {
       calculateTurnCost() {
         return 0;
       },
+      estimateDeltaCost(deltaTokens: number) {
+        return { costCents: deltaTokens * 0.01, source: 'provided' };
+      },
+      estimateTurnCost() {
+        return { costCents: 0, source: 'provided' };
+      },
     });
     await service.initialize();
 

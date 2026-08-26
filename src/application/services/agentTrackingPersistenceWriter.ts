@@ -1,6 +1,10 @@
 import type { IAgentTrackingRepository } from '../../domain/ports/IAgentTrackingRepository';
-import type { IProxyLiveCostCalculator } from '../../domain/ports/IProxyLiveCostCalculator';
+import type {
+  CostEstimate,
+  IProxyLiveCostCalculator,
+} from '../../domain/ports/IProxyLiveCostCalculator';
 import type { ITokenTurnDetectionService } from '../../domain/ports/ITokenTurnDetectionService';
+import { normalizeCostSource } from '../../domain/types/costProvenance';
 import type { AgentSessionInfo } from '../types/agentTracking';
 import type { AgentPersistenceContext } from './agentTrackingPersistenceTypes';
 import {
@@ -23,7 +27,7 @@ export class AgentTrackingPersistenceWriter {
       return false;
     }
 
-    const totalCents = this.resolveTurnCostCents(agent, modelName);
+    const turnCost = this.resolveTurnCost(agent, modelName);
     const inputTokens = normalizeTokenCount(agent.inputTokens);
     const outputTokens = normalizeTokenCount(agent.outputTokens);
     const cacheReadTokens = normalizeOptionalTokenCount(agent.cacheReadTokens);
@@ -36,7 +40,9 @@ export class AgentTrackingPersistenceWriter {
       cacheReadTokens,
       cacheWriteTokens,
       totalTokens: this.resolveTotalTokens(agent),
-      totalCents,
+      totalCents: turnCost?.costCents,
+      costSource: turnCost?.source,
+      pricingSnapshotVersion: turnCost?.pricingSnapshotVersion,
       usageUuid: agent.usageUuid,
       recordedAt: timestamp,
       modelName,
@@ -194,16 +200,29 @@ export class AgentTrackingPersistenceWriter {
     const precomputed = normalizeCostCents(
       summary.liveTokenData?.deltaCostCents
     );
-    const costCents =
+    const estimatedCost =
       precomputed != null
-        ? precomputed
-        : this.costCalculator?.calculateDeltaCost(increment, modelId) ?? 0;
+        ? this.normalizeCostEstimate({
+            costCents: precomputed,
+            source: normalizeCostSource(
+              summary.liveTokenData?.costSource ?? 'provided'
+            ),
+            pricingSnapshotVersion:
+              summary.liveTokenData?.pricingSnapshotVersion,
+          })
+        : this.costCalculator
+          ? this.normalizeCostEstimate(
+              this.costCalculator.estimateDeltaCost(increment, modelId)
+            )
+          : undefined;
 
     await this.repository.upsertTokenDelta({
       requestId: agent.requestId!,
       minuteBucket: this.minuteBucket(timestamp),
       streamingTokens: increment,
-      costCents: normalizeCostCents(costCents) ?? undefined,
+      costCents: estimatedCost?.costCents,
+      costSource: estimatedCost?.source,
+      pricingSnapshotVersion: estimatedCost?.pricingSnapshotVersion,
       contextUsedTokens: normalizeOptionalTokenCount(agent.contextUsedTokens),
       contextMaxTokens: normalizeOptionalTokenCount(agent.maxTokens),
       recordedAt: timestamp,
@@ -271,30 +290,53 @@ export class AgentTrackingPersistenceWriter {
       : normalizeOptionalTokenCount(agent.streamingTokens);
   }
 
-  private resolveTurnCostCents(
+  private resolveTurnCost(
     agent: AgentSessionInfo,
     modelName?: string
-  ): number | undefined {
+  ): CostEstimate | undefined {
     const serverCost = normalizeCostCents(agent.totalCents);
     if (serverCost != null) {
-      return serverCost;
+      return this.normalizeCostEstimate({
+        costCents: serverCost,
+        source: normalizeCostSource(agent.costSource ?? 'server'),
+        pricingSnapshotVersion: agent.pricingSnapshotVersion,
+      });
     }
 
     if (!this.costCalculator) {
       return undefined;
     }
 
-    const calculated = this.costCalculator.calculateTurnCost(
-      {
-        inputTokens: agent.inputTokens ?? 0,
-        outputTokens: agent.outputTokens ?? 0,
-        cacheReadTokens: agent.cacheReadTokens,
-        cacheWriteTokens: agent.cacheWriteTokens,
-      },
-      agent.requestedModelId ?? agent.modelName ?? modelName
+    return this.normalizeCostEstimate(
+      this.costCalculator.estimateTurnCost(
+        {
+          inputTokens: agent.inputTokens ?? 0,
+          outputTokens: agent.outputTokens ?? 0,
+          cacheReadTokens: agent.cacheReadTokens,
+          cacheWriteTokens: agent.cacheWriteTokens,
+        },
+        agent.requestedModelId ?? agent.modelName ?? modelName
+      )
     );
+  }
 
-    return normalizeCostCents(calculated);
+  private normalizeCostEstimate(
+    estimate: CostEstimate | undefined
+  ): CostEstimate | undefined {
+    const costCents = normalizeCostCents(estimate?.costCents);
+    if (costCents == null || !estimate) {
+      return undefined;
+    }
+
+    const source = normalizeCostSource(estimate.source);
+    return {
+      costCents,
+      source,
+      pricingSnapshotVersion:
+        source === 'model_pricing'
+          ? estimate.pricingSnapshotVersion
+          : undefined,
+    };
   }
 
   private hasTurnUsage(agent: AgentSessionInfo): boolean {

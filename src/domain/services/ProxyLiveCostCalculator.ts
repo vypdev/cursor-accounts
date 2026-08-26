@@ -1,5 +1,6 @@
 import type { IModelPricingProvider } from '../ports/IModelPricingProvider';
 import type {
+  CostEstimate,
   IProxyLiveCostCalculator,
   TurnTokenBreakdown,
 } from '../ports/IProxyLiveCostCalculator';
@@ -21,35 +22,46 @@ export class ProxyLiveCostCalculator implements IProxyLiveCostCalculator {
       DEFAULT_FALLBACK_DOLLARS_PER_M
   ) {}
 
-  calculateDeltaCost(
+  estimateDeltaCost(
     deltaTokens: number,
     modelId: string | undefined
-  ): number {
+  ): CostEstimate {
     const normalizedDelta = normalizeTokenCount(deltaTokens);
-    if (normalizedDelta === 0) {
-      return 0;
-    }
-
     const pricing = modelId
       ? this.pricingProvider.getPricingForModel(modelId)
       : null;
 
     if (!pricing) {
-      return this.tokensToCents(
-        normalizedDelta,
-        normalizeRate(this.getFallbackDollarsPerM())
-      );
+      return {
+        costCents: this.tokensToCents(
+          normalizedDelta,
+          normalizeRate(this.getFallbackDollarsPerM())
+        ),
+        source: 'fallback',
+      };
     }
 
-    const blendedRatePer1M =
-      (pricing.inputPer1M + pricing.outputPer1M) / 2;
-    return this.tokensToCents(normalizedDelta, blendedRatePer1M);
+    return {
+      costCents: this.tokensToCents(
+        normalizedDelta,
+        (pricing.inputPer1M + pricing.outputPer1M) / 2
+      ),
+      source: 'model_pricing',
+      pricingSnapshotVersion: this.pricingProvider.getCatalogMetadata().version,
+    };
   }
 
-  calculateTurnCost(
-    breakdown: TurnTokenBreakdown,
+  calculateDeltaCost(
+    deltaTokens: number,
     modelId: string | undefined
   ): number {
+    return this.estimateDeltaCost(deltaTokens, modelId).costCents;
+  }
+
+  estimateTurnCost(
+    breakdown: TurnTokenBreakdown,
+    modelId: string | undefined
+  ): CostEstimate {
     const inputTokens = normalizeTokenCount(breakdown.inputTokens);
     const outputTokens = normalizeTokenCount(breakdown.outputTokens);
     const cacheReadTokens = normalizeTokenCount(breakdown.cacheReadTokens);
@@ -61,16 +73,17 @@ export class ProxyLiveCostCalculator implements IProxyLiveCostCalculator {
     const totalTokens =
       inputTokens + outputTokens + cacheReadTokens + cacheWriteTokens;
 
-    if (totalTokens <= 0) {
-      return 0;
-    }
-
     if (!pricing) {
-      return this.tokensToCents(totalTokens, this.getFallbackDollarsPerM());
+      return {
+        costCents: this.tokensToCents(
+          totalTokens,
+          this.getFallbackDollarsPerM()
+        ),
+        source: 'fallback',
+      };
     }
 
     let costCents = 0;
-
     costCents += this.tokensToCents(inputTokens, pricing.inputPer1M);
     costCents += this.tokensToCents(outputTokens, pricing.outputPer1M);
 
@@ -88,7 +101,18 @@ export class ProxyLiveCostCalculator implements IProxyLiveCostCalculator {
       );
     }
 
-    return roundCostCents(costCents);
+    return {
+      costCents: roundCostCents(costCents),
+      source: 'model_pricing',
+      pricingSnapshotVersion: this.pricingProvider.getCatalogMetadata().version,
+    };
+  }
+
+  calculateTurnCost(
+    breakdown: TurnTokenBreakdown,
+    modelId: string | undefined
+  ): number {
+    return this.estimateTurnCost(breakdown, modelId).costCents;
   }
 
   private tokensToCents(tokens: number, dollarsPerMillion: number): number {

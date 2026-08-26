@@ -9,6 +9,7 @@ import {
   mergeAgentSessionInfo,
   type AgentSessionInfo,
 } from './proxyInsightExtractor';
+import type { CostSource } from '../domain/types/costProvenance';
 
 const MAX_CONNECT_FRAME_BYTES = 5_000_000;
 
@@ -25,6 +26,8 @@ export interface LiveTokenUpdate {
   latestDelta: number;
   modelId?: string;
   deltaCostCents?: number;
+  costSource?: Exclude<CostSource, 'mixed' | 'unknown'>;
+  pricingSnapshotVersion?: string;
   agent: AgentSessionInfo;
 }
 
@@ -37,6 +40,8 @@ export interface TurnEndedEvent {
   totalCents?: number;
   modelId?: string;
   calculatedCostCents?: number;
+  calculatedCostSource?: Exclude<CostSource, 'mixed' | 'unknown'>;
+  pricingSnapshotVersion?: string;
   agent: AgentSessionInfo;
 }
 

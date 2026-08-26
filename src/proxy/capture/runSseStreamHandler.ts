@@ -1,5 +1,6 @@
 import type { ProxyTrafficSummary } from '../../domain/types/proxyTraffic';
 import type { IProxyLiveCostCalculator } from '../../domain/ports/IProxyLiveCostCalculator';
+import { normalizeCostCents } from '../../domain/services/tokenAccounting';
 import type { LiveTokenUpdate, TurnEndedEvent } from '../streamingAgentDecoder';
 import { formatEndpoint } from '../proxyTrafficFormat';
 
@@ -37,12 +38,24 @@ export class RunSseStreamHandler {
       update.agent.modelName ??
       this.options.resolveModelId?.(context.bidiRequestId);
 
-    const deltaCostCents =
-      update.deltaCostCents ??
-      this.options.costCalculator?.calculateDeltaCost(
-        update.latestDelta,
-        modelId
-      );
+    const calculatedDelta =
+      update.deltaCostCents == null
+        ? this.options.costCalculator?.estimateDeltaCost(
+            update.latestDelta,
+            modelId
+          )
+        : undefined;
+    const deltaCostCents = update.deltaCostCents ?? calculatedDelta?.costCents;
+    const candidateCostSource =
+      update.costSource ??
+      calculatedDelta?.source ??
+      (deltaCostCents != null ? 'provided' : undefined);
+    const costSource =
+      candidateCostSource === 'unknown' || candidateCostSource === 'mixed'
+        ? undefined
+        : candidateCostSource;
+    const pricingSnapshotVersion =
+      update.pricingSnapshotVersion ?? calculatedDelta?.pricingSnapshotVersion;
 
     const conversationId =
       update.agent.conversationId ??
@@ -72,6 +85,8 @@ export class RunSseStreamHandler {
         latestDelta: update.latestDelta,
         modelId,
         deltaCostCents,
+        costSource,
+        pricingSnapshotVersion,
       },
       insights: {
         agent: {
@@ -94,22 +109,48 @@ export class RunSseStreamHandler {
       event.agent.modelName ??
       this.options.resolveModelId?.(context.bidiRequestId);
 
-    const calculatedCostCents =
-      event.calculatedCostCents ??
-      this.options.costCalculator?.calculateTurnCost(
-        {
-          inputTokens: event.inputTokens,
-          outputTokens: event.outputTokens,
-          cacheReadTokens: event.cacheReadTokens,
-          cacheWriteTokens: event.cacheWriteTokens,
-        },
-        modelId
-      );
+    const calculatedTurn =
+      event.calculatedCostCents != null
+        ? {
+            costCents: event.calculatedCostCents,
+            source: event.calculatedCostSource ?? ('provided' as const),
+            pricingSnapshotVersion: event.pricingSnapshotVersion,
+          }
+        : this.options.costCalculator?.estimateTurnCost(
+            {
+              inputTokens: event.inputTokens,
+              outputTokens: event.outputTokens,
+              cacheReadTokens: event.cacheReadTokens,
+              cacheWriteTokens: event.cacheWriteTokens,
+            },
+            modelId
+          );
 
-    const serverTotalCents = event.totalCents ?? event.agent.totalCents;
+    const explicitServerTotalCents = normalizeCostCents(event.totalCents);
+    const carriedAgentCostCents = normalizeCostCents(event.agent.totalCents);
+    const carriedAgentCost =
+      carriedAgentCostCents != null
+        ? {
+            costCents: carriedAgentCostCents,
+            source: event.agent.costSource ?? ('server' as const),
+            pricingSnapshotVersion: event.agent.pricingSnapshotVersion,
+          }
+        : undefined;
+    const selectedTurn =
+      explicitServerTotalCents != null
+        ? { costCents: explicitServerTotalCents, source: 'server' as const }
+        : carriedAgentCost ?? calculatedTurn;
+    const normalizedCalculatedCostCents = normalizeCostCents(
+      selectedTurn?.costCents
+    );
+    const costSource =
+      normalizedCalculatedCostCents != null ? selectedTurn?.source : undefined;
+    const pricingSnapshotVersion =
+      costSource === 'model_pricing'
+        ? selectedTurn?.pricingSnapshotVersion
+        : undefined;
     const displayCents =
-      serverTotalCents ??
-      calculatedCostCents ??
+      normalizedCalculatedCostCents ??
       0;
 
     const conversationId =
@@ -133,7 +174,9 @@ export class RunSseStreamHandler {
           requestId: context.bidiRequestId,
           conversationId,
           requestedModelId: modelId,
-          totalCents: displayCents > 0 ? displayCents : undefined,
+          totalCents: costSource != null ? displayCents : undefined,
+          costSource,
+          pricingSnapshotVersion,
           inputTokens: event.inputTokens,
           outputTokens: event.outputTokens,
           cacheReadTokens: event.cacheReadTokens,
@@ -144,7 +187,8 @@ export class RunSseStreamHandler {
           promptTokens: event.inputTokens,
           completionTokens: event.outputTokens,
           cachedTokens: event.cacheReadTokens,
-          totalCents: serverTotalCents,
+          totalCents:
+            costSource === 'server' ? normalizedCalculatedCostCents : undefined,
         },
         streamingTurnsAlreadyPersisted: true,
         context: conversationId ? { conversationId } : undefined,

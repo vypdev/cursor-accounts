@@ -1,5 +1,6 @@
 import type { HttpProtocolVersion } from '../../domain/types/httpProtocol';
 import type { ProxyInsights } from './proxyInsights';
+import type { CostSource } from './costProvenance';
 
 /** Incremental live-token data carried by usage events. */
 export interface ProxyLiveTokenData {
@@ -9,6 +10,10 @@ export interface ProxyLiveTokenData {
   modelId?: string;
   /** Incremental cost of latestDelta in USD cents. */
   deltaCostCents?: number;
+  /** Provenance of an already calculated incremental cost. */
+  costSource?: Exclude<CostSource, 'mixed' | 'unknown'>;
+  /** Pricing snapshot used for a model-aware incremental estimate. */
+  pricingSnapshotVersion?: string;
 }
 
 /** Narrow traffic contract consumed by agent usage and persistence workflows. */

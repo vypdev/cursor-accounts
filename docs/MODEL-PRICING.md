@@ -777,8 +777,10 @@ function filterModels(
 - Versioned manual snapshots with an explicit source URL and retrieval date
 - Immediate review after model or pricing announcements, plus quarterly review
 - Version extension on major pricing changes
-- Persist the pricing snapshot version with calculated cost records (planned
-  follow-up migration)
+- Persist the pricing snapshot version and calculation source with calculated
+  cost records. Migration 010 adds this provenance to completed turns,
+  minute-bucket aggregates, and the delta idempotency ledger; heterogeneous
+  aggregates are marked `mixed` rather than assigned a false snapshot.
 
 ### Plan-Level Discounts Not Reflected
 

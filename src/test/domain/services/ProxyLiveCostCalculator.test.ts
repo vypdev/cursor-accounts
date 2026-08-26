@@ -42,6 +42,40 @@ describe('ProxyLiveCostCalculator', () => {
     assert.ok(Math.abs(cost - 0.4) < 0.01);
   });
 
+  it('exposes model-pricing provenance for model-aware estimates', () => {
+    const calculator = new ProxyLiveCostCalculator(
+      mockProvider({
+        modelId: 'composer-2.5',
+        displayName: 'Composer 2.5',
+        provider: 'Cursor',
+        inputPer1M: 0.5,
+        outputPer1M: 2.5,
+        hiddenByDefault: false,
+      })
+    );
+
+    assert.deepEqual(calculator.estimateDeltaCost(1000, 'composer-2.5'), {
+      costCents: 0.15,
+      source: 'model_pricing',
+      pricingSnapshotVersion: 'test-catalog',
+    });
+  });
+
+  it('labels unknown-model estimates as fallback', () => {
+    const calculator = new ProxyLiveCostCalculator(mockProvider(null), () => 4);
+
+    assert.deepEqual(
+      calculator.estimateTurnCost(
+        { inputTokens: 1000, outputTokens: 500 },
+        'unknown-model'
+      ),
+      {
+        costCents: 0.6,
+        source: 'fallback',
+      }
+    );
+  });
+
   it('calculateDeltaCost returns 0 for non-positive deltas', () => {
     const calculator = new ProxyLiveCostCalculator(mockProvider(null));
     assert.equal(calculator.calculateDeltaCost(0, 'composer-2.5'), 0);

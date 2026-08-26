@@ -25,7 +25,7 @@ acceptance criteria and evidence are recorded.
 | QA-1 | CI, tests, localization, lint | PARTIAL | Full audit passes with 871 host tests, 80.23% lines, 74.49% branches, and 77.64% functions; localization is 26 locales/428 keys and webview is 18/18 | Add repeated host-run evidence and review generated-artifact/source-lint policy |
 | QA-2 | Dependencies and supply chain | PARTIAL | SDK `1.0.28`, legacy npm `sqlite3` removed, targeted `uuid@11.1.1` and `undici@6.28.0` overrides resolve; pinned pnpm 10.34 production audit reports 0 advisories; isolated pnpm 11.19 signature audit verifies 163/163 packages; CycloneDX 1.5 SBOM contains 163 components; clean VSIX tree has no package-manager store; `audit:supply-chain` now automates the checks and CI/release/hotfix upload the report for 14 days | Review Cursor vendor terms and semaphore MIT attribution, decide release SBOM retention, and close the final attribution policy before marking complete |
 | QA-3 | Native runtime and packaging | PARTIAL | Current-target clean build passes with target-specific Electron ABI 128, official SHA-256 validation, sanitized runtime native tree, clean-room Node 24/pnpm 10 installation, and 49,430,263-byte (47.14 MiB) VSIX verification; darwin-arm64 and linux-arm64 cross-target builds pass with embedded native-header validation | Expand evidence across the complete darwin, Linux, and Windows target matrix on their intended runners |
-| QA-4 | Token and cost correctness | PARTIAL | Accounting contract, authoritative server-cost precedence, model-aware fallback calculation, non-finite input guards, SQLite replay golden test, versioned pricing metadata, current visible Cursor model rates, and exact fast-variant pricing are implemented | Persist calculation source and pricing snapshot version in cost records; complete decoder-shape, rounding, and unknown/cache-rate reconciliation coverage |
+| QA-4 | Token and cost correctness | PARTIAL | Accounting contract, authoritative server-cost precedence, model-aware fallback calculation, non-finite input guards, SQLite replay golden test, versioned pricing metadata, current visible Cursor model rates, exact fast-variant pricing, and migration 010 provenance persistence are implemented; focused provenance coverage passes | Complete decoder-shape, rounding, and unknown/cache-rate reconciliation coverage |
 | QA-5 | Clean Architecture enforcement | PARTIAL | TypeScript-AST resolver-backed checker passes for 297 production files; negative fixtures cover domain/application/package/cycle cases; the new restore contract remains behind the domain port and adapter boundary; current Graphify/Repowise hotspots remain | Refactor the highest-risk low-coverage infrastructure modules without weakening the contract, then add characterization and failure-path tests |
 | QA-6 | Security and privacy | PARTIAL | Threat model recorded; API error details are generic; loopback/token parity, redaction, sidecar safety, text-safe webview rendering, certificate platform validation, injected certificate-process failure tests, bounded certificate-process timeout/kill escalation, fail-closed migration execution, SQLite snapshot backup/restore validation, sidecar preservation, partial-cleanup accounting, and Repowise history scan are evidenced | Complete disk-full/crash-restart testing, native privileged command execution review on supported OS runners, protocol-specific redaction, and the legacy optional-token decision |
 | QA-7 | Reliability and lifecycle | PARTIAL | Tracking ingress shutdown is idempotent; proxy startup failures now attempt MITM/ingress/API cleanup; direct `SIGTERM`/`SIGINT` uses graceful shutdown; the real runtime integration suite passes 3/3; SQLite persistence has 2-process concurrency/reopen, migration rollback/retry, consistent backup, validated restore, corrupted-database sidecar preservation, partial cleanup reporting, long-lived-reader checkpoint evidence, and real child hang escalation coverage | Add disk-full/crash-restart reconciliation and release-level recovery rehearsal |
@@ -311,9 +311,13 @@ base model's `$0.50/$2.50` rates. The focused pricing and integration suites
 pass 27/27, and the complete Node 24.19.0/pnpm 10.34.0 audit passes with 871
 host tests and 18 webview tests.
 
-The SQLite records do not yet store calculation source or pricing snapshot
-version. That remains an explicit follow-up migration gate before calculated
-historical costs can be treated as reproducible billing evidence.
+Commit `LOCAL-PENDING` adds migration 010 and persists calculation source and
+pricing snapshot version on completed turns, minute aggregates, and the delta
+idempotency ledger. Legacy rows default to `unknown`; aggregate provenance is
+conservative and becomes `mixed` when accepted events disagree. Focused
+provenance, migration, handler, writer, and integration tests pass 54/54.
+The checkpoint commit and full-audit evidence must be recorded immediately
+after this local slice is committed.
 
 ## QA-5 architecture checkpoint — 2026-08-25
 

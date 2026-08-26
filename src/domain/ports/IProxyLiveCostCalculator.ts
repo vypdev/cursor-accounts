@@ -1,3 +1,5 @@
+import type { CostProvenance } from '../types/costProvenance';
+
 export interface TurnTokenBreakdown {
   inputTokens: number;
   outputTokens: number;
@@ -5,10 +7,23 @@ export interface TurnTokenBreakdown {
   cacheWriteTokens?: number;
 }
 
+/** A cost estimate together with the evidence used to produce it. */
+export interface CostEstimate extends CostProvenance {
+  costCents: number;
+}
+
 /**
  * Calculates live proxy token costs using per-model pricing rates.
  */
 export interface IProxyLiveCostCalculator {
+  /**
+   * Estimate a streaming delta and expose its pricing provenance.
+   */
+  estimateDeltaCost(
+    deltaTokens: number,
+    modelId: string | undefined
+  ): CostEstimate;
+
   /**
    * Cost of a streaming token_delta (blended input/output rate).
    * @returns Cost in USD cents.
@@ -26,4 +41,12 @@ export interface IProxyLiveCostCalculator {
     breakdown: TurnTokenBreakdown,
     modelId: string | undefined
   ): number;
+
+  /**
+   * Estimate a completed turn and expose its pricing provenance.
+   */
+  estimateTurnCost(
+    breakdown: TurnTokenBreakdown,
+    modelId: string | undefined
+  ): CostEstimate;
 }
