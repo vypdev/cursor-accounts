@@ -293,6 +293,28 @@ QA-4 remains PARTIAL until decoder-shape coverage, pricing snapshot/version
 semantics, rounding policy, and unknown-model/cache-rate reconciliation are
 specified and tested.
 
+## QA-4 pricing snapshot checkpoint — 2026-08-26
+
+Commit `eda7527` adds an explicit `ModelPricingCatalogMetadata` contract and
+implements it in `CursorModelPricingProvider`. The current adapter records
+catalog version `cursor-docs-2026-08-26`, the official source URL, the retrieval
+date, and the bounded coverage declaration. The provider no longer assigns a
+fabricated fixed rate to normal `auto` or `default` routing; the documented
+legacy Enterprise Auto rate is isolated under explicit legacy IDs and hidden
+by default.
+
+The visible official model table is represented with exact entries for Grok
+4.5/4.6, Composer 2.5 and Fast, Claude Fable/Opus/Sonnet 5, Gemini 3.1 Pro and
+3.7 Flash, and GPT-5.6 Luna/Sol/Terra. Composer 2.5 Fast is independently
+tested at `$3/$15` with `$0.50` cache-read pricing, rather than inheriting the
+base model's `$0.50/$2.50` rates. The focused pricing and integration suites
+pass 27/27, and the complete Node 24.19.0/pnpm 10.34.0 audit passes with 871
+host tests and 18 webview tests.
+
+The SQLite records do not yet store calculation source or pricing snapshot
+version. That remains an explicit follow-up migration gate before calculated
+historical costs can be treated as reproducible billing evidence.
+
 ## QA-5 architecture checkpoint — 2026-08-25
 
 Commit `7618984` replaced the regex-only import inspection with a
@@ -875,6 +897,7 @@ The following historical findings are reclassified from the current baseline:
 | 2026-08-25 | QA-3 toolchain contract and target-matrix documentation slice | a992832 | Runtime contract validation added to audit/build/CI/release/hotfix; Node 24.19.0/pnpm 10.34.0 full audit and current-target build passed; six-target packaging remains a remote runner gate |
 | 2026-08-26 | QA-3 target-native packaging hardening slice | 0a02efb | Target-specific Electron prebuild selection and Mach-O/ELF/PE VSIX validation added; release-style argument parsing fixed; darwin-arm64 and linux-arm64 builds passed locally; complete runner matrix and remote workflow evidence pending |
 | 2026-08-25 | QA-2 supply-chain evidence automation slice | 449d85b | Added strict supply-chain argument parsing, project package-manager reporting, automated advisory/license/signature/SBOM collection, and workflow artifact upload; remote workflow evidence pending |
+| 2026-08-26 | QA-4 pricing catalog snapshot slice | eda7527 | Added versioned catalog provenance, removed the fixed normal Auto rate, added current visible Cursor model prices and exact fast variants, added regression coverage, and passed the full Node 24.19.0/pnpm 10.34.0 audit; SQLite provenance migration remains open |
 
 This register must be updated in the same commit as each task's implementation
 or evidence change.
