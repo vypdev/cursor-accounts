@@ -43,6 +43,11 @@ const checks = [
     args: ['run', 'test:vsix-verifier'],
   },
   {
+    label: 'proxy traffic analysis contract tests',
+    command: 'pnpm',
+    args: ['run', 'test:proxy-traffic-analysis'],
+  },
+  {
     label: 'protobuf JSONL verifier tests',
     command: 'pnpm',
     args: ['run', 'test:verify-proto-jsonl'],

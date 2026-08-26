@@ -8,25 +8,17 @@
  */
 
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import protobuf from 'protobufjs';
-import { bodyBufferFromEntry } from './lib/proxy-log-body.mjs';
 import {
-  extractAgentInsight,
-  extractBillingInsight,
-  extractContextInsight,
-  extractTokenInsight,
-} from './lib/proxy-insights.mjs';
-import {
-  decodeBidiAgentInner,
-  extractAgentInnerInsight,
-} from './lib/bidi-agent-decode.mjs';
+  analyzeProxyFiles,
+  resolveProxyLogFiles,
+} from './lib/proxy-traffic-analysis.mjs';
 import {
   buildRpcTypeMap,
   isInteractiveRpcPath,
-  parseConnectRpcPath,
-  resolveRpcMessageType,
 } from './lib/proxy-rpc.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -37,41 +29,11 @@ const PROTO_FILES = [
 ];
 
 const DEFAULT_LOG_DIR = path.join(
-  process.env.HOME ?? '',
+  os.homedir(),
   '.cursor-accounts',
   'proxy',
   'logs'
 );
-
-function connectPayloadCandidates(body) {
-  const candidates = [body];
-  if (body.length >= 5 && body[0] === 0) {
-    const len = body.readUInt32BE(1);
-    if (body.length >= 5 + len) {
-      candidates.push(body.subarray(5, 5 + len));
-    }
-  }
-  return [...new Set(candidates.map((b) => b.toString('hex')))].map((hex) =>
-    Buffer.from(hex, 'hex')
-  );
-}
-
-function tryDecode(Type, raw) {
-  for (const payload of connectPayloadCandidates(raw)) {
-    try {
-      const msg = Type.decode(payload);
-      return Type.toObject(msg, {
-        longs: String,
-        enums: String,
-        bytes: String,
-        defaults: false,
-      });
-    } catch {
-      // continue
-    }
-  }
-  return null;
-}
 
 async function main() {
   const target = path.resolve(process.argv[2] ?? DEFAULT_LOG_DIR);
@@ -82,116 +44,25 @@ async function main() {
 
   const root = await protobuf.load(PROTO_FILES);
   const rpcMap = buildRpcTypeMap(root, protobuf.Service);
-  const files = fs.statSync(target).isFile()
-    ? [target]
-    : fs.readdirSync(target).filter((f) => f.endsWith('.jsonl'));
-  const logDir = fs.statSync(target).isFile() ? path.dirname(target) : target;
+  const { files, logDir } = resolveProxyLogFiles(target);
+  const report = await analyzeProxyFiles(files, logDir, rpcMap);
 
-  let total = 0;
-  let decoded = 0;
-  let insights = 0;
-  let agentTokenEvents = 0;
-  let interactiveDecoded = 0;
-  /** @type {Map<string, number>} */
-  const byMethod = new Map();
-
-  for (const file of files) {
-    const filePath = fs.statSync(target).isFile() ? target : path.join(logDir, file);
-    for (const line of fs.readFileSync(filePath, 'utf8').split('\n')) {
-      if (!line.trim()) continue;
-      let entry;
-      try {
-        entry = JSON.parse(line);
-      } catch {
-        continue;
-      }
-      if (entry.direction !== 'request' && entry.direction !== 'response') {
-        continue;
-      }
-
-      const rpcPath = parseConnectRpcPath(entry.url ?? '');
-      if (!rpcPath) continue;
-
-      total++;
-      const Type = resolveRpcMessageType(
-        rpcPath,
-        entry.direction,
-        rpcMap
-      );
-      if (!Type) continue;
-
-      const ct = (entry.headers?.['content-type'] ?? '').toLowerCase();
-      let obj = null;
-
-      if (ct.includes('json') && entry.body) {
-        try {
-          obj = JSON.parse(entry.body);
-        } catch {
-          // skip
-        }
-      } else {
-        const raw = bodyBufferFromEntry(entry, logDir);
-        if (raw) {
-          obj = tryDecode(Type, raw);
-        }
-      }
-
-      if (!obj) continue;
-      decoded++;
-
-      const methodKey = rpcPath.replace(/^\//, '');
-      const key = `${methodKey}:${entry.direction}`;
-      byMethod.set(key, (byMethod.get(key) ?? 0) + 1);
-
-      if (isInteractiveRpcPath(rpcPath)) {
-        interactiveDecoded++;
-      }
-
-      const billing = extractBillingInsight(obj);
-      let tokens = extractTokenInsight(obj);
-      const context = extractContextInsight(obj);
-      let agent = extractAgentInsight(obj);
-
-      const inner = await decodeBidiAgentInner(obj, rpcPath, entry.direction);
-      const innerAgent = inner ? extractAgentInnerInsight(inner) : null;
-      if (innerAgent) {
-        agent = agent ? { ...agent, ...innerAgent } : innerAgent;
-        if (innerAgent.streamingTokens != null || innerAgent.inputTokens != null) {
-          agentTokenEvents++;
-        }
-        if (innerAgent.inputTokens != null || innerAgent.outputTokens != null) {
-          tokens = {
-            inputTokens: innerAgent.inputTokens,
-            outputTokens: innerAgent.outputTokens,
-            cacheReadTokens: innerAgent.cacheReadTokens,
-            cacheWriteTokens: innerAgent.cacheWriteTokens,
-          };
-        } else if (innerAgent.streamingTokens != null) {
-          tokens = { totalTokens: innerAgent.streamingTokens };
-        }
-      }
-
-      if (billing || tokens || context || agent) {
-        insights++;
-        if (insights <= 20) {
-          console.log(`\n## ${key} (${path.basename(file)})`);
-          if (billing) console.log('  billing:', JSON.stringify(billing).slice(0, 280));
-          if (tokens) console.log('  tokens:', JSON.stringify(tokens).slice(0, 200));
-          if (context) console.log('  context:', JSON.stringify(context));
-          if (agent) console.log('  agent:', JSON.stringify(agent));
-        }
-      }
-    }
+  for (const sample of report.insightSamples) {
+    console.log(`\n## ${sample.key} (${sample.file})`);
+    if (sample.billing) console.log('  billing:', JSON.stringify(sample.billing).slice(0, 280));
+    if (sample.tokens) console.log('  tokens:', JSON.stringify(sample.tokens).slice(0, 200));
+    if (sample.context) console.log('  context:', JSON.stringify(sample.context));
+    if (sample.agent) console.log('  agent:', JSON.stringify(sample.agent));
   }
 
   console.log(`\nFiles: ${files.length}`);
-  console.log(`Entries (Connect RPC req/resp): ${total}`);
-  console.log(`Decoded: ${decoded}`);
-  console.log(`Interactive RPC decoded: ${interactiveDecoded}`);
-  console.log(`With insights: ${insights}`);
-  console.log(`Agent token events (token_delta / turn_ended): ${agentTokenEvents}`);
+  console.log(`Entries (Connect RPC req/resp): ${report.total}`);
+  console.log(`Decoded: ${report.decoded}`);
+  console.log(`Interactive RPC decoded: ${report.interactiveDecoded}`);
+  console.log(`With insights: ${report.insights}`);
+  console.log(`Agent token events (token_delta / turn_ended): ${report.agentTokenEvents}`);
   console.log('\nTop decoded RPCs:');
-  for (const [k, n] of [...byMethod.entries()].sort((a, b) => b[1] - a[1]).slice(0, 25)) {
+  for (const [k, n] of [...report.byMethod.entries()].sort((a, b) => b[1] - a[1]).slice(0, 25)) {
     const tag = isInteractiveRpcPath(`/${k.split(':')[0]}`) ? ' *' : '';
     console.log(`  ${k}: ${n}${tag}`);
   }
