@@ -83,9 +83,12 @@ Decision: JSONL rotation and body pruning enforce a configured total-size cap;
 explicit cleanup removes recognized logs and sidecars. Existing tests cover
 rotation and selective cleanup.
 
-Residual risk: disk-full behavior and crash recovery require dedicated
-failure-injection tests in QA-6/QA-7 before this threat is closed. Partial
-cleanup now reports bytes reclaimed before a later failure. Deep-clean now uses
+Residual risk: physical disk-full behavior and crash recovery require dedicated
+failure-injection tests in QA-6/QA-7 before this threat is closed. The
+filesystem boundary now classifies Node-style `ENOSPC` errors and emits an
+actionable no-space message. Partial cleanup now reports bytes reclaimed before
+a later failure, including a deterministic `ENOSPC` regression case. Deep-clean
+now uses
 SQLite `VACUUM INTO` for a consistent snapshot, validates backups before
 restoration, and efficiency-database recreation preserves the main file
 together with its `-wal`/`-shm` sidecars. A long-lived reader is covered by a
@@ -109,6 +112,7 @@ Unknown webview messages are validated at the message boundary.
 | Sidecar traversal/symlink safety | `src/test/bodyCapture.test.ts`, `src/test/proxyLogCleanup.test.ts` |
 | History secret scan | `repowise security scan --history --format json` — zero findings on 213 commits, 4,536 blobs, and 2,576 files on 2026-08-25 |
 | SQLite snapshot and sidecar recovery | `src/test/storageCleanupService.full.test.ts`, `src/test/persistence/efficiencyDatabase.test.ts` |
+| Deterministic storage-full classification and partial cleanup reporting | `src/test/fileSystemErrors.test.ts`, `src/test/storageCleanupService.full.test.ts` |
 | Full regression gates | `CI=true npx --yes pnpm@10.34.0 run audit` |
 
 ## Open actions
