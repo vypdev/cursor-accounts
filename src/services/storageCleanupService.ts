@@ -7,14 +7,14 @@ import type { IDatabaseCleanupService } from '../domain/ports/IDatabaseCleanupSe
 import type { IProfileStorageAnalyzer } from '../domain/ports/IProfileStorageAnalyzer';
 import type { IProfileReader } from '../domain/ports/IProfileReader';
 import type { IProfileDetector } from '../domain/ports/IProfileDetector';
+import type { IEfficiencyEventsCleanupService } from '../domain/ports/IEfficiencyEventsCleanupService';
 import type { IStorageCleanupService } from '../domain/ports/IStorageCleanupService';
+import type { IInstanceDetector } from '../domain/ports/IInstanceDetector';
 import { getProfileStateDbPath } from '../auth/cursorPaths';
 import * as extensionLog from '../logging/extensionLog';
 import { t } from '../l10n';
-import type { InstanceDetector } from '../profiles/instanceDetector';
 import { validateUserDataPath } from '../utils/pathUtils';
 import { formatBytes } from '@cursor-accounts/shared';
-import { EfficiencyDatabase, getEfficiencyDbPath } from '../persistence/efficiencyDatabase';
 import { PartialCleanupError } from '../domain/types/storageCleanup';
 
 const ACTIONS_WITHOUT_FS_DELTA = new Set<StorageCleanupOptions['action']>([
@@ -29,11 +29,11 @@ const EFFICIENCY_EVENTS_RETENTION_DAYS = 90;
 export interface StorageCleanupServiceDeps {
   profileManager: IProfileReader;
   profileDetector: IProfileDetector;
-  instanceDetector: InstanceDetector;
+  instanceDetector: IInstanceDetector;
   storageAnalyzer: IProfileStorageAnalyzer;
   cacheCleanup: ICacheCleanupService;
   databaseCleanup: IDatabaseCleanupService;
-  extensionPath: string;
+  efficiencyEventsCleanup: IEfficiencyEventsCleanupService;
 }
 
 /**
@@ -314,30 +314,21 @@ export class StorageCleanupService implements IStorageCleanupService {
   ): Promise<StorageCleanupResult> {
     await this.ensureProfileClosed(profileId);
 
-    const dbPath = getEfficiencyDbPath(userDataDir);
-    const beforeBytes = await this.deps.storageAnalyzer
-      .calculateProfileStorageSize(profileId, userDataDir)
-      .then((b) => b.efficiencyDbBytes);
-
     const cutoffSeconds =
       Math.floor(Date.now() / 1000) -
       EFFICIENCY_EVENTS_RETENTION_DAYS * 24 * 60 * 60;
-
-    const db = new EfficiencyDatabase(dbPath, this.deps.extensionPath);
-    await db.initialize();
-    const removed = await db.deleteOldEvents(profileId, cutoffSeconds);
-    await db.vacuum();
-
-    const afterBytes = await this.deps.storageAnalyzer
-      .calculateProfileStorageSize(profileId, userDataDir)
-      .then((b) => b.efficiencyDbBytes);
-    const bytesReclaimed = Math.max(0, beforeBytes - afterBytes);
+    const { removedEvents, bytesReclaimed } =
+      await this.deps.efficiencyEventsCleanup.cleanOldEvents(
+        profileId,
+        userDataDir,
+        cutoffSeconds
+      );
 
     return {
       success: true,
       bytesReclaimed,
       message: t('storageCleanup.efficiencyEventsCleaned', {
-        count: removed,
+        count: removedEvents,
         days: EFFICIENCY_EVENTS_RETENTION_DAYS,
         amount: formatBytes(bytesReclaimed),
       }),

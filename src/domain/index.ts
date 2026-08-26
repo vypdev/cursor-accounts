@@ -50,6 +50,7 @@ export * from './ports/IProfileAuthReader';
 export * from './ports/IUserService';
 export * from './ports/IActivityLeaderboardService';
 export * from './ports/IStorageCleanupService';
+export * from './ports/IEfficiencyEventsCleanupService';
 export * from './ports/IFileSystemService';
 export * from './ports/IDatabaseCleanupService';
 export * from './ports/ICacheCleanupService';

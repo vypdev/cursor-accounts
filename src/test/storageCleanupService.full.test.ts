@@ -8,9 +8,10 @@ import * as path from 'path';
 import type * as vscode from 'vscode';
 import type { ICacheCleanupService } from '../domain/ports/ICacheCleanupService';
 import type { IDatabaseCleanupService } from '../domain/ports/IDatabaseCleanupService';
+import type { IEfficiencyEventsCleanupService } from '../domain/ports/IEfficiencyEventsCleanupService';
+import type { IInstanceDetector } from '../domain/ports/IInstanceDetector';
 import type { IProfileStorageAnalyzer } from '../domain/ports/IProfileStorageAnalyzer';
 import { initL10nForTests } from '../l10n';
-import type { InstanceDetector } from '../profiles/instanceDetector';
 import type { ProfileDetector } from '../profiles/profileDetector';
 import type { ProfileManager } from '../profiles/profileManager';
 import { StorageCleanupService } from '../services/storageCleanupService';
@@ -34,6 +35,8 @@ const MESSAGES: Record<string, string> = {
   'storageCleanup.editorCacheCleared': 'Editor cache cleared ({amount})',
   'storageCleanup.vacuumCompleted': 'Vacuum completed',
   'storageCleanup.deepCleanCompleted': 'Deep clean completed ({amount})',
+  'storageCleanup.efficiencyEventsCleaned':
+    'Cleaned {count} events older than {days} days ({amount})',
   'storageCleanup.freedSpace': 'Freed {amount}',
   'storageCleanup.invalidPath': 'Invalid path',
   'storageCleanup.unknownAction': 'Unknown action',
@@ -56,10 +59,11 @@ function createMockProfile(userDataDir: string) {
 function createService(overrides: {
   profileManager?: Partial<ProfileManager>;
   profileDetector?: Partial<ProfileDetector>;
-  instanceDetector?: Partial<InstanceDetector>;
+  instanceDetector?: Partial<IInstanceDetector>;
   storageAnalyzer?: Partial<IProfileStorageAnalyzer>;
   cacheCleanup?: Partial<ICacheCleanupService>;
   databaseCleanup?: Partial<IDatabaseCleanupService>;
+  efficiencyEventsCleanup?: Partial<IEfficiencyEventsCleanupService>;
 } = {}): StorageCleanupService {
   const userDataDir = path.join(os.homedir(), '.cursor-test-profile-full');
 
@@ -75,7 +79,7 @@ function createService(overrides: {
     instanceDetector: {
       isProfileRunning: async () => false,
       ...overrides.instanceDetector,
-    } as unknown as InstanceDetector,
+    } as IInstanceDetector,
     storageAnalyzer: {
       getProfileTotalBytes: async () => 1000,
       calculateProfileStorageSize: async () => ({
@@ -106,7 +110,10 @@ function createService(overrides: {
       restoreDeepCleanBackup: async () => undefined,
       ...overrides.databaseCleanup,
     },
-    extensionPath: path.join(__dirname, '..', '..'),
+    efficiencyEventsCleanup: {
+      cleanOldEvents: async () => ({ removedEvents: 0, bytesReclaimed: 0 }),
+      ...overrides.efficiencyEventsCleanup,
+    },
   });
 }
 
@@ -283,6 +290,38 @@ describe('StorageCleanupService full coverage', () => {
     assert.equal(deepClean.mock.callCount(), 1);
     assert.match(result.message, /Deep clean completed/);
     assert.equal(result.bytesReclaimed, 4096);
+  });
+
+  it('cleans expired efficiency events through the injected port', async () => {
+    let received: {
+      profileId: string;
+      userDataDir: string;
+      beforeTimestamp: number;
+    } | undefined;
+    const cleanOldEvents = mock.fn(
+      async (profileId: string, userDataDir: string, beforeTimestamp: number) => {
+        received = { profileId, userDataDir, beforeTimestamp };
+        return { removedEvents: 4, bytesReclaimed: 128 };
+      }
+    );
+    const service = createService({
+      efficiencyEventsCleanup: { cleanOldEvents },
+    });
+
+    const result = await service.cleanProfileStorage('p1', {
+      action: 'cleanEfficiencyEvents',
+    });
+
+    assert.equal(result.success, true);
+    assert.equal(result.bytesReclaimed, 128);
+    assert.match(result.message, /4 events older than 90 days/);
+    assert.equal(cleanOldEvents.mock.callCount(), 1);
+    assert.ok(received);
+    assert.equal(received.profileId, 'p1');
+    assert.match(received.userDataDir, /cursor-test-profile-full/);
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    assert.ok(received.beforeTimestamp <= nowSeconds - 90 * 24 * 60 * 60);
+    assert.ok(received.beforeTimestamp >= nowSeconds - 90 * 24 * 60 * 60 - 1);
   });
 
   it('skips filesystem measurement for cleanExtensionCache', async () => {

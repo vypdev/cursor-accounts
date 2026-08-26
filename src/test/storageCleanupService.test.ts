@@ -4,11 +4,12 @@ import { beforeEach, describe, it, mock } from 'node:test';
 import * as os from 'os';
 import * as path from 'path';
 import { initL10nForTests } from '../l10n';
-import type { InstanceDetector } from '../profiles/instanceDetector';
 import type { ProfileDetector } from '../profiles/profileDetector';
 import type { ProfileManager } from '../profiles/profileManager';
 import type { ICacheCleanupService } from '../domain/ports/ICacheCleanupService';
 import type { IDatabaseCleanupService } from '../domain/ports/IDatabaseCleanupService';
+import type { IEfficiencyEventsCleanupService } from '../domain/ports/IEfficiencyEventsCleanupService';
+import type { IInstanceDetector } from '../domain/ports/IInstanceDetector';
 import type { IProfileStorageAnalyzer } from '../domain/ports/IProfileStorageAnalyzer';
 import { StorageCleanupService } from '../services/storageCleanupService';
 
@@ -24,10 +25,11 @@ const MESSAGES: Record<string, string> = {
 function createService(overrides: {
   profileManager?: Partial<ProfileManager>;
   profileDetector?: Partial<ProfileDetector>;
-  instanceDetector?: Partial<InstanceDetector>;
+  instanceDetector?: Partial<IInstanceDetector>;
   storageAnalyzer?: Partial<IProfileStorageAnalyzer>;
   cacheCleanup?: Partial<ICacheCleanupService>;
   databaseCleanup?: Partial<IDatabaseCleanupService>;
+  efficiencyEventsCleanup?: Partial<IEfficiencyEventsCleanupService>;
 } = {}): StorageCleanupService {
   const userDataDir = path.join(os.homedir(), '.cursor-test-profile');
 
@@ -52,7 +54,7 @@ function createService(overrides: {
     instanceDetector: {
       isProfileRunning: async () => false,
       ...overrides.instanceDetector,
-    } as unknown as InstanceDetector,
+    } as IInstanceDetector,
     storageAnalyzer: {
       getProfileTotalBytes: async () => 0,
       calculateProfileStorageSize: async () => ({
@@ -80,7 +82,10 @@ function createService(overrides: {
       restoreDeepCleanBackup: async () => undefined,
       ...overrides.databaseCleanup,
     },
-    extensionPath: path.join(__dirname, '..', '..'),
+    efficiencyEventsCleanup: {
+      cleanOldEvents: async () => ({ removedEvents: 0, bytesReclaimed: 0 }),
+      ...overrides.efficiencyEventsCleanup,
+    },
   });
 }
 

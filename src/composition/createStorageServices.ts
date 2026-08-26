@@ -1,10 +1,11 @@
 import type * as vscode from 'vscode';
+import type { IInstanceDetector } from '../domain/ports/IInstanceDetector';
 import type { IProfileDetector } from '../domain/ports/IProfileDetector';
 import type { IProfileStorageAnalyzer } from '../domain/ports/IProfileStorageAnalyzer';
 import type { IProfileReader } from '../domain/ports/IProfileReader';
 import type { IStorageCleanupService } from '../domain/ports/IStorageCleanupService';
 import type { EfficiencyService } from '../modelEfficiency/efficiencyService';
-import type { InstanceDetector } from '../profiles/instanceDetector';
+import { EfficiencyEventsCleanupService } from '../persistence/efficiencyEventsCleanupService';
 import { StorageCleanupService } from '../services/storageCleanupService';
 import { NodeFileSystemService } from '../storage/nodeFileSystemService';
 import { ProfileStorageAnalyzer } from '../storage/profileStorageAnalyzer';
@@ -25,7 +26,7 @@ export function createAccountsPanelStorageBundle(params: {
   context: vscode.ExtensionContext;
   profileReader: IProfileReader;
   profileDetector: IProfileDetector;
-  instanceDetector: InstanceDetector;
+  instanceDetector: IInstanceDetector;
   efficiencyService: EfficiencyService;
 }): AccountsPanelStorageBundle {
   const fileSystem = new NodeFileSystemService();
@@ -48,7 +49,9 @@ export function createAccountsPanelStorageBundle(params: {
       extensionPath: params.context.extensionPath,
       fileSystem,
     }),
-    extensionPath: params.context.extensionPath,
+    efficiencyEventsCleanup: new EfficiencyEventsCleanupService({
+      extensionPath: params.context.extensionPath,
+    }),
   });
 
   return { storageCleanupService, storageAnalyzer };
