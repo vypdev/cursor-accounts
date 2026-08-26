@@ -115,13 +115,14 @@ uncached during extraction, and the post-build graph contains 11,044 edges.
 The highest relevant
 hotspots include:
 
-- `t()`: degree 102;
+- `t()`: degree 106;
 - ProxyManager: degree 71;
+- ProxyTrafficSummary: degree 68;
 - scripts: degree 63;
-- ProxyTrafficSummary: degree 61;
-- IAgentTrackingRepository: degree 38;
 - IProfileReader: degree 45;
-- IProfileDetector: degree 44;
+- IProfileDetector: degree 45;
+- Quality Hardening Task Register: degree 39;
+- IAgentTrackingRepository: degree 38;
 - `activate()`: degree 42.
 
 Graphify skipped ten SQL contributions because `tree_sitter_sql` is not
