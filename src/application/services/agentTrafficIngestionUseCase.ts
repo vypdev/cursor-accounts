@@ -61,15 +61,7 @@ export class AgentTrafficIngestionUseCase {
   ) {}
 
   async initialize(): Promise<void> {
-    try {
-      await this.dependencies.repository.initialize();
-      this.dependencies.logInfo(`${TRACKING_LOG} Initialized successfully`);
-    } catch (error) {
-      this.dependencies.logError(
-        `${TRACKING_LOG} Initialization failed: ${formatError(error)}`
-      );
-      throw error;
-    }
+    return initializeAgentTracking(this.dependencies);
   }
 
   async execute(
@@ -78,118 +70,138 @@ export class AgentTrafficIngestionUseCase {
     const ingestKind = classifyAgentIngestion(summary);
 
     try {
-      const context = await this.prepareIngestion(summary, ingestKind);
+      const context = await prepareIngestion(
+        this.dependencies,
+        summary,
+        ingestKind
+      );
       if (!context) return;
 
-      await this.upsertTrackingMetadata(context);
+      await upsertTrackingMetadata(this.dependencies, context);
       const persisted = await this.dependencies.persistence.persist(context);
-      return this.completeIngestion(context, persisted);
+      return completeIngestion(this.dependencies, context, persisted);
     } catch (error) {
       this.dependencies.logError(
         `${TRACKING_LOG} Ingestion error: ${formatError(error)}`
       );
     }
   }
+}
 
-  private async prepareIngestion(
-    summary: ProxyTrafficUsageEvent,
-    ingestKind: AgentIngestionKind
-  ): Promise<PreparedAgentIngestion | undefined> {
-    const insights = summary.insights;
-    if (!insights) {
-      this.dependencies.logInfo(
-        `${TRACKING_LOG} skip (${ingestKind}): no insights`
-      );
-      return;
-    }
-
-    const agent = insights.agent;
-    if (!hasRequestId(agent)) {
-      this.dependencies.logInfo(
-        `${TRACKING_LOG} skip (${ingestKind}): missing agent.requestId ` +
-          `http=${shortId(summary.httpRequestId)} usage=${agent?.usageEvent ?? '(none)'}`
-      );
-      return;
-    }
-
-    const conversationId = await this.resolveConversationId(agent);
-    if (!conversationId) {
-      this.dependencies.logInfo(
-        `${TRACKING_LOG} skip (${ingestKind}): missing conversationId ` +
-          `bidi=${shortId(agent.requestId)} usage=${agent.usageEvent ?? '(none)'}`
-      );
-      return;
-    }
-
-    return {
-      summary,
-      insights,
-      agent,
-      timestamp: normalizeAgentTimestamp(summary.timestamp, this.dependencies.now()),
-      conversationId,
-      profileId: summary.profileId ?? this.dependencies.profileId,
-      modelName: selectAgentModelName(insights, agent),
-    };
-  }
-
-  private async upsertTrackingMetadata(
-    context: PreparedAgentIngestion
-  ): Promise<void> {
-    await this.dependencies.repository.upsertConversation(
-      context.conversationId,
-      context.profileId,
-      context.timestamp,
-      context.insights.context?.messageCount
+async function initializeAgentTracking(
+  dependencies: AgentTrafficIngestionUseCaseDependencies
+): Promise<void> {
+  try {
+    await dependencies.repository.initialize();
+    dependencies.logInfo(`${TRACKING_LOG} Initialized successfully`);
+  } catch (error) {
+    dependencies.logError(
+      `${TRACKING_LOG} Initialization failed: ${formatError(error)}`
     );
-    await this.dependencies.repository.upsertAgent({
-      requestId: context.agent.requestId,
-      conversationId: context.conversationId,
-      conversationGroupId: context.agent.conversationGroupId,
-      parentRequestId: context.agent.parentRequestId,
-      subagentRequestId: context.agent.subagentRequestId,
-      modelName: context.modelName,
-      startedAt: context.timestamp,
-      endedAt: context.agent.eof ? context.timestamp : undefined,
-      isEof: context.agent.eof ?? false,
-      profileId: context.profileId,
-    });
+    throw error;
+  }
+}
+
+async function prepareIngestion(
+  dependencies: AgentTrafficIngestionUseCaseDependencies,
+  summary: ProxyTrafficUsageEvent,
+  ingestKind: AgentIngestionKind
+): Promise<PreparedAgentIngestion | undefined> {
+  const insights = summary.insights;
+  if (!insights) {
+    dependencies.logInfo(`${TRACKING_LOG} skip (${ingestKind}): no insights`);
+    return;
   }
 
-  private completeIngestion(
-    context: PreparedAgentIngestion,
-    persisted: AgentPersistenceResult
-  ): IngestTrafficResult | undefined {
-    if (!persisted.persisted) {
-      this.dependencies.logInfo(
-        `${TRACKING_LOG} no persistence path (${persisted.kind}) ` +
-          `bidi=${shortId(context.agent.requestId)} conv=${shortId(context.conversationId)}`
-      );
-      return;
-    }
+  const agent = insights.agent;
+  if (!hasRequestId(agent)) {
+    dependencies.logInfo(
+      `${TRACKING_LOG} skip (${ingestKind}): missing agent.requestId ` +
+        `http=${shortId(summary.httpRequestId)} usage=${agent?.usageEvent ?? '(none)'}`
+    );
+    return;
+  }
 
-    this.dependencies.logInfo(
-      `${TRACKING_LOG} persisted ${persisted.kind} ` +
+  const conversationId = await resolveConversationId(dependencies, agent);
+  if (!conversationId) {
+    dependencies.logInfo(
+      `${TRACKING_LOG} skip (${ingestKind}): missing conversationId ` +
+        `bidi=${shortId(agent.requestId)} usage=${agent.usageEvent ?? '(none)'}`
+    );
+    return;
+  }
+
+  return {
+    summary,
+    insights,
+    agent,
+    timestamp: normalizeAgentTimestamp(summary.timestamp, dependencies.now()),
+    conversationId,
+    profileId: summary.profileId ?? dependencies.profileId,
+    modelName: selectAgentModelName(insights, agent),
+  };
+}
+
+async function resolveConversationId(
+  dependencies: AgentTrafficIngestionUseCaseDependencies,
+  agent: AgentSessionInfo & { requestId: string }
+): Promise<string | undefined> {
+  if (agent.conversationId) {
+    return agent.conversationId;
+  }
+  const existingAgent = await dependencies.repository.getAgentTokens(
+    agent.requestId
+  );
+  return existingAgent?.conversationId;
+}
+
+async function upsertTrackingMetadata(
+  dependencies: AgentTrafficIngestionUseCaseDependencies,
+  context: PreparedAgentIngestion
+): Promise<void> {
+  await dependencies.repository.upsertConversation(
+    context.conversationId,
+    context.profileId,
+    context.timestamp,
+    context.insights.context?.messageCount
+  );
+  await dependencies.repository.upsertAgent({
+    requestId: context.agent.requestId,
+    conversationId: context.conversationId,
+    conversationGroupId: context.agent.conversationGroupId,
+    parentRequestId: context.agent.parentRequestId,
+    subagentRequestId: context.agent.subagentRequestId,
+    modelName: context.modelName,
+    startedAt: context.timestamp,
+    endedAt: context.agent.eof ? context.timestamp : undefined,
+    isEof: context.agent.eof ?? false,
+    profileId: context.profileId,
+  });
+}
+
+function completeIngestion(
+  dependencies: AgentTrafficIngestionUseCaseDependencies,
+  context: PreparedAgentIngestion,
+  persisted: AgentPersistenceResult
+): IngestTrafficResult | undefined {
+  if (!persisted.persisted) {
+    dependencies.logInfo(
+      `${TRACKING_LOG} no persistence path (${persisted.kind}) ` +
         `bidi=${shortId(context.agent.requestId)} conv=${shortId(context.conversationId)}`
     );
-
-    return createIngestTrafficResult(
-      context.conversationId,
-      persisted.kind,
-      this.dependencies.persistence.hasPersistableContext(context.agent)
-    );
+    return;
   }
 
-  private async resolveConversationId(
-    agent: AgentSessionInfo
-  ): Promise<string | undefined> {
-    if (agent.conversationId) {
-      return agent.conversationId;
-    }
-    const existingAgent = await this.dependencies.repository.getAgentTokens(
-      agent.requestId!
-    );
-    return existingAgent?.conversationId;
-  }
+  dependencies.logInfo(
+    `${TRACKING_LOG} persisted ${persisted.kind} ` +
+      `bidi=${shortId(context.agent.requestId)} conv=${shortId(context.conversationId)}`
+  );
+
+  return createIngestTrafficResult(
+    context.conversationId,
+    persisted.kind,
+    dependencies.persistence.hasPersistableContext(context.agent)
+  );
 }
 
 function formatError(error: unknown): string {
