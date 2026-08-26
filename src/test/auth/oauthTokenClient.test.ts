@@ -6,6 +6,7 @@ describe('OAuthTokenClient', () => {
   it('sends the refresh grant and preserves a non-rotated refresh token', async () => {
     let requestUrl: string | URL | Request | undefined;
     let requestInit: RequestInit | undefined;
+    const signal = new AbortController().signal;
     const client = new OAuthTokenClient({
       fetch: async (input, init) => {
         requestUrl = input;
@@ -16,7 +17,7 @@ describe('OAuthTokenClient', () => {
       },
     });
 
-    const tokens = await client.refreshTokens('old-refresh');
+    const tokens = await client.refreshTokens('old-refresh', signal);
 
     assert.deepEqual(tokens, {
       accessToken: 'new-access',
@@ -24,6 +25,7 @@ describe('OAuthTokenClient', () => {
     });
     assert.equal(requestUrl, 'https://api2.cursor.sh/oauth/token');
     assert.equal(requestInit?.method, 'POST');
+    assert.equal(requestInit?.signal, signal);
     assert.deepEqual(requestInit?.headers, { 'Content-Type': 'application/json' });
     assert.deepEqual(JSON.parse(String(requestInit?.body)), {
       grant_type: 'refresh_token',
