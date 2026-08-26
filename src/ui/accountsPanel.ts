@@ -35,6 +35,7 @@ import { ModelPricingService } from '../services/modelPricingService';
 import { CursorModelPricingProvider } from '../modelEfficiency/cursorModelPricingProvider';
 import { StateDbModelCatalogRepository } from '../modelEfficiency/stateDbModelCatalogRepository';
 import { getProfileStateDbPath } from '../auth/cursorPaths';
+import { buildAccountsPanelHtml } from './presentation/accountsPanelHtml';
 import type {
   ModelPricingDisplayData,
   ModelWithPricing,
@@ -439,123 +440,22 @@ export class AccountsPanelProvider {
       vscode.Uri.file(path.join(distDir, 'bundle.css'))
     );
 
-    const nonce = getNonce();
     const cspSource = webview.cspSource.toString();
 
     const locale = getLocale();
     const dir = isRtlLocale(locale) ? 'rtl' : 'ltr';
 
-    return `<!DOCTYPE html>
-<html lang="${locale}" dir="${dir}">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${cspSource} 'unsafe-inline'; script-src ${cspSource} 'nonce-${nonce}'; font-src ${cspSource}; img-src ${cspSource} https:;">
-  <link rel="stylesheet" href="${styleUri.toString()}">
-  <title>${t('panel.title')}</title>
-</head>
-<body>
-  <div id="root">
-    <p style="padding: 12px; color: var(--vscode-foreground, #ccc); font-family: var(--vscode-font-family, sans-serif);">
-      ${t('panel.loadingHtml')}
-    </p>
-  </div>
-  <script nonce="${nonce}">
-    window.__cursorAccountsReportScriptError = function() {
-      var root = document.getElementById('root');
-      if (root) {
-        root.textContent = '';
-        var error = document.createElement('p');
-        error.style.padding = '12px';
-        error.style.color = 'var(--vscode-errorForeground, #88)';
-        error.textContent = ${JSON.stringify(t('panel.scriptLoadFailed'))};
-        root.appendChild(error);
-      }
-    };
-    (function() {
-      function reportLog(phase, message, level) {
-        try {
-          window.__cursorAccountsVscodeApi.postMessage({
-            type: 'webviewLog',
-            level: level || 'info',
-            phase: phase,
-            message: message
-          });
-        } catch (error) {
-          console.error('[Webview] reportLog failed', phase, error);
-        }
-      }
-
-      if (!window.__cursorAccountsVscodeApi) {
-        window.__cursorAccountsVscodeApi = acquireVsCodeApi();
-      }
-      reportLog('bootstrap.api-acquired', 'acquireVsCodeApi completed');
-
-      function waitForServiceWorker() {
-        return new Promise(function(resolve) {
-          if (!navigator.serviceWorker) {
-            reportLog('bootstrap.sw-wait-end', 'no service worker support', 'debug');
-            resolve('no-service-worker');
-            return;
-          }
-
-          reportLog('bootstrap.sw-wait-start', 'waiting for controllerchange or timeout');
-
-          var settled = false;
-          function finish(reason) {
-            if (settled) {
-              return;
-            }
-            settled = true;
-            reportLog('bootstrap.sw-wait-end', reason, 'debug');
-            resolve(reason);
-          }
-
-          function onControllerChange() {
-            navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
-            finish('controllerchange');
-          }
-
-          navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
-          window.setTimeout(function() {
-            navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
-            finish(
-              navigator.serviceWorker.controller
-                ? 'timeout-with-controller'
-                : 'timeout-no-controller'
-            );
-          }, 2000);
-        });
-      }
-
-      function sendReady() {
-        reportLog('bootstrap.ready-send', 'postMessage ready');
-        window.__cursorAccountsVscodeApi.postMessage({ type: 'ready' });
-        reportLog('bootstrap.ready-sent', 'ready message sent');
-      }
-
-      waitForServiceWorker()
-        .then(sendReady)
-        .catch(function(error) {
-          reportLog('bootstrap.error', String(error), 'info');
-          sendReady();
-        });
-    })();
-  </script>
-  <script nonce="${nonce}" src="${scriptUri.toString()}" onerror="window.__cursorAccountsReportScriptError && window.__cursorAccountsReportScriptError()"></script>
-</body>
-</html>`;
+    return buildAccountsPanelHtml({
+      locale,
+      direction: dir,
+      cspSource,
+      scriptUri: scriptUri.toString(),
+      styleUri: styleUri.toString(),
+      title: t('panel.title'),
+      loadingMessage: t('panel.loadingHtml'),
+      scriptLoadFailedMessage: t('panel.scriptLoadFailed'),
+    });
   }
-}
-
-function getNonce(): string {
-  let text = '';
-  const possible =
-    'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  for (let i = 0; i < 32; i++) {
-    text += possible.charAt(Math.floor(Math.random() * possible.length));
-  }
-  return text;
 }
 
 function delay(ms: number): Promise<void> {
