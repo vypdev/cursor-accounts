@@ -4,25 +4,31 @@ import type {
   Profile,
   StorageCleanupOptions,
   ToWebviewMessage,
-  WebviewPersistedState} from '../types';
-import {
-  WEBVIEW_STATE_VERSION,
+  WebviewPersistedState,
 } from '../types';
+import { WEBVIEW_STATE_VERSION } from '../types';
 
-type VsCodeApiInstance = {
+export interface VSCodeApiInstance {
   postMessage(message: FromWebviewMessage): void;
   getState(): WebviewPersistedState | undefined;
   setState(state: WebviewPersistedState): void;
-};
+}
+
+interface MessageEventTarget {
+  addEventListener(
+    type: 'message',
+    listener: (event: Event) => void
+  ): void;
+}
 
 declare global {
   interface Window {
-    __cursorAccountsVscodeApi?: VsCodeApiInstance;
+    __cursorAccountsVscodeApi?: VSCodeApiInstance;
     __cursorAccountsBridge?: VSCodeAPI;
   }
 }
 
-function getVsCodeApi(): VsCodeApiInstance {
+function getVsCodeApi(): VSCodeApiInstance {
   const api = window.__cursorAccountsVscodeApi;
   if (!api) {
     throw new Error(
@@ -34,20 +40,20 @@ function getVsCodeApi(): VsCodeApiInstance {
 
 type MessageHandler = (message: ToWebviewMessage) => void;
 
-class VSCodeAPI {
+export class VSCodeAPI {
   private handlers: MessageHandler[] = [];
   private pendingMessages: ToWebviewMessage[] = [];
 
-  constructor() {
-    window.addEventListener('message', (event) => {
-      const message = event.data as ToWebviewMessage;
+  constructor(messageTarget: MessageEventTarget = window) {
+    messageTarget.addEventListener('message', (event) => {
+      const message = (event as MessageEvent).data as ToWebviewMessage;
       if (message && typeof message === 'object' && 'type' in message) {
         this.dispatchMessage(message);
       }
     });
   }
 
-  private get vscode(): VsCodeApiInstance {
+  private get vscode(): VSCodeApiInstance {
     return getVsCodeApi();
   }
 
