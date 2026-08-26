@@ -6,15 +6,12 @@ import type { IProxyServer } from '../domain/ports/IProxyServer';
 import type { HttpProtocolVersion } from '../domain/types/httpProtocol';
 import type { CertificateManager } from './certificateManager';
 import { detectHttpProtocolVersion } from './protocolDetection';
-import { shouldLogMitmClientError } from './mitmClientErrorFilter';
 import type { MitmListenOptions } from './types';
 import { getProtoRegistry } from './protoRegistry';
-import { isCursorHost } from './utils/proxyRequestMetadata';
 import type { ProxyTrafficLogger } from './nullLogger';
 import {
   ProxyTrafficDiagnosticsCollector,
 } from './proxyTrafficDiagnostics';
-import { toTrafficSummary } from './proxyTrafficFormat';
 import type { StreamingAgentDecoder } from './streamingAgentDecoder';
 import { RunSseStreamHandler } from './capture/runSseStreamHandler';
 import { CursorModelPricingProvider } from '../modelEfficiency/cursorModelPricingProvider';
@@ -25,12 +22,9 @@ import {
   createProxyTrafficSummaryDispatcher,
   type ProxyTrafficSummaryDispatcher,
 } from './proxyTrafficSummaryDispatcher';
-import type {
-  MitmProxyHandlers,
-  ProxyLogEntry,
-  ProxyServerConfig,
-} from './types';
+import type { MitmProxyHandlers, ProxyServerConfig } from './types';
 import { ProxyTrafficSessionCoordinator } from './proxyTrafficSessionCoordinator';
+import { createMitmProxyErrorHandler } from './mitmProxyErrorHandler';
 
 /**
  * HTTP/HTTPS MITM proxy using http-mitm-proxy.
@@ -118,28 +112,15 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
       ? new ProxyTrafficDiagnosticsCollector()
       : null;
 
-    proxy.onError((ctx, err, errorKind) => {
-      const host = ctx?.clientToProxyRequest?.headers?.host ?? '';
-      const url = ctx ? this.buildRequestUrl(ctx) : '';
-      const message = err instanceof Error ? err.message : String(err);
-      if (!shouldLogMitmClientError(errorKind, message)) {
-        return;
-      }
-      this.diagnostics?.recordTlsError();
-      const errorEntry: ProxyLogEntry = {
-        timestamp: new Date().toISOString(),
-        direction: 'error',
-        url: url || host || 'unknown',
-        host: host || 'unknown',
-        headers: {},
-        errorKind: errorKind ?? 'PROXY_ERROR',
-        errorMessage: message,
-        isCursorHost: host ? isCursorHost(host) : undefined,
-      };
-      this.requestLogger.log(errorEntry);
-      this.handlers?.onProxyError?.(toTrafficSummary(errorEntry));
-      this.emit('error', err instanceof Error ? err : new Error(message));
-    });
+    proxy.onError(
+      createMitmProxyErrorHandler({
+        requestLogger: this.requestLogger,
+        getDiagnostics: () => this.diagnostics,
+        buildRequestUrl: (ctx) => this.buildRequestUrl(ctx),
+        onProxyError: (summary) => this.handlers?.onProxyError?.(summary),
+        emitError: (error) => this.emit('error', error),
+      })
+    );
 
     proxy.onRequest(
       createMitmProxyRequestHandler({
