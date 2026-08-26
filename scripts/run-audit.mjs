@@ -58,9 +58,9 @@ const checks = [
     args: ['run', 'test:coverage'],
   },
   {
-    label: 'webview tests',
+    label: 'webview tests and coverage floors',
     command: 'pnpm',
-    args: ['--dir', 'webview', 'test'],
+    args: ['--dir', 'webview', 'run', 'test:coverage'],
   },
   {
     label: 'current VSIX contents',

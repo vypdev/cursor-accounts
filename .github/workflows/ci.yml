@@ -74,5 +74,14 @@ jobs:
       - name: Test extension with coverage
         run: pnpm run test:coverage
 
-      - name: Test webview
-        run: pnpm --dir webview test
+      - name: Test webview with coverage floors
+        run: pnpm --dir webview run test:coverage
+
+      - name: Upload webview coverage evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: webview-coverage-${{ matrix.platform }}-${{ github.run_id }}
+          path: webview/coverage
+          if-no-files-found: warn
+          retention-days: 14

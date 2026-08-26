@@ -7,6 +7,7 @@
     "build": "node esbuild.config.js",
     "watch": "node esbuild.config.js --watch",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:watch": "vitest"
   },
   "dependencies": {
@@ -16,11 +17,12 @@
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
-    "@testing-library/react": "^16.2.0",
     "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.2.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "@types/vscode-webview": "^1.57.0",
+    "@vitest/coverage-v8": "3.2.6",
     "esbuild": "^0.19.0",
     "jsdom": "^26.0.0",
     "typescript": "^5.5.0",
