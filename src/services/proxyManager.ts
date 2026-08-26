@@ -6,13 +6,12 @@ import type {
   RestoreAllProfilesResult,
 } from '../domain/ports/IProxyManager';
 import type {
-  ConversationUsagePersistedEvent,
   ConversationUsagePersistedListener,
   ProxyTrafficListener,
 } from '../domain/ports/IProxyTraffic';
+import type { TrafficListener } from '../domain/ports/IProxyTrafficBus';
 import type { IProfileReader } from '../domain/ports/IProfileReader';
 import type { IProfileSettingsManager } from '../domain/ports/IProfileSettingsManager';
-import type { TrafficListener } from '../domain/ports/IProxyTrafficBus';
 import type {
   IProxyOutputPresenter,
   ITokenDetectorOutputPresenter,
@@ -23,10 +22,8 @@ import {
   isProfileProxyEnabled,
   type ProxyInstallGuide,
   type ProxyStatus,
-  type ProxyTrafficDiagnostics,
   type Profile,
 } from '@cursor-accounts/types';
-import { formatDiagnosticsSummaryLines } from '../proxy/proxyTrafficDiagnostics';
 import * as extensionLog from '../logging/extensionLog';
 import { getSharedProxyStorageDir } from '../proxy/sharedProxyPaths';
 import {
@@ -42,6 +39,12 @@ import {
   type ProxyTrafficTailerOptions,
 } from './proxyTrafficTailerCoordinator';
 import type { ProxySettingsService } from './proxySettingsService';
+import {
+  ProxyManagerDiagnosticsCoordinator,
+} from './proxyManagerDiagnosticsCoordinator';
+import {
+  ProxyManagerEventRegistry,
+} from './proxyManagerEventRegistry';
 
 export type { ConversationUsagePersistedEvent, ConversationUsagePersistedListener, ProxyTrafficListener } from '../domain/ports/IProxyTraffic';
 
@@ -57,15 +60,9 @@ import {
  */
 export class ProxyManager implements IProxyManager {
   private readonly runtimes = new Map<string, ProxyManagerRuntime>();
-  private readonly statusCallbacks: Array<() => void> = [];
-  private readonly usagePersistedListeners: ConversationUsagePersistedListener[] =
-    [];
-  private readonly trafficListenerUnsubscribers: Array<() => void> = [];
-  private lastDiagnosticsOutputAt = 0;
-  private disposed = false;
   private readonly deps: ProxyManagerDependencies;
   private readonly composition: ProxyManagerComposition;
-  private readonly unsubscribeTraffic: () => void;
+  private readonly events: ProxyManagerEventRegistry;
 
   constructor(
     private readonly stateStore: IProxyStateStore,
@@ -74,7 +71,7 @@ export class ProxyManager implements IProxyManager {
     storageDir: string = getSharedProxyStorageDir(),
     private readonly proxySettingsService?: ProxySettingsService,
     profileSettingsManager?: IProfileSettingsManager,
-    private readonly outputPresenter?: IProxyOutputPresenter,
+    outputPresenter?: IProxyOutputPresenter,
     tokenDetectorPresenter?: ITokenDetectorOutputPresenter,
     deps?: ProxyManagerDependencies,
     getOutputConfig?: () => ProxyOutputSettings,
@@ -82,6 +79,16 @@ export class ProxyManager implements IProxyManager {
       createProxyManagerComposition
   ) {
     const logDir = path.join(storageDir, 'logs');
+    const diagnosticsCoordinator = new ProxyManagerDiagnosticsCoordinator({
+      getSettings: () => {
+        const config = vscode.workspace.getConfiguration('cursorAccounts.proxy');
+        return {
+          enabled: config.get<boolean>('trafficDiagnostics', true),
+          intervalMs: config.get<number>('diagnosticsIntervalMs', 30_000),
+        };
+      },
+      outputPresenter,
+    });
     this.deps =
       deps ??
       createDefaultProxyManagerDependencies({
@@ -101,8 +108,12 @@ export class ProxyManager implements IProxyManager {
             .getConfiguration('cursorAccounts.proxy')
             .get<boolean>('outputTailFromStart', false),
         onDiagnostics: (diagnostics) =>
-          this.maybeEmitDiagnosticsSummary(diagnostics),
+          diagnosticsCoordinator.maybeEmit(diagnostics),
       });
+    this.events = new ProxyManagerEventRegistry({
+      subscribeTraffic: (listener) => this.deps.trafficBus.subscribe(listener),
+      stopTrafficIngress: () => this.deps.trafficIngress.stopAll(),
+    });
     const outputConfig =
       getOutputConfig ??
       (() => {
@@ -124,14 +135,15 @@ export class ProxyManager implements IProxyManager {
       dependencies: this.deps,
       getOutputConfig: outputConfig,
       callbacks: {
-        notifyStatusChange: () => this.notifyStatusChange(),
-        notifyUsagePersisted: (event) => this.notifyUsagePersisted(event),
+        notifyStatusChange: () => this.events.notifyStatusChange(),
+        notifyUsagePersisted: (event) =>
+          this.events.notifyUsagePersisted(event),
       },
       runtimes: this.runtimes,
     });
-    this.unsubscribeTraffic = this.deps.trafficBus.subscribe((summary, profileId) => {
-      void this.handleTraffic(summary, profileId);
-    });
+    this.events.setTrafficHandler((summary, profileId) =>
+      this.handleTraffic(summary, profileId)
+    );
   }
 
   async ensureSharedProxy(profiles: Profile[]): Promise<ProxyStartResult> {
@@ -144,16 +156,7 @@ export class ProxyManager implements IProxyManager {
 
   /** Stop extension-host traffic ingress without stopping an externally owned proxy. */
   dispose(): void {
-    if (this.disposed) {
-      return;
-    }
-    this.disposed = true;
-    this.unsubscribeTraffic();
-    for (const unsubscribe of this.trafficListenerUnsubscribers) {
-      unsubscribe();
-    }
-    this.trafficListenerUnsubscribers.length = 0;
-    this.deps.trafficIngress.stopAll();
+    this.events.dispose();
   }
 
   private async handleTraffic(
@@ -171,34 +174,17 @@ export class ProxyManager implements IProxyManager {
   }
 
   onStatusChange(callback: () => void): void {
-    this.statusCallbacks.push(callback);
+    this.events.onStatusChange(callback);
   }
 
   onTraffic(listener: ProxyTrafficListener): void {
-    if (this.disposed) {
-      return;
-    }
-    this.trafficListenerUnsubscribers.push(
-      this.deps.trafficBus.subscribe(listener)
-    );
+    this.events.onTraffic(listener);
   }
 
   onConversationUsagePersisted(
     listener: ConversationUsagePersistedListener
   ): void {
-    this.usagePersistedListeners.push(listener);
-  }
-
-  private notifyUsagePersisted(event: ConversationUsagePersistedEvent): void {
-    for (const listener of this.usagePersistedListeners) {
-      try {
-        listener(event);
-      } catch (error) {
-        extensionLog.debug(
-          `[Proxy] usage persisted listener error: ${extensionLog.formatError(error)}`
-        );
-      }
-    }
+    this.events.onConversationUsagePersisted(listener);
   }
 
   getAgentTrackingService(profileId: string): AgentTrackingService | undefined {
@@ -356,43 +342,6 @@ export class ProxyManager implements IProxyManager {
     }
     const profiles = await this.profileManager.getProfiles();
     return this.ensureSharedProxy(profiles);
-  }
-
-  private maybeEmitDiagnosticsSummary(
-    diagnostics: ProxyTrafficDiagnostics | undefined
-  ): void {
-    if (!diagnostics) {
-      return;
-    }
-
-    const config = vscode.workspace.getConfiguration('cursorAccounts.proxy');
-    if (!config.get<boolean>('trafficDiagnostics', true)) {
-      return;
-    }
-
-    const intervalMs = config.get<number>('diagnosticsIntervalMs', 30_000);
-    const now = Date.now();
-    if (now - this.lastDiagnosticsOutputAt < intervalMs - 2_000) {
-      return;
-    }
-    this.lastDiagnosticsOutputAt = now;
-
-    const lines = formatDiagnosticsSummaryLines(diagnostics);
-    this.outputPresenter?.appendDiagnostics(lines);
-  }
-
-  private notifyStatusChange(): void {
-    for (const cb of this.statusCallbacks) {
-      try {
-        cb();
-      } catch (error) {
-        extensionLog.debug(
-          `[Proxy] status callback error: ${
-            error instanceof Error ? error.message : String(error)
-          }`
-        );
-      }
-    }
   }
 
 }
