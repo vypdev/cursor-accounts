@@ -1,4 +1,10 @@
 import type { IngestTrafficResult } from '../application/types/agentPersistence';
+import {
+  classifyAgentIngestion,
+  createIngestTrafficResult,
+  normalizeAgentTimestamp,
+  selectAgentModelName,
+} from '../application/services/agentTrackingIngestionPolicy';
 import { AgentTrackingPersistenceCoordinator } from '../application/services/agentTrackingPersistenceCoordinator';
 import type { AgentSessionInfo } from '../application/types/agentTracking';
 import type { ProxyTrafficUsageEvent } from '../domain/types/proxyTraffic';
@@ -21,7 +27,8 @@ export class AgentTrackingService {
     private readonly repository: IAgentTrackingRepository,
     private readonly profileId: string,
     turnDetectionService?: ITokenTurnDetectionService,
-    costCalculator?: IProxyLiveCostCalculator
+    costCalculator?: IProxyLiveCostCalculator,
+    private readonly now: () => number = () => Date.now() / 1000
   ) {
     this.persistence = new AgentTrackingPersistenceCoordinator(
       repository,
@@ -45,11 +52,7 @@ export class AgentTrackingService {
   async ingestTraffic(
     summary: ProxyTrafficUsageEvent
   ): Promise<IngestTrafficResult | void> {
-    const ingestKind = summary.isLiveTokenUpdate
-      ? 'live'
-      : summary.isTurnEnded
-        ? 'turn_ended'
-        : 'batch';
+    const ingestKind = classifyAgentIngestion(summary);
 
     try {
       const insights = summary.insights;
@@ -67,7 +70,7 @@ export class AgentTrackingService {
         return;
       }
 
-      const timestamp = this.normalizeTimestamp(summary.timestamp);
+      const timestamp = normalizeAgentTimestamp(summary.timestamp, this.now());
       const conversationId = await this.resolveConversationId(agent);
       if (!conversationId) {
         extensionLog.info(
@@ -78,7 +81,7 @@ export class AgentTrackingService {
       }
 
       const effectiveProfileId = summary.profileId ?? this.profileId;
-      const modelName = insights.tokens?.modelName ?? agent.modelName;
+      const modelName = selectAgentModelName(insights, agent);
 
       await this.repository.upsertConversation(
         conversationId,
@@ -120,32 +123,11 @@ export class AgentTrackingService {
           `bidi=${shortId(agent.requestId)} conv=${shortId(conversationId)}`
       );
 
-      if (persisted.kind === 'turn_ended') {
-        return {
-          conversationId,
-          deltaPersisted: false,
-          turnEndedPersisted: true,
-          contextPersisted: false,
-        };
-      }
-
-      if (persisted.kind === 'context') {
-        return {
-          conversationId,
-          deltaPersisted: false,
-          turnEndedPersisted: false,
-          contextPersisted: true,
-        };
-      }
-
-      if (persisted.kind === 'live_delta' || persisted.kind === 'batch') {
-        return {
-          conversationId,
-          deltaPersisted: true,
-          turnEndedPersisted: false,
-          contextPersisted: this.persistence.hasPersistableContext(agent),
-        };
-      }
+      return createIngestTrafficResult(
+        conversationId,
+        persisted.kind,
+        this.persistence.hasPersistableContext(agent)
+      );
     } catch (error) {
       extensionLog.error(
         `${TRACKING_LOG} Ingestion error: ${extensionLog.formatError(error)}`
@@ -179,10 +161,4 @@ export class AgentTrackingService {
     return existingAgent?.conversationId;
   }
 
-  private normalizeTimestamp(isoTimestamp: string): number {
-    const parsed = Date.parse(isoTimestamp);
-    return Number.isFinite(parsed)
-      ? Math.floor(parsed / 1000)
-      : Math.floor(Date.now() / 1000);
-  }
 }
