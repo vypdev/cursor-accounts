@@ -1,7 +1,4 @@
-import {
-  isProfileProxyEnabled,
-  type Profile,
-} from '@cursor-accounts/types';
+import { ProxyProfileAttachUseCase } from '../application/services/proxyProfileAttachUseCase';
 import type { IProfileReader } from '../domain/ports/IProfileReader';
 import type { IProxyStateStore } from '../domain/ports/IProxyStateStore';
 import type { IProxyTrafficIngress } from '../domain/ports/IProxyTrafficIngress';
@@ -42,79 +39,33 @@ export interface ProxyProfileLifecycleCoordinatorDependencies {
 
 /** Coordinates attach and cleanup for non-shared profile runtimes. */
 export class ProxyProfileLifecycleCoordinator {
+  private readonly attachUseCase: ProxyProfileAttachUseCase;
+
   constructor(
     private readonly dependencies: ProxyProfileLifecycleCoordinatorDependencies
-  ) {}
+  ) {
+    this.attachUseCase = new ProxyProfileAttachUseCase({
+      profileManager: dependencies.profileManager,
+      stateStore: dependencies.stateStore,
+      sharedStateStore: dependencies.sharedStateStore,
+      sharedRuntimeId: SHARED_PROXY_RUNTIME_KEY,
+      createApiClient: (apiPort, apiToken) =>
+        dependencies.createApiClient(apiPort, apiToken),
+      resolveApiPort: (mitmPort, persistedApiPort) =>
+        dependencies.resolveApiPort(mitmPort, persistedApiPort),
+      ensureAgentTracking: (profileId, userDataDir) =>
+        dependencies.ensureAgentTracking(profileId, userDataDir),
+      applyProxySettings: (userDataDir, port) =>
+        dependencies.applyProxySettings(userDataDir, port),
+      ensureTrafficIngress: (profileId, port, apiPort, options) =>
+        dependencies.ensureTrafficIngress(profileId, port, apiPort, options),
+      warn: (message) => extensionLog.warn(message),
+      notifyStatusChange: () => dependencies.notifyStatusChange(),
+    });
+  }
 
   async connectToExistingProxy(profileId: string): Promise<void> {
-    const profile = await this.dependencies.profileManager.getProfile(profileId);
-    if (!profile || !isProfileProxyEnabled(profile)) {
-      return;
-    }
-
-    const sharedState = await this.dependencies.sharedStateStore.read();
-    if (sharedState?.running && sharedState.port != null) {
-      const apiPort = this.dependencies.resolveApiPort(
-        sharedState.port,
-        sharedState.apiPort
-      );
-      try {
-        const status = await this.dependencies
-          .createApiClient(apiPort, sharedState.apiToken)
-          .getStatus();
-        if (status.running) {
-          await this.initializeTrackingForAttach(profile);
-          await this.dependencies.applyProxySettings(
-            profile.userDataDir,
-            sharedState.port
-          );
-          await this.dependencies.ensureTrafficIngress(
-            SHARED_PROXY_RUNTIME_KEY,
-            sharedState.port,
-            apiPort,
-            { forceRestart: true, apiToken: sharedState.apiToken }
-          );
-          this.dependencies.notifyStatusChange();
-          return;
-        }
-      } catch {
-        await this.dependencies.sharedStateStore.clear();
-      }
-    }
-
-    const state = await this.dependencies.stateStore.read(profile.userDataDir);
-    if (!state?.running || state.port == null) {
-      return;
-    }
-
-    const apiPort = this.dependencies.resolveApiPort(state.port, state.apiPort);
-    try {
-      const status = await this.dependencies
-        .createApiClient(apiPort, state.apiToken)
-        .getStatus();
-      if (!status.running) {
-        await this.dependencies.stateStore.clear(profile.userDataDir);
-        return;
-      }
-
-      await this.initializeTrackingForAttach(profile);
-      await this.dependencies.applyProxySettings(profile.userDataDir, state.port);
-      await this.dependencies.ensureTrafficIngress(
-        profileId,
-        state.port,
-        apiPort,
-        { forceRestart: true, apiToken: state.apiToken }
-      );
-      this.dependencies.notifyStatusChange();
-    } catch (error) {
-      extensionLog.warn(
-        `[Proxy:${profileId}] Failed to attach to existing proxy API: ${
-          error instanceof Error ? error.message : String(error)
-        }`
-      );
-      await this.dependencies.stateStore.clear(profile.userDataDir);
-      this.dependencies.notifyStatusChange();
-    }
+    await this.attachUseCase.execute(profileId);
   }
 
   async stop(
@@ -170,21 +121,6 @@ export class ProxyProfileLifecycleCoordinator {
     } catch (error) {
       extensionLog.error(
         `[Proxy] stop failed: ${
-          error instanceof Error ? error.message : String(error)
-        }`
-      );
-    }
-  }
-
-  private async initializeTrackingForAttach(profile: Profile): Promise<void> {
-    try {
-      await this.dependencies.ensureAgentTracking(
-        profile.id,
-        profile.userDataDir
-      );
-    } catch (error) {
-      extensionLog.warn(
-        `[Proxy:${profile.id}] Agent tracking init failed during attach: ${
           error instanceof Error ? error.message : String(error)
         }`
       );
