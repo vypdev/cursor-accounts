@@ -26,10 +26,10 @@ acceptance criteria and evidence are recorded.
 | QA-2 | Dependencies and supply chain | PARTIAL | SDK `1.0.28`, legacy npm `sqlite3` removed, targeted `uuid@11.1.1` and `undici@6.28.0` overrides resolve; pinned pnpm 10.34 production audit reports 0 advisories; isolated pnpm 11.19 signature audit verifies 163/163 packages; CycloneDX 1.5 SBOM contains 163 components; clean VSIX tree has no package-manager store; `audit:supply-chain` now automates the checks and CI/release/hotfix upload the report for 14 days | Review Cursor vendor terms and semaphore MIT attribution, decide release SBOM retention, and close the final attribution policy before marking complete |
 | QA-3 | Native runtime and packaging | PARTIAL | Current-target clean build passes with target-specific Electron ABI 128, official SHA-256 validation, sanitized runtime native tree, clean-room Node 24/pnpm 10 installation, and 49,430,263-byte (47.14 MiB) VSIX verification; darwin-arm64 and linux-arm64 cross-target builds pass with embedded native-header validation | Expand evidence across the complete darwin, Linux, and Windows target matrix on their intended runners |
 | QA-4 | Token and cost correctness | PARTIAL | Accounting contract, authoritative server-cost precedence, model-aware fallback calculation, non-finite input guards, SQLite replay golden test, versioned pricing metadata, current visible Cursor model rates, exact fast-variant pricing, and migration 010 provenance persistence are implemented; focused provenance coverage passes | Complete decoder-shape, rounding, and unknown/cache-rate reconciliation coverage |
-| QA-5 | Clean Architecture enforcement | PARTIAL | TypeScript-AST resolver-backed checker passes for 302 production files; negative fixtures cover domain/application/package/cycle cases; the new restore contract remains behind the domain port and adapter boundary; current Graphify/Repowise hotspots remain | Refactor the highest-risk low-coverage infrastructure modules without weakening the contract, then add characterization and failure-path tests |
+| QA-5 | Clean Architecture enforcement | PARTIAL | TypeScript-AST resolver-backed checker passes for 303 production files; negative fixtures cover domain/application/package/cycle cases; the new restore contract remains behind the domain port and adapter boundary; current Graphify/Repowise hotspots remain | Refactor the highest-risk low-coverage infrastructure modules without weakening the contract, then add characterization and failure-path tests |
 | QA-6 | Security and privacy | PARTIAL | Threat model recorded; API error details are generic; loopback/token parity, redaction, sidecar safety, text-safe webview rendering, certificate platform validation, injected certificate-process failure tests, bounded certificate-process timeout/kill escalation, fail-closed migration execution, SQLite snapshot backup/restore validation, sidecar preservation, partial-cleanup accounting, and Repowise history scan are evidenced | Complete disk-full/crash-restart testing, native privileged command execution review on supported OS runners, protocol-specific redaction, and the legacy optional-token decision |
 | QA-7 | Reliability and lifecycle | PARTIAL | Tracking ingress shutdown is idempotent; proxy startup failures now attempt MITM/ingress/API cleanup; direct `SIGTERM`/`SIGINT` uses graceful shutdown; the real runtime integration suite passes 3/3; SQLite persistence has 2-process concurrency/reopen, migration rollback/retry, consistent backup, validated restore, corrupted-database sidecar preservation, partial cleanup reporting, long-lived-reader checkpoint evidence, and real child hang escalation coverage | Add disk-full/crash-restart reconciliation and release-level recovery rehearsal |
-| QA-8 | Local test confidence | PARTIAL | Full audit passes 871 host tests and 18 webview tests; overall c8 is 80.23% lines/74.49% branches/77.64% functions; the SQLite/storage focused suites pass 27/27 including restore, partial cleanup, and long-lived-reader cases; `proxyDecode.ts` has 91.7% c8 lines and 100% c8 branches; certificate process/platform boundaries have 16/16 focused tests; `nodeProxyProcess.ts` has 91.15% lines, 88% branches, and 100% functions; `ProxyServerRuntime` has 3/3 real integration tests; the usage-extraction and agent/context split suites pass 43/43 focused tests; Repowise still identifies remaining hotspots | Reconcile static-analysis coverage ingestion, add risk-based floors, and cover the next proxy/profile/process hotspots |
+| QA-8 | Local test confidence | PARTIAL | Full audit passes 871 host tests and 18 webview tests; overall c8 is 80.23% lines/74.49% branches/77.64% functions; the SQLite/storage focused suites pass 27/27 including restore, partial cleanup, and long-lived-reader cases; `proxyDecode.ts` has 91.7% c8 lines and 100% c8 branches; certificate process/platform boundaries have 16/16 focused tests; `nodeProxyProcess.ts` has 91.15% lines, 88% branches, and 100% functions; `ProxyServerRuntime` has 3/3 real integration tests; the usage-extraction and agent/context split suites pass 43/43 focused tests; the MITM request-capture boundary passes forwarding 1/1, streaming 2/2, and runtime integration 3/3; Repowise still identifies remaining hotspots | Reconcile static-analysis coverage ingestion, add risk-based floors, and cover the next proxy/profile/process hotspots |
 | QA-9 | Documentation and operations | PARTIAL | Plan, audit links, dependency inventory, advisory register, and English docs are synchronized for this slice | Add task/decision records, reproducible audit artifact output, and runbooks |
 | QA-10 | Independent final audit and release rehearsal | OPEN | Not started | Run only after QA-1 through QA-9 have current evidence |
 
@@ -40,13 +40,13 @@ acceptance criteria and evidence are recorded.
 | Item | Value |
 |---|---|
 | Branch | feature/3-mitm-proxy |
-| Latest implementation commit | e4c5b04 |
+| Latest implementation commit | 314acf3 |
 | Latest documentation checkpoint | Current branch HEAD (this register) |
 | Node | v24.19.0 (nvm-managed via `.nvmrc`) |
 | pnpm | 10.34.0 (Corepack, declared by `package.json#packageManager`) |
 | Graphify | 0.9.48 |
 | Repowise | 0.45.0 |
-| Architecture gate | 302 production TypeScript files; tests excluded by contract |
+| Architecture gate | 303 production TypeScript files; tests excluded by contract |
 | Documentation gate | 50 Markdown files |
 
 ### Reproducible audit
@@ -109,9 +109,9 @@ evidence is recorded in
 
 ### Graphify
 
-The latest graph was generated with Graphify `0.9.48` on commit `e4c5b04` using
-no clustering. It contains 5,305 nodes and 12,460 raw edges; 629 files were
-uncached during extraction, and the post-build graph contains 10,744 edges.
+The latest graph was generated with Graphify `0.9.48` on commit `314acf3` using
+no clustering. It contains 5,310 nodes and 12,501 raw edges; 630 files were
+uncached during extraction, and the post-build graph contains 10,780 edges.
 The highest relevant
 hotspots include:
 
@@ -126,7 +126,7 @@ hotspots include:
 
 Graphify skipped ten SQL contributions because `tree_sitter_sql` is not
 installed and skipped `.npmrc` as potentially sensitive. The multigraph
-diagnostic reports 1,523 dangling endpoint edges, one self-loop, no missing
+diagnostic reports 1,528 dangling endpoint edges, one self-loop, no missing
 endpoints, and 102 same-endpoint relation groups; these are analysis signals,
 not architecture violations by themselves. The generated graph is ignored by
 Git and is not a release artifact.
@@ -142,12 +142,13 @@ Git and is not a release artifact.
   installCaCertificate.ts, statusBarManager.ts, efficiencyService.ts,
   profileCommands.ts, IProxyManager.ts, and high-fan-out type barrels.
 
-The latest Repowise health report covers 703 analyzed files and scores average
-health at 8.43/10, hotspot health at 5.72/10, maintainability at 9.38/10, and
-performance at 9.91/10. The extracted facade now scores 3.38/10 at NLOC 99,
-with max CCN 20 and 20.00% duplication. The lowest current production targets
-are `src/proxy/mitmProxyServer.ts` (2.16/10, NLOC 487, max CCN 37, 17.60%
-duplication), `src/services/proxyManager.ts` (3.14/10, NLOC 640), and
+The latest Repowise health report covers 704 analyzed files and scores average
+health at 8.44/10, hotspot health at 5.74/10, maintainability at 9.39/10, and
+performance at 9.91/10. The extracted facade remains at NLOC 99 with max CCN
+20; its remaining high-complexity function is `extractInsightsForRpc` (CCN
+20). The lowest current production targets are `src/proxy/mitmProxyServer.ts`
+(2.31/10, NLOC 426, max CCN 31, 10.00% duplication),
+`src/services/proxyManager.ts` (3.14/10, NLOC 640), and
 `src/services/storageCleanupService.ts` (3.26/10, NLOC 290, 33.55%
 duplication). These are prioritization signals, not automatic extraction
 requirements. Safe-only dead-code analysis remains empty.
@@ -933,6 +934,45 @@ must address proxy runtime orchestration and high-fan-out service contracts,
 starting with `mitmProxyServer.ts`, while preserving the existing protocol and
 release contracts.
 
+## QA-8.15 MITM request-capture boundary checkpoint — 2026-08-26
+
+Commit `314acf3` extracted the request-side capture adapter from
+`src/proxy/mitmProxyServer.ts` into
+`src/proxy/mitmProxyRequestHandler.ts`. The adapter owns request stream
+forwarding, body buffering/decompression, redacted log-entry construction,
+request statistics, diagnostics, and timing correlation. It receives logging,
+diagnostic, URL, protocol, and summary behavior through explicit dependencies;
+the concrete MITM server remains the composition root. This preserves the
+existing request protocol while removing transport-detail branching from
+`start()`.
+
+Evidence for this checkpoint:
+
+- isolated real-loopback forwarding passed 1/1;
+- isolated streaming decode passed 2/2;
+- isolated proxy runtime lifecycle integration passed 3/3;
+- lint and type checking passed;
+- the complete Node 24.19.0/pnpm 10.34.0 audit passed, including 871 host
+  tests, 18 webview tests, 303 production TypeScript files, localization
+  parity, documentation links, coverage floors, and selected Linux ARM64 VSIX
+  verification;
+- c8 reports 92.37% lines / 44.44% branches / 100% functions for the new
+  request handler. The remaining `mitmProxyServer.ts` reports 66.10% lines /
+  47.05% branches / 66.66% functions and remains in scope for response,
+  lifecycle, and failure-path extraction;
+- Repowise reports `mitmProxyServer.ts` improved from a 259-line start method
+  with CCN 37 to a 198-line start method with CCN 31. Its health improved to
+  2.31/10, with NLOC 426 and 10.00% duplication, but it remains the worst
+  production hotspot because response and lifecycle orchestration are still
+  concentrated there;
+- Graphify was regenerated at 5,310 nodes and 12,501 raw edges; its diagnostic
+  reported 1,528 dangling endpoint edges, one self-loop, and 102 same-endpoint
+  relation groups.
+
+This checkpoint does not close QA-6, QA-7, or QA-8. The next slice must isolate
+response-stream handling and explicitly test callback completion, decoder
+cleanup, request timing cleanup, and response logging failure paths.
+
 ## Reclassification decisions
 
 The following historical findings are reclassified from the current baseline:
@@ -985,6 +1025,7 @@ The following historical findings are reclassified from the current baseline:
 | 2026-08-26 | QA-4 cost provenance persistence slice | ea362c3 | Added migration 010, persisted source and pricing snapshot evidence across completed turns, minute aggregates, and the idempotency ledger; added conservative `mixed` aggregation, read-model exposure, 54/54 focused tests, and a full Node 24.19.0/pnpm 10.34.0 audit pass |
 | 2026-08-26 | QA-8.13 proxy insight extraction boundary slice | 7810ea5 | Extracted billing/token normalization behind a focused module while preserving facade exports; 56/56 focused tests, architecture check for 299 production TypeScript files, complete Node 24.19.0/pnpm 10.34.0 audit pass, Graphify refresh, and Repowise hotspot evidence |
 | 2026-08-26 | QA-8.14 agent/context extraction boundary slice | e4c5b04 | Split the public proxy insight facade into agent/session, conversation-context, field-normalization, and usage modules; 43/43 focused tests, architecture check for 302 production TypeScript files, complete Node 24.19.0/pnpm 10.34.0 audit pass, Graphify refresh, and Repowise hotspot improvement |
+| 2026-08-26 | QA-8.15 MITM request-capture boundary slice | 314acf3 | Extracted request stream capture behind injected transport/logging/diagnostic dependencies; real forwarding 1/1, streaming 2/2, runtime integration 3/3, complete Node 24.19.0/pnpm 10.34.0 audit pass, Graphify refresh, and Repowise start-method improvement |
 
 This register must be updated in the same commit as each task's implementation
 or evidence change.
