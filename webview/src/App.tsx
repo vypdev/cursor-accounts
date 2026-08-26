@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { vscodeApi } from './api/vscodeApi';
 import { AddProfileForm } from './components/AddProfileForm';
 import { EditProfileForm } from './components/EditProfileForm';
@@ -14,24 +14,15 @@ import { L10nProvider, useL10n } from './l10n/context';
 import type {
   ImportOptions,
   Profile,
-  ProfileAccountMap,
-  ProfileAccountView,
-  ProfileQuotaMap,
-  InstanceInfoMap,
-  StorageBreakdown,
   StorageCleanupAction,
-  StorageCleanupResult,
   ToWebviewMessage,
-  WorkspaceInfo,
-  ProfileGithubSummariesMap,
-  ProfileGithubTokenStatusMap,
-  EfficiencyStatsMap,
-  ProxyStatus,
-  ProxyInstallGuide,
-  ModelPricingDisplayData,
 } from './types';
 import { isProfileProxyEnabled } from './types';
 import { isProfileRunning } from './utils/runningInstances';
+import {
+  appMessageReducer,
+  createInitialAppMessageState,
+} from './appMessageState';
 import './App.css';
 
 interface AppContentProps {
@@ -47,34 +38,42 @@ const AppContent: React.FC<AppContentProps> = ({
 }) => {
   const { t } = useL10n();
   const persisted = vscodeApi.getState();
-
-  const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [currentProfile, setCurrentProfile] = useState<Profile | null>(null);
-  const [quotas, setQuotas] = useState<ProfileQuotaMap>({});
-  const [profileAccounts, setProfileAccounts] = useState<ProfileAccountMap>({});
-  const [activeAccount, setActiveAccount] = useState<ProfileAccountView | null>(
-    null
+  const [messageState, dispatchAppMessage] = useReducer(
+    appMessageReducer,
+    undefined,
+    createInitialAppMessageState
   );
-  const [accountsLoading, setAccountsLoading] = useState(false);
-  const [runningInstances, setRunningInstances] = useState<InstanceInfoMap>({});
-  const [profileWorkspaces, setProfileWorkspaces] = useState<
-    Record<string, WorkspaceInfo[]>
-  >({});
-  const [openWorkspacePaths, setOpenWorkspacePaths] = useState<string[]>([]);
-  const [profileGithubSummaries, setProfileGithubSummaries] =
-    useState<ProfileGithubSummariesMap>({});
-  const [profileGithubTokenStatus, setProfileGithubTokenStatus] =
-    useState<ProfileGithubTokenStatusMap>({});
-  const [efficiencyStats, setEfficiencyStats] = useState<EfficiencyStatsMap>({});
-  const [proxyStatus, setProxyStatus] = useState<ProxyStatus | null>(null);
-  const [currentWindowUsesProxy, setCurrentWindowUsesProxy] = useState(false);
-  const [profileProxyTemporary, setProfileProxyTemporary] = useState<
-    Record<string, boolean>
-  >({});
+  const {
+    profiles,
+    currentProfile,
+    quotas,
+    profileAccounts,
+    activeAccount,
+    accountsLoading,
+    runningInstances,
+    profileWorkspaces,
+    openWorkspacePaths,
+    profileGithubSummaries,
+    profileGithubTokenStatus,
+    efficiencyStats,
+    proxyStatus,
+    currentWindowUsesProxy,
+    profileProxyTemporary,
+    installGuide,
+    suggestedEmail,
+    suggestedDisplayName,
+    suggestedNotice,
+    loading,
+    error,
+    success,
+    storageInfo,
+    lastCleanupResult,
+    showPricesModal,
+    modelPricingData,
+    enabledModelPricingData,
+    pricingLoading,
+  } = messageState;
   const [showCertInstallModal, setShowCertInstallModal] = useState(false);
-  const [installGuide, setInstallGuide] = useState<ProxyInstallGuide | null>(
-    null
-  );
   const [installGuideLoading, setInstallGuideLoading] = useState(false);
   const [installInProgress, setInstallInProgress] = useState(false);
   const [uninstallInProgress, setUninstallInProgress] = useState(false);
@@ -83,35 +82,15 @@ const AppContent: React.FC<AppContentProps> = ({
     persisted?.showAddForm ?? false
   );
   const [showImportDialog, setShowImportDialog] = useState(false);
-  const [suggestedEmail, setSuggestedEmail] = useState<string | undefined>();
-  const [suggestedDisplayName, setSuggestedDisplayName] = useState<
-    string | undefined
-  >();
-  const [suggestedNotice, setSuggestedNotice] = useState<string | undefined>();
 
   const showProxyUi =
     currentProfile != null && isProfileProxyEnabled(currentProfile);
   const [editingProfileId, setEditingProfileId] = useState<string | null>(
     persisted?.editingProfileId ?? null
   );
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [storageProfileId, setStorageProfileId] = useState<string | null>(null);
-  const [storageInfo, setStorageInfo] = useState<StorageBreakdown | undefined>();
   const [storageLoading, setStorageLoading] = useState(false);
   const [cleanupInProgress, setCleanupInProgress] = useState(false);
-  const [lastCleanupResult, setLastCleanupResult] = useState<
-    StorageCleanupResult | undefined
-  >();
-  const [showPricesModal, setShowPricesModal] = useState(false);
-  const [modelPricingData, setModelPricingData] = useState<
-    ModelPricingDisplayData[]
-  >([]);
-  const [enabledModelPricingData, setEnabledModelPricingData] = useState<
-    ModelPricingDisplayData[]
-  >([]);
-  const [pricingLoading, setPricingLoading] = useState(false);
   const initReceivedRef = useRef(false);
 
   const persistUiState = useCallback(
@@ -126,191 +105,57 @@ const AppContent: React.FC<AppContentProps> = ({
 
   useEffect(() => {
     const unsubscribe = vscodeApi.onMessage((message: ToWebviewMessage) => {
-      switch (message.type) {
-        case 'init':
-          initReceivedRef.current = true;
-          vscodeApi.logToExtension(
-            'info',
-            'react.init-received',
-            `profiles=${message.data.profiles.length}`
-          );
-          setLocale(message.data.locale);
-          setMessages(message.data.messages);
-          setProfiles(message.data.profiles);
-          setCurrentProfile(message.data.currentProfile);
-          setQuotas(message.data.quotas ?? {});
-          setProfileAccounts(message.data.profileAccounts ?? {});
-          setActiveAccount(message.data.activeAccount ?? null);
-          setRunningInstances(message.data.runningInstances ?? {});
-          setProfileWorkspaces(message.data.profileWorkspaces ?? {});
-          setOpenWorkspacePaths(message.data.openWorkspacePaths ?? []);
-          setProfileGithubSummaries(
-            message.data.profileGithubSummaries ?? {}
-          );
-          setProfileGithubTokenStatus(
-            message.data.profileGithubTokenStatus ?? {}
-          );
-          setEfficiencyStats(message.data.efficiencyStats ?? {});
-          setProxyStatus(message.data.proxyStatus ?? null);
-          setCurrentWindowUsesProxy(
-            message.data.currentWindowUsesProxy ?? false
-          );
-          setProfileProxyTemporary(message.data.profileProxyTemporary ?? {});
-          setLoading(false);
-          break;
-
-        case 'proxyStatus':
-          setProxyStatus(message.data);
-          break;
-
-        case 'currentWindowProxyUsage':
-          setCurrentWindowUsesProxy(message.usesProxy);
-          break;
-
-        case 'proxyInstallGuide':
-          setInstallGuide(message.data);
-          setInstallGuideLoading(false);
-          break;
-
-        case 'certificateInstallResult':
-          setInstallInProgress(false);
-          if (message.success) {
-            setError(null);
-            setSuccess(t('proxy.install.installSuccess'));
-          } else if (message.error) {
-            setSuccess(null);
-            setError(
-              t('proxy.install.installFailed', { error: message.error })
-            );
-          }
-          break;
-
-        case 'certificateUninstallResult':
-          setUninstallInProgress(false);
-          setShowUninstallConfirm(false);
-          if (message.success) {
-            setError(null);
-            setSuccess(t('proxy.uninstall.success'));
-          } else if (message.error) {
-            setSuccess(null);
-            const errorText = /linux/i.test(message.error)
-              ? t('proxy.uninstall.linuxManual')
-              : t('proxy.uninstall.failed', { error: message.error });
-            setError(errorText);
-          }
-          break;
-
-        case 'efficiencyStats':
-          setEfficiencyStats(message.data);
-          break;
-
-        case 'githubSummaries':
-          setProfileGithubSummaries(message.data.summaries);
-          setProfileGithubTokenStatus(message.data.tokenStatus);
-          break;
-
-        case 'openWorkspaces':
-          setProfileWorkspaces(message.data.profileWorkspaces);
-          setOpenWorkspacePaths(message.data.paths);
-          break;
-
-        case 'profiles':
-          setProfiles(message.data);
-          break;
-
-        case 'quotas':
-          setQuotas(message.data);
-          break;
-
-        case 'profileAccounts':
-          setProfileAccounts(message.data);
-          break;
-
-        case 'activeAccount':
-          setActiveAccount(message.data);
-          break;
-
-        case 'accountsLoading':
-          setAccountsLoading(message.data);
-          break;
-
-        case 'runningInstances':
-          setRunningInstances(message.data);
-          break;
-
-        case 'currentProfile':
-          setCurrentProfile(message.data);
-          break;
-
-        case 'error':
-          setLoading(false);
-          setError(message.message);
-          setTimeout(() => setError(null), 5000);
-          break;
-
-        case 'success':
-          setSuccess(message.message);
-          setTimeout(() => setSuccess(null), 4000);
-          break;
-
-        case 'exportData': {
-          const blob = new Blob([message.data], { type: 'application/json' });
-          const url = URL.createObjectURL(blob);
-          const anchor = document.createElement('a');
-          anchor.href = url;
-          anchor.download = message.filename;
-          anchor.click();
-          URL.revokeObjectURL(url);
-          break;
-        }
-
-        case 'suggestedProfile':
-          if (message.notice) {
-            setSuggestedEmail(undefined);
-            setSuggestedDisplayName(undefined);
-            setSuggestedNotice(message.notice);
-          } else {
-            setSuggestedEmail(message.email);
-            setSuggestedDisplayName(message.displayName);
-            setSuggestedNotice(undefined);
-          }
-          break;
-
-        case 'storageInfo':
-          if (message.data.profileId === storageProfileId) {
-            setStorageInfo(message.data);
-            setStorageLoading(false);
-          }
-          break;
-
-        case 'storageCleanupResult':
-          if (storageProfileId) {
-            setLastCleanupResult(message.data);
-            setCleanupInProgress(false);
-            if (message.data.success) {
-              setSuccess(message.data.message);
-              setTimeout(() => setSuccess(null), 4000);
-            } else {
-              setError(message.data.message);
-              setTimeout(() => setError(null), 5000);
-            }
-          }
-          break;
-
-        case 'modelPricing':
-          setModelPricingData(message.data);
-          setEnabledModelPricingData(message.enabledModels ?? []);
-          setPricingLoading(false);
-          setShowPricesModal(true);
-          break;
-
-        case 'modelPricingError':
-          setPricingLoading(false);
-          setShowPricesModal(false);
-          setError(message.error);
-          setTimeout(() => setError(null), 5000);
-          break;
+      if (message.type === 'init') {
+        initReceivedRef.current = true;
+        vscodeApi.logToExtension(
+          'info',
+          'react.init-received',
+          `profiles=${message.data.profiles.length}`
+        );
+        setLocale(message.data.locale);
+        setMessages(message.data.messages);
       }
+
+      if (message.type === 'exportData') {
+        const blob = new Blob([message.data], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = message.filename;
+        anchor.click();
+        URL.revokeObjectURL(url);
+      }
+
+      if (message.type === 'proxyInstallGuide') {
+        setInstallGuideLoading(false);
+      }
+
+      if (message.type === 'certificateInstallResult') {
+        setInstallInProgress(false);
+      }
+
+      if (message.type === 'certificateUninstallResult') {
+        setUninstallInProgress(false);
+        setShowUninstallConfirm(false);
+      }
+
+      if (
+        message.type === 'storageInfo' &&
+        message.data.profileId === storageProfileId
+      ) {
+        setStorageLoading(false);
+      }
+
+      if (message.type === 'storageCleanupResult' && storageProfileId) {
+        setCleanupInProgress(false);
+      }
+
+      dispatchAppMessage({
+        type: 'message',
+        message,
+        storageProfileId,
+        translate: t,
+      });
     });
 
     const fallbackTimer = window.setTimeout(() => {
@@ -331,10 +176,26 @@ const AppContent: React.FC<AppContentProps> = ({
   }, [setLocale, setMessages, storageProfileId, t]);
 
   useEffect(() => {
-    if (proxyStatus?.caCertificateInstalled === true && error) {
-      setError(null);
+    if (!error) {
+      return;
     }
-  }, [proxyStatus?.caCertificateInstalled, error]);
+    const timeout = window.setTimeout(
+      () => dispatchAppMessage({ type: 'clearError' }),
+      5000
+    );
+    return () => window.clearTimeout(timeout);
+  }, [error]);
+
+  useEffect(() => {
+    if (!success) {
+      return;
+    }
+    const timeout = window.setTimeout(
+      () => dispatchAppMessage({ type: 'clearSuccess' }),
+      4000
+    );
+    return () => window.clearTimeout(timeout);
+  }, [success]);
 
   useEffect(() => {
     const onVisibilityChange = () => {
@@ -421,9 +282,7 @@ const AppContent: React.FC<AppContentProps> = ({
       vscodeApi.requestSuggestedProfile();
 
       setTimeout(() => {
-        setSuggestedEmail(undefined);
-        setSuggestedDisplayName(undefined);
-        setSuggestedNotice(undefined);
+        dispatchAppMessage({ type: 'clearSuggestedProfile' });
       }, 2000);
     }
 
@@ -432,9 +291,7 @@ const AppContent: React.FC<AppContentProps> = ({
 
   const closeAddForm = useCallback(() => {
     setShowAddForm(false);
-    setSuggestedEmail(undefined);
-    setSuggestedDisplayName(undefined);
-    setSuggestedNotice(undefined);
+    dispatchAppMessage({ type: 'clearSuggestedProfile' });
     persistUiState(false, editingProfileId);
   }, [editingProfileId, persistUiState]);
 
@@ -461,14 +318,14 @@ const AppContent: React.FC<AppContentProps> = ({
 
   const handleShowProxyCertificate = useCallback(() => {
     setShowCertInstallModal(true);
-    setInstallGuide(null);
+    dispatchAppMessage({ type: 'clearInstallGuide' });
     setInstallGuideLoading(true);
     vscodeApi.getProxyInstallGuide();
   }, []);
 
   const handleCloseCertInstallModal = useCallback(() => {
     setShowCertInstallModal(false);
-    setInstallGuide(null);
+    dispatchAppMessage({ type: 'clearInstallGuide' });
     setInstallGuideLoading(false);
     setInstallInProgress(false);
   }, []);
@@ -511,18 +368,16 @@ const AppContent: React.FC<AppContentProps> = ({
 
   const handleManageStorage = useCallback((profileId: string) => {
     setStorageProfileId(profileId);
-    setStorageInfo(undefined);
+    dispatchAppMessage({ type: 'resetStorageMessageState' });
     setStorageLoading(true);
     setCleanupInProgress(false);
-    setLastCleanupResult(undefined);
   }, []);
 
   const handleCloseStorageModal = useCallback(() => {
     setStorageProfileId(null);
-    setStorageInfo(undefined);
+    dispatchAppMessage({ type: 'resetStorageMessageState' });
     setStorageLoading(false);
     setCleanupInProgress(false);
-    setLastCleanupResult(undefined);
   }, []);
 
   const handleRequestStorageInfo = useCallback((profileId: string) => {
@@ -533,7 +388,7 @@ const AppContent: React.FC<AppContentProps> = ({
   const handleCleanStorage = useCallback(
     (profileId: string, action: StorageCleanupAction, chatAgeDays?: number) => {
       setCleanupInProgress(true);
-      setLastCleanupResult(undefined);
+      dispatchAppMessage({ type: 'resetStorageMessageState' });
       vscodeApi.cleanStorage(profileId, { action, chatAgeDays });
     },
     []
@@ -548,15 +403,12 @@ const AppContent: React.FC<AppContentProps> = ({
   }, []);
 
   const handleOpenPrices = useCallback(() => {
-    setPricingLoading(true);
-    setShowPricesModal(true);
-    setModelPricingData([]);
+    dispatchAppMessage({ type: 'beginModelPricingRequest' });
     vscodeApi.requestModelPricing();
   }, []);
 
   const handleClosePricesModal = useCallback(() => {
-    setShowPricesModal(false);
-    setPricingLoading(false);
+    dispatchAppMessage({ type: 'closeModelPricing' });
   }, []);
 
   const editingProfile = editingProfileId
