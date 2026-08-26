@@ -1,8 +1,6 @@
-import {
-  createQuotaFailure,
-  summarizeQuotaRefresh,
-} from '../application/services/profileQuotaRefreshPolicy';
+import { summarizeQuotaRefresh } from '../application/services/profileQuotaRefreshPolicy';
 import type { ProfileQuotaFetcher } from '../application/services/profileQuotaFetcher';
+import { ProfileQuotaRefreshUseCase } from '../application/services/profileQuotaRefreshUseCase';
 import type { IProfileQuotaCache } from '../domain/ports/IProfileQuotaCache';
 import type { IProfileReader } from '../domain/ports/IProfileReader';
 import * as extensionLog from '../logging/extensionLog';
@@ -27,13 +25,22 @@ export class MultiProfileQuotaService {
   private refreshGeneration = 0;
   private refreshInFlight: RefreshInFlight | undefined;
   private readonly onRefreshCallbacks = new Set<QuotaRefreshCallback>();
-  private quotaFetchGeneration = 0;
+  private readonly quotaRefreshUseCase: ProfileQuotaRefreshUseCase;
 
   constructor(
     private readonly cache: IProfileQuotaCache,
-    private readonly profileManager: IProfileReader,
-    private readonly fetcher: ProfileQuotaFetcher
-  ) {}
+    profileManager: IProfileReader,
+    fetcher: ProfileQuotaFetcher,
+    now: () => number = () => Date.now()
+  ) {
+    this.quotaRefreshUseCase = new ProfileQuotaRefreshUseCase({
+      cache,
+      profileReader: profileManager,
+      fetcher,
+      now,
+      logDebug: (message) => extensionLog.debug(message),
+    });
+  }
 
   /** Register callback for background quota updates (e.g. Accounts panel). */
   onRefresh(callback: QuotaRefreshCallback): () => void {
@@ -72,51 +79,7 @@ export class MultiProfileQuotaService {
 
   /** Fetch quotas for all profiles in parallel. */
   async fetchAllQuotas(signal?: AbortSignal): Promise<Map<string, ProfileQuota>> {
-    const fetchGeneration = ++this.quotaFetchGeneration;
-    const profiles = await this.profileManager.getProfiles();
-    if (
-      signal?.aborted ||
-      fetchGeneration !== this.quotaFetchGeneration
-    ) {
-      return this.cache.getAllQuotas();
-    }
-
-    if (profiles.length === 0) {
-      return new Map();
-    }
-
-    const results = await Promise.allSettled(
-      profiles.map((profile) => this.fetchQuotaForProfile(profile, signal))
-    );
-
-    if (signal?.aborted || fetchGeneration !== this.quotaFetchGeneration) {
-      extensionLog.debug(
-        '[MultiProfileQuotaService] Discarding superseded or cancelled quota fetch'
-      );
-      return this.cache.getAllQuotas();
-    }
-
-    const quotaMap = new Map<string, ProfileQuota>();
-
-    for (let i = 0; i < profiles.length; i++) {
-      const profile = profiles[i];
-      const result = results[i];
-      if (!profile || !result) {
-        continue;
-      }
-
-      if (result.status === 'fulfilled') {
-        quotaMap.set(profile.id, result.value);
-      } else {
-        quotaMap.set(profile.id, createQuotaFailure(profile.id, result.reason, Date.now()));
-      }
-    }
-
-    if (fetchGeneration !== this.quotaFetchGeneration) {
-      return this.cache.getAllQuotas();
-    }
-    await this.cache.saveQuotas(quotaMap);
-    return quotaMap;
+    return this.quotaRefreshUseCase.fetchAllQuotas(signal);
   }
 
   /** Fetch quota for a single profile. */
@@ -124,7 +87,7 @@ export class MultiProfileQuotaService {
     profile: Profile,
     signal?: AbortSignal
   ): Promise<ProfileQuota> {
-    return this.fetcher.fetch(profile, signal);
+    return this.quotaRefreshUseCase.fetch(profile, signal);
   }
 
   /** Refresh all quotas (with deduplication). */
