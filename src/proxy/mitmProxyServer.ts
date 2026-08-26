@@ -16,12 +16,15 @@ import {
 } from './proxyTrafficDiagnostics';
 import { toTrafficSummary } from './proxyTrafficFormat';
 import type { StreamingAgentDecoder } from './streamingAgentDecoder';
-import { buildTrafficSummary } from './trafficSummaryBuilder';
 import { RunSseStreamHandler } from './capture/runSseStreamHandler';
 import { CursorModelPricingProvider } from '../modelEfficiency/cursorModelPricingProvider';
 import { ProxyLiveCostCalculator } from '../domain/services/ProxyLiveCostCalculator';
 import { createMitmProxyRequestHandler } from './mitmProxyRequestHandler';
 import { createMitmProxyResponseHandler } from './mitmProxyResponseHandler';
+import {
+  createProxyTrafficSummaryDispatcher,
+  type ProxyTrafficSummaryDispatcher,
+} from './proxyTrafficSummaryDispatcher';
 import type {
   MitmProxyHandlers,
   ProxyLogEntry,
@@ -50,6 +53,7 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
     new CursorModelPricingProvider()
   );
   private readonly sessionCoordinator: ProxyTrafficSessionCoordinator;
+  private readonly trafficSummaryDispatcher: ProxyTrafficSummaryDispatcher;
 
   constructor(
     private readonly certificateManager: CertificateManager,
@@ -66,6 +70,11 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
       },
       userIdToProfileId
     );
+    this.trafficSummaryDispatcher = createProxyTrafficSummaryDispatcher({
+      enabled: Boolean(this.handlers?.onTraffic),
+      onTraffic: (summary) => this.handlers?.onTraffic?.(summary),
+      sessionCoordinator: this.sessionCoordinator,
+    });
     this.runSseHandler = new RunSseStreamHandler(
       (summary) => {
         this.sessionCoordinator.dispatch(summary);
@@ -141,7 +150,7 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
         buildRequestUrl: (ctx) => this.buildRequestUrl(ctx),
         protocolVersionFor: (req) => this.protocolVersionFor(req),
         recordDiagnostics: (input) => this.recordDiagnostics(input),
-        emitTrafficSummary: (entry) => this.emitTrafficSummary(entry),
+        emitTrafficSummary: this.trafficSummaryDispatcher,
       })
     );
 
@@ -157,8 +166,7 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
         buildRequestUrl: (ctx) => this.buildRequestUrl(ctx),
         protocolVersionFor: (req) => this.protocolVersionFor(req),
         recordDiagnostics: (input) => this.recordDiagnostics(input),
-        emitTrafficSummary: (entry, durationMs, correlation) =>
-          this.emitTrafficSummary(entry, durationMs, correlation),
+        emitTrafficSummary: this.trafficSummaryDispatcher,
       })
     );
 
@@ -222,54 +230,6 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
     protocolVersion?: HttpProtocolVersion;
   }): void {
     this.diagnostics?.recordRequest(input);
-  }
-
-  private emitTrafficSummary(
-    entry: ProxyLogEntry,
-    durationMs?: number,
-    correlation?: {
-      bidiRequestId?: string;
-      httpRequestId?: string;
-      incrementalTurnsAlreadyPersisted?: boolean;
-    }
-  ): void {
-    if (!this.handlers?.onTraffic) {
-      return;
-    }
-
-    void buildTrafficSummary(entry, durationMs, correlation)
-      .then((summary) => {
-        if (correlation?.incrementalTurnsAlreadyPersisted) {
-          summary.insights = {
-            ...summary.insights,
-            streamingTurnsAlreadyPersisted: true,
-          };
-          if (summary.insights?.allTokenFrames) {
-            delete summary.insights.allTokenFrames;
-          }
-        }
-        this.sessionCoordinator.track(summary);
-        const agent = summary.insights?.agent;
-        if (
-          agent?.usageEvent === 'token_delta' ||
-          (summary.insights?.allTokenFrames?.length ?? 0) > 0 ||
-          entry.url.includes('BidiAppend')
-        ) {
-          process.stderr.write(
-            `[AgentTracking] emitTrafficSummary ${entry.direction} ` +
-              `${entry.url.includes('BidiAppend') ? 'BidiAppend' : entry.url.includes('RunSSE') ? 'RunSSE' : 'agent'} ` +
-              `bidi=${(correlation?.bidiRequestId ?? agent?.requestId)?.slice(0, 8) ?? '(none)'}… ` +
-              `conv=${(agent?.conversationId ?? summary.insights?.context?.conversationId)?.slice(0, 8) ?? '(none)'}… ` +
-              `usage=${agent?.usageEvent ?? '(none)'} ` +
-              `frames=${summary.insights?.allTokenFrames?.length ?? 0} ` +
-              `incrPersisted=${correlation?.incrementalTurnsAlreadyPersisted === true}\n`
-          );
-        }
-        this.sessionCoordinator.dispatch(summary, entry.headers);
-      })
-      .catch(() => {
-        this.handlers?.onTraffic?.(toTrafficSummary(entry, durationMs));
-      });
   }
 
   /**
