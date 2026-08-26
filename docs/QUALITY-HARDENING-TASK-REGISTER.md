@@ -311,7 +311,7 @@ base model's `$0.50/$2.50` rates. The focused pricing and integration suites
 pass 27/27, and the complete Node 24.19.0/pnpm 10.34.0 audit passes with 871
 host tests and 18 webview tests.
 
-Commit `LOCAL-PENDING` adds migration 010 and persists calculation source and
+Commit `ea362c3` adds migration 010 and persists calculation source and
 pricing snapshot version on completed turns, minute aggregates, and the delta
 idempotency ledger. Legacy rows default to `unknown`; aggregate provenance is
 conservative and becomes `mixed` when accepted events disagree. Focused
@@ -902,6 +902,7 @@ The following historical findings are reclassified from the current baseline:
 | 2026-08-26 | QA-3 target-native packaging hardening slice | 0a02efb | Target-specific Electron prebuild selection and Mach-O/ELF/PE VSIX validation added; release-style argument parsing fixed; darwin-arm64 and linux-arm64 builds passed locally; complete runner matrix and remote workflow evidence pending |
 | 2026-08-25 | QA-2 supply-chain evidence automation slice | 449d85b | Added strict supply-chain argument parsing, project package-manager reporting, automated advisory/license/signature/SBOM collection, and workflow artifact upload; remote workflow evidence pending |
 | 2026-08-26 | QA-4 pricing catalog snapshot slice | eda7527 | Added versioned catalog provenance, removed the fixed normal Auto rate, added current visible Cursor model prices and exact fast variants, added regression coverage, and passed the full Node 24.19.0/pnpm 10.34.0 audit; SQLite provenance migration remains open |
+| 2026-08-26 | QA-4 cost provenance persistence slice | ea362c3 | Added migration 010, persisted source and pricing snapshot evidence across completed turns, minute aggregates, and the idempotency ledger; added conservative `mixed` aggregation, read-model exposure, 54/54 focused tests, and a full Node 24.19.0/pnpm 10.34.0 audit pass |
 
 This register must be updated in the same commit as each task's implementation
 or evidence change.
