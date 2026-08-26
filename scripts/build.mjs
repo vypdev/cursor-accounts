@@ -1,16 +1,16 @@
 #!/usr/bin/env node
-import { execFileSync, execSync } from 'child_process';
+import { execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { cleanProductionDeps } from './clean-production-deps.mjs';
 import { prepareSdkForTarget } from './prepare-sdk-for-target.mjs';
 import { sanitizeVsix } from './sanitize-vsix.mjs';
 import { convertToProduction, restoreState, saveState } from './workspace-state.mjs';
-import { detectNativeTarget } from './native-binary-target.mjs';
+import { parseBuildArgs } from './build-targets.mjs';
 import {
-  PLATFORM_SDK_PACKAGE,
-  parseBuildArgs,
-} from './build-targets.mjs';
+  assertVsixArtifact,
+  inspectVsixArtifact,
+} from './vsixVerification.mjs';
 
 const root = process.cwd();
 const ZIP_MAX_BUFFER = 16 * 1024 * 1024;
@@ -126,122 +126,14 @@ function verifyVsix(target) {
     throw new Error(`Expected VSIX not found: ${vsixName}`);
   }
 
-  const checks = [
-    { label: 'webview bundle', pattern: 'extension/webview-dist/bundle.js' },
-    {
-      label: 'better-sqlite3 native binding',
-      pattern: 'extension/node_modules/better-sqlite3/build/Release/better_sqlite3.node',
-    },
-    {
-      label: '@cursor/sdk',
-      pattern: 'extension/node_modules/@cursor/sdk/package.json',
-    },
-    {
-      label: 'undici',
-      pattern: 'extension/node_modules/(\\.pnpm/undici@.*/node_modules/undici|undici)/package.json',
-    },
-    {
-      label: 'bindings',
-      pattern: 'extension/node_modules/(\\.pnpm/bindings@.*/node_modules/bindings|bindings)/package.json',
-    },
-    {
-      label: 'efficiency SQL migrations',
-      pattern: 'extension/out/persistence/migrations/001_initial_schema.sql',
-    },
-  ];
-
-  const forbiddenPatterns = [
-    'extension/.repowise/',
-    'extension/graphify-out/',
-    'extension/coverage/',
-    'extension/webview/src/',
-    'extension/webview/node_modules/',
-    'extension/.build-backup/',
-    'extension/.tmp-proto-test/',
-    'extension/.pnpm-store/',
-    'extension/pnpm-store/',
-    'extension/packages/',
-    'extension/docs/',
-    'extension/scripts/',
-  ];
-  const forbiddenRegexPatterns = [
-    'extension/node_modules/.*/(docs|coverage|tests?|scripts|gyp|testdata)/',
-  ];
-
-  const sdkPackage = PLATFORM_SDK_PACKAGE[target];
-  if (sdkPackage) {
-    checks.push({
-      label: `@cursor/sdk platform package (${target})`,
-      pattern: `extension/node_modules/${sdkPackage}/package.json`,
-    });
-  }
-
   console.log(`\n==> Verifying ${vsixName}`);
-  for (const { label, pattern } of checks) {
-    try {
-      execSync(`unzip -l "${vsixPath}" | grep -E "${pattern}"`, {
-        cwd: root,
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'pipe'],
-      });
-      console.log(`  ✓ ${label}`);
-    } catch {
-      throw new Error(`VSIX verification failed: missing ${label}`);
-    }
-  }
-
-  for (const pattern of forbiddenPatterns) {
-    try {
-      execSync(`unzip -l "${vsixPath}" | grep -F "${pattern}"`, {
-        cwd: root,
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'pipe'],
-      });
-      throw new Error(`VSIX verification failed: forbidden artifact ${pattern}`);
-    } catch (error) {
-      if (error instanceof Error && error.message.startsWith('VSIX verification failed:')) {
-        throw error;
-      }
-      // The forbidden pattern was not found.
-    }
-  }
-
-  for (const pattern of forbiddenRegexPatterns) {
-    try {
-      execSync(`unzip -l "${vsixPath}" | grep -E "${pattern}"`, {
-        cwd: root,
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'pipe'],
-      });
-      throw new Error(`VSIX verification failed: forbidden artifact ${pattern}`);
-    } catch (error) {
-      if (error instanceof Error && error.message.startsWith('VSIX verification failed:')) {
-        throw error;
-      }
-      // The forbidden pattern was not found.
-    }
-  }
-
-  const entries = execFileSync('unzip', ['-Z1', vsixPath], {
-    encoding: 'utf8',
-    maxBuffer: ZIP_MAX_BUFFER,
-  })
-    .split('\n')
-    .map((entry) => entry.trim())
-    .filter(Boolean);
-  const nativeEntry = entries.find(
-    (entry) => entry === 'extension/node_modules/better-sqlite3/build/Release/better_sqlite3.node'
-  );
-  if (!nativeEntry) {
-    throw new Error('VSIX verification failed: native binding entry not found');
-  }
-  const nativeTarget = detectNativeTarget(
-    execFileSync('unzip', ['-p', vsixPath, nativeEntry], { maxBuffer: ZIP_MAX_BUFFER })
-  );
-  if (nativeTarget !== target) {
-    throw new Error(
-      `VSIX verification failed: expected native target ${target}, got ${nativeTarget}`
-    );
+  const inspection = inspectVsixArtifact(vsixPath, {
+    target,
+    includeMigrations: true,
+  });
+  assertVsixArtifact(inspection, { target });
+  for (const { label } of inspection.checks) {
+    console.log(`  ✓ ${label}`);
   }
   console.log(`  ✓ better-sqlite3 native target (${target})`);
 }

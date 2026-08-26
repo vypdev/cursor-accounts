@@ -1,16 +1,20 @@
 #!/usr/bin/env node
-import { execFileSync, execSync } from 'child_process';
 import { readdirSync, statSync } from 'fs';
 import { basename, resolve } from 'path';
-import { detectNativeTarget } from './native-binary-target.mjs';
+import { inspectVsixArtifact } from './vsixVerification.mjs';
 
 const root = process.cwd();
-const ZIP_MAX_BUFFER = 16 * 1024 * 1024;
 const requestedVsix = process.env.VSIX_FILE;
 const availableVsixFiles = readdirSync(root)
-  .filter((f) => f.endsWith('.vsix'))
-  .sort((a, b) => statSync(resolve(root, b)).mtimeMs - statSync(resolve(root, a)).mtimeMs);
-const vsixFiles = requestedVsix ? [basename(requestedVsix)] : availableVsixFiles.slice(0, 1);
+  .filter((file) => file.endsWith('.vsix'))
+  .sort(
+    (left, right) =>
+      statSync(resolve(root, right)).mtimeMs -
+      statSync(resolve(root, left)).mtimeMs
+  );
+const vsixFiles = requestedVsix
+  ? [basename(requestedVsix)]
+  : availableVsixFiles.slice(0, 1);
 
 if (vsixFiles.length === 0) {
   console.error('No VSIX files found');
@@ -22,17 +26,6 @@ if (!availableVsixFiles.includes(vsixFiles[0])) {
   process.exit(1);
 }
 
-let allValid = true;
-
-const PLATFORM_SDK_PACKAGE = {
-  'darwin-arm64': '@cursor/sdk-darwin-arm64',
-  'darwin-x64': '@cursor/sdk-darwin-x64',
-  'linux-x64': '@cursor/sdk-linux-x64',
-  'linux-arm64': '@cursor/sdk-linux-arm64',
-  'win32-x64': '@cursor/sdk-win32-x64',
-  'win32-arm64': '@cursor/sdk-win32-x64',
-};
-
 function targetFromVsixName(vsix) {
   const match = vsix.match(
     /-(darwin-arm64|darwin-x64|linux-x64|linux-arm64|win32-x64|win32-arm64)-/
@@ -40,120 +33,51 @@ function targetFromVsixName(vsix) {
   return match?.[1];
 }
 
-function readVsixEntry(vsix, pattern) {
-  const entries = execFileSync('unzip', ['-Z1', vsix], {
-    encoding: 'utf8',
-    maxBuffer: ZIP_MAX_BUFFER,
-  })
-    .split('\n')
-    .map((entry) => entry.trim())
-    .filter(Boolean);
-  const entryName = entries.find((entry) => new RegExp(pattern).test(entry));
-  if (!entryName) {
-    throw new Error(`VSIX entry not found for pattern: ${pattern}`);
-  }
-  return execFileSync('unzip', ['-p', vsix, entryName], {
-    maxBuffer: ZIP_MAX_BUFFER,
-  });
-}
+let allValid = true;
 
 for (const vsix of vsixFiles) {
   console.log(`Checking ${vsix}…`);
   const target = targetFromVsixName(vsix);
 
-  const checks = [
-    { label: 'webview bundle', pattern: 'extension/webview-dist/bundle.js' },
-    {
-      label: '@cursor/sdk',
-      pattern: 'extension/node_modules/@cursor/sdk/package.json',
-    },
-    {
-      label: 'undici',
-      pattern: 'extension/node_modules/(\\.pnpm/undici@.*/node_modules/undici|undici)/package.json',
-    },
-    {
-      label: 'bindings',
-      pattern: 'extension/node_modules/(\\.pnpm/bindings@.*/node_modules/bindings|bindings)/package.json',
-    },
-  ];
+  try {
+    const inspection = inspectVsixArtifact(resolve(root, vsix), { target });
 
-  if (target && PLATFORM_SDK_PACKAGE[target]) {
-    checks.push({
-      label: `@cursor/sdk platform package (${target})`,
-      pattern: `extension/node_modules/${PLATFORM_SDK_PACKAGE[target]}/package.json`,
-    });
-  }
-
-  const forbiddenPatterns = [
-    'extension/.repowise/',
-    'extension/graphify-out/',
-    'extension/coverage/',
-    'extension/webview/src/',
-    'extension/webview/node_modules/',
-    'extension/.build-backup/',
-    'extension/.tmp-proto-test/',
-    'extension/.pnpm-store/',
-    'extension/pnpm-store/',
-    'extension/packages/',
-    'extension/docs/',
-    'extension/scripts/',
-  ];
-  const forbiddenRegexPatterns = [
-    'extension/node_modules/.*/(docs|coverage|tests?|scripts|gyp|testdata)/',
-  ];
-
-  for (const { label, pattern } of checks) {
-    try {
-      execSync(`unzip -l "${vsix}" | grep -E "${pattern}"`, {
-        cwd: root,
-        encoding: 'utf-8',
-      });
-      console.log(`  ✓ ${label}`);
-    } catch {
-      console.error(`  ✗ MISSING ${label}`);
-      allValid = false;
-    }
-  }
-
-  if (target) {
-    try {
-      const nativeTarget = detectNativeTarget(
-        readVsixEntry(vsix, 'extension/node_modules/better-sqlite3/.*/better_sqlite3\\.node$')
-      );
-      if (nativeTarget !== target) {
-        throw new Error(`expected ${target}, got ${nativeTarget}`);
+    for (const { label, present } of inspection.checks) {
+      if (present) {
+        console.log(`  ✓ ${label}`);
+      } else {
+        console.error(`  ✗ MISSING ${label}`);
+        allValid = false;
       }
-      console.log(`  ✓ better-sqlite3 native target (${target})`);
-    } catch (error) {
-      console.error(`  ✗ INVALID better-sqlite3 native target (${error.message})`);
-      allValid = false;
     }
-  }
 
-  for (const pattern of forbiddenPatterns) {
-    try {
-      execSync(`unzip -l "${vsix}" | grep -F "${pattern}"`, {
-        cwd: root,
-        encoding: 'utf-8',
-      });
-      console.error(`  ✗ FORBIDDEN development artifact: ${pattern}`);
-      allValid = false;
-    } catch {
-      // The forbidden pattern was not found.
+    for (const { pattern, present } of inspection.forbidden) {
+      if (present) {
+        console.error(`  ✗ FORBIDDEN development artifact: ${String(pattern)}`);
+        allValid = false;
+      }
     }
-  }
 
-  for (const pattern of forbiddenRegexPatterns) {
-    try {
-      execSync(`unzip -l "${vsix}" | grep -E "${pattern}"`, {
-        cwd: root,
-        encoding: 'utf-8',
-      });
-      console.error(`  ✗ FORBIDDEN dependency artifact: ${pattern}`);
-      allValid = false;
-    } catch {
-      // The forbidden pattern was not found.
+    if (target) {
+      if (inspection.nativeError) {
+        console.error(
+          `  ✗ INVALID better-sqlite3 native target (${inspection.nativeError.message})`
+        );
+        allValid = false;
+      } else if (inspection.nativeTarget !== target) {
+        console.error(
+          `  ✗ INVALID better-sqlite3 native target (expected ${target}, got ${inspection.nativeTarget ?? 'unknown'})`
+        );
+        allValid = false;
+      } else {
+        console.log(`  ✓ better-sqlite3 native target (${target})`);
+      }
     }
+  } catch (error) {
+    console.error(
+      `  ✗ FAILED verification (${error instanceof Error ? error.message : String(error)})`
+    );
+    allValid = false;
   }
 }
 

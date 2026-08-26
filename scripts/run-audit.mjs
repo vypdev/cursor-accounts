@@ -38,6 +38,11 @@ const checks = [
     args: ['run', 'test:build-targets'],
   },
   {
+    label: 'VSIX verifier contract tests',
+    command: 'pnpm',
+    args: ['run', 'test:vsix-verifier'],
+  },
+  {
     label: 'protobuf JSONL verifier tests',
     command: 'pnpm',
     args: ['run', 'test:verify-proto-jsonl'],
