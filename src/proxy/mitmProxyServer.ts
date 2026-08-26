@@ -16,16 +16,14 @@ import type { StreamingAgentDecoder } from './streamingAgentDecoder';
 import { RunSseStreamHandler } from './capture/runSseStreamHandler';
 import { CursorModelPricingProvider } from '../modelEfficiency/cursorModelPricingProvider';
 import { ProxyLiveCostCalculator } from '../domain/services/ProxyLiveCostCalculator';
-import { createMitmProxyRequestHandler } from './mitmProxyRequestHandler';
-import { createMitmProxyResponseHandler } from './mitmProxyResponseHandler';
 import {
   createProxyTrafficSummaryDispatcher,
   type ProxyTrafficSummaryDispatcher,
 } from './proxyTrafficSummaryDispatcher';
 import type { MitmProxyHandlers, ProxyServerConfig } from './types';
 import { ProxyTrafficSessionCoordinator } from './proxyTrafficSessionCoordinator';
-import { createMitmProxyErrorHandler } from './mitmProxyErrorHandler';
 import { closeMitmProxy, listenToMitmProxy } from './mitmProxyLifecycle';
+import { registerMitmProxyHandlers } from './mitmProxyHandlerRegistration';
 
 /**
  * HTTP/HTTPS MITM proxy using http-mitm-proxy.
@@ -133,18 +131,15 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
         ? new ProxyTrafficDiagnosticsCollector()
         : null;
 
-      proxy.onError(
-        createMitmProxyErrorHandler({
+      registerMitmProxyHandlers(proxy, {
+        error: {
           requestLogger: this.requestLogger,
           getDiagnostics: () => this.diagnostics,
           buildRequestUrl: (ctx) => this.buildRequestUrl(ctx),
           onProxyError: (summary) => this.handlers?.onProxyError?.(summary),
           emitError: (error) => this.emit('error', error),
-        })
-      );
-
-      proxy.onRequest(
-        createMitmProxyRequestHandler({
+        },
+        request: {
           statistics: this.statistics,
           requestStartedAt: this.requestStartedAt,
           requestLogger: this.requestLogger,
@@ -153,11 +148,8 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
           protocolVersionFor: (req) => this.protocolVersionFor(req),
           recordDiagnostics: (input) => this.recordDiagnostics(input),
           emitTrafficSummary: this.trafficSummaryDispatcher,
-        })
-      );
-
-      proxy.onResponse(
-        createMitmProxyResponseHandler({
+        },
+        response: {
           statistics: this.statistics,
           requestStartedAt: this.requestStartedAt,
           streamingDecoders: this.streamingDecoders,
@@ -169,8 +161,8 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
           protocolVersionFor: (req) => this.protocolVersionFor(req),
           recordDiagnostics: (input) => this.recordDiagnostics(input),
           emitTrafficSummary: this.trafficSummaryDispatcher,
-        })
-      );
+        },
+      });
 
       const listenOptions = this.getMitmListenOptions(sslCaDir, config.port);
       await listenToMitmProxy(proxy, listenOptions);
