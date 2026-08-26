@@ -61,8 +61,10 @@ export class ProxyManager implements IProxyManager {
   private readonly usagePersistedListeners: ConversationUsagePersistedListener[] =
     [];
   private lastDiagnosticsOutputAt = 0;
+  private disposed = false;
   private readonly deps: ProxyManagerDependencies;
   private readonly composition: ProxyManagerComposition;
+  private readonly unsubscribeTraffic: () => void;
 
   constructor(
     private readonly stateStore: IProxyStateStore,
@@ -74,7 +76,9 @@ export class ProxyManager implements IProxyManager {
     private readonly outputPresenter?: IProxyOutputPresenter,
     tokenDetectorPresenter?: ITokenDetectorOutputPresenter,
     deps?: ProxyManagerDependencies,
-    getOutputConfig?: () => ProxyOutputSettings
+    getOutputConfig?: () => ProxyOutputSettings,
+    compositionFactory: typeof createProxyManagerComposition =
+      createProxyManagerComposition
   ) {
     const logDir = path.join(storageDir, 'logs');
     this.deps =
@@ -108,7 +112,7 @@ export class ProxyManager implements IProxyManager {
           outputCursorHostsOnly: config.get<boolean>('outputCursorHostsOnly', false),
         };
       });
-    this.composition = createProxyManagerComposition({
+    this.composition = compositionFactory({
       stateStore,
       profileManager,
       context,
@@ -124,7 +128,7 @@ export class ProxyManager implements IProxyManager {
       },
       runtimes: this.runtimes,
     });
-    this.deps.trafficBus.subscribe((summary, profileId) => {
+    this.unsubscribeTraffic = this.deps.trafficBus.subscribe((summary, profileId) => {
       void this.handleTraffic(summary, profileId);
     });
   }
@@ -139,6 +143,11 @@ export class ProxyManager implements IProxyManager {
 
   /** Stop extension-host traffic ingress without stopping an externally owned proxy. */
   dispose(): void {
+    if (this.disposed) {
+      return;
+    }
+    this.disposed = true;
+    this.unsubscribeTraffic();
     this.deps.trafficIngress.stopAll();
   }
 
