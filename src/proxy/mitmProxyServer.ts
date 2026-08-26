@@ -19,7 +19,6 @@ import {
 import type { ProxyTrafficLogger } from './nullLogger';
 import { isAgentIncrementalStreamUrl } from './agentStreamUrls';
 import {
-  parseConnectTunnelHost,
   ProxyTrafficDiagnosticsCollector,
 } from './proxyTrafficDiagnostics';
 import { extractRequestId, toTrafficSummary } from './proxyTrafficFormat';
@@ -29,6 +28,7 @@ import { buildTrafficSummary } from './trafficSummaryBuilder';
 import { RunSseStreamHandler } from './capture/runSseStreamHandler';
 import { CursorModelPricingProvider } from '../modelEfficiency/cursorModelPricingProvider';
 import { ProxyLiveCostCalculator } from '../domain/services/ProxyLiveCostCalculator';
+import { createMitmProxyRequestHandler } from './mitmProxyRequestHandler';
 import type {
   MitmProxyHandlers,
   ProxyLogEntry,
@@ -139,86 +139,18 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
       this.emit('error', err instanceof Error ? err : new Error(message));
     });
 
-    proxy.onRequest((ctx, callback) => {
-      this.statistics.totalRequests += 1;
-      this.statistics.activeConnections += 1;
-
-      const host = ctx.clientToProxyRequest.headers.host ?? '';
-      const url = this.buildRequestUrl(ctx);
-      const method = ctx.clientToProxyRequest.method;
-
-      if (this.diagnostics) {
-        const connectTarget = parseConnectTunnelHost(method, url, host);
-        if (connectTarget) {
-          this.diagnostics.recordConnect(connectTarget);
-        }
-      }
-
-      if (isCursorHost(host)) {
-        this.statistics.cursorRequests += 1;
-      }
-
-      const headers = normalizeHeaders(
-        ctx.clientToProxyRequest.headers
-      );
-      const contentType = headers['content-type'];
-      const requestId = extractRequestId(headers);
-      if (requestId) {
-        this.requestStartedAt.set(requestId, Date.now());
-      }
-
-      const bodyChunks: Buffer[] = [];
-      ctx.onRequestData((_ctx, chunk, cb) => {
-        bodyChunks.push(chunk);
-        cb(null, chunk);
-      });
-
-      ctx.onRequestEnd((_ctx, endCallback) => {
-        void (() => {
-        const rawBody = Buffer.concat(bodyChunks);
-        this.statistics.bytesTransferred += rawBody.length;
-        const contentEncoding = headers['content-encoding'];
-        const { body, decompressed } = decompressBodyBuffer(
-          rawBody,
-          contentEncoding
-        );
-        const spillKey = requestId
-          ? `${requestId}-request`
-          : undefined;
-        const formatted = this.requestLogger.formatBody(
-          body,
-          contentType,
-          spillKey
-        );
-        const entry: ProxyLogEntry = {
-          timestamp: new Date().toISOString(),
-          direction: 'request',
-          method: ctx.clientToProxyRequest.method,
-          url,
-          host,
-          headers: redactHeadersForLog(headers),
-          ...formatted,
-          bodyDecompressed: decompressed || undefined,
-          isConnectRpc: isConnectRpcContentType(contentType),
-          isCursorHost: isCursorHost(host),
-          requestId,
-          protocolVersion: this.protocolVersionFor(ctx.clientToProxyRequest),
-        };
-        this.requestLogger.log(entry);
-        this.recordDiagnostics({
-          method,
-          url,
-          host,
-          direction: 'request',
-          protocolVersion: entry.protocolVersion,
-        });
-        this.emitTrafficSummary(entry);
-          endCallback();
-        })();
-      });
-
-      callback();
-    });
+    proxy.onRequest(
+      createMitmProxyRequestHandler({
+        statistics: this.statistics,
+        requestStartedAt: this.requestStartedAt,
+        requestLogger: this.requestLogger,
+        getDiagnostics: () => this.diagnostics,
+        buildRequestUrl: (ctx) => this.buildRequestUrl(ctx),
+        protocolVersionFor: (req) => this.protocolVersionFor(req),
+        recordDiagnostics: (input) => this.recordDiagnostics(input),
+        emitTrafficSummary: (entry) => this.emitTrafficSummary(entry),
+      })
+    );
 
     proxy.onResponse((ctx, callback) => {
       const host = ctx.clientToProxyRequest.headers.host ?? '';
