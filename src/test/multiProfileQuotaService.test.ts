@@ -8,6 +8,7 @@ import { ProfileStorage } from '../profiles/profileStorage';
 import type { IActivityLeaderboardService } from '../domain/ports/IActivityLeaderboardService';
 import type { IProfileAuthReader } from '../domain/ports/IProfileAuthReader';
 import type { IQuotaService } from '../domain/ports/IQuotaService';
+import type { CursorAuthTokens, QuotaUsage } from '@cursor-accounts/types';
 import {
   MultiProfileQuotaService,
   type QuotaServiceFactory,
@@ -43,6 +44,48 @@ function createMockContext(extensionPath: string): {
   };
 }
 
+function createQuota(overrides: Partial<QuotaUsage> = {}): QuotaUsage {
+  return {
+    totalPercentUsed: 10,
+    autoPercentUsed: 10,
+    apiPercentUsed: 10,
+    totalSpend: 100,
+    includedSpend: 100,
+    remaining: 900,
+    limit: 1000,
+    billingCycleStart: '2026-01-01',
+    billingCycleEnd: '2026-02-01',
+    fetchedAt: Date.now(),
+    ...overrides,
+  };
+}
+
+function createDeferred<T>(): {
+  promise: Promise<T>;
+  resolve(value: T): void;
+  reject(error: unknown): void;
+} {
+  let resolvePromise: (value: T) => void = () => undefined;
+  let rejectPromise: (error: unknown) => void = () => undefined;
+  const promise = new Promise<T>((resolve, reject) => {
+    resolvePromise = resolve;
+    rejectPromise = reject;
+  });
+  return {
+    promise,
+    resolve: resolvePromise,
+    reject: rejectPromise,
+  };
+}
+
+async function waitFor(condition: () => boolean): Promise<void> {
+  const deadline = Date.now() + 1000;
+  while (!condition() && Date.now() < deadline) {
+    await new Promise<void>((resolve) => setImmediate(resolve));
+  }
+  assert.equal(condition(), true);
+}
+
 describe('MultiProfileQuotaService', () => {
   let tempDir: string;
   let configDir: string;
@@ -50,6 +93,10 @@ describe('MultiProfileQuotaService', () => {
   let manager: ProfileManager;
   let service: MultiProfileQuotaService;
   let mockContext: ReturnType<typeof createMockContext>;
+  let authReader: IProfileAuthReader;
+  let createQuotaService: QuotaServiceFactory;
+  let quotaServiceImplementation: QuotaServiceFactory;
+  let activityLeaderboardService: IActivityLeaderboardService;
 
   beforeEach(async () => {
     tempDir = await fs.mkdtemp(
@@ -64,16 +111,17 @@ describe('MultiProfileQuotaService', () => {
     await manager.initialize();
 
     mockContext = createMockContext(extensionPath);
-    const authReader: IProfileAuthReader = {
+    authReader = {
       readTokens: async () => null,
     };
-    const createQuotaService: QuotaServiceFactory = () =>
+    quotaServiceImplementation = () =>
       ({
         getUsage: async () => {
           throw new Error('Not implemented in test');
         },
       }) as IQuotaService;
-    const activityLeaderboardService: IActivityLeaderboardService = {
+    createQuotaService = (provider) => quotaServiceImplementation(provider);
+    activityLeaderboardService = {
       fetchSnapshot: async () => ({
         entries: [],
         periodStart: '',
@@ -146,6 +194,118 @@ describe('MultiProfileQuotaService', () => {
 
       assert.ok(cached.has(profile.id));
     });
+
+    it('maps transport authentication failures to a recoverable profile row', async () => {
+      const profile = await manager.createProfile({
+        email: 'auth-error@example.com',
+      });
+      const tokens: CursorAuthTokens = { accessToken: 'access-token' };
+      authReader.readTokens = async () => tokens;
+      quotaServiceImplementation = () => ({
+        getUsage: async () => {
+          throw new Error('HTTP 401 Unauthorized');
+        },
+      });
+
+      const quotas = await service.fetchAllQuotas();
+      assert.equal(
+        quotas.get(profile.id)?.error,
+        'Authentication expired. Launch profile to sign in again.'
+      );
+    });
+
+    it('preserves both enterprise leaderboard cache entries from parallel profiles', async () => {
+      const profiles = await Promise.all([
+        manager.createProfile({ email: 'enterprise-one@example.com' }),
+        manager.createProfile({ email: 'enterprise-two@example.com' }),
+      ]);
+      authReader.readTokens = async () => ({ accessToken: 'access-token' });
+      quotaServiceImplementation = () => ({
+        getUsage: async () =>
+          createQuota({ membershipType: 'enterprise', limitType: 'team' }),
+      });
+      activityLeaderboardService.fetchSnapshot = async () => ({
+        entries: [],
+        periodStart: '2026-01-01',
+        periodEnd: '2026-01-31',
+        fetchedAt: Date.now(),
+      });
+
+      await service.fetchAllQuotas();
+
+      const cached = mockContext.globalState.data[
+        'multiProfileLeaderboardCache'
+      ] as Record<string, unknown>;
+      assert.deepEqual(Object.keys(cached).sort(), profiles.map((p) => p.id).sort());
+    });
+
+    it('returns the existing in-flight refresh and notifies listeners once', async () => {
+      await manager.createProfile({ email: 'deduplicated@example.com' });
+      const deferred = createDeferred<QuotaUsage>();
+      authReader.readTokens = async () => ({ accessToken: 'access-token' });
+      quotaServiceImplementation = () => ({
+        getUsage: async () => deferred.promise,
+      });
+      let notifications = 0;
+      service.onRefresh(() => {
+        notifications += 1;
+      });
+
+      const first = service.refreshAll();
+      const second = service.refreshAll();
+      assert.equal(first, second);
+      deferred.resolve(createQuota());
+
+      await first;
+      assert.equal(notifications, 1);
+    });
+
+    it('cancels a background refresh on stop without publishing partial data', async () => {
+      await manager.createProfile({ email: 'cancelled@example.com' });
+      authReader.readTokens = async () => ({ accessToken: 'access-token' });
+      let receivedSignal: AbortSignal | undefined;
+      quotaServiceImplementation = () => ({
+        getUsage: async (signal) => {
+          receivedSignal = signal;
+          await new Promise<void>((resolve) => {
+            signal?.addEventListener('abort', () => resolve(), { once: true });
+          });
+          throw new Error('aborted');
+        },
+      });
+      let notifications = 0;
+      service.onRefresh(() => {
+        notifications += 1;
+      });
+
+      service.start(60);
+      await waitFor(() => receivedSignal !== undefined);
+      const refresh = service.refreshAll();
+      service.stop();
+
+      const quotas = await refresh;
+      assert.equal(quotas.size, 0);
+      assert.equal(receivedSignal?.aborted, true);
+      assert.equal(notifications, 0);
+      assert.equal(service.getAllCachedQuotas().size, 0);
+    });
+
+    it('isolates failing listeners and supports deterministic unsubscribe', async () => {
+      let notifications = 0;
+      service.onRefresh(() => {
+        throw new Error('listener failed');
+      });
+      const unsubscribe = service.onRefresh(() => {
+        notifications += 1;
+      });
+
+      await service.refreshAll();
+      assert.equal(notifications, 1);
+
+      unsubscribe();
+      await service.refreshAll();
+      assert.equal(notifications, 1);
+    });
   });
 
   describe('getCachedQuota', () => {
@@ -176,6 +336,15 @@ describe('MultiProfileQuotaService', () => {
 
       const cached = await service.getAllCachedQuotas();
       assert.equal(cached.size, 0);
+    });
+
+    it('ignores malformed persisted cache values', () => {
+      mockContext.globalState.data.multiProfileQuotaCache = [
+        { id: 'missing-quota' },
+        { id: 'wrong-shape', quota: 'invalid' },
+      ];
+
+      assert.equal(service.getAllCachedQuotas().size, 0);
     });
   });
 

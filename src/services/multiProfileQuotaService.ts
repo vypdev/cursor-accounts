@@ -1,6 +1,18 @@
 import type * as vscode from 'vscode';
 import type { ActivityLeaderboardSnapshot } from '../domain';
 import { isEnterpriseUsage } from '../domain';
+import {
+  deserializeLeaderboardCache,
+  deserializeQuotaCache,
+  serializeLeaderboardCache,
+  serializeQuotaCache,
+} from '../application/services/profileQuotaCachePolicy';
+import {
+  createLeaderboardFailure,
+  createQuotaFailure,
+  mapQuotaAuthError,
+  summarizeQuotaRefresh,
+} from '../application/services/profileQuotaRefreshPolicy';
 import type { IActivityLeaderboardService } from '../domain/ports/IActivityLeaderboardService';
 import type { IProfileAuthReader } from '../domain/ports/IProfileAuthReader';
 import type { IProfileReader } from '../domain/ports/IProfileReader';
@@ -15,6 +27,7 @@ const QUOTA_CACHE_KEY = 'multiProfileQuotaCache';
 const LEADERBOARD_CACHE_KEY = 'multiProfileLeaderboardCache';
 const CACHE_VALIDITY_MS = 5 * 60 * 1000;
 const LEADERBOARD_CACHE_VALIDITY_MS = 15 * 60 * 1000;
+const REQUEST_TIMEOUT_MS = 15_000;
 
 export class MultiProfileQuotaServiceError extends Error {
   constructor(
@@ -27,13 +40,24 @@ export class MultiProfileQuotaServiceError extends Error {
 }
 
 export type QuotaServiceFactory = (provider: ITokenProvider) => IQuotaService;
+export type QuotaRefreshCallback = (
+  quotas: Map<string, ProfileQuota>
+) => void | Promise<void>;
+
+interface RefreshInFlight {
+  generation: number;
+  promise: Promise<Map<string, ProfileQuota>>;
+}
 
 export class MultiProfileQuotaService {
   private refreshTimer: NodeJS.Timeout | undefined;
-  private inFlight = false;
-  private onRefreshCallbacks: Array<
-    (quotas: Map<string, ProfileQuota>) => void
-  > = [];
+  private backgroundAbortController: AbortController | undefined;
+  private refreshGeneration = 0;
+  private refreshInFlight: RefreshInFlight | undefined;
+  private readonly onRefreshCallbacks = new Set<QuotaRefreshCallback>();
+  private quotaCacheWrite: Promise<void> = Promise.resolve();
+  private leaderboardCacheWrite: Promise<void> = Promise.resolve();
+  private quotaFetchGeneration = 0;
 
   constructor(
     private readonly context: vscode.ExtensionContext,
@@ -44,21 +68,25 @@ export class MultiProfileQuotaService {
   ) {}
 
   /** Register callback for background quota updates (e.g. Accounts panel). */
-  onRefresh(callback: (quotas: Map<string, ProfileQuota>) => void): void {
-    this.onRefreshCallbacks.push(callback);
+  onRefresh(callback: QuotaRefreshCallback): () => void {
+    this.onRefreshCallbacks.add(callback);
+    return () => {
+      this.onRefreshCallbacks.delete(callback);
+    };
   }
 
   /** Start background refresh. */
   start(intervalSeconds = 300): void {
     this.stop();
+    this.backgroundAbortController = new AbortController();
 
     extensionLog.info(
       `[MultiProfileQuotaService] Started (interval ${intervalSeconds}s)`
     );
-    void this.refreshAll();
+    this.triggerRefresh();
 
     this.refreshTimer = setInterval(() => {
-      void this.refreshAll();
+      this.triggerRefresh();
     }, intervalSeconds * 1000);
   }
 
@@ -67,21 +95,38 @@ export class MultiProfileQuotaService {
     if (this.refreshTimer) {
       clearInterval(this.refreshTimer);
       this.refreshTimer = undefined;
-      extensionLog.debug('[MultiProfileQuotaService] Stopped');
     }
+    this.backgroundAbortController?.abort();
+    this.backgroundAbortController = undefined;
+    this.refreshGeneration += 1;
+    extensionLog.debug('[MultiProfileQuotaService] Stopped');
   }
 
   /** Fetch quotas for all profiles in parallel. */
-  async fetchAllQuotas(): Promise<Map<string, ProfileQuota>> {
+  async fetchAllQuotas(signal?: AbortSignal): Promise<Map<string, ProfileQuota>> {
+    const fetchGeneration = ++this.quotaFetchGeneration;
     const profiles = await this.profileManager.getProfiles();
+    if (signal?.aborted) {
+      return this.loadCache();
+    }
 
     if (profiles.length === 0) {
       return new Map();
     }
 
     const results = await Promise.allSettled(
-      profiles.map((profile) => this.fetchQuotaForProfile(profile))
+      profiles.map((profile) => this.fetchQuotaForProfile(profile, signal))
     );
+
+    if (
+      signal?.aborted ||
+      fetchGeneration !== this.quotaFetchGeneration
+    ) {
+      extensionLog.debug(
+        '[MultiProfileQuotaService] Discarding superseded or cancelled quota fetch'
+      );
+      return this.loadCache();
+    }
 
     const quotaMap = new Map<string, ProfileQuota>();
 
@@ -95,24 +140,24 @@ export class MultiProfileQuotaService {
       if (result.status === 'fulfilled') {
         quotaMap.set(profile.id, result.value);
       } else {
-        const reason: unknown = result.reason;
-        quotaMap.set(profile.id, {
-          profileId: profile.id,
-          quota: null,
-          error:
-            reason instanceof Error ? reason.message : 'Failed to fetch quota',
-          fetchedAt: Date.now(),
-        });
+        quotaMap.set(profile.id, createQuotaFailure(profile.id, result.reason, Date.now()));
       }
     }
 
+    if (fetchGeneration !== this.quotaFetchGeneration) {
+      return this.loadCache();
+    }
     await this.saveCache(quotaMap);
     return quotaMap;
   }
 
   /** Fetch quota for a single profile. */
-  async fetchQuotaForProfile(profile: Profile): Promise<ProfileQuota> {
+  async fetchQuotaForProfile(
+    profile: Profile,
+    signal?: AbortSignal
+  ): Promise<ProfileQuota> {
     try {
+      throwIfAborted(signal);
       const pathValidation = validateUserDataPath(profile.userDataDir);
       if (!pathValidation.valid) {
         return {
@@ -124,6 +169,7 @@ export class MultiProfileQuotaService {
       }
 
       const tokens = await this.authReader.readTokens(profile.userDataDir);
+      throwIfAborted(signal);
 
       if (!tokens?.accessToken) {
         return {
@@ -136,15 +182,20 @@ export class MultiProfileQuotaService {
 
       const tokenProvider = new StaticTokenProvider(tokens);
       const quotaClient = this.createQuotaService(tokenProvider);
-      const quota = await quotaClient.getUsage();
+      const quota = await quotaClient.getUsage(
+        createRequestSignal(signal, REQUEST_TIMEOUT_MS)
+      );
+      throwIfAborted(signal);
 
       let activityLeaderboard = null;
       if (quota && isEnterpriseUsage(quota)) {
         activityLeaderboard = await this.fetchActivityLeaderboard(
           tokens.accessToken,
-          profile.id
+          profile.id,
+          signal
         );
       }
+      throwIfAborted(signal);
 
       return {
         profileId: profile.id,
@@ -153,9 +204,12 @@ export class MultiProfileQuotaService {
         fetchedAt: Date.now(),
       };
     } catch (error) {
+      if (signal?.aborted) {
+        throw error;
+      }
       const message =
         error instanceof Error ? error.message : 'Unknown error';
-      const authMessage = this.toAuthErrorMessage(message);
+      const authMessage = mapQuotaAuthError(message);
 
       return {
         profileId: profile.id,
@@ -167,36 +221,26 @@ export class MultiProfileQuotaService {
   }
 
   /** Refresh all quotas (with deduplication). */
-  async refreshAll(): Promise<Map<string, ProfileQuota>> {
-    if (this.inFlight) {
+  refreshAll(): Promise<Map<string, ProfileQuota>> {
+    const generation = this.refreshGeneration;
+    const existing = this.refreshInFlight;
+    if (existing?.generation === generation) {
       extensionLog.debug(
         '[MultiProfileQuotaService] Refresh skipped (already in flight)'
       );
-      return this.loadCache();
+      return existing.promise;
     }
 
-    try {
-      this.inFlight = true;
-      const quotas = await this.fetchAllQuotas();
-      let ok = 0;
-      let failed = 0;
-      for (const entry of quotas.values()) {
-        if (entry.quota) {
-          ok += 1;
-        } else {
-          failed += 1;
-        }
-      }
-      extensionLog.info(
-        `[MultiProfileQuotaService] Refresh complete: ${quotas.size} profile(s), ${ok} ok, ${failed} failed`
-      );
-      for (const callback of this.onRefreshCallbacks) {
-        callback(quotas);
-      }
-      return quotas;
-    } finally {
-      this.inFlight = false;
-    }
+    const promise = this.performRefresh(
+      this.backgroundAbortController?.signal
+    );
+    const refreshInFlight: RefreshInFlight = { generation, promise };
+    this.refreshInFlight = refreshInFlight;
+    void promise.then(
+      () => this.clearRefreshInFlight(refreshInFlight),
+      () => this.clearRefreshInFlight(refreshInFlight)
+    );
+    return promise;
   }
 
   /** Get cached quota for a profile if still valid. */
@@ -227,13 +271,62 @@ export class MultiProfileQuotaService {
     await this.context.globalState.update(LEADERBOARD_CACHE_KEY, undefined);
   }
 
+  private async performRefresh(
+    signal: AbortSignal | undefined
+  ): Promise<Map<string, ProfileQuota>> {
+    const quotas = await this.fetchAllQuotas(signal);
+    if (signal?.aborted) {
+      extensionLog.debug(
+        '[MultiProfileQuotaService] Background refresh cancelled'
+      );
+      return this.loadCache();
+    }
+
+    const summary = summarizeQuotaRefresh(quotas);
+      extensionLog.info(
+      `[MultiProfileQuotaService] Refresh complete: ${summary.total} profile(s), ${summary.successful} ok, ${summary.failed} failed`
+      );
+    await this.notifyRefreshCallbacks(quotas);
+    return quotas;
+  }
+
+  private triggerRefresh(): void {
+    void this.refreshAll().catch((error: unknown) => {
+      extensionLog.error(
+        `[MultiProfileQuotaService] Background refresh failed: ${extensionLog.formatError(error)}`
+      );
+    });
+  }
+
+  private clearRefreshInFlight(refreshInFlight: RefreshInFlight): void {
+    if (this.refreshInFlight === refreshInFlight) {
+      this.refreshInFlight = undefined;
+    }
+  }
+
+  private async notifyRefreshCallbacks(
+    quotas: Map<string, ProfileQuota>
+  ): Promise<void> {
+    await Promise.all(
+      Array.from(this.onRefreshCallbacks, async (callback) => {
+        try {
+          await callback(quotas);
+        } catch (error) {
+          extensionLog.debug(
+            `[MultiProfileQuotaService] Refresh callback failed: ${extensionLog.formatError(error)}`
+          );
+        }
+      })
+    );
+  }
+
   private getCachedLeaderboard(
     profileId: string
   ): ActivityLeaderboardSnapshot | undefined {
-    const cached = this.context.globalState.get<
-      Record<string, ActivityLeaderboardSnapshot>
-    >(LEADERBOARD_CACHE_KEY);
-    const snapshot = cached?.[profileId];
+    const cached = deserializeLeaderboardCache(
+      this.context.globalState.get<unknown>(LEADERBOARD_CACHE_KEY)
+    );
+    const snapshot = cached.get(profileId);
     if (!snapshot) {
       return undefined;
     }
@@ -248,18 +341,26 @@ export class MultiProfileQuotaService {
     profileId: string,
     snapshot: ActivityLeaderboardSnapshot
   ): Promise<void> {
-    const existing =
-      this.context.globalState.get<Record<string, ActivityLeaderboardSnapshot>>(
-        LEADERBOARD_CACHE_KEY
-      ) ?? {};
-    existing[profileId] = snapshot;
-    await this.context.globalState.update(LEADERBOARD_CACHE_KEY, existing);
+    const write = this.leaderboardCacheWrite.then(async () => {
+      const existing = deserializeLeaderboardCache(
+        this.context.globalState.get<unknown>(LEADERBOARD_CACHE_KEY)
+      );
+      existing.set(profileId, snapshot);
+      await this.context.globalState.update(
+        LEADERBOARD_CACHE_KEY,
+        serializeLeaderboardCache(existing)
+      );
+    });
+    this.leaderboardCacheWrite = write.catch(() => undefined);
+    await write;
   }
 
   private async fetchActivityLeaderboard(
     accessToken: string,
-    profileId: string
+    profileId: string,
+    signal?: AbortSignal
   ): Promise<ActivityLeaderboardSnapshot> {
+    throwIfAborted(signal);
     const cached = this.getCachedLeaderboard(profileId);
     if (cached) {
       return cached;
@@ -268,61 +369,59 @@ export class MultiProfileQuotaService {
     try {
       const snapshot = await this.activityLeaderboardService.fetchSnapshot(
         accessToken,
-        AbortSignal.timeout(15_000)
+        createRequestSignal(signal, REQUEST_TIMEOUT_MS)
       );
+      throwIfAborted(signal);
       await this.saveLeaderboardCache(profileId, snapshot);
       return snapshot;
     } catch (error) {
+      if (signal?.aborted) {
+        throw error;
+      }
       const message =
         error instanceof Error ? error.message : 'Unknown error';
       extensionLog.debug(
         `[MultiProfileQuotaService] Activity leaderboard failed: ${message}`
       );
-      return {
-        entries: [],
-        periodStart: '',
-        periodEnd: '',
-        fetchedAt: Date.now(),
-        error: message,
-      };
+      return createLeaderboardFailure(message, Date.now());
     }
-  }
-
-  private toAuthErrorMessage(message: string): string {
-    const lower = message.toLowerCase();
-    if (
-      lower.includes('401') ||
-      lower.includes('expired') ||
-      lower.includes('unauthorized')
-    ) {
-      return 'Authentication expired. Launch profile to sign in again.';
-    }
-    if (lower.includes('not signed in') || lower.includes('sign in')) {
-      return 'Launch this profile and sign in to see quota.';
-    }
-    return message;
   }
 
   private async saveCache(quotas: Map<string, ProfileQuota>): Promise<void> {
-    const array = Array.from(quotas.entries()).map(([id, quota]) => ({
-      id,
-      quota,
-    }));
-
-    await this.context.globalState.update(QUOTA_CACHE_KEY, array);
+    const write = this.quotaCacheWrite.then(async () => {
+      await this.context.globalState.update(
+        QUOTA_CACHE_KEY,
+        serializeQuotaCache(quotas)
+      );
+    });
+    this.quotaCacheWrite = write.catch(() => undefined);
+    await write;
   }
 
   private loadCache(): Map<string, ProfileQuota> {
-    const cached = this.context.globalState.get<
-      Array<{ id: string; quota: ProfileQuota }>
-    >(QUOTA_CACHE_KEY);
-
-    if (!cached) {
-      return new Map();
-    }
-
-    return new Map(cached.map((item) => [item.id, item.quota]));
+    return deserializeQuotaCache(
+      this.context.globalState.get<unknown>(QUOTA_CACHE_KEY)
+    );
   }
+}
+
+function createRequestSignal(
+  parentSignal: AbortSignal | undefined,
+  timeoutMs: number
+): AbortSignal {
+  const timeoutSignal = AbortSignal.timeout(timeoutMs);
+  return parentSignal
+    ? AbortSignal.any([parentSignal, timeoutSignal])
+    : timeoutSignal;
+}
+
+function throwIfAborted(signal: AbortSignal | undefined): void {
+  if (!signal?.aborted) {
+    return;
+  }
+  throw signal.reason instanceof Error
+    ? signal.reason
+    : new Error('Operation aborted');
 }
 
 /** Convert quota Map to JSON-safe Record for webview messaging. */
