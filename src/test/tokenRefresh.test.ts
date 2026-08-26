@@ -71,6 +71,46 @@ describe('TokenService profile scoping', () => {
       globalThis.fetch = originalFetch;
     }
   });
+
+  it('refreshes when a profile secret contains only a refresh token', async () => {
+    const userDataDir = path.join(
+      os.homedir(),
+      '.cursor-accounts-test',
+      'cursor-profile-refresh-only'
+    );
+    const profileKeys = getProfileSecretsKeys(userDataDir);
+    const values = new Map<string, string>([
+      [profileKeys.refreshToken, 'profile-refresh'],
+    ]);
+    let receivedRefreshToken: string | undefined;
+    const context = {
+      extensionPath: '/tmp/ext',
+      secrets: {
+        get: async (key: string) => values.get(key),
+        store: async (key: string, value: string) => {
+          values.set(key, value);
+        },
+      },
+    };
+    const profileDetector = { getCurrentUserDataDir: () => userDataDir };
+    const service = new TokenService(context as never, profileDetector as never, {
+      oauthTokenClient: {
+        refreshTokens: async (refreshToken: string) => {
+          receivedRefreshToken = refreshToken;
+          return { accessToken: 'refreshed-access', refreshToken };
+        },
+      },
+    });
+
+    const tokens = await service.getValidTokens();
+
+    assert.deepEqual(tokens, {
+      accessToken: 'refreshed-access',
+      refreshToken: 'profile-refresh',
+    });
+    assert.equal(receivedRefreshToken, 'profile-refresh');
+    assert.equal(values.get(profileKeys.accessToken), 'refreshed-access');
+  });
 });
 
 describe('TokenService.refreshTokens', () => {

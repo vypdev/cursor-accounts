@@ -44,6 +44,7 @@ export {
 } from '@cursor-accounts/types';
 
 export * from './ports/ITokenProvider';
+export * from './ports/IOAuthTokenClient';
 export * from './ports/IProfileStorage';
 export * from './ports/IQuotaService';
 export * from './ports/IProfileAuthReader';
