@@ -12,16 +12,6 @@ export type { QuotaServiceFactory } from '../application/services/profileQuotaFe
 
 const CACHE_VALIDITY_MS = 5 * 60 * 1000;
 
-export class MultiProfileQuotaServiceError extends Error {
-  constructor(
-    message: string,
-    public readonly cause?: Error
-  ) {
-    super(message);
-    this.name = 'MultiProfileQuotaServiceError';
-  }
-}
-
 export type QuotaRefreshCallback = (
   quotas: Map<string, ProfileQuota>
 ) => void | Promise<void>;
