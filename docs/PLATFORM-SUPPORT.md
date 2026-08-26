@@ -29,7 +29,7 @@ The release workflows are configured with this target matrix:
 | `darwin-arm64` | Self-hosted macOS ARM64 | Build, VSIX contents, SQLite binary, and Electron ABI 128 binding verified | Required before release |
 | `darwin-x64` | Self-hosted macOS x64 | Not executed on this host | Required before release |
 | `linux-x64` | Self-hosted Linux x64 | Not executed on this host | Required before release |
-| `linux-arm64` | `ubuntu-24.04-arm` | Not executed on this host | Required before release |
+| `linux-arm64` | `ubuntu-24.04-arm` | Cross-packaged on macOS; target binding and VSIX contents verified, executable smoke test pending | Required before release |
 | `win32-x64` | Self-hosted Windows x64 | Not executed on this host | Required before release |
 | `win32-arm64` | Self-hosted Windows x64 | Not executed on this host | Required before release |
 
