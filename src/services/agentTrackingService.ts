@@ -1,138 +1,47 @@
 import type { IngestTrafficResult } from '../application/types/agentPersistence';
-import {
-  classifyAgentIngestion,
-  createIngestTrafficResult,
-  normalizeAgentTimestamp,
-  selectAgentModelName,
-} from '../application/services/agentTrackingIngestionPolicy';
+import { AgentTrafficIngestionUseCase } from '../application/services/agentTrafficIngestionUseCase';
 import { AgentTrackingPersistenceCoordinator } from '../application/services/agentTrackingPersistenceCoordinator';
-import type { AgentSessionInfo } from '../application/types/agentTracking';
 import type { ProxyTrafficUsageEvent } from '../domain/types/proxyTraffic';
 import type { IAgentTrackingRepository } from '../domain/ports/IAgentTrackingRepository';
 import type { IProxyLiveCostCalculator } from '../domain/ports/IProxyLiveCostCalculator';
 import type { ITokenTurnDetectionService } from '../domain/ports/ITokenTurnDetectionService';
 import * as extensionLog from '../logging/extensionLog';
 
-const TRACKING_LOG = '[AgentTracking]';
-
-function shortId(id?: string): string {
-  return id ? `${id.slice(0, 8)}…` : '(none)';
-}
-
 /** Application orchestrator for profile and conversation-scoped agent tracking. */
 export class AgentTrackingService {
   private readonly persistence: AgentTrackingPersistenceCoordinator;
+  private readonly ingestion: AgentTrafficIngestionUseCase;
 
   constructor(
     private readonly repository: IAgentTrackingRepository,
-    private readonly profileId: string,
+    profileId: string,
     turnDetectionService?: ITokenTurnDetectionService,
     costCalculator?: IProxyLiveCostCalculator,
-    private readonly now: () => number = () => Date.now() / 1000
+    now: () => number = () => Date.now() / 1000
   ) {
     this.persistence = new AgentTrackingPersistenceCoordinator(
       repository,
       turnDetectionService,
       costCalculator
     );
+    this.ingestion = new AgentTrafficIngestionUseCase({
+      repository,
+      profileId,
+      persistence: this.persistence,
+      now,
+      logInfo: (message) => extensionLog.info(message),
+      logError: (message) => extensionLog.error(message),
+    });
   }
 
   async initialize(): Promise<void> {
-    try {
-      await this.repository.initialize();
-      extensionLog.info(`${TRACKING_LOG} Initialized successfully`);
-    } catch (error) {
-      extensionLog.error(
-        `${TRACKING_LOG} Initialization failed: ${extensionLog.formatError(error)}`
-      );
-      throw error;
-    }
+    return this.ingestion.initialize();
   }
 
   async ingestTraffic(
     summary: ProxyTrafficUsageEvent
   ): Promise<IngestTrafficResult | void> {
-    const ingestKind = classifyAgentIngestion(summary);
-
-    try {
-      const insights = summary.insights;
-      if (!insights) {
-        extensionLog.info(`${TRACKING_LOG} skip (${ingestKind}): no insights`);
-        return;
-      }
-
-      const agent = insights.agent;
-      if (!agent?.requestId) {
-        extensionLog.info(
-          `${TRACKING_LOG} skip (${ingestKind}): missing agent.requestId ` +
-            `http=${shortId(summary.httpRequestId)} usage=${agent?.usageEvent ?? '(none)'}`
-        );
-        return;
-      }
-
-      const timestamp = normalizeAgentTimestamp(summary.timestamp, this.now());
-      const conversationId = await this.resolveConversationId(agent);
-      if (!conversationId) {
-        extensionLog.info(
-          `${TRACKING_LOG} skip (${ingestKind}): missing conversationId ` +
-            `bidi=${shortId(agent.requestId)} usage=${agent.usageEvent ?? '(none)'}`
-        );
-        return;
-      }
-
-      const effectiveProfileId = summary.profileId ?? this.profileId;
-      const modelName = selectAgentModelName(insights, agent);
-
-      await this.repository.upsertConversation(
-        conversationId,
-        effectiveProfileId,
-        timestamp,
-        insights.context?.messageCount
-      );
-      await this.repository.upsertAgent({
-        requestId: agent.requestId,
-        conversationId,
-        conversationGroupId: agent.conversationGroupId,
-        parentRequestId: agent.parentRequestId,
-        subagentRequestId: agent.subagentRequestId,
-        modelName,
-        startedAt: timestamp,
-        endedAt: agent.eof ? timestamp : undefined,
-        isEof: agent.eof ?? false,
-        profileId: effectiveProfileId,
-      });
-
-      const persisted = await this.persistence.persist({
-        summary,
-        insights,
-        agent,
-        timestamp,
-        modelName,
-      });
-
-      if (!persisted.persisted) {
-        extensionLog.info(
-          `${TRACKING_LOG} no persistence path (${persisted.kind}) ` +
-            `bidi=${shortId(agent.requestId)} conv=${shortId(conversationId)}`
-        );
-        return;
-      }
-
-      extensionLog.info(
-        `${TRACKING_LOG} persisted ${persisted.kind} ` +
-          `bidi=${shortId(agent.requestId)} conv=${shortId(conversationId)}`
-      );
-
-      return createIngestTrafficResult(
-        conversationId,
-        persisted.kind,
-        this.persistence.hasPersistableContext(agent)
-      );
-    } catch (error) {
-      extensionLog.error(
-        `${TRACKING_LOG} Ingestion error: ${extensionLog.formatError(error)}`
-      );
-    }
+    return this.ingestion.execute(summary);
   }
 
   getConversationTokens(conversationId: string) {
@@ -153,12 +62,6 @@ export class AgentTrackingService {
 
   getAgentTree(conversationId: string) {
     return this.repository.getAgentTree(conversationId);
-  }
-
-  private async resolveConversationId(agent: AgentSessionInfo): Promise<string | undefined> {
-    if (agent.conversationId) return agent.conversationId;
-    const existingAgent = await this.repository.getAgentTokens(agent.requestId!);
-    return existingAgent?.conversationId;
   }
 
 }
