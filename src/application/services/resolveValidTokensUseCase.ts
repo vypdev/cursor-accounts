@@ -6,8 +6,14 @@ import type { ISecretStorage } from '../../domain/ports/ISecretStorage';
 import {
   resolveTokenResolution,
   type StoredAuthTokens,
+  type TokenResolution,
   type TokenSource,
 } from './tokenResolutionPolicy';
+
+interface LoadedTokenResolution {
+  profileSecretsKeys: ProfileSecretKeys;
+  resolution: TokenResolution;
+}
 
 export interface ResolveValidTokensUseCaseDependencies {
   profileAuthReader: IProfileAuthReader;
@@ -30,6 +36,14 @@ export class ResolveValidTokensUseCase {
     userDataDir: string,
     signal?: AbortSignal
   ): Promise<CursorAuthTokens> {
+    const { profileSecretsKeys, resolution } =
+      await this.loadTokenResolution(userDataDir);
+    return this.applyResolution(resolution, profileSecretsKeys, signal);
+  }
+
+  private async loadTokenResolution(
+    userDataDir: string
+  ): Promise<LoadedTokenResolution> {
     const profileSecretsKeys = this.dependencies.getProfileSecretsKeys(userDataDir);
     const stateDb = await this.dependencies.profileAuthReader.readTokens(
       userDataDir
@@ -43,14 +57,23 @@ export class ResolveValidTokensUseCase {
     const legacySecrets = needsSecretFallback
       ? await this.readSecrets(this.dependencies.legacySecretKeys)
       : null;
-    const resolution = resolveTokenResolution({
-      stateDb,
-      profileSecrets,
-      legacySecrets,
-      isAccessTokenValid: (accessToken) =>
-        this.dependencies.isAccessTokenValid(accessToken),
-    });
+    return {
+      profileSecretsKeys,
+      resolution: resolveTokenResolution({
+        stateDb,
+        profileSecrets,
+        legacySecrets,
+        isAccessTokenValid: (accessToken) =>
+          this.dependencies.isAccessTokenValid(accessToken),
+      }),
+    };
+  }
 
+  private async applyResolution(
+    resolution: TokenResolution,
+    profileSecretsKeys: ProfileSecretKeys,
+    signal?: AbortSignal
+  ): Promise<CursorAuthTokens> {
     if (resolution.kind === 'use') {
       this.dependencies.logDebug(this.describeTokenSource(resolution.source));
       if (resolution.persistToProfileSecrets) {
