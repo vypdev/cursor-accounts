@@ -327,6 +327,7 @@
     "verify:proto-jsonl": "node scripts/verify-proto-jsonl.mjs",
     "test:verify-proto-jsonl": "node --test scripts/verify-proto-jsonl.test.mjs",
     "test:native-prebuild": "node scripts/test-electron-prebuild.mjs",
+    "test:build-targets": "node --test scripts/build-targets.test.mjs",
     "analyze:proxy-traffic": "node scripts/analyze-proxy-traffic.mjs",
     "summarize:session-tokens": "node scripts/summarize-session-tokens.mjs",
     "calibrate:proxy-tokens": "node scripts/calibrate-proxy-tokens.mjs",

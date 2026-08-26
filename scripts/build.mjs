@@ -7,24 +7,10 @@ import { prepareSdkForTarget } from './prepare-sdk-for-target.mjs';
 import { sanitizeVsix } from './sanitize-vsix.mjs';
 import { convertToProduction, restoreState, saveState } from './workspace-state.mjs';
 import { detectNativeTarget } from './native-binary-target.mjs';
-
-const ALL_TARGETS = [
-  'darwin-arm64',
-  'darwin-x64',
-  'linux-x64',
-  'linux-arm64',
-  'win32-x64',
-  'win32-arm64',
-];
-
-const PLATFORM_SDK_PACKAGE = {
-  'darwin-arm64': '@cursor/sdk-darwin-arm64',
-  'darwin-x64': '@cursor/sdk-darwin-x64',
-  'linux-x64': '@cursor/sdk-linux-x64',
-  'linux-arm64': '@cursor/sdk-linux-arm64',
-  'win32-x64': '@cursor/sdk-win32-x64',
-  'win32-arm64': '@cursor/sdk-win32-x64',
-};
+import {
+  PLATFORM_SDK_PACKAGE,
+  parseBuildArgs,
+} from './build-targets.mjs';
 
 const root = process.cwd();
 const ZIP_MAX_BUFFER = 16 * 1024 * 1024;
@@ -35,59 +21,6 @@ function run(command, options = {}) {
     stdio: 'inherit',
     ...options,
   });
-}
-
-function parseArgs(argv) {
-  const args = {
-    all: false,
-    current: false,
-    targets: [],
-  };
-
-  for (let index = 0; index < argv.length; index += 1) {
-    const arg = argv[index];
-
-    if (arg === '--') {
-      continue;
-    }
-
-    if (arg === '--all') {
-      args.all = true;
-      continue;
-    }
-
-    if (arg === '--current') {
-      args.current = true;
-      continue;
-    }
-
-    if (arg === '--target') {
-      const target = argv[index + 1];
-      if (!target || !ALL_TARGETS.includes(target)) {
-        throw new Error(`Invalid target "${target ?? ''}". Expected one of: ${ALL_TARGETS.join(', ')}`);
-      }
-      args.targets.push(target);
-      index += 1;
-      continue;
-    }
-
-    if (ALL_TARGETS.includes(arg)) {
-      args.targets.push(arg);
-      continue;
-    }
-
-    throw new Error(`Unknown argument: ${arg}`);
-  }
-
-  if (args.all) {
-    args.targets = [...ALL_TARGETS];
-  } else if (args.current) {
-    args.targets = [`${process.platform}-${process.arch}`];
-  } else if (args.targets.length === 0) {
-    args.targets = [`${process.platform}-${process.arch}`];
-  }
-
-  return args;
 }
 
 function ensureNodeVersion() {
@@ -314,7 +247,7 @@ function verifyVsix(target) {
 }
 
 async function main() {
-  const args = parseArgs(process.argv.slice(2));
+  const args = parseBuildArgs(process.argv.slice(2));
   let packagingPrepared = false;
 
   try {

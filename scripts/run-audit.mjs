@@ -33,6 +33,11 @@ const checks = [
     args: ['run', 'test:native-prebuild'],
   },
   {
+    label: 'build target argument tests',
+    command: 'pnpm',
+    args: ['run', 'test:build-targets'],
+  },
+  {
     label: 'protobuf JSONL verifier tests',
     command: 'pnpm',
     args: ['run', 'test:verify-proto-jsonl'],
