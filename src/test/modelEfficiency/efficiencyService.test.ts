@@ -8,6 +8,7 @@ import {
 import { t } from '../../l10n';
 import { createMockEfficiencyStatsStorage } from './mockEfficiencyStatsStorage';
 import type { Profile } from '../../profiles/types';
+import type { EfficiencyOutputPresenter, EfficiencyPoller } from '../../modelEfficiency/efficiencyPorts';
 
 const originalShowInformationMessage = (
   vscode.window as unknown as {
@@ -268,6 +269,164 @@ describe('EfficiencyService.setEfficiencyEnabled', () => {
     service.dispose();
   });
 
+  it('initializes an enabled poller after loading persisted stats', async () => {
+    const profile = makeProfile({ efficiencyAnalysisEnabled: true });
+    let loadedProfiles: Profile[] | undefined;
+    const lifecycle: string[] = [];
+    const poller: EfficiencyPoller = {
+      start: () => lifecycle.push('start'),
+      stop: () => lifecycle.push('stop'),
+      resetState: async () => {
+        lifecycle.push('reset');
+      },
+    };
+    let created = 0;
+    const statsStorage = {
+      ...createMockEfficiencyStatsStorage(),
+      loadAllStats: async (profiles: Profile[]) => {
+        loadedProfiles = profiles;
+        return new Map();
+      },
+    } as never;
+    const service = new EfficiencyService(
+      createContext(),
+      {
+        getProfiles: async () => [profile],
+        getProfile: async () => profile,
+        updateProfile: async () => profile,
+      } as never,
+      {
+        detectCurrentProfile: async () => profile,
+        getCurrentUserDataDir: () => profile.userDataDir,
+      } as never,
+      { readTokens: async () => null },
+      statsStorage,
+      { getCachedQuota: () => undefined } as never,
+      {
+        createPoller: () => {
+          created += 1;
+          return poller;
+        },
+      }
+    );
+
+    await service.initialize();
+
+    assert.deepEqual(loadedProfiles, [profile]);
+    assert.equal(created, 1);
+    assert.deepEqual(lifecycle, ['start']);
+    service.dispose();
+    assert.deepEqual(lifecycle, ['start', 'stop']);
+  });
+
+  it('resets a newly created poller before enabling analysis', async () => {
+    const disabledProfile = makeProfile({ efficiencyAnalysisEnabled: false });
+    const enabledProfile = {
+      ...disabledProfile,
+      efficiencyAnalysisEnabled: true,
+    };
+    const lifecycle: string[] = [];
+    const poller: EfficiencyPoller = {
+      start: () => lifecycle.push('start'),
+      stop: () => lifecycle.push('stop'),
+      resetState: async () => {
+        lifecycle.push('reset');
+      },
+    };
+    let currentProfiles: Profile[] = [disabledProfile];
+    let updated: Profile | undefined;
+    const service = new EfficiencyService(
+      createContext(),
+      {
+        getProfiles: async () => currentProfiles,
+        getProfile: async () => disabledProfile,
+        updateProfile: async () => {
+          updated = enabledProfile;
+          currentProfiles = [enabledProfile];
+          return enabledProfile;
+        },
+      } as never,
+      { detectCurrentProfile: async () => disabledProfile } as never,
+      { readTokens: async () => ({ accessToken: 'access-token' }) },
+      createMockEfficiencyStatsStorage(),
+      { getCachedQuota: () => undefined } as never,
+      {
+        apiKeyStore: {
+          createApiKey: async () => 'api-key',
+          getApiKey: async () => undefined,
+          deleteApiKey: async () => {},
+        },
+        outputPresenter: createMockOutputPresenter(),
+        createPoller: () => poller,
+        requestActivationConsent: async () => true,
+      }
+    );
+
+    const result = await service.setEfficiencyEnabled(
+      disabledProfile.id,
+      true
+    );
+
+    assert.equal(updated?.efficiencyAnalysisEnabled, true);
+    assert.equal(result.profile, enabledProfile);
+    assert.deepEqual(lifecycle, ['reset', 'start']);
+    service.dispose();
+  });
+
+  it('restarts the detector with a fresh poller and notifies the user', async () => {
+    const profile = makeProfile({ efficiencyAnalysisEnabled: true });
+    const lifecycle: string[] = [];
+    const pollers: EfficiencyPoller[] = [
+      {
+        start: () => lifecycle.push('start-1'),
+        stop: () => lifecycle.push('stop-1'),
+        resetState: async () => {
+          lifecycle.push('reset-1');
+        },
+      },
+      {
+        start: () => lifecycle.push('start-2'),
+        stop: () => lifecycle.push('stop-2'),
+        resetState: async () => {
+          lifecycle.push('reset-2');
+        },
+      },
+    ];
+    let pollerIndex = 0;
+    const notifications: unknown[][] = [];
+    (
+      vscode.window as unknown as {
+        showInformationMessage: (...args: unknown[]) => Promise<undefined>;
+      }
+    ).showInformationMessage = async (...args) => {
+      notifications.push(args);
+      return undefined;
+    };
+    const service = new EfficiencyService(
+      createContext(),
+      {
+        getProfiles: async () => [profile],
+        getProfile: async () => profile,
+        updateProfile: async () => profile,
+      } as never,
+      { detectCurrentProfile: async () => profile } as never,
+      { readTokens: async () => null },
+      createMockEfficiencyStatsStorage(),
+      { getCachedQuota: () => undefined } as never,
+      {
+        outputPresenter: createMockOutputPresenter(),
+        createPoller: () => pollers[pollerIndex++]!,
+      }
+    );
+
+    await service.initialize();
+    await service.restartPromptDetector();
+
+    assert.deepEqual(lifecycle, ['start-1', 'reset-1', 'stop-1', 'start-2']);
+    assert.equal(notifications.length, 1);
+    service.dispose();
+  });
+
   it('disables analysis, removes the API key, and deletes stored stats', async () => {
     const profile = makeProfile({ efficiencyAnalysisEnabled: true });
     let deletedStatsFor: Profile | undefined;
@@ -326,4 +485,14 @@ function createContext(overrides: { delete?: () => Promise<void> } = {}) {
       update: async () => {},
     },
   } as unknown as import('vscode').ExtensionContext;
+}
+
+function createMockOutputPresenter(): EfficiencyOutputPresenter {
+  return {
+    dispose: () => {},
+    show: () => {},
+    appendStatus: () => {},
+    presentError: () => {},
+    present: () => {},
+  };
 }

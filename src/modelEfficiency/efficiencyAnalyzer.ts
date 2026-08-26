@@ -2,24 +2,27 @@ import type { IProfileDetector } from '../domain/ports/IProfileDetector';
 import type { IProfileWriter } from '../domain/ports/IProfileWriter';
 import * as extensionLog from '../logging/extensionLog';
 import type { MultiProfileQuotaService } from '../services/multiProfileQuotaService';
-import type { ApiKeyManager } from './apiKeyManager';
+import type {
+  EfficiencyAnalyzerPort,
+  EfficiencyApiKeyStore,
+  EfficiencyOutputPresenter,
+} from './efficiencyPorts';
 import type { EfficiencyStatsStorage } from './efficiencyStatsStorage';
-import type { OutputPresenter } from './outputPresenter';
 import type { SdkClassifier } from './sdkClassifier';
 import type { PromptMetadata } from './types';
 import { EfficiencyAnalysisQueue } from './efficiencyAnalysisQueue';
 import { EfficiencyAnalysisWorkflow } from './efficiencyAnalysisWorkflow';
 
-export class EfficiencyAnalyzer {
+export class EfficiencyAnalyzer implements EfficiencyAnalyzerPort {
   private readonly workflow: EfficiencyAnalysisWorkflow;
   private readonly queue: EfficiencyAnalysisQueue;
 
   constructor(
     profileWriter: IProfileWriter,
     profileDetector: IProfileDetector,
-    apiKeyManager: ApiKeyManager,
+    apiKeyManager: EfficiencyApiKeyStore,
     sdkClassifier: SdkClassifier,
-    private readonly outputPresenter: OutputPresenter,
+    private readonly outputPresenter: EfficiencyOutputPresenter,
     statsStorage: EfficiencyStatsStorage,
     multiProfileQuotaService: MultiProfileQuotaService
   ) {

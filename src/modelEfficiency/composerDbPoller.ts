@@ -16,7 +16,7 @@ import {
   isBubbleSeen,
   markBubbleSeen,
 } from './composerPollerState';
-import type { EfficiencyAnalyzer } from './efficiencyAnalyzer';
+import type { EfficiencyAnalyzerPort } from './efficiencyPorts';
 import { GitBranchDetector } from './gitBranchDetector';
 import type { ModelCatalogEntry } from './modelConfigResolver';
 import {
@@ -97,7 +97,7 @@ export class ComposerDbPoller {
     private readonly context: vscode.ExtensionContext,
     private readonly profileDetector: IProfileDetector,
     private readonly extensionPath: string,
-    private readonly analyzer: EfficiencyAnalyzer,
+    private readonly analyzer: EfficiencyAnalyzerPort,
     dependencies: Partial<ComposerDbPollerDependencies> = {}
   ) {
     this.dependencies = { ...defaultDependencies, ...dependencies };

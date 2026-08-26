@@ -5,10 +5,12 @@ import type { IProfileWriter } from '../domain/ports/IProfileWriter';
 import type { Profile } from '../profiles/types';
 import type { MultiProfileQuotaService } from '../services/multiProfileQuotaService';
 import type { PromptEventRecord } from '../persistence/types';
-import type { ApiKeyManager } from './apiKeyManager';
+import type {
+  EfficiencyApiKeyStore,
+  EfficiencyOutputPresenter,
+} from './efficiencyPorts';
 import type { EfficiencyStatsStorage } from './efficiencyStatsStorage';
 import { buildQuotaFieldsFromProfileQuota } from './quotaSnapshot';
-import type { OutputPresenter } from './outputPresenter';
 import type { SdkClassifier } from './sdkClassifier';
 import type { PromptMetadata } from './types';
 
@@ -17,9 +19,9 @@ export class EfficiencyAnalysisWorkflow {
   constructor(
     private readonly profileWriter: IProfileWriter,
     private readonly profileDetector: IProfileDetector,
-    private readonly apiKeyManager: ApiKeyManager,
+    private readonly apiKeyManager: EfficiencyApiKeyStore,
     private readonly sdkClassifier: SdkClassifier,
-    private readonly outputPresenter: OutputPresenter,
+    private readonly outputPresenter: EfficiencyOutputPresenter,
     private readonly statsStorage: EfficiencyStatsStorage,
     private readonly multiProfileQuotaService: MultiProfileQuotaService
   ) {}
