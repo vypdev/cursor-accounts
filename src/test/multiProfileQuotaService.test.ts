@@ -9,6 +9,7 @@ import type { IActivityLeaderboardService } from '../domain/ports/IActivityLeade
 import type { IProfileAuthReader } from '../domain/ports/IProfileAuthReader';
 import type { IQuotaService } from '../domain/ports/IQuotaService';
 import type { CursorAuthTokens, QuotaUsage } from '@cursor-accounts/types';
+import { ProfileQuotaCacheStore } from '../storage/profileQuotaCacheStore';
 import {
   MultiProfileQuotaService,
   type QuotaServiceFactory,
@@ -130,7 +131,7 @@ describe('MultiProfileQuotaService', () => {
       }),
     };
     service = new MultiProfileQuotaService(
-      mockContext as never,
+      new ProfileQuotaCacheStore(mockContext.globalState as never),
       manager,
       authReader,
       createQuotaService,

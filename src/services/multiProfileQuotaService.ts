@@ -1,12 +1,5 @@
-import type * as vscode from 'vscode';
 import type { ActivityLeaderboardSnapshot } from '../domain';
 import { isEnterpriseUsage } from '../domain';
-import {
-  deserializeLeaderboardCache,
-  deserializeQuotaCache,
-  serializeLeaderboardCache,
-  serializeQuotaCache,
-} from '../application/services/profileQuotaCachePolicy';
 import {
   createLeaderboardFailure,
   createQuotaFailure,
@@ -15,6 +8,7 @@ import {
 } from '../application/services/profileQuotaRefreshPolicy';
 import type { IActivityLeaderboardService } from '../domain/ports/IActivityLeaderboardService';
 import type { IProfileAuthReader } from '../domain/ports/IProfileAuthReader';
+import type { IProfileQuotaCache } from '../domain/ports/IProfileQuotaCache';
 import type { IProfileReader } from '../domain/ports/IProfileReader';
 import type { IQuotaService } from '../domain/ports/IQuotaService';
 import type { ITokenProvider } from '../domain/ports/ITokenProvider';
@@ -23,8 +17,6 @@ import { StaticTokenProvider } from '../auth/tokenProvider';
 import type { Profile, ProfileQuota } from '../profiles/types';
 import { validateUserDataPath } from '../utils/pathUtils';
 
-const QUOTA_CACHE_KEY = 'multiProfileQuotaCache';
-const LEADERBOARD_CACHE_KEY = 'multiProfileLeaderboardCache';
 const CACHE_VALIDITY_MS = 5 * 60 * 1000;
 const LEADERBOARD_CACHE_VALIDITY_MS = 15 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 15_000;
@@ -55,12 +47,10 @@ export class MultiProfileQuotaService {
   private refreshGeneration = 0;
   private refreshInFlight: RefreshInFlight | undefined;
   private readonly onRefreshCallbacks = new Set<QuotaRefreshCallback>();
-  private quotaCacheWrite: Promise<void> = Promise.resolve();
-  private leaderboardCacheWrite: Promise<void> = Promise.resolve();
   private quotaFetchGeneration = 0;
 
   constructor(
-    private readonly context: vscode.ExtensionContext,
+    private readonly cache: IProfileQuotaCache,
     private readonly profileManager: IProfileReader,
     private readonly authReader: IProfileAuthReader,
     private readonly createQuotaService: QuotaServiceFactory,
@@ -106,8 +96,11 @@ export class MultiProfileQuotaService {
   async fetchAllQuotas(signal?: AbortSignal): Promise<Map<string, ProfileQuota>> {
     const fetchGeneration = ++this.quotaFetchGeneration;
     const profiles = await this.profileManager.getProfiles();
-    if (signal?.aborted) {
-      return this.loadCache();
+    if (
+      signal?.aborted ||
+      fetchGeneration !== this.quotaFetchGeneration
+    ) {
+      return this.cache.getAllQuotas();
     }
 
     if (profiles.length === 0) {
@@ -118,14 +111,11 @@ export class MultiProfileQuotaService {
       profiles.map((profile) => this.fetchQuotaForProfile(profile, signal))
     );
 
-    if (
-      signal?.aborted ||
-      fetchGeneration !== this.quotaFetchGeneration
-    ) {
+    if (signal?.aborted || fetchGeneration !== this.quotaFetchGeneration) {
       extensionLog.debug(
         '[MultiProfileQuotaService] Discarding superseded or cancelled quota fetch'
       );
-      return this.loadCache();
+      return this.cache.getAllQuotas();
     }
 
     const quotaMap = new Map<string, ProfileQuota>();
@@ -145,7 +135,7 @@ export class MultiProfileQuotaService {
     }
 
     if (fetchGeneration !== this.quotaFetchGeneration) {
-      return this.loadCache();
+      return this.cache.getAllQuotas();
     }
     await this.saveCache(quotaMap);
     return quotaMap;
@@ -245,8 +235,7 @@ export class MultiProfileQuotaService {
 
   /** Get cached quota for a profile if still valid. */
   getCachedQuota(profileId: string): ProfileQuota | undefined {
-    const cache = this.loadCache();
-    const cached = cache.get(profileId);
+    const cached = this.cache.getQuota(profileId);
 
     if (!cached) {
       return undefined;
@@ -262,13 +251,12 @@ export class MultiProfileQuotaService {
 
   /** Get all cached quotas regardless of age. */
   getAllCachedQuotas(): Map<string, ProfileQuota> {
-    return this.loadCache();
+    return this.cache.getAllQuotas();
   }
 
   /** Clear all cached quotas. */
   async clearCache(): Promise<void> {
-    await this.context.globalState.update(QUOTA_CACHE_KEY, undefined);
-    await this.context.globalState.update(LEADERBOARD_CACHE_KEY, undefined);
+    await this.cache.clear();
   }
 
   private async performRefresh(
@@ -279,13 +267,13 @@ export class MultiProfileQuotaService {
       extensionLog.debug(
         '[MultiProfileQuotaService] Background refresh cancelled'
       );
-      return this.loadCache();
+      return this.cache.getAllQuotas();
     }
 
     const summary = summarizeQuotaRefresh(quotas);
-      extensionLog.info(
+    extensionLog.info(
       `[MultiProfileQuotaService] Refresh complete: ${summary.total} profile(s), ${summary.successful} ok, ${summary.failed} failed`
-      );
+    );
     await this.notifyRefreshCallbacks(quotas);
     return quotas;
   }
@@ -323,10 +311,7 @@ export class MultiProfileQuotaService {
   private getCachedLeaderboard(
     profileId: string
   ): ActivityLeaderboardSnapshot | undefined {
-    const cached = deserializeLeaderboardCache(
-      this.context.globalState.get<unknown>(LEADERBOARD_CACHE_KEY)
-    );
-    const snapshot = cached.get(profileId);
+    const snapshot = this.cache.getLeaderboard(profileId);
     if (!snapshot) {
       return undefined;
     }
@@ -341,18 +326,7 @@ export class MultiProfileQuotaService {
     profileId: string,
     snapshot: ActivityLeaderboardSnapshot
   ): Promise<void> {
-    const write = this.leaderboardCacheWrite.then(async () => {
-      const existing = deserializeLeaderboardCache(
-        this.context.globalState.get<unknown>(LEADERBOARD_CACHE_KEY)
-      );
-      existing.set(profileId, snapshot);
-      await this.context.globalState.update(
-        LEADERBOARD_CACHE_KEY,
-        serializeLeaderboardCache(existing)
-      );
-    });
-    this.leaderboardCacheWrite = write.catch(() => undefined);
-    await write;
+    await this.cache.saveLeaderboard(profileId, snapshot);
   }
 
   private async fetchActivityLeaderboard(
@@ -388,20 +362,7 @@ export class MultiProfileQuotaService {
   }
 
   private async saveCache(quotas: Map<string, ProfileQuota>): Promise<void> {
-    const write = this.quotaCacheWrite.then(async () => {
-      await this.context.globalState.update(
-        QUOTA_CACHE_KEY,
-        serializeQuotaCache(quotas)
-      );
-    });
-    this.quotaCacheWrite = write.catch(() => undefined);
-    await write;
-  }
-
-  private loadCache(): Map<string, ProfileQuota> {
-    return deserializeQuotaCache(
-      this.context.globalState.get<unknown>(QUOTA_CACHE_KEY)
-    );
+    await this.cache.saveQuotas(quotas);
   }
 }
 

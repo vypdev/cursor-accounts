@@ -5,6 +5,7 @@ import { UserClient } from '../api/userClient';
 import { ProfileAuthReader } from '../auth/profileAuthReader';
 import { TokenService } from '../auth/tokenRefresh';
 import type { IProfileStorage } from '../domain/ports/IProfileStorage';
+import { ProfileQuotaCacheStore } from '../storage/profileQuotaCacheStore';
 import { ProxyStateFileStore } from '../proxy/proxyStateFileStore';
 import { getSharedProxyStorageDir } from '../proxy/sharedProxyPaths';
 import {
@@ -112,7 +113,7 @@ export function createExtensionRuntime(
   );
   const profileAuthReader = new ProfileAuthReader(context);
   const multiProfileQuotaService = new MultiProfileQuotaService(
-    context,
+    new ProfileQuotaCacheStore(context.globalState),
     profileManager,
     profileAuthReader,
     (provider) => new QuotaClient(provider),

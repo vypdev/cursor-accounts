@@ -47,6 +47,7 @@ export * from './ports/ITokenProvider';
 export * from './ports/IOAuthTokenClient';
 export * from './ports/IProfileStorage';
 export * from './ports/IQuotaService';
+export * from './ports/IProfileQuotaCache';
 export * from './ports/IProfileAuthReader';
 export * from './ports/IUserService';
 export * from './ports/IActivityLeaderboardService';
