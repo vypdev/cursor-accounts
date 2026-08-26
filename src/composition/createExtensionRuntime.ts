@@ -3,9 +3,12 @@ import { ActivityLeaderboardService } from '../api/activityLeaderboardService';
 import { QuotaClient } from '../api/quotaClient';
 import { UserClient } from '../api/userClient';
 import { ProfileAuthReader } from '../auth/profileAuthReader';
+import { StaticTokenProvider } from '../auth/tokenProvider';
+import { ProfileQuotaFetcher } from '../application/services/profileQuotaFetcher';
 import { TokenService } from '../auth/tokenRefresh';
 import type { IProfileStorage } from '../domain/ports/IProfileStorage';
 import { ProfileQuotaCacheStore } from '../storage/profileQuotaCacheStore';
+import { validateUserDataPath } from '../utils/pathUtils';
 import { ProxyStateFileStore } from '../proxy/proxyStateFileStore';
 import { getSharedProxyStorageDir } from '../proxy/sharedProxyPaths';
 import {
@@ -112,12 +115,18 @@ export function createExtensionRuntime(
     new WorkspaceScanner()
   );
   const profileAuthReader = new ProfileAuthReader(context);
+  const quotaCache = new ProfileQuotaCacheStore(context.globalState);
   const multiProfileQuotaService = new MultiProfileQuotaService(
-    new ProfileQuotaCacheStore(context.globalState),
+    quotaCache,
     profileManager,
-    profileAuthReader,
-    (provider) => new QuotaClient(provider),
-    new ActivityLeaderboardService()
+    new ProfileQuotaFetcher({
+      authReader: profileAuthReader,
+      cache: quotaCache,
+      createQuotaService: (provider) => new QuotaClient(provider),
+      createTokenProvider: (tokens) => new StaticTokenProvider(tokens),
+      activityLeaderboardService: new ActivityLeaderboardService(),
+      validateProfilePath: validateUserDataPath,
+    })
   );
   const profileAccountFetcher = new ProfileAccountFetcher(
     profileAuthReader,

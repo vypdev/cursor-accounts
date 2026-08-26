@@ -1,25 +1,16 @@
-import type { ActivityLeaderboardSnapshot } from '../domain';
-import { isEnterpriseUsage } from '../domain';
 import {
-  createLeaderboardFailure,
   createQuotaFailure,
-  mapQuotaAuthError,
   summarizeQuotaRefresh,
 } from '../application/services/profileQuotaRefreshPolicy';
-import type { IActivityLeaderboardService } from '../domain/ports/IActivityLeaderboardService';
-import type { IProfileAuthReader } from '../domain/ports/IProfileAuthReader';
+import type { ProfileQuotaFetcher } from '../application/services/profileQuotaFetcher';
 import type { IProfileQuotaCache } from '../domain/ports/IProfileQuotaCache';
 import type { IProfileReader } from '../domain/ports/IProfileReader';
-import type { IQuotaService } from '../domain/ports/IQuotaService';
-import type { ITokenProvider } from '../domain/ports/ITokenProvider';
 import * as extensionLog from '../logging/extensionLog';
-import { StaticTokenProvider } from '../auth/tokenProvider';
 import type { Profile, ProfileQuota } from '../profiles/types';
-import { validateUserDataPath } from '../utils/pathUtils';
+
+export type { QuotaServiceFactory } from '../application/services/profileQuotaFetcher';
 
 const CACHE_VALIDITY_MS = 5 * 60 * 1000;
-const LEADERBOARD_CACHE_VALIDITY_MS = 15 * 60 * 1000;
-const REQUEST_TIMEOUT_MS = 15_000;
 
 export class MultiProfileQuotaServiceError extends Error {
   constructor(
@@ -31,7 +22,6 @@ export class MultiProfileQuotaServiceError extends Error {
   }
 }
 
-export type QuotaServiceFactory = (provider: ITokenProvider) => IQuotaService;
 export type QuotaRefreshCallback = (
   quotas: Map<string, ProfileQuota>
 ) => void | Promise<void>;
@@ -52,9 +42,7 @@ export class MultiProfileQuotaService {
   constructor(
     private readonly cache: IProfileQuotaCache,
     private readonly profileManager: IProfileReader,
-    private readonly authReader: IProfileAuthReader,
-    private readonly createQuotaService: QuotaServiceFactory,
-    private readonly activityLeaderboardService: IActivityLeaderboardService
+    private readonly fetcher: ProfileQuotaFetcher
   ) {}
 
   /** Register callback for background quota updates (e.g. Accounts panel). */
@@ -137,7 +125,7 @@ export class MultiProfileQuotaService {
     if (fetchGeneration !== this.quotaFetchGeneration) {
       return this.cache.getAllQuotas();
     }
-    await this.saveCache(quotaMap);
+    await this.cache.saveQuotas(quotaMap);
     return quotaMap;
   }
 
@@ -146,68 +134,7 @@ export class MultiProfileQuotaService {
     profile: Profile,
     signal?: AbortSignal
   ): Promise<ProfileQuota> {
-    try {
-      throwIfAborted(signal);
-      const pathValidation = validateUserDataPath(profile.userDataDir);
-      if (!pathValidation.valid) {
-        return {
-          profileId: profile.id,
-          quota: null,
-          error: pathValidation.error ?? 'Invalid profile path',
-          fetchedAt: Date.now(),
-        };
-      }
-
-      const tokens = await this.authReader.readTokens(profile.userDataDir);
-      throwIfAborted(signal);
-
-      if (!tokens?.accessToken) {
-        return {
-          profileId: profile.id,
-          quota: null,
-          error: 'No authentication tokens found. Launch profile to sign in.',
-          fetchedAt: Date.now(),
-        };
-      }
-
-      const tokenProvider = new StaticTokenProvider(tokens);
-      const quotaClient = this.createQuotaService(tokenProvider);
-      const quota = await quotaClient.getUsage(
-        createRequestSignal(signal, REQUEST_TIMEOUT_MS)
-      );
-      throwIfAborted(signal);
-
-      let activityLeaderboard = null;
-      if (quota && isEnterpriseUsage(quota)) {
-        activityLeaderboard = await this.fetchActivityLeaderboard(
-          tokens.accessToken,
-          profile.id,
-          signal
-        );
-      }
-      throwIfAborted(signal);
-
-      return {
-        profileId: profile.id,
-        quota,
-        activityLeaderboard,
-        fetchedAt: Date.now(),
-      };
-    } catch (error) {
-      if (signal?.aborted) {
-        throw error;
-      }
-      const message =
-        error instanceof Error ? error.message : 'Unknown error';
-      const authMessage = mapQuotaAuthError(message);
-
-      return {
-        profileId: profile.id,
-        quota: null,
-        error: authMessage,
-        fetchedAt: Date.now(),
-      };
-    }
+    return this.fetcher.fetch(profile, signal);
   }
 
   /** Refresh all quotas (with deduplication). */
@@ -308,81 +235,6 @@ export class MultiProfileQuotaService {
     );
   }
 
-  private getCachedLeaderboard(
-    profileId: string
-  ): ActivityLeaderboardSnapshot | undefined {
-    const snapshot = this.cache.getLeaderboard(profileId);
-    if (!snapshot) {
-      return undefined;
-    }
-    const age = Date.now() - snapshot.fetchedAt;
-    if (age > LEADERBOARD_CACHE_VALIDITY_MS) {
-      return undefined;
-    }
-    return snapshot;
-  }
-
-  private async saveLeaderboardCache(
-    profileId: string,
-    snapshot: ActivityLeaderboardSnapshot
-  ): Promise<void> {
-    await this.cache.saveLeaderboard(profileId, snapshot);
-  }
-
-  private async fetchActivityLeaderboard(
-    accessToken: string,
-    profileId: string,
-    signal?: AbortSignal
-  ): Promise<ActivityLeaderboardSnapshot> {
-    throwIfAborted(signal);
-    const cached = this.getCachedLeaderboard(profileId);
-    if (cached) {
-      return cached;
-    }
-
-    try {
-      const snapshot = await this.activityLeaderboardService.fetchSnapshot(
-        accessToken,
-        createRequestSignal(signal, REQUEST_TIMEOUT_MS)
-      );
-      throwIfAborted(signal);
-      await this.saveLeaderboardCache(profileId, snapshot);
-      return snapshot;
-    } catch (error) {
-      if (signal?.aborted) {
-        throw error;
-      }
-      const message =
-        error instanceof Error ? error.message : 'Unknown error';
-      extensionLog.debug(
-        `[MultiProfileQuotaService] Activity leaderboard failed: ${message}`
-      );
-      return createLeaderboardFailure(message, Date.now());
-    }
-  }
-
-  private async saveCache(quotas: Map<string, ProfileQuota>): Promise<void> {
-    await this.cache.saveQuotas(quotas);
-  }
-}
-
-function createRequestSignal(
-  parentSignal: AbortSignal | undefined,
-  timeoutMs: number
-): AbortSignal {
-  const timeoutSignal = AbortSignal.timeout(timeoutMs);
-  return parentSignal
-    ? AbortSignal.any([parentSignal, timeoutSignal])
-    : timeoutSignal;
-}
-
-function throwIfAborted(signal: AbortSignal | undefined): void {
-  if (!signal?.aborted) {
-    return;
-  }
-  throw signal.reason instanceof Error
-    ? signal.reason
-    : new Error('Operation aborted');
 }
 
 /** Convert quota Map to JSON-safe Record for webview messaging. */

@@ -9,7 +9,10 @@ import type { IActivityLeaderboardService } from '../domain/ports/IActivityLeade
 import type { IProfileAuthReader } from '../domain/ports/IProfileAuthReader';
 import type { IQuotaService } from '../domain/ports/IQuotaService';
 import type { CursorAuthTokens, QuotaUsage } from '@cursor-accounts/types';
+import { StaticTokenProvider } from '../auth/tokenProvider';
+import { ProfileQuotaFetcher } from '../application/services/profileQuotaFetcher';
 import { ProfileQuotaCacheStore } from '../storage/profileQuotaCacheStore';
+import { validateUserDataPath } from '../utils/pathUtils';
 import {
   MultiProfileQuotaService,
   type QuotaServiceFactory,
@@ -94,8 +97,8 @@ describe('MultiProfileQuotaService', () => {
   let manager: ProfileManager;
   let service: MultiProfileQuotaService;
   let mockContext: ReturnType<typeof createMockContext>;
+  let cache: ProfileQuotaCacheStore;
   let authReader: IProfileAuthReader;
-  let createQuotaService: QuotaServiceFactory;
   let quotaServiceImplementation: QuotaServiceFactory;
   let activityLeaderboardService: IActivityLeaderboardService;
 
@@ -112,6 +115,7 @@ describe('MultiProfileQuotaService', () => {
     await manager.initialize();
 
     mockContext = createMockContext(extensionPath);
+    cache = new ProfileQuotaCacheStore(mockContext.globalState as never);
     authReader = {
       readTokens: async () => null,
     };
@@ -121,7 +125,6 @@ describe('MultiProfileQuotaService', () => {
           throw new Error('Not implemented in test');
         },
       }) as IQuotaService;
-    createQuotaService = (provider) => quotaServiceImplementation(provider);
     activityLeaderboardService = {
       fetchSnapshot: async () => ({
         entries: [],
@@ -131,11 +134,16 @@ describe('MultiProfileQuotaService', () => {
       }),
     };
     service = new MultiProfileQuotaService(
-      new ProfileQuotaCacheStore(mockContext.globalState as never),
+      cache,
       manager,
-      authReader,
-      createQuotaService,
-      activityLeaderboardService
+      new ProfileQuotaFetcher({
+        authReader,
+        cache,
+        createQuotaService: (provider) => quotaServiceImplementation(provider),
+        createTokenProvider: (tokens) => new StaticTokenProvider(tokens),
+        activityLeaderboardService,
+        validateProfilePath: validateUserDataPath,
+      })
     );
   });
 
@@ -266,7 +274,7 @@ describe('MultiProfileQuotaService', () => {
       authReader.readTokens = async () => ({ accessToken: 'access-token' });
       let receivedSignal: AbortSignal | undefined;
       quotaServiceImplementation = () => ({
-        getUsage: async (signal) => {
+        getUsage: async (signal?: AbortSignal) => {
           receivedSignal = signal;
           await new Promise<void>((resolve) => {
             signal?.addEventListener('abort', () => resolve(), { once: true });
