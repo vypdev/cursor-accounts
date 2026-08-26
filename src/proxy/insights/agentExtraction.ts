@@ -1,5 +1,6 @@
 import type { AgentSessionInfo } from '../../application/types/agentTracking';
 import type { WorkspaceInfo } from '../../application/types/proxyInsights';
+export { mergeAgentSessionInfo } from '../../domain/services/agentSessionInfo';
 import { asNumber, pickField } from './fieldNormalization';
 
 const DATA_PREVIEW_MAX = 240;
@@ -351,24 +352,6 @@ export function extractConversationAndSubagentIds(
   }
 
   return result;
-}
-
-export function mergeAgentSessionInfo(
-  base: AgentSessionInfo | undefined,
-  extra: AgentSessionInfo | undefined
-): AgentSessionInfo | undefined {
-  if (!base && !extra) {
-    return undefined;
-  }
-  const merged: AgentSessionInfo = { ...(base ?? {}) };
-  if (extra) {
-    for (const [key, value] of Object.entries(extra)) {
-      if (value !== undefined) {
-        (merged as Record<string, unknown>)[key] = value;
-      }
-    }
-  }
-  return Object.keys(merged).length > 0 ? merged : undefined;
 }
 
 export function estimateTokenCostUsd(

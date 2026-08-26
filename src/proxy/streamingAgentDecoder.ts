@@ -6,10 +6,14 @@ import type { ProtoRegistry } from './protoRegistry';
 import {
   extractAgentInnerInsights,
   extractConversationAndSubagentIds,
-  mergeAgentSessionInfo,
   type AgentSessionInfo,
 } from './proxyInsightExtractor';
-import type { CostSource } from '../domain/types/costProvenance';
+import {
+  applyStreamingAgentMessage,
+  createStreamingAgentPolicyState,
+  type LiveTokenUpdate,
+  type TurnEndedEvent,
+} from '../application/services/streamingAgentDecoderPolicy';
 
 const MAX_CONNECT_FRAME_BYTES = 5_000_000;
 
@@ -20,30 +24,8 @@ export interface StreamingDecoderState {
   relationshipIds: Partial<AgentSessionInfo>;
 }
 
-/** Live progress counter update (CLI-style sum of token_delta). */
-export interface LiveTokenUpdate {
-  accumulatedTokens: number;
-  latestDelta: number;
-  modelId?: string;
-  deltaCostCents?: number;
-  costSource?: Exclude<CostSource, 'mixed' | 'unknown'>;
-  pricingSnapshotVersion?: string;
-  agent: AgentSessionInfo;
-}
-
-/** Billing-grade turn completion from server turn_ended. */
-export interface TurnEndedEvent {
-  inputTokens: number;
-  outputTokens: number;
-  cacheReadTokens?: number;
-  cacheWriteTokens?: number;
-  totalCents?: number;
-  modelId?: string;
-  calculatedCostCents?: number;
-  calculatedCostSource?: Exclude<CostSource, 'mixed' | 'unknown'>;
-  pricingSnapshotVersion?: string;
-  agent: AgentSessionInfo;
-}
+export type { LiveTokenUpdate, TurnEndedEvent } from
+  '../application/services/streamingAgentDecoderPolicy';
 
 export interface FeedChunkResult {
   liveUpdates: LiveTokenUpdate[];
@@ -56,9 +38,7 @@ export interface FeedChunkResult {
  */
 export class StreamingAgentDecoder {
   private buffer = Buffer.alloc(0);
-  private messageCount = 0;
-  private accumulatedTokens = 0;
-  private relationshipIds: Partial<AgentSessionInfo> = {};
+  private policyState = createStreamingAgentPolicyState();
 
   constructor(private readonly registry: ProtoRegistry) {}
 
@@ -89,67 +69,18 @@ export class StreamingAgentDecoder {
         continue;
       }
 
-      this.messageCount += 1;
-
       const ids = extractConversationAndSubagentIds(decoded);
-      if (Object.keys(ids).length > 0) {
-        this.relationshipIds =
-          mergeAgentSessionInfo(this.relationshipIds, ids) ??
-          this.relationshipIds;
-      }
-
       const insight = extractAgentInnerInsights(decoded);
-      if (!insight) {
-        continue;
+      const policyResult = applyStreamingAgentMessage(this.policyState, {
+        relationshipIds: ids,
+        insight,
+      });
+      this.policyState = policyResult.state;
+      if (policyResult.liveUpdate) {
+        liveUpdates.push(policyResult.liveUpdate);
       }
-
-      if (insight.usageEvent === 'token_delta' && insight.streamingTokens != null) {
-        const latestDelta = insight.streamingTokens;
-        this.accumulatedTokens += latestDelta;
-        liveUpdates.push({
-          accumulatedTokens: this.accumulatedTokens,
-          latestDelta,
-          agent: this.mergeAgentInsight({
-            streamingTokens: this.accumulatedTokens,
-            usageEvent: 'token_delta',
-            eventSequence: this.messageCount,
-          }),
-        });
-        continue;
-      }
-
-      if (insight.usageEvent === 'turn_ended') {
-        const inputTokens = insight.inputTokens ?? 0;
-        const outputTokens = insight.outputTokens ?? 0;
-        turnEndedEvents.push({
-          inputTokens,
-          outputTokens,
-          cacheReadTokens: insight.cacheReadTokens,
-          cacheWriteTokens: insight.cacheWriteTokens,
-          totalCents: insight.totalCents,
-          agent: this.mergeAgentInsight({
-            inputTokens: insight.inputTokens,
-            outputTokens: insight.outputTokens,
-            cacheReadTokens: insight.cacheReadTokens,
-            cacheWriteTokens: insight.cacheWriteTokens,
-            totalCents: insight.totalCents,
-            usageEvent: 'turn_ended',
-            eventSequence: this.messageCount,
-          }),
-        });
-        this.accumulatedTokens = 0;
-        continue;
-      }
-
-      if (insight.usageEvent === 'token_details') {
-        liveUpdates.push({
-          accumulatedTokens: this.accumulatedTokens,
-          latestDelta: 0,
-          agent: this.mergeAgentInsight({
-            ...insight,
-            eventSequence: this.messageCount,
-          }),
-        });
+      if (policyResult.turnEndedEvent) {
+        turnEndedEvents.push(policyResult.turnEndedEvent);
       }
     }
 
@@ -169,21 +100,10 @@ export class StreamingAgentDecoder {
   getState(): StreamingDecoderState {
     return {
       bufferLength: this.buffer.length,
-      messageCount: this.messageCount,
-      accumulatedTokens: this.accumulatedTokens,
-      relationshipIds: { ...this.relationshipIds },
+      messageCount: this.policyState.messageCount,
+      accumulatedTokens: this.policyState.accumulatedTokens,
+      relationshipIds: { ...this.policyState.relationshipIds },
     };
-  }
-
-  private mergeAgentInsight(
-    partial: Partial<AgentSessionInfo>
-  ): AgentSessionInfo {
-    return (
-      mergeAgentSessionInfo(this.relationshipIds, partial) ?? {
-        ...partial,
-        usageEvent: partial.usageEvent ?? 'token_delta',
-      }
-    );
   }
 
   private isIncompleteFrameAt(offset: number): boolean {
@@ -201,8 +121,6 @@ export class StreamingAgentDecoder {
 
   private resetStreamState(): void {
     this.buffer = Buffer.alloc(0);
-    this.messageCount = 0;
-    this.accumulatedTokens = 0;
-    this.relationshipIds = {};
+    this.policyState = createStreamingAgentPolicyState();
   }
 }
