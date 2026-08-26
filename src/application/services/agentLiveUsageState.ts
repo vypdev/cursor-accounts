@@ -38,6 +38,200 @@ export interface AgentLiveUsageStateDependencies {
   now?: () => number;
 }
 
+type SessionUsageUpdate = Pick<
+  AgentLiveUsageSessionState,
+  | 'liveAccumulated'
+  | 'liveAccumulatedCostCents'
+  | 'billedTokens'
+  | 'turnTotalCents'
+  | 'turnCostFromServer'
+>;
+
+function mergeTrafficAgent(
+  summary: ProxyTrafficSummary,
+  mergeAgentSessionInfo: AgentSessionMerger
+): AgentSessionInfo | undefined {
+  const agent = summary.insights?.agent;
+  const tokens = summary.insights?.tokens;
+  let mergedAgent = mergeAgentSessionInfo(agent, {
+    inputTokens: tokens?.promptTokens ?? agent?.inputTokens,
+    outputTokens: tokens?.completionTokens ?? agent?.outputTokens,
+    cacheReadTokens:
+      tokens?.cacheReadTokens ?? tokens?.cachedTokens ?? agent?.cacheReadTokens,
+    cacheWriteTokens: tokens?.cacheWriteTokens ?? agent?.cacheWriteTokens,
+    totalCents: tokens?.totalCents ?? agent?.totalCents,
+    requestedModelId: agent?.requestedModelId ?? agent?.modelName,
+    streamingTokens:
+      agent?.streamingTokens ??
+      (tokens?.totalTokens != null &&
+      tokens.promptTokens == null &&
+      tokens.completionTokens == null
+        ? tokens.totalTokens
+        : undefined),
+  });
+
+  if (shouldUseTokenTotal(mergedAgent, tokens?.totalTokens)) {
+    mergedAgent = mergeAgentSessionInfo(mergedAgent, {
+      streamingTokens: tokens?.totalTokens,
+      usageEvent: agent?.usageEvent ?? 'token_delta',
+    });
+  }
+
+  if (!mergedAgent && summary.liveTokenData) {
+    return {
+      streamingTokens: summary.liveTokenData.accumulatedTokens,
+      usageEvent: 'token_delta',
+    };
+  }
+  return mergedAgent;
+}
+
+function shouldUseTokenTotal(
+  agent: AgentSessionInfo | undefined,
+  totalTokens: number | undefined
+): boolean {
+  return (
+    agent != null &&
+    totalTokens != null &&
+    (agent.streamingTokens == null || totalTokens > agent.streamingTokens)
+  );
+}
+
+function isStaleBatchTurnEnded(
+  summary: ProxyTrafficSummary,
+  agent: AgentSessionInfo,
+  previous: AgentLiveUsageSessionState | undefined
+): boolean {
+  return (
+    previous?.turnEndedFromLive === true &&
+    summary.isTurnEnded !== true &&
+    summary.isLiveTokenUpdate !== true &&
+    agent.usageEvent === 'turn_ended'
+  );
+}
+
+function resolveModelId(
+  summary: ProxyTrafficSummary,
+  agent: AgentSessionInfo,
+  previous: AgentLiveUsageSessionState | undefined
+): string | undefined {
+  return (
+    summary.liveTokenData?.modelId ??
+    agent.requestedModelId ??
+    agent.modelName ??
+    previous?.modelId
+  );
+}
+
+function updateSessionUsage(
+  summary: ProxyTrafficSummary,
+  agent: AgentSessionInfo,
+  previous: AgentLiveUsageSessionState | undefined,
+  modelId: string | undefined,
+  costCalculator: AgentLiveUsageCostCalculator
+): SessionUsageUpdate {
+  let liveAccumulated = previous?.liveAccumulated ?? 0;
+  let liveAccumulatedCostCents = previous?.liveAccumulatedCostCents ?? 0;
+  let billedTokens = previous?.billedTokens ?? 0;
+  let turnTotalCents = previous?.turnTotalCents;
+  let turnCostFromServer = previous?.turnCostFromServer;
+
+  if (summary.isLiveTokenUpdate && summary.liveTokenData) {
+    liveAccumulated = summary.liveTokenData.accumulatedTokens;
+    liveAccumulatedCostCents += calculateLiveDeltaCost(
+      summary.liveTokenData.latestDelta,
+      summary.liveTokenData.deltaCostCents,
+      modelId,
+      costCalculator
+    );
+  } else if (isAcceptedTurnEnded(summary, agent, previous)) {
+    billedTokens = getBilledTokensForTurn(agent, billedTokens);
+    liveAccumulated = 0;
+    liveAccumulatedCostCents = 0;
+    ({ turnTotalCents, turnCostFromServer } = resolveTurnCost(
+      summary,
+      agent,
+      modelId,
+      costCalculator
+    ));
+  } else if (agent.streamingTokens != null) {
+    liveAccumulated = Math.max(liveAccumulated, agent.streamingTokens);
+  }
+
+  return {
+    liveAccumulated,
+    liveAccumulatedCostCents,
+    billedTokens,
+    turnTotalCents,
+    turnCostFromServer,
+  };
+}
+
+function calculateLiveDeltaCost(
+  latestDelta: number,
+  explicitCost: number | undefined,
+  modelId: string | undefined,
+  costCalculator: AgentLiveUsageCostCalculator
+): number {
+  if (!(latestDelta > 0)) {
+    return 0;
+  }
+  return (
+    explicitCost ?? costCalculator.calculateDeltaCost(latestDelta, modelId)
+  );
+}
+
+function isAcceptedTurnEnded(
+  summary: ProxyTrafficSummary,
+  agent: AgentSessionInfo,
+  previous: AgentLiveUsageSessionState | undefined
+): boolean {
+  const isTurnEnded =
+    summary.isTurnEnded === true || agent.usageEvent === 'turn_ended';
+  return (
+    isTurnEnded &&
+    (summary.isTurnEnded === true || previous?.turnEndedFromLive !== true)
+  );
+}
+
+function getBilledTokensForTurn(
+  agent: AgentSessionInfo,
+  previousBilledTokens: number
+): number {
+  const billed = getBilledTokenTotal(agent);
+  return billed > 0 ? billed : previousBilledTokens;
+}
+
+function resolveTurnCost(
+  summary: ProxyTrafficSummary,
+  agent: AgentSessionInfo,
+  modelId: string | undefined,
+  costCalculator: AgentLiveUsageCostCalculator
+): Pick<SessionUsageUpdate, 'turnTotalCents' | 'turnCostFromServer'> {
+  const serverCents = normalizeCostCents(summary.insights?.tokens?.totalCents);
+  if (serverCents != null) {
+    return { turnTotalCents: serverCents, turnCostFromServer: true };
+  }
+
+  const agentCents = normalizeCostCents(agent.totalCents);
+  if (agentCents != null) {
+    return { turnTotalCents: agentCents, turnCostFromServer: true };
+  }
+
+  return {
+    turnTotalCents: costCalculator.calculateTurnCost(
+      {
+        inputTokens: agent.inputTokens ?? 0,
+        outputTokens: agent.outputTokens ?? 0,
+        cacheReadTokens: agent.cacheReadTokens,
+        cacheWriteTokens: agent.cacheWriteTokens,
+      },
+      modelId
+    ),
+    turnCostFromServer: false,
+  };
+}
+
 /**
  * Application state and accounting policy for the live usage status bar.
  *
@@ -56,154 +250,56 @@ export class AgentLiveUsageState {
   }
 
   ingest(summary: ProxyTrafficSummary): boolean {
-    const agent = summary.insights?.agent;
-    const tokens = summary.insights?.tokens;
-    if (!agent && !tokens && !summary.liveTokenData) {
+    if (
+      !summary.insights?.agent &&
+      !summary.insights?.tokens &&
+      !summary.liveTokenData
+    ) {
       return false;
     }
 
     const sessionId =
-      agent?.requestId ??
+      summary.insights?.agent?.requestId ??
       this.currentSessionId ??
       summary.requestId ??
       'active';
-
-    let mergedAgent = this.dependencies.mergeAgentSessionInfo(agent, {
-      inputTokens: tokens?.promptTokens ?? agent?.inputTokens,
-      outputTokens: tokens?.completionTokens ?? agent?.outputTokens,
-      cacheReadTokens:
-        tokens?.cacheReadTokens ??
-        tokens?.cachedTokens ??
-        agent?.cacheReadTokens,
-      cacheWriteTokens: tokens?.cacheWriteTokens ?? agent?.cacheWriteTokens,
-      totalCents: tokens?.totalCents ?? agent?.totalCents,
-      requestedModelId: agent?.requestedModelId ?? agent?.modelName,
-      streamingTokens:
-        agent?.streamingTokens ??
-        (tokens?.totalTokens != null &&
-        tokens.promptTokens == null &&
-        tokens.completionTokens == null
-          ? tokens.totalTokens
-          : undefined),
-    });
-
-    if (
-      mergedAgent &&
-      tokens?.totalTokens != null &&
-      (mergedAgent.streamingTokens == null ||
-        tokens.totalTokens > mergedAgent.streamingTokens)
-    ) {
-      mergedAgent = this.dependencies.mergeAgentSessionInfo(mergedAgent, {
-        streamingTokens: tokens.totalTokens,
-        usageEvent: agent?.usageEvent ?? 'token_delta',
-      });
-    }
-
-    if (!mergedAgent && summary.liveTokenData) {
-      mergedAgent = {
-        streamingTokens: summary.liveTokenData.accumulatedTokens,
-        usageEvent: 'token_delta',
-      };
-    }
-
+    const mergedAgent = mergeTrafficAgent(
+      summary,
+      this.dependencies.mergeAgentSessionInfo
+    );
     if (!mergedAgent) {
       return false;
     }
 
     const previous = this.sessions.get(sessionId);
-    if (
-      previous?.turnEndedFromLive &&
-      !summary.isTurnEnded &&
-      !summary.isLiveTokenUpdate &&
-      mergedAgent.usageEvent === 'turn_ended'
-    ) {
+    if (isStaleBatchTurnEnded(summary, mergedAgent, previous)) {
       return false;
     }
 
-    const modelId =
-      summary.liveTokenData?.modelId ??
-      mergedAgent.requestedModelId ??
-      mergedAgent.modelName ??
-      previous?.modelId;
+    const modelId = resolveModelId(summary, mergedAgent, previous);
+    const usage = updateSessionUsage(
+      summary,
+      mergedAgent,
+      previous,
+      modelId,
+      this.dependencies.costCalculator
+    );
 
-    let liveAccumulated = previous?.liveAccumulated ?? 0;
-    let liveAccumulatedCostCents = previous?.liveAccumulatedCostCents ?? 0;
-    let billedTokens = previous?.billedTokens ?? 0;
-    let turnTotalCents = previous?.turnTotalCents;
-    let turnCostFromServer = previous?.turnCostFromServer;
-
-    const isTurnEndedEvent =
-      summary.isTurnEnded === true || mergedAgent.usageEvent === 'turn_ended';
-    const acceptTurnEnded =
-      isTurnEndedEvent &&
-      (summary.isTurnEnded === true || !previous?.turnEndedFromLive);
-
-    if (summary.isLiveTokenUpdate && summary.liveTokenData) {
-      liveAccumulated = summary.liveTokenData.accumulatedTokens;
-      if (summary.liveTokenData.latestDelta > 0) {
-        const deltaCost =
-          summary.liveTokenData.deltaCostCents ??
-          this.dependencies.costCalculator.calculateDeltaCost(
-            summary.liveTokenData.latestDelta,
-            modelId
-          );
-        liveAccumulatedCostCents += deltaCost;
-      }
-    } else if (acceptTurnEnded) {
-      const billed = getBilledTokenTotal(mergedAgent);
-      if (billed > 0) {
-        billedTokens = billed;
-      }
-      liveAccumulated = 0;
-      liveAccumulatedCostCents = 0;
-
-      const serverCents = normalizeCostCents(tokens?.totalCents);
-      if (serverCents != null) {
-        turnTotalCents = serverCents;
-        turnCostFromServer = true;
-      } else {
-        const agentCents = normalizeCostCents(mergedAgent.totalCents);
-        if (agentCents != null) {
-          turnTotalCents = agentCents;
-          turnCostFromServer = true;
-        } else {
-          turnTotalCents = this.dependencies.costCalculator.calculateTurnCost(
-            {
-              inputTokens: mergedAgent.inputTokens ?? 0,
-              outputTokens: mergedAgent.outputTokens ?? 0,
-              cacheReadTokens: mergedAgent.cacheReadTokens,
-              cacheWriteTokens: mergedAgent.cacheWriteTokens,
-            },
-            modelId
-          );
-          turnCostFromServer = false;
-        }
-      }
-    } else if (mergedAgent.streamingTokens != null) {
-      liveAccumulated = Math.max(
-        liveAccumulated,
-        mergedAgent.streamingTokens
-      );
-    }
-
+    let finalAgent = mergedAgent;
     if (modelId) {
-      mergedAgent =
+      finalAgent =
         this.dependencies.mergeAgentSessionInfo(mergedAgent, {
           requestedModelId: modelId,
         }) ?? mergedAgent;
     }
 
-    const finalAgent =
-      this.dependencies.mergeAgentSessionInfo(previous?.agent, mergedAgent) ??
-      mergedAgent;
+    finalAgent =
+      this.dependencies.mergeAgentSessionInfo(previous?.agent, finalAgent) ??
+      finalAgent;
 
     this.sessions.set(sessionId, {
       agent: finalAgent,
-      liveAccumulated,
-      liveAccumulatedCostCents,
-      billedTokens,
-      turnTotalCents,
-      turnCostFromServer,
+      ...usage,
       modelId,
       lastActivity: this.dependencies.now?.() ?? Date.now(),
       turnEndedFromLive:
