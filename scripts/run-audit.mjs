@@ -48,6 +48,11 @@ const checks = [
     args: ['run', 'test:proxy-traffic-analysis'],
   },
   {
+    label: 'Cursor protobuf extraction contract tests',
+    command: 'pnpm',
+    args: ['run', 'test:cursor-proto-extraction'],
+  },
+  {
     label: 'protobuf JSONL verifier tests',
     command: 'pnpm',
     args: ['run', 'test:verify-proto-jsonl'],

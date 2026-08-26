@@ -331,6 +331,7 @@
     "test:build-targets": "node --test scripts/build-targets.test.mjs",
     "test:vsix-verifier": "node --test scripts/vsixVerification.test.mjs",
     "test:proxy-traffic-analysis": "node --test scripts/proxy-traffic-analysis.test.mjs",
+    "test:cursor-proto-extraction": "node --test scripts/cursor-proto-extraction.test.mjs",
     "analyze:proxy-traffic": "node scripts/analyze-proxy-traffic.mjs",
     "summarize:session-tokens": "node scripts/summarize-session-tokens.mjs",
     "calibrate:proxy-tokens": "node scripts/calibrate-proxy-tokens.mjs",

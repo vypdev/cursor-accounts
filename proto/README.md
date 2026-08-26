@@ -18,6 +18,17 @@ pnpm run extract:protos
 
 Requires Cursor installed (default macOS path: `/Applications/Cursor.app`).
 
+The extractor accepts both the legacy class/static descriptor format and the
+current `makeMessageType`/`makeEnum` format emitted by recent Cursor bundles.
+Service methods are read from balanced descriptor objects so the final method
+is not lost when it is adjacent to the service closing braces. The pure parser,
+renderer, platform-path, and output-plan boundaries are covered without a
+Cursor installation by:
+
+```bash
+pnpm run test:cursor-proto-extraction
+```
+
 ## Test (load schema + decode proxy traffic)
 
 ```bash
