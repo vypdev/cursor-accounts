@@ -34,12 +34,10 @@ import { AccountsPanelDataRefresher } from './accountsPanelDataRefresher';
 import { ModelPricingService } from '../services/modelPricingService';
 import { CursorModelPricingProvider } from '../modelEfficiency/cursorModelPricingProvider';
 import { StateDbModelCatalogRepository } from '../modelEfficiency/stateDbModelCatalogRepository';
-import { getProfileStateDbPath } from '../auth/cursorPaths';
 import { buildAccountsPanelHtml } from './presentation/accountsPanelHtml';
-import type {
-  ModelPricingDisplayData,
-  ModelWithPricing,
-} from '@cursor-accounts/types';
+import { AccountsPanelModelPricingHandler } from './accountsPanelModelPricingHandler';
+import { AccountsPanelMessageRouter } from './accountsPanelMessageRouter';
+import type { AccountsPanelActionMessage } from './accountsPanelMessageRouter';
 
 /** Webview panel view type id. */
 export const ACCOUNTS_PANEL_VIEW_ID = 'cursorAccounts.accountsPanel';
@@ -52,6 +50,8 @@ export class AccountsPanelProvider {
   private readonly handlers: AccountsPanelHandlers;
   private readonly dataRefresher: AccountsPanelDataRefresher;
   private readonly modelPricingService: ModelPricingService;
+  private readonly modelPricingHandler: AccountsPanelModelPricingHandler;
+  private readonly messageRouter: AccountsPanelMessageRouter;
 
   public hasResolvedView(): boolean {
     return this.panel !== undefined;
@@ -83,6 +83,16 @@ export class AccountsPanelProvider {
     this.modelPricingService = new ModelPricingService(
       catalogRepository,
       pricingProvider
+    );
+    this.modelPricingHandler = new AccountsPanelModelPricingHandler(
+      {
+        profileDetector,
+        modelPricingReader: this.modelPricingService,
+        extensionPath: context.extensionPath,
+      },
+      {
+        postMessage: (message) => this.postMessage(message),
+      }
     );
 
     const backgroundRefresh = new AccountsPanelBackgroundRefreshCoordinator(
@@ -143,6 +153,17 @@ export class AccountsPanelProvider {
         hasActiveWebview: () => this.getActiveWebview() !== undefined,
       }
     );
+
+    this.messageRouter = new AccountsPanelMessageRouter({
+      setRuntimeReady: () => {
+        this.webviewRuntimeReady = true;
+      },
+      refresh: () => this.refresh(),
+      handleAction: (message: AccountsPanelActionMessage) =>
+        this.handlers.handle(message),
+      requestModelPricing: () => this.modelPricingHandler.handle(),
+      postMessage: (message) => this.postMessage(message),
+    });
 
     this.quotaService.onRefresh((quotas) => {
       void this.dataRefresher.postQuotas(quotas);
@@ -242,7 +263,7 @@ export class AccountsPanelProvider {
 
   private attachWebviewMessageListener(webview: vscode.Webview): void {
     webview.onDidReceiveMessage((message: FromWebviewMessage) => {
-      return this.handleMessage(message);
+      return this.messageRouter.handle(message);
     });
   }
 
@@ -285,132 +306,9 @@ export class AccountsPanelProvider {
     await this.dataRefresher.refreshQuotas();
   }
 
-  /**
-   * Handle messages from webview.
-   */
-  private async handleMessage(message: FromWebviewMessage): Promise<void> {
-    try {
-      switch (message.type) {
-        case 'ready':
-          lifecycleLog.lifecycle('message.in', { type: 'ready' });
-          this.webviewRuntimeReady = true;
-          await delay(150);
-          await this.refresh();
-          lifecycleLog.lifecycle('ready.handled');
-          break;
-
-        case 'requestInit':
-          lifecycleLog.lifecycle('message.in', { type: 'requestInit' });
-          await this.refresh();
-          break;
-
-        case 'refresh':
-          lifecycleLog.lifecycle('message.in', { type: 'refresh' });
-          await this.refresh();
-          break;
-
-        case 'webviewLog':
-          lifecycleLog.fromWebview(message.level, message.message, message.phase);
-          break;
-
-        case 'requestModelPricing':
-          await this.handleRequestModelPricing();
-          break;
-
-        default:
-          if (this.isActionMessage(message)) {
-            await this.handlers.handle(message);
-          } else {
-            const unknown = message as { type?: string };
-            extensionLog.warn(
-              `[AccountsPanel] Unknown webview message type: ${unknown.type ?? 'undefined'}`
-            );
-          }
-      }
-    } catch (error) {
-      await this.postMessage({
-        type: 'error',
-        message: error instanceof Error ? error.message : t('errors.unknown'),
-      });
-    }
-  }
-
   private requestRefresh(): void {
     if (this.webviewRuntimeReady) {
       void this.refresh();
-    }
-  }
-
-  private isActionMessage(
-    message: FromWebviewMessage
-  ): message is Exclude<
-    FromWebviewMessage,
-    | { type: 'ready' }
-    | { type: 'requestInit' }
-    | { type: 'refresh' }
-    | { type: 'webviewLog' }
-    | { type: 'requestModelPricing' }
-  > {
-    return (
-      message.type !== 'ready' &&
-      message.type !== 'requestInit' &&
-      message.type !== 'refresh' &&
-      message.type !== 'webviewLog' &&
-      message.type !== 'requestModelPricing'
-    );
-  }
-
-  private toModelPricingDisplayData(
-    models: ModelWithPricing[]
-  ): ModelPricingDisplayData[] {
-    return models
-      .filter((model) => model.pricing !== null)
-      .map((model) => {
-        const pricing = model.pricing!;
-        return {
-          modelId: pricing.modelId,
-          displayName: model.displayName,
-          provider: pricing.provider,
-          inputPer1M: pricing.inputPer1M,
-          outputPer1M: pricing.outputPer1M,
-          cacheReadPer1M: pricing.cacheReadPer1M,
-          cacheWritePer1M: pricing.cacheWritePer1M,
-          notes: pricing.notes,
-          variantName: model.variantName,
-          parameters: model.parameters?.map((parameter) => ({
-            id: parameter.id,
-            value: parameter.value,
-          })),
-        };
-      });
-  }
-
-  private async handleRequestModelPricing(): Promise<void> {
-    try {
-      const userDataDir = this.profileDetector.getCurrentUserDataDir();
-      const stateDbPath = getProfileStateDbPath(userDataDir);
-      const [allModels, enabledModels] = await Promise.all([
-        this.modelPricingService.getModelsWithPricing(
-          stateDbPath,
-          this.context.extensionPath
-        ),
-        this.modelPricingService.getEnabledModelsWithPricing(
-          stateDbPath,
-          this.context.extensionPath
-        ),
-      ]);
-
-      await this.postMessage({
-        type: 'modelPricing',
-        data: this.toModelPricingDisplayData(allModels),
-        enabledModels: this.toModelPricingDisplayData(enabledModels),
-      });
-    } catch (error) {
-      await this.postMessage({
-        type: 'modelPricingError',
-        error:
-          error instanceof Error ? error.message : 'Failed to load model pricing',
-      });
     }
   }
 
@@ -456,8 +354,4 @@ export class AccountsPanelProvider {
       scriptLoadFailedMessage: t('panel.scriptLoadFailed'),
     });
   }
-}
-
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
