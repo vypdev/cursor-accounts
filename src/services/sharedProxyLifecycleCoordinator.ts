@@ -7,7 +7,7 @@ import {
 import type { ProxyStartResult } from '../domain/ports/IProxyManager';
 import type { IProxyCertificateService } from '../domain/ports/IProxyCertificateService';
 import type { IProxyProcess } from '../domain/ports/IProxyProcess';
-import type { ISharedProxyStateStore } from '../proxy/sharedProxyStateStore';
+import type { ISharedProxyStateStore } from '../domain/ports/ISharedProxyStateStore';
 import type { ProxyServerConfig } from '../application/types/proxyConfig';
 import { pollProxyHealth } from '../proxy/proxyHealthPoller';
 import {

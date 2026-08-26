@@ -7,6 +7,7 @@ import type { IProfileReader } from '../domain/ports/IProfileReader';
 import type { IProfileAuthReader } from '../domain/ports/IProfileAuthReader';
 import type { IProxyOutputPresenter } from '../domain/ports/IProxyOutputPresenter';
 import type { IProxyStateStore } from '../domain/ports/IProxyStateStore';
+import type { ISharedProxyStateStore } from '../domain/ports/ISharedProxyStateStore';
 import type {
   ProxyTrafficDiagnostics,
   ProxyStatistics,
@@ -28,6 +29,8 @@ export interface ProxyManagerDependencies {
   trafficIngress: IProxyTrafficIngress;
   createProcess: () => IProxyProcess;
   authReader?: IProfileAuthReader;
+  /** Optional shared-state port for composition tests and alternate hosts. */
+  sharedStateStore?: ISharedProxyStateStore;
 }
 
 export interface DefaultProxyManagerDependencyOptions {

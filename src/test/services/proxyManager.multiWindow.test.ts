@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { IProxyStateStore } from '../../domain/ports/IProxyStateStore';
+import type { IProxyTrafficIngress } from '../../domain/ports/IProxyTrafficIngress';
 import type { IProfileManager } from '../../domain/ports/IProfileManager';
 import type { Profile } from '@cursor-accounts/types';
 import { ProxyTrafficBus } from '../../proxy/proxyTrafficBus';
-import { ProxyTrafficIngress } from '../../proxy/proxyTrafficIngress';
 
 describe('ProxyManager multi-window', () => {
   it('connectToExistingProxy attaches API ingress without owning the child runtime', async () => {
@@ -38,6 +38,19 @@ describe('ProxyManager multi-window', () => {
     } as unknown as IProfileManager;
 
     const trafficBus = new ProxyTrafficBus();
+    let ingressCalled = false;
+    const trafficIngress: IProxyTrafficIngress = {
+      start: async (profileId, port, _mode, options) => {
+        ingressCalled = true;
+        assert.equal(profileId, 'profile-a');
+        assert.equal(port, 8080);
+        assert.equal(options?.apiPort, 19_081);
+      },
+      stop: () => undefined,
+      stopAll: () => undefined,
+      isRunning: () => false,
+      getActivePort: () => null,
+    };
     const manager = new ProxyManager(
       stateStore,
       profileManager,
@@ -53,30 +66,12 @@ describe('ProxyManager multi-window', () => {
       {
         certService: {} as never,
         trafficBus,
-        trafficIngress: new ProxyTrafficIngress('/tmp/logs', trafficBus, () => false),
+        trafficIngress,
         createProcess: () => {
           throw new Error('not used');
         },
       }
     );
-
-    let ingressCalled = false;
-    const internal = manager as unknown as {
-      ensureAgentTracking(profileId: string, userDataDir: string): Promise<void>;
-      ensureTrafficIngress(
-        profileId: string,
-        mitmPort: number,
-        apiPort: number,
-        options?: { forceRestart?: boolean }
-      ): Promise<void>;
-    };
-    internal.ensureAgentTracking = async () => undefined;
-    internal.ensureTrafficIngress = async (profileId, mitmPort, apiPort) => {
-      ingressCalled = true;
-      assert.equal(profileId, 'profile-a');
-      assert.equal(mitmPort, 8080);
-      assert.equal(apiPort, 19_081);
-    };
 
     const originalFetch = globalThis.fetch;
     globalThis.fetch = (async (input: string | URL | Request) => {

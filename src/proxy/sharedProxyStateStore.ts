@@ -1,12 +1,9 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import type { ProxyStateFile } from '@cursor-accounts/types';
+import type { ISharedProxyStateStore } from '../domain/ports/ISharedProxyStateStore';
 
-export interface ISharedProxyStateStore {
-  read(): Promise<ProxyStateFile | null>;
-  write(state: ProxyStateFile): Promise<void>;
-  clear(): Promise<void>;
-}
+export type { ISharedProxyStateStore } from '../domain/ports/ISharedProxyStateStore';
 
 /** Persists the ownership record used to attach to a shared proxy process. */
 export class SharedProxyStateStore implements ISharedProxyStateStore {

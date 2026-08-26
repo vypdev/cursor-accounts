@@ -6,7 +6,7 @@ import type { IProfileReader } from '../domain/ports/IProfileReader';
 import type { IProxyStateStore } from '../domain/ports/IProxyStateStore';
 import type { IProxyTrafficIngress } from '../domain/ports/IProxyTrafficIngress';
 import type { SharedProxyRuntime } from './sharedProxyLifecycleCoordinator';
-import type { ISharedProxyStateStore } from '../proxy/sharedProxyStateStore';
+import type { ISharedProxyStateStore } from '../domain/ports/ISharedProxyStateStore';
 import { SHARED_PROXY_RUNTIME_KEY } from '../proxy/types';
 import * as extensionLog from '../logging/extensionLog';
 

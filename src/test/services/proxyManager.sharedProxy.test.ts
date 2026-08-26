@@ -46,6 +46,20 @@ describe('ProxyManager shared proxy', () => {
         certService: {} as never,
         trafficBus,
         trafficIngress: new ProxyTrafficIngress('/tmp/logs', trafficBus, () => false),
+        sharedStateStore: {
+          read: async () => ({
+            version: 1,
+            profileId: 'shared-proxy',
+            running: true,
+            port: 8080,
+            apiPort: 18_080,
+            pid: process.pid,
+            startedAt: new Date().toISOString(),
+            lastUpdatedAt: new Date().toISOString(),
+          }),
+          write: async () => undefined,
+          clear: async () => undefined,
+        },
         createProcess: () => {
           throw new Error('not used');
         },
@@ -57,13 +71,6 @@ describe('ProxyManager shared proxy', () => {
         string,
         { process: unknown; port: number; apiPort: number; userDataDir: string }
       >;
-      readSharedProxyState(): Promise<{
-        running: boolean;
-        port?: number;
-        apiPort?: number;
-        pid?: number;
-        startedAt?: string;
-      } | null>;
     };
 
     internal.runtimes.set(SHARED_PROXY_RUNTIME_KEY, {
@@ -71,14 +78,6 @@ describe('ProxyManager shared proxy', () => {
       port: 8080,
       apiPort: 18_080,
       userDataDir: '/tmp/cursor-accounts-proxy-storage-shared',
-    });
-
-    internal.readSharedProxyState = async () => ({
-      running: true,
-      port: 8080,
-      apiPort: 18_080,
-      pid: process.pid,
-      startedAt: new Date().toISOString(),
     });
 
     const status = await manager.getStatus('profile-a');
