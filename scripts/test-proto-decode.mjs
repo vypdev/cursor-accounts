@@ -11,6 +11,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import protobuf from 'protobufjs';
+import { connectPayloadCandidates } from './lib/connect-payload.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -19,27 +20,6 @@ const PROTO_FILES = [
   path.join(PROTO_ROOT, 'agent', 'v1', 'agent.proto'),
   path.join(PROTO_ROOT, 'aiserver', 'v1', 'aiserver.proto'),
 ];
-
-/**
- * @param {Buffer} body
- * @returns {Buffer[]}
- */
-function connectPayloadCandidates(body) {
-  const candidates = [body];
-  if (body.length >= 5 && body[0] === 0) {
-    const len = body.readUInt32BE(1);
-    if (body.length >= 5 + len) {
-      candidates.push(body.subarray(5, 5 + len));
-    }
-  }
-  if (body.length >= 3 && body[0] === 0) {
-    const len = body.readUInt16BE(1);
-    if (body.length >= 3 + len) {
-      candidates.push(body.subarray(3, 3 + len));
-    }
-  }
-  return [...new Set(candidates)];
-}
 
 /**
  * @param {protobuf.Type} Type

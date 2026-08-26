@@ -9,6 +9,8 @@ import zlib from 'node:zlib';
 import fs from 'node:fs';
 import path from 'node:path';
 import { bodyBufferFromEntry } from './proxy-log-body.mjs';
+import { connectPayloadCandidates } from './connect-payload.mjs';
+export { connectPayloadCandidates } from './connect-payload.mjs';
 import {
   extractAgentInsight,
   extractBillingInsight,
@@ -19,27 +21,6 @@ import {
   parseConnectRpcPath,
   resolveRpcMessageType,
 } from './proxy-rpc.mjs';
-
-/**
- * @param {Buffer} body
- * @returns {Buffer[]}
- */
-export function connectPayloadCandidates(body) {
-  const candidates = [body];
-  if (body.length >= 5 && body[0] === 0) {
-    const len = body.readUInt32BE(1);
-    if (body.length >= 5 + len) {
-      candidates.push(body.subarray(5, 5 + len));
-    }
-  }
-  if (body.length >= 3 && body[0] === 0) {
-    const len = body.readUInt16BE(1);
-    if (body.length >= 3 + len) {
-      candidates.push(body.subarray(3, 3 + len));
-    }
-  }
-  return [...new Set(candidates)];
-}
 
 /**
  * @param {Buffer} raw

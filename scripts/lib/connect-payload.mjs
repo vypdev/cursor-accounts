@@ -1,5 +1,5 @@
 /**
- * Connect framing helpers (shared with analyze scripts).
+ * Connect framing helpers shared by proxy analysis and verification scripts.
  */
 
 export function connectPayloadCandidates(body) {
@@ -27,6 +27,14 @@ export function connectPayloadCandidates(body) {
     const len = body.readUInt32BE(1);
     if (body.length >= 5 + len) {
       add(body.subarray(5, 5 + len));
+    }
+  }
+
+  // Some historical captures contain a compact two-byte length prefix.
+  if (body.length >= 3 && body[0] === 0) {
+    const len = body.readUInt16BE(1);
+    if (body.length >= 3 + len) {
+      add(body.subarray(3, 3 + len));
     }
   }
 

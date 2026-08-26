@@ -53,6 +53,11 @@ const checks = [
     args: ['run', 'test:verify-proto-jsonl'],
   },
   {
+    label: 'protobuf JSONL report tests',
+    command: 'pnpm',
+    args: ['run', 'test:proto-jsonl-report'],
+  },
+  {
     label: 'localization parity',
     command: 'pnpm',
     args: ['run', 'validate:l10n'],

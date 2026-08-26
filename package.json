@@ -326,6 +326,7 @@
     "test:proto": "node scripts/test-proto-decode.mjs",
     "verify:proto-jsonl": "node scripts/verify-proto-jsonl.mjs",
     "test:verify-proto-jsonl": "node --test scripts/verify-proto-jsonl.test.mjs",
+    "test:proto-jsonl-report": "node --test scripts/proto-jsonl-report.test.mjs",
     "test:native-prebuild": "node scripts/test-electron-prebuild.mjs",
     "test:build-targets": "node --test scripts/build-targets.test.mjs",
     "test:vsix-verifier": "node --test scripts/vsixVerification.test.mjs",

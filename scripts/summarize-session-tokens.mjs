@@ -26,6 +26,7 @@ import {
   parseConnectRpcPath,
   resolveRpcMessageType,
 } from './lib/proxy-rpc.mjs';
+import { connectPayloadCandidates } from './lib/connect-payload.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -42,19 +43,6 @@ const DEFAULT_LOG_DIR = path.join(
 );
 
 const DEFAULT_DOLLARS_PER_M = 4;
-
-function connectPayloadCandidates(body) {
-  const candidates = [body];
-  if (body.length >= 5 && body[0] === 0) {
-    const len = body.readUInt32BE(1);
-    if (body.length >= 5 + len) {
-      candidates.push(body.subarray(5, 5 + len));
-    }
-  }
-  return [...new Set(candidates.map((b) => b.toString('hex')))].map((hex) =>
-    Buffer.from(hex, 'hex')
-  );
-}
 
 function tryDecode(Type, raw) {
   for (const payload of connectPayloadCandidates(raw)) {
