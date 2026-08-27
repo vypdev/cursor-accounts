@@ -4,6 +4,7 @@ import {
   findProxyLogFiles,
   readProxyLogFile,
   type ProxyLogFileMetadata,
+  type ProxyLogFileReadResult,
 } from './proxyLogFileReader';
 import type { ProxyTrafficSummary } from './types';
 
@@ -180,14 +181,22 @@ export class ProxyLogTailer {
 
   private async readNewLines(generation: number): Promise<void> {
     const filePath = this.currentFilePath;
-    if (!this.isActive(generation) || !filePath) {
+    if (!filePath || !this.isActive(generation)) {
       return;
     }
 
     const result = await readProxyLogFile(filePath, this.fileOffset);
-    if (!this.isActive(generation) || this.currentFilePath !== filePath) {
+    if (!this.isCurrentRead(generation, filePath)) {
       return;
     }
+    this.applyReadResult(filePath, result, generation);
+  }
+
+  private applyReadResult(
+    filePath: string,
+    result: ProxyLogFileReadResult,
+    generation: number
+  ): void {
     if (result.kind === 'missing') {
       this.clearActiveFile();
       this.handlers.onLogFileResolved?.(null);
@@ -202,7 +211,9 @@ export class ProxyLogTailer {
     }
 
     this.fileOffset = result.nextOffset;
-    this.entryProcessor.processChunk(result.chunk, () => this.isActive(generation));
+    this.entryProcessor.processChunk(result.chunk, () =>
+      this.isActive(generation) && this.currentFilePath === filePath
+    );
   }
 
   private clearActiveFile(): void {
@@ -213,6 +224,10 @@ export class ProxyLogTailer {
 
   private isActive(generation: number): boolean {
     return this.running && this.lifecycleGeneration === generation;
+  }
+
+  private isCurrentRead(generation: number, filePath: string): boolean {
+    return this.isActive(generation) && this.currentFilePath === filePath;
   }
 }
 
