@@ -9,10 +9,12 @@ import type {
 } from '../domain/ports/IProxyCertificateOperations';
 import type { IProxyStateStore } from '../domain/ports/IProxyStateStore';
 import { initL10nForTests } from '../l10n';
+import { ProxyCertificateMaterialService } from '../services/proxyCertificateMaterialService';
 import {
   formatProxyCertificateError,
   ProxyCertificateService,
 } from '../services/proxyCertificateService';
+import { ProxyCertificateTrustService } from '../services/proxyCertificateTrustService';
 
 const PROFILE: Profile = {
   id: 'profile-1',
@@ -61,10 +63,15 @@ function createService(options: {
     findProfileByPath: async () => undefined,
   };
 
-  return new ProxyCertificateService(
-    options.operations ?? createOperations(),
+  const operations = options.operations ?? createOperations();
+  const material = new ProxyCertificateMaterialService(
+    operations,
     stateStore,
     profileManager
+  );
+  return new ProxyCertificateService(
+    material,
+    new ProxyCertificateTrustService(operations, material)
   );
 }
 

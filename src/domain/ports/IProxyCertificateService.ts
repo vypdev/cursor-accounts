@@ -1,12 +1,6 @@
-import type { ProxyInstallGuide } from '@cursor-accounts/types';
-import type { ProxyCertificateOperationResult } from './IProxyCertificateOperations';
+import type { IProxyCertificateMaterial } from './IProxyCertificateMaterial';
+import type { IProxyCertificateTrust } from './IProxyCertificateTrust';
 
-export interface IProxyCertificateService {
-  ensureCaCertificate(): Promise<string>;
-  getCertificatePath(): Promise<string | null>;
-  checkInstalled(): Promise<boolean>;
-  getCachedInstalled(): boolean | undefined;
-  install(): Promise<ProxyCertificateOperationResult>;
-  uninstall(): Promise<ProxyCertificateOperationResult>;
-  getInstallGuide(): Promise<ProxyInstallGuide>;
-}
+export interface IProxyCertificateService
+  extends IProxyCertificateMaterial,
+    IProxyCertificateTrust {}

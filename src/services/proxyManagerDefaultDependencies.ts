@@ -23,7 +23,9 @@ import { ProxyTrafficBus } from '../proxy/proxyTrafficBus';
 import { ProxyTrafficIngress } from '../proxy/proxyTrafficIngress';
 import { getSharedProxyStorageDir } from '../proxy/sharedProxyPaths';
 import { NodeProxyProcess } from '../proxy/nodeProxyProcess';
+import { ProxyCertificateMaterialService } from './proxyCertificateMaterialService';
 import { ProxyCertificateService } from './proxyCertificateService';
+import { ProxyCertificateTrustService } from './proxyCertificateTrustService';
 import * as extensionLog from '../logging/extensionLog';
 
 export interface ProxyManagerDependencies {
@@ -78,12 +80,19 @@ export function createDefaultProxyManagerDependencies(
     'proxy',
     'proxyServer.js'
   );
+  const certificateMaterial = new ProxyCertificateMaterialService(
+    certificateOperations,
+    options.stateStore,
+    options.profileManager
+  );
 
   return {
     certService: new ProxyCertificateService(
-      certificateOperations,
-      options.stateStore,
-      options.profileManager
+      certificateMaterial,
+      new ProxyCertificateTrustService(
+        certificateOperations,
+        certificateMaterial
+      )
     ),
     trafficBus,
     trafficIngress,
