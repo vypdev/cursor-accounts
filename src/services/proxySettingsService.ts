@@ -5,6 +5,7 @@ import type {
   IProfileSettingsManager,
   ProxyBackupInfo,
 } from '../domain/ports/IProfileSettingsManager';
+import type { IProxySettingsBackupReader } from '../domain/ports/IProxySettingsBackupReader';
 import * as extensionLog from '../logging/extensionLog';
 import {
   clearProxyVscodeConfiguration,
@@ -16,7 +17,7 @@ export type { RestoreAllProfilesResult };
 /**
  * Application service: orchestrate proxy settings across all managed profiles.
  */
-export class ProxySettingsService {
+export class ProxySettingsService implements IProxySettingsBackupReader {
   constructor(
     private readonly profileManager: IProfileReader,
     private readonly profileSettingsManager: IProfileSettingsManager,

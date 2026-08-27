@@ -14,6 +14,7 @@ import type { ProfileWorkspaceService } from '../application/services/profileWor
 import type { ProfileGitHubEnrichmentService } from '../github/profileGitHubEnrichmentService';
 import { AccountsPanelBackgroundRefreshCoordinator } from '../ui/accountsPanelBackgroundRefreshCoordinator';
 import { AccountsPanelDataRefresher } from '../ui/accountsPanelDataRefresher';
+import { AccountsPanelProxyStateCoordinator } from '../ui/accountsPanelProxyStateCoordinator';
 
 const PROFILE: Profile = {
   id: 'p1',
@@ -53,6 +54,17 @@ function createRefresher(active = true) {
     },
     hasActiveWebview: () => active,
   };
+  const proxyManager = {
+    isCurrentWindowUsingProxy: async () => false,
+    getStatus: async () => null,
+    checkCertificateInstalled: async () => false,
+    getCachedCertificateInstalled: () => false,
+    getProxyServerUrl: async () => null,
+  } as unknown as IProxyManager;
+  const proxyState = new AccountsPanelProxyStateCoordinator(
+    { profileDetector, proxyManager },
+    callbacks
+  );
   const backgroundRefresh = new AccountsPanelBackgroundRefreshCoordinator(
     {
       profileManager,
@@ -78,12 +90,7 @@ function createRefresher(active = true) {
       efficiencyService: {
         getStatsStorage: () => ({ getAllStats: () => ({}) }),
       } as unknown as EfficiencyService,
-      proxyManager: {
-        isCurrentWindowUsingProxy: async () => false,
-        getStatus: async () => null,
-        checkCertificateInstalled: async () => false,
-        getCachedCertificateInstalled: () => false,
-      } as unknown as IProxyManager,
+      proxyState,
     },
     callbacks
   );

@@ -31,6 +31,7 @@ import { ProfileGitHubEnrichmentService } from '../github/profileGitHubEnrichmen
 import { AccountsPanelHandlers } from './accountsPanelHandlers';
 import { AccountsPanelBackgroundRefreshCoordinator } from './accountsPanelBackgroundRefreshCoordinator';
 import { AccountsPanelDataRefresher } from './accountsPanelDataRefresher';
+import { AccountsPanelProxyStateCoordinator } from './accountsPanelProxyStateCoordinator';
 import { ModelPricingService } from '../services/modelPricingService';
 import { CursorModelPricingProvider } from '../modelEfficiency/cursorModelPricingProvider';
 import { StateDbModelCatalogRepository } from '../modelEfficiency/stateDbModelCatalogRepository';
@@ -119,8 +120,17 @@ export class AccountsPanelProvider {
         instanceDetector,
         profileWorkspaceService,
         efficiencyService,
-        proxyManager,
-        proxySettingsService,
+        proxyState: new AccountsPanelProxyStateCoordinator(
+          {
+            profileDetector,
+            proxyManager,
+            proxySettingsReader: proxySettingsService,
+          },
+          {
+            postMessage: (message) => this.postMessage(message),
+            hasActiveWebview: () => this.getActiveWebview() !== undefined,
+          }
+        ),
       },
       {
         postMessage: (message) => this.postMessage(message),

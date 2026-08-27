@@ -1,8 +1,6 @@
 import type {
   InstanceInfo,
-  Profile,
   ProfileQuota,
-  ProxyStatus,
   ToWebviewMessage,
 } from '@cursor-accounts/types';
 import * as extensionLog from '../logging/extensionLog';
@@ -10,15 +8,13 @@ import { getLocale, getWebviewMessages, t } from '../l10n';
 import type { IInstanceDetector } from '../domain/ports/IInstanceDetector';
 import type { IProfileDetector } from '../domain/ports/IProfileDetector';
 import type { IProfileReader } from '../domain/ports/IProfileReader';
-import type { IProxyPanelRead } from '../domain/ports/IProxyPanelRead';
 import type { EfficiencyService } from '../modelEfficiency/efficiencyService';
 import type { AccountsPanelBackgroundRefreshCoordinator } from './accountsPanelBackgroundRefreshCoordinator';
 import { instanceMapToRecord } from '../profiles/instanceDetector';
 import type { ProfileWorkspaceService } from '../application/services/profileWorkspaceService';
 import { getOpenWorkspacePaths } from '../services/activeWorkspaceService';
 import { buildProfileWorkspaceMap } from './presentation/profileWorkspacePresentation';
-import type { ProxySettingsService } from '../services/proxySettingsService';
-import { isProfileProxyEnabled } from '@cursor-accounts/types';
+import type { AccountsPanelProxyStateCoordinator } from './accountsPanelProxyStateCoordinator';
 import {
   quotaMapToRecord,
   type MultiProfileQuotaService,
@@ -32,8 +28,7 @@ export interface AccountsPanelDataRefresherDependencies {
   instanceDetector: IInstanceDetector;
   profileWorkspaceService: ProfileWorkspaceService;
   efficiencyService: EfficiencyService;
-  proxyManager: IProxyPanelRead;
-  proxySettingsService?: ProxySettingsService;
+  proxyState: AccountsPanelProxyStateCoordinator;
 }
 
 export interface AccountsPanelDataRefresherCallbacks {
@@ -89,14 +84,9 @@ export class AccountsPanelDataRefresher {
           efficiencyStats: this.dependencies.efficiencyService
             .getStatsStorage()
             .getAllStats(),
-          proxyStatus: this.shouldShowProxyUi(currentProfile)
-            ? await this.buildProxyStatus({ checkCertificate: true })
-            : null,
-          currentWindowUsesProxy: this.shouldShowProxyUi(currentProfile)
-            ? await this.dependencies.proxyManager.isCurrentWindowUsingProxy()
-            : false,
-          profileProxyTemporary:
-            await this.buildProfileProxyTemporary(currentProfile),
+          ...(await this.dependencies.proxyState.read(currentProfile, {
+            checkCertificate: true,
+          })),
           locale: getLocale(),
           messages: getWebviewMessages(),
         },
@@ -153,30 +143,7 @@ export class AccountsPanelDataRefresher {
   async refreshProxyStatus(options?: {
     checkCertificate?: boolean;
   }): Promise<void> {
-    if (!this.callbacks.hasActiveWebview()) {
-      return;
-    }
-
-    const currentProfile =
-      await this.dependencies.profileDetector.detectCurrentProfile();
-    if (!this.shouldShowProxyUi(currentProfile)) {
-      await this.callbacks.postMessage({ type: 'proxyStatus', data: null });
-      await this.callbacks.postMessage({
-        type: 'currentWindowProxyUsage',
-        usesProxy: false,
-      });
-      return;
-    }
-
-    const proxyStatus = await this.buildProxyStatus(options);
-    await this.callbacks.postMessage({ type: 'proxyStatus', data: proxyStatus });
-
-    const usesProxy =
-      await this.dependencies.proxyManager.isCurrentWindowUsingProxy();
-    await this.callbacks.postMessage({
-      type: 'currentWindowProxyUsage',
-      usesProxy,
-    });
+    await this.dependencies.proxyState.refresh(options);
   }
 
   async postEfficiencyStats(): Promise<void> {
@@ -235,72 +202,6 @@ export class AccountsPanelDataRefresher {
       type: 'runningInstances',
       data: instanceMapToRecord(instances),
     });
-  }
-
-  private shouldShowProxyUi(currentProfile: Profile | null): boolean {
-    return currentProfile != null && isProfileProxyEnabled(currentProfile);
-  }
-
-  private async buildProfileProxyTemporary(
-    currentProfile: Profile | null
-  ): Promise<Record<string, boolean>> {
-    if (
-      !this.shouldShowProxyUi(currentProfile) ||
-      !this.dependencies.proxySettingsService
-    ) {
-      return {};
-    }
-
-    const backupInfo =
-      await this.dependencies.proxySettingsService.getAllProxyBackupInfo();
-    const result: Record<string, boolean> = {};
-
-    for (const [profileId, info] of backupInfo) {
-      if (info.hasBackup) {
-        result[profileId] = true;
-        continue;
-      }
-
-      const proxyUrl =
-        await this.dependencies.proxyManager.getProxyServerUrl(profileId);
-      if (proxyUrl != null && info.currentProxyUrl === proxyUrl) {
-        result[profileId] = true;
-      }
-    }
-
-    return result;
-  }
-
-  private async buildProxyStatus(options?: {
-    checkCertificate?: boolean;
-  }): Promise<ProxyStatus | null> {
-    const currentProfile =
-      await this.dependencies.profileDetector.detectCurrentProfile();
-    if (!this.shouldShowProxyUi(currentProfile) || currentProfile == null) {
-      return null;
-    }
-
-    const status = await this.dependencies.proxyManager.getStatus(
-      currentProfile.id
-    );
-    if (!status) {
-      return null;
-    }
-
-    let caCertificateInstalled: boolean | undefined;
-    if (options?.checkCertificate) {
-      caCertificateInstalled =
-        await this.dependencies.proxyManager.checkCertificateInstalled();
-    } else {
-      caCertificateInstalled =
-        this.dependencies.proxyManager.getCachedCertificateInstalled();
-    }
-
-    if (caCertificateInstalled === undefined) {
-      return status;
-    }
-
-    return { ...status, caCertificateInstalled };
   }
 
 }
