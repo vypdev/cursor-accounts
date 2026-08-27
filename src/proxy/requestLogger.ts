@@ -4,6 +4,7 @@ import { createWriteStream } from 'fs';
 import type { WriteStream } from 'fs';
 import { captureBodyForLog } from './bodyCapture';
 import { DEFAULT_MAX_BODY_LOG_BYTES, type ProxyLogEntry } from './types';
+import { isNotFoundError } from '../utils/fileSystemErrors';
 import {
   isConnectRpcContentType,
   isCursorHost,
@@ -166,8 +167,10 @@ export class RequestLogger {
       for (const name of bodyFiles) {
         totalSize += (await fs.stat(path.join(bodiesDir, name))).size;
       }
-    } catch {
-      // no bodies dir yet
+    } catch (error) {
+      if (!isNotFoundError(error)) {
+        throw error;
+      }
     }
     return totalSize;
   }
@@ -184,7 +187,10 @@ export class RequestLogger {
           return { path: p, mtime: stat.mtimeMs, size: stat.size };
         })
       );
-    } catch {
+    } catch (error) {
+      if (!isNotFoundError(error)) {
+        throw error;
+      }
       return;
     }
     entries.sort((a, b) => a.mtime - b.mtime);
@@ -212,7 +218,10 @@ export class RequestLogger {
       );
       withStats.sort((a, b) => a.mtime - b.mtime);
       return withStats.map((x) => x.path);
-    } catch {
+    } catch (error) {
+      if (!isNotFoundError(error)) {
+        throw error;
+      }
       return [];
     }
   }
