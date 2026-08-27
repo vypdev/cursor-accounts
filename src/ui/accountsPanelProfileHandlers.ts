@@ -1,12 +1,9 @@
 import * as vscode from 'vscode';
-import { isProfileProxyEnabled, isProfileProxyJsonlLoggingEnabled } from '@cursor-accounts/types';
 import * as extensionLog from '../logging/extensionLog';
 import { t } from '../l10n';
 import type { IInstanceDetector } from '../domain/ports/IInstanceDetector';
-import type { IProfileDetector } from '../domain/ports/IProfileDetector';
 import type { IProfileManager } from '../domain/ports/IProfileManager';
-import type { IProfileSettingsManager } from '../domain/ports/IProfileSettingsManager';
-import type { IProxyLifecycle } from '../domain/ports/IProxyLifecycle';
+import type { ProfileProxyEditUseCase } from '../application/services/profileProxyEditUseCase';
 import { ProfileExporter } from '../profiles/profileExporter';
 import { ProfileImporter } from '../profiles/profileImporter';
 import type {
@@ -19,10 +16,8 @@ import type {
 
 export interface AccountsPanelProfileHandlerDependencies {
   profileManager: IProfileManager;
-  profileDetector: IProfileDetector;
   instanceDetector: IInstanceDetector;
-  proxyManager: IProxyLifecycle;
-  profileSettingsManager?: IProfileSettingsManager;
+  profileProxyEditUseCase: Pick<ProfileProxyEditUseCase, 'execute'>;
 }
 
 export interface AccountsPanelProfileHandlerCallbacks {
@@ -57,37 +52,10 @@ export class AccountsPanelProfileHandlers {
   }
 
   async edit(profileId: string, updates: Partial<Profile>): Promise<void> {
-    const previousProfile = await this.dependencies.profileManager.getProfile(profileId);
-    const profile = await this.dependencies.profileManager.updateProfile(
+    const profile = await this.dependencies.profileProxyEditUseCase.execute(
       profileId,
       updates
     );
-
-    const jsonlLoggingChanged =
-      'proxyJsonlLoggingEnabled' in updates &&
-      previousProfile != null &&
-      isProfileProxyJsonlLoggingEnabled(previousProfile) !==
-        isProfileProxyJsonlLoggingEnabled(profile);
-
-    if (updates.proxyEnabled === false) {
-      await this.dependencies.proxyManager.stop(profileId);
-      if (this.dependencies.profileSettingsManager) {
-        await this.dependencies.profileSettingsManager.restoreProxySettings(
-          profile.userDataDir
-        );
-      }
-    } else if (updates.proxyEnabled === true) {
-      const current = await this.dependencies.profileDetector.detectCurrentProfile();
-      if (current?.id === profileId && isProfileProxyEnabled(profile)) {
-        await this.dependencies.proxyManager.ensureProfileProxy(profileId);
-      }
-    } else if (
-      jsonlLoggingChanged &&
-      isProfileProxyEnabled(profile) &&
-      (await this.dependencies.proxyManager.isRunning(profileId))
-    ) {
-      await this.dependencies.proxyManager.restartProfileProxy(profileId);
-    }
 
     await this.callbacks.postMessage({
       type: 'success',

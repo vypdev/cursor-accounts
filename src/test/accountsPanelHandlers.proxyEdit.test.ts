@@ -4,7 +4,6 @@ import { beforeEach, describe, it, mock } from 'node:test';
 import { initL10nForTests } from '../l10n';
 import type { ProfileDetector } from '../profiles/profileDetector';
 import type { ProfileManager } from '../profiles/profileManager';
-import type { IProfileSettingsManager } from '../domain/ports/IProfileSettingsManager';
 import type { IProxyManager } from '../domain/ports/IProxyManager';
 import { AccountsPanelHandlers } from '../ui/accountsPanelHandlers';
 
@@ -27,7 +26,6 @@ describe('AccountsPanelHandlers proxy edit', () => {
 
   it('stops proxy and restores settings when proxy is disabled on edit', async () => {
     const stop = mock.fn(async () => undefined);
-    const restoreProxySettings = mock.fn(async () => undefined);
     const updateProfile = mock.fn(async () => ({
       ...CURRENT_PROFILE,
       proxyEnabled: false,
@@ -54,9 +52,6 @@ describe('AccountsPanelHandlers proxy edit', () => {
           stop,
           ensureProfileProxy: async () => ({ success: true, port: 8080 }),
         } as unknown as IProxyManager,
-        profileSettingsManager: {
-          restoreProxySettings,
-        } as unknown as IProfileSettingsManager,
       },
       {
         postMessage: async () => undefined,
@@ -77,10 +72,9 @@ describe('AccountsPanelHandlers proxy edit', () => {
     });
 
     assert.equal(stop.mock.callCount(), 1);
-    assert.deepEqual(stop.mock.calls[0]?.arguments, ['p1']);
-    assert.equal(restoreProxySettings.mock.callCount(), 1);
-    assert.deepEqual(restoreProxySettings.mock.calls[0]?.arguments, [
-      CURRENT_PROFILE.userDataDir,
+    assert.deepEqual(stop.mock.calls[0]?.arguments, [
+      'p1',
+      { restoreSettings: true },
     ]);
     assert.equal(refreshProxyCalled, true);
   });

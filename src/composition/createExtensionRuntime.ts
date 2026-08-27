@@ -24,6 +24,7 @@ import { InstanceDetector } from '../profiles/instanceDetector';
 import { ProfileDetector } from '../profiles/profileDetector';
 import { ProfileLauncher } from '../profiles/profileLauncher';
 import { ProfileSettingsManager } from '../profiles/profileSettingsManager';
+import { ProfileProxyEditUseCase } from '../application/services/profileProxyEditUseCase';
 import { WorkspaceScanner } from '../profiles/workspaceScanner';
 import { MultiProfileQuotaService } from '../services/multiProfileQuotaService';
 import { ProfileAccountFetcher } from '../services/profileAccountFetcher';
@@ -135,6 +136,11 @@ export function createExtensionRuntime(
     proxyManager,
     profileSettingsManager
   );
+  const profileProxyEditUseCase = new ProfileProxyEditUseCase({
+    profileWriter: profileManager,
+    profileDetector,
+    proxyLifecycle: proxyManager,
+  });
   const profileWorkspaceService = new ProfileWorkspaceService(
     profileManager,
     new WorkspaceScanner()
@@ -191,7 +197,7 @@ export function createExtensionRuntime(
       storageAnalyzer: storageBundle.storageAnalyzer,
       proxyManager,
       proxySettingsReader: proxySettingsBackupReader,
-      profileSettingsManager,
+      profileProxyEditUseCase,
     }
   );
   const agentLiveUsageStatusBar = new AgentLiveUsageStatusBar(context);

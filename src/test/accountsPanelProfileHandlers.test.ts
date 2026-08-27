@@ -3,9 +3,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import * as vscode from 'vscode';
 import type { IInstanceDetector } from '../domain/ports/IInstanceDetector';
-import type { IProfileDetector } from '../domain/ports/IProfileDetector';
 import type { IProfileManager } from '../domain/ports/IProfileManager';
-import type { IProxyLifecycle } from '../domain/ports/IProxyLifecycle';
 import { initL10nForTests } from '../l10n';
 import { PROFILE_EXPORT_VERSION } from '../profiles/types';
 import type { Profile } from '../profiles/types';
@@ -36,18 +34,12 @@ function createHandlers(overrides: {
         deleteProfile: async () => undefined,
         ...overrides.profileManager,
       } as IProfileManager,
-      profileDetector: {
-        detectCurrentProfile: async () => null,
-      } as IProfileDetector,
       instanceDetector: {
         ...overrides.instanceDetector,
       } as IInstanceDetector,
-      proxyManager: {
-        stop: async () => undefined,
-        ensureProfileProxy: async () => ({ success: true, port: 8080 }),
-        restartProfileProxy: async () => ({ success: true, port: 8080 }),
-        isRunning: async () => false,
-      } as unknown as IProxyLifecycle,
+      profileProxyEditUseCase: {
+        execute: async () => PROFILE,
+      },
     },
     {
       postMessage: async (message) => {

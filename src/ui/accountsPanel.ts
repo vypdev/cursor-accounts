@@ -26,7 +26,7 @@ import { getLocale, isRtlLocale, t } from '../l10n';
 import type { IProfileStorageAnalyzer } from '../domain/ports/IProfileStorageAnalyzer';
 import type { IStorageCleanupService } from '../domain/ports/IStorageCleanupService';
 import type { IProxySettingsBackupReader } from '../domain/ports/IProxySettingsBackupReader';
-import type { IProfileSettingsManager } from '../domain/ports/IProfileSettingsManager';
+import type { ProfileProxyEditUseCase } from '../application/services/profileProxyEditUseCase';
 import { ProfileGitHubEnrichmentService } from '../github/profileGitHubEnrichmentService';
 import { AccountsPanelHandlers } from './accountsPanelHandlers';
 import { AccountsPanelBackgroundRefreshCoordinator } from './accountsPanelBackgroundRefreshCoordinator';
@@ -59,7 +59,7 @@ interface AccountsPanelProviderDependencies {
   storageAnalyzer: IProfileStorageAnalyzer;
   proxyManager: IProxyPanelRead & IProxyLifecycle & IProxyCertificate & IProxyOutput;
   proxySettingsReader?: IProxySettingsBackupReader;
-  profileSettingsManager?: IProfileSettingsManager;
+  profileProxyEditUseCase?: Pick<ProfileProxyEditUseCase, 'execute'>;
 }
 
 export class AccountsPanelProvider {
@@ -102,7 +102,7 @@ export class AccountsPanelProvider {
       storageAnalyzer,
       proxyManager,
       proxySettingsReader,
-      profileSettingsManager,
+      profileProxyEditUseCase,
     } = dependencies;
     this.profileDetector = profileDetector;
     this.quotaService = quotaService;
@@ -198,7 +198,7 @@ export class AccountsPanelProvider {
         storageAnalyzer,
         profileWorkspaceService,
         proxyManager,
-        profileSettingsManager,
+        profileProxyEditUseCase,
       },
       {
         postMessage: (message) => this.postMessage(message),

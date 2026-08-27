@@ -10,10 +10,13 @@ import type {
   ToWebviewMessage,
 } from '../profiles/types';
 import type { ProfileWorkspaceService } from '../application/services/profileWorkspaceService';
-import type { IProfileSettingsManager } from '../domain/ports/IProfileSettingsManager';
 import type { IProxyCertificate } from '../domain/ports/IProxyCertificate';
 import type { IProxyLifecycle } from '../domain/ports/IProxyLifecycle';
 import type { IProxyOutput } from '../domain/ports/IProxyOutput';
+import {
+  ProfileProxyEditUseCase,
+  type ProfileProxyEditUseCaseDependencies,
+} from '../application/services/profileProxyEditUseCase';
 import { AccountsPanelProxyHandlers } from './accountsPanelProxyHandlers';
 import { AccountsPanelStorageHandlers } from './accountsPanelStorageHandlers';
 import { AccountsPanelProfileHandlers } from './accountsPanelProfileHandlers';
@@ -47,7 +50,7 @@ export interface AccountsPanelHandlerDeps {
   storageAnalyzer: IProfileStorageAnalyzer;
   profileWorkspaceService: ProfileWorkspaceService;
   proxyManager: IProxyLifecycle & IProxyCertificate & IProxyOutput;
-  profileSettingsManager?: IProfileSettingsManager;
+  profileProxyEditUseCase?: Pick<ProfileProxyEditUseCase, 'execute'>;
 }
 
 /**
@@ -67,6 +70,13 @@ export class AccountsPanelHandlers {
     deps: AccountsPanelHandlerDeps,
     private readonly callbacks: AccountsPanelHandlerCallbacks
   ) {
+    const profileProxyEditUseCase =
+      deps.profileProxyEditUseCase ??
+      new ProfileProxyEditUseCase({
+        profileWriter: deps.profileManager,
+        profileDetector: deps.profileDetector,
+        proxyLifecycle: deps.proxyManager,
+      } satisfies ProfileProxyEditUseCaseDependencies);
     this.proxyHandlers = new AccountsPanelProxyHandlers(
       {
         profileDetector: deps.profileDetector,
@@ -90,10 +100,8 @@ export class AccountsPanelHandlers {
     this.profileHandlers = new AccountsPanelProfileHandlers(
       {
         profileManager: deps.profileManager,
-        profileDetector: deps.profileDetector,
         instanceDetector: deps.instanceDetector,
-        proxyManager: deps.proxyManager,
-        profileSettingsManager: deps.profileSettingsManager,
+        profileProxyEditUseCase,
       },
       {
         postMessage: (message) => callbacks.postMessage(message),
