@@ -14,6 +14,7 @@ import type { ProfileWorkspaceService } from '../application/services/profileWor
 import type { ProfileGitHubEnrichmentService } from '../github/profileGitHubEnrichmentService';
 import { AccountsPanelBackgroundRefreshCoordinator } from '../ui/accountsPanelBackgroundRefreshCoordinator';
 import { AccountsPanelDataRefresher } from '../ui/accountsPanelDataRefresher';
+import { AccountsPanelInitialDataReader } from '../ui/accountsPanelInitialDataReader';
 import { AccountsPanelProxyStateCoordinator } from '../ui/accountsPanelProxyStateCoordinator';
 
 const PROFILE: Profile = {
@@ -65,6 +66,13 @@ function createRefresher(active = true) {
     { profileDetector, proxyManager },
     callbacks
   );
+  const instanceDetector = {
+    detectRunningInstances: async () => new Map(),
+    getLastDetection: () => new Map(),
+  } as unknown as IInstanceDetector;
+  const efficiencyService = {
+    getStatsStorage: () => ({ getAllStats: () => ({}) }),
+  } as unknown as EfficiencyService;
   const backgroundRefresh = new AccountsPanelBackgroundRefreshCoordinator(
     {
       profileManager,
@@ -78,18 +86,20 @@ function createRefresher(active = true) {
   );
   const refresher = new AccountsPanelDataRefresher(
     {
-      profileManager,
       profileDetector,
       backgroundRefresh,
-      quotaService,
-      instanceDetector: {
-        detectRunningInstances: async () => new Map(),
-        getLastDetection: () => new Map(),
-      } as unknown as IInstanceDetector,
+      instanceDetector,
       profileWorkspaceService,
-      efficiencyService: {
-        getStatsStorage: () => ({ getAllStats: () => ({}) }),
-      } as unknown as EfficiencyService,
+      efficiencyService,
+      initialDataReader: new AccountsPanelInitialDataReader({
+        profileManager,
+        profileDetector,
+        quotaService,
+        instanceDetector,
+        profileWorkspaceService,
+        efficiencyService,
+        proxyState,
+      }),
       proxyState,
     },
     callbacks

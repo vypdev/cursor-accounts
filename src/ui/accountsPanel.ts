@@ -31,6 +31,7 @@ import { ProfileGitHubEnrichmentService } from '../github/profileGitHubEnrichmen
 import { AccountsPanelHandlers } from './accountsPanelHandlers';
 import { AccountsPanelBackgroundRefreshCoordinator } from './accountsPanelBackgroundRefreshCoordinator';
 import { AccountsPanelDataRefresher } from './accountsPanelDataRefresher';
+import { AccountsPanelInitialDataReader } from './accountsPanelInitialDataReader';
 import { AccountsPanelProxyStateCoordinator } from './accountsPanelProxyStateCoordinator';
 import { ModelPricingService } from '../services/modelPricingService';
 import { CursorModelPricingProvider } from '../modelEfficiency/cursorModelPricingProvider';
@@ -111,26 +112,36 @@ export class AccountsPanelProvider {
       }
     );
 
+    const proxyState = new AccountsPanelProxyStateCoordinator(
+      {
+        profileDetector,
+        proxyManager,
+        proxySettingsReader: proxySettingsService,
+      },
+      {
+        postMessage: (message) => this.postMessage(message),
+        hasActiveWebview: () => this.getActiveWebview() !== undefined,
+      }
+    );
+    const initialDataReader = new AccountsPanelInitialDataReader({
+      profileManager,
+      profileDetector,
+      quotaService,
+      instanceDetector,
+      profileWorkspaceService,
+      efficiencyService,
+      proxyState,
+    });
+
     this.dataRefresher = new AccountsPanelDataRefresher(
       {
-        profileManager,
         profileDetector,
         backgroundRefresh,
-        quotaService,
         instanceDetector,
         profileWorkspaceService,
         efficiencyService,
-        proxyState: new AccountsPanelProxyStateCoordinator(
-          {
-            profileDetector,
-            proxyManager,
-            proxySettingsReader: proxySettingsService,
-          },
-          {
-            postMessage: (message) => this.postMessage(message),
-            hasActiveWebview: () => this.getActiveWebview() !== undefined,
-          }
-        ),
+        initialDataReader,
+        proxyState,
       },
       {
         postMessage: (message) => this.postMessage(message),

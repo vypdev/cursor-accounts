@@ -4,30 +4,25 @@ import type {
   ToWebviewMessage,
 } from '@cursor-accounts/types';
 import * as extensionLog from '../logging/extensionLog';
-import { getLocale, getWebviewMessages, t } from '../l10n';
+import { t } from '../l10n';
 import type { IInstanceDetector } from '../domain/ports/IInstanceDetector';
 import type { IProfileDetector } from '../domain/ports/IProfileDetector';
-import type { IProfileReader } from '../domain/ports/IProfileReader';
 import type { EfficiencyService } from '../modelEfficiency/efficiencyService';
 import type { AccountsPanelBackgroundRefreshCoordinator } from './accountsPanelBackgroundRefreshCoordinator';
 import { instanceMapToRecord } from '../profiles/instanceDetector';
 import type { ProfileWorkspaceService } from '../application/services/profileWorkspaceService';
 import { getOpenWorkspacePaths } from '../services/activeWorkspaceService';
 import { buildProfileWorkspaceMap } from './presentation/profileWorkspacePresentation';
+import type { AccountsPanelInitialDataReader } from './accountsPanelInitialDataReader';
 import type { AccountsPanelProxyStateCoordinator } from './accountsPanelProxyStateCoordinator';
-import {
-  quotaMapToRecord,
-  type MultiProfileQuotaService,
-} from '../services/multiProfileQuotaService';
 
 export interface AccountsPanelDataRefresherDependencies {
-  profileManager: IProfileReader;
   profileDetector: IProfileDetector;
   backgroundRefresh: AccountsPanelBackgroundRefreshCoordinator;
-  quotaService: Pick<MultiProfileQuotaService, 'getAllCachedQuotas'>;
   instanceDetector: IInstanceDetector;
   profileWorkspaceService: ProfileWorkspaceService;
   efficiencyService: EfficiencyService;
+  initialDataReader: AccountsPanelInitialDataReader;
   proxyState: AccountsPanelProxyStateCoordinator;
 }
 
@@ -49,47 +44,10 @@ export class AccountsPanelDataRefresher {
     }
 
     try {
-      const profiles = await this.dependencies.profileManager.getProfiles();
-      const currentProfile =
-        await this.dependencies.profileDetector.detectCurrentProfile();
-      const cachedQuotas = this.dependencies.quotaService.getAllCachedQuotas();
-      const quotas = quotaMapToRecord(cachedQuotas);
-      const runningInstances = instanceMapToRecord(
-        await this.dependencies.instanceDetector.detectRunningInstances()
-      );
-
-      const profilesWithWorkspaces =
-        await this.dependencies.profileWorkspaceService.getProfilesWithWorkspaces();
-      const openPaths = getOpenWorkspacePaths();
-      const profileWorkspaces = buildProfileWorkspaceMap(
-        profilesWithWorkspaces,
-        currentProfile,
-        openPaths,
-        runningInstances
-      );
-
+      const data = await this.dependencies.initialDataReader.read();
       await this.callbacks.postMessage({
         type: 'init',
-        data: {
-          profiles,
-          profileWorkspaces,
-          currentProfile,
-          quotas,
-          profileAccounts: {},
-          activeAccount: null,
-          runningInstances,
-          openWorkspacePaths: openPaths,
-          profileGithubSummaries: {},
-          profileGithubTokenStatus: {},
-          efficiencyStats: this.dependencies.efficiencyService
-            .getStatsStorage()
-            .getAllStats(),
-          ...(await this.dependencies.proxyState.read(currentProfile, {
-            checkCertificate: true,
-          })),
-          locale: getLocale(),
-          messages: getWebviewMessages(),
-        },
+        data,
       });
 
       void Promise.all([
