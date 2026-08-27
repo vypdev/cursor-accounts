@@ -15,9 +15,6 @@ export function createProxyCertificateService(
     ensureCaCertificate: () => certificateGenerator.ensureCaCertificate(),
     getCertificatePath: () => certificateMaterial.getCertificatePath(),
     getInstallGuide: () => certificateMaterial.getInstallGuide(),
-    checkInstalled: () => certificateTrust.checkInstalled(),
-    getCachedInstalled: () => certificateTrust.getCachedInstalled(),
-    install: () => certificateTrust.install(),
-    uninstall: () => certificateTrust.uninstall(),
+    ...certificateTrust,
   };
 }
