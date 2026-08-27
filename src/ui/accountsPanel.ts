@@ -33,6 +33,7 @@ import { AccountsPanelBackgroundRefreshCoordinator } from './accountsPanelBackgr
 import { AccountsPanelDataRefresher } from './accountsPanelDataRefresher';
 import { AccountsPanelInitialDataReader } from './accountsPanelInitialDataReader';
 import { AccountsPanelProxyStateCoordinator } from './accountsPanelProxyStateCoordinator';
+import { AccountsPanelWorkspaceStateCoordinator } from './accountsPanelWorkspaceStateCoordinator';
 import { ModelPricingService } from '../services/modelPricingService';
 import { CursorModelPricingProvider } from '../modelEfficiency/cursorModelPricingProvider';
 import { StateDbModelCatalogRepository } from '../modelEfficiency/stateDbModelCatalogRepository';
@@ -132,16 +133,25 @@ export class AccountsPanelProvider {
       efficiencyService,
       proxyState,
     });
+    const workspaceState = new AccountsPanelWorkspaceStateCoordinator(
+      {
+        profileDetector,
+        instanceDetector,
+        profileWorkspaceService,
+      },
+      {
+        postMessage: (message) => this.postMessage(message),
+        hasActiveWebview: () => this.getActiveWebview() !== undefined,
+      }
+    );
 
     this.dataRefresher = new AccountsPanelDataRefresher(
       {
-        profileDetector,
         backgroundRefresh,
-        instanceDetector,
-        profileWorkspaceService,
         efficiencyService,
         initialDataReader,
         proxyState,
+        workspaceState,
       },
       {
         postMessage: (message) => this.postMessage(message),

@@ -5,25 +5,18 @@ import type {
 } from '@cursor-accounts/types';
 import * as extensionLog from '../logging/extensionLog';
 import { t } from '../l10n';
-import type { IInstanceDetector } from '../domain/ports/IInstanceDetector';
-import type { IProfileDetector } from '../domain/ports/IProfileDetector';
 import type { EfficiencyService } from '../modelEfficiency/efficiencyService';
 import type { AccountsPanelBackgroundRefreshCoordinator } from './accountsPanelBackgroundRefreshCoordinator';
-import { instanceMapToRecord } from '../profiles/instanceDetector';
-import type { ProfileWorkspaceService } from '../application/services/profileWorkspaceService';
-import { getOpenWorkspacePaths } from '../services/activeWorkspaceService';
-import { buildProfileWorkspaceMap } from './presentation/profileWorkspacePresentation';
 import type { AccountsPanelInitialDataReader } from './accountsPanelInitialDataReader';
 import type { AccountsPanelProxyStateCoordinator } from './accountsPanelProxyStateCoordinator';
+import type { AccountsPanelWorkspaceStateCoordinator } from './accountsPanelWorkspaceStateCoordinator';
 
 export interface AccountsPanelDataRefresherDependencies {
-  profileDetector: IProfileDetector;
   backgroundRefresh: AccountsPanelBackgroundRefreshCoordinator;
-  instanceDetector: IInstanceDetector;
-  profileWorkspaceService: ProfileWorkspaceService;
   efficiencyService: EfficiencyService;
   initialDataReader: AccountsPanelInitialDataReader;
   proxyState: AccountsPanelProxyStateCoordinator;
+  workspaceState: AccountsPanelWorkspaceStateCoordinator;
 }
 
 export interface AccountsPanelDataRefresherCallbacks {
@@ -67,35 +60,7 @@ export class AccountsPanelDataRefresher {
   }
 
   async refreshOpenWorkspaces(): Promise<void> {
-    if (!this.callbacks.hasActiveWebview()) {
-      return;
-    }
-
-    try {
-      const openPaths = getOpenWorkspacePaths();
-      const currentProfile =
-        await this.dependencies.profileDetector.detectCurrentProfile();
-      const profilesWithWorkspaces =
-        await this.dependencies.profileWorkspaceService.getProfilesWithWorkspaces();
-      const runningInstances = instanceMapToRecord(
-        this.dependencies.instanceDetector.getLastDetection()
-      );
-      const profileWorkspaces = buildProfileWorkspaceMap(
-        profilesWithWorkspaces,
-        currentProfile,
-        openPaths,
-        runningInstances
-      );
-
-      await this.callbacks.postMessage({
-        type: 'openWorkspaces',
-        data: { paths: openPaths, profileWorkspaces },
-      });
-    } catch (error) {
-      extensionLog.error(
-        `[AccountsPanel] Failed to refresh open workspaces: ${extensionLog.formatError(error)}`
-      );
-    }
+    await this.dependencies.workspaceState.refreshOpenWorkspaces();
   }
 
   async refreshProxyStatus(options?: {
@@ -118,19 +83,7 @@ export class AccountsPanelDataRefresher {
   }
 
   async refreshInstances(): Promise<void> {
-    if (!this.callbacks.hasActiveWebview()) {
-      return;
-    }
-
-    try {
-      const runningInstances =
-        await this.dependencies.instanceDetector.detectRunningInstances();
-      await this.postRunningInstances(runningInstances);
-    } catch (error) {
-      extensionLog.error(
-        `[AccountsPanel] Failed to refresh instances: ${extensionLog.formatError(error)}`
-      );
-    }
+    await this.dependencies.workspaceState.refreshInstances();
   }
 
   async refreshProfileAccounts(): Promise<void> {
@@ -152,14 +105,7 @@ export class AccountsPanelDataRefresher {
   async postRunningInstances(
     instances: Map<string, InstanceInfo>
   ): Promise<void> {
-    if (!this.callbacks.hasActiveWebview()) {
-      return;
-    }
-
-    await this.callbacks.postMessage({
-      type: 'runningInstances',
-      data: instanceMapToRecord(instances),
-    });
+    await this.dependencies.workspaceState.postRunningInstances(instances);
   }
 
 }

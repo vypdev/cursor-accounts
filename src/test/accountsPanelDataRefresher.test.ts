@@ -16,6 +16,7 @@ import { AccountsPanelBackgroundRefreshCoordinator } from '../ui/accountsPanelBa
 import { AccountsPanelDataRefresher } from '../ui/accountsPanelDataRefresher';
 import { AccountsPanelInitialDataReader } from '../ui/accountsPanelInitialDataReader';
 import { AccountsPanelProxyStateCoordinator } from '../ui/accountsPanelProxyStateCoordinator';
+import { AccountsPanelWorkspaceStateCoordinator } from '../ui/accountsPanelWorkspaceStateCoordinator';
 
 const PROFILE: Profile = {
   id: 'p1',
@@ -84,12 +85,13 @@ function createRefresher(active = true) {
     },
     callbacks
   );
+  const workspaceState = new AccountsPanelWorkspaceStateCoordinator(
+    { profileDetector, instanceDetector, profileWorkspaceService },
+    callbacks
+  );
   const refresher = new AccountsPanelDataRefresher(
     {
-      profileDetector,
       backgroundRefresh,
-      instanceDetector,
-      profileWorkspaceService,
       efficiencyService,
       initialDataReader: new AccountsPanelInitialDataReader({
         profileManager,
@@ -101,6 +103,7 @@ function createRefresher(active = true) {
         proxyState,
       }),
       proxyState,
+      workspaceState,
     },
     callbacks
   );
