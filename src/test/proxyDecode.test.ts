@@ -6,6 +6,10 @@ import {
   parseRpcPath,
 } from '../proxy/proxyDecode';
 import {
+  decodeBinaryPayloads,
+  type BinaryDecoderDependencies,
+} from '../proxy/proxyBinaryDecoder';
+import {
   extractAgentInnerInsights,
   extractAgentSessionInfo,
   extractInsightsForRpc,
@@ -15,6 +19,7 @@ import {
   resetProtoRegistryForTests,
 } from '../proxy/protoRegistry';
 import type { ProxyLogEntry } from '../proxy/types';
+import type { ProtoRegistry } from '../proxy/protoRegistry';
 
 function entry(overrides: Partial<ProxyLogEntry> = {}): ProxyLogEntry {
   return {
@@ -24,6 +29,45 @@ function entry(overrides: Partial<ProxyLogEntry> = {}): ProxyLogEntry {
     host: 'api2.cursor.sh',
     headers: {},
     ...overrides,
+  };
+}
+
+function binaryContext(
+  overrides: Partial<ProxyLogEntry> = {}
+): { entry: ProxyLogEntry; context: Parameters<typeof decodeBinaryPayloads>[1] } {
+  const currentEntry = entry({
+    bodyBase64: Buffer.from([1]).toString('base64'),
+    bodyEncoding: 'base64',
+    headers: { 'content-type': 'application/connect+proto' },
+    ...overrides,
+  });
+  return {
+    entry: currentEntry,
+    context: {
+      rpcPath: parseRpcPath(currentEntry.url) ?? currentEntry.url,
+      direction: currentEntry.direction,
+      rawBody: Buffer.from([1]),
+    },
+  };
+}
+
+function fakeRegistry(
+  overrides: Partial<ProtoRegistry> = {}
+): ProtoRegistry {
+  return {
+    getRpcTypes: () => undefined,
+    lookupMessageType: () => ({}) as never,
+    decode: () => ({ decoded: true }),
+    getRpcPathCount: () => 0,
+    initialize: async () => undefined,
+    ...overrides,
+  } as ProtoRegistry;
+}
+
+function dependencies(registry: ProtoRegistry): BinaryDecoderDependencies {
+  return {
+    loadRegistry: async () => registry,
+    enrichAgentStream: async () => undefined,
   };
 }
 
@@ -153,6 +197,88 @@ describe('parseRpcPath', () => {
     );
     assert.equal(malformed.rpcPath, '/aiserver.v1.BidiService/BidiAppend');
     assert.ok(malformed.error || malformed.insights);
+  });
+
+  it('supports already-decompressed payloads through the injected registry', async () => {
+    const { entry: currentEntry, context } = binaryContext({
+      bodyDecompressed: true,
+    });
+    const result = await decodeBinaryPayloads(
+      currentEntry,
+      context,
+      dependencies(fakeRegistry())
+    );
+
+    assert.equal(result.error, undefined);
+    assert.equal(result.decoded?.decoded, true);
+  });
+
+  it('returns a stable error for an unknown RPC type', async () => {
+    const { entry: currentEntry, context } = binaryContext({
+      url: 'https://api2.cursor.sh/aiserver.v1.UnknownService/Unknown',
+    });
+    const registry = fakeRegistry({ lookupMessageType: () => null });
+    const result = await decodeBinaryPayloads(
+      currentEntry,
+      context,
+      dependencies(registry)
+    );
+
+    assert.deepEqual(result, {
+      error: `Unknown RPC: ${context.rpcPath}`,
+      rpcPath: context.rpcPath,
+    });
+  });
+
+  it('preserves decoder failures', async () => {
+    const { entry: currentEntry, context } = binaryContext();
+    const registry = fakeRegistry({
+      decode: () => {
+        throw new Error('decoder failed');
+      },
+    });
+    const result = await decodeBinaryPayloads(
+      currentEntry,
+      context,
+      dependencies(registry)
+    );
+
+    assert.equal(result.error, 'decoder failed');
+    assert.equal(result.rpcPath, context.rpcPath);
+  });
+
+  it('uses the injected agent-stream fallback when single-payload decoding fails', async () => {
+    const { entry: currentEntry, context } = binaryContext({
+      direction: 'response',
+      url: 'https://api2.cursor.sh/agent.v1.AgentService/RunSSE',
+    });
+    const registry = fakeRegistry({
+      decode: () => {
+        throw new Error('single payload failed');
+      },
+    });
+    const result = await decodeBinaryPayloads(currentEntry, context, {
+      loadRegistry: async () => registry,
+      enrichAgentStream: async () => ({ tokens: { totalTokens: 7 } }),
+    });
+
+    assert.deepEqual(result, {
+      insights: { tokens: { totalTokens: 7 } },
+      rpcPath: context.rpcPath,
+    });
+  });
+
+  it('normalizes loader failures without throwing', async () => {
+    const { entry: currentEntry, context } = binaryContext();
+    const result = await decodeBinaryPayloads(currentEntry, context, {
+      loadRegistry: () => Promise.reject(new Error('registry unavailable')),
+      enrichAgentStream: async () => undefined,
+    });
+
+    assert.deepEqual(result, {
+      error: 'registry unavailable',
+      rpcPath: context.rpcPath,
+    });
   });
 });
 

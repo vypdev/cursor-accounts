@@ -30,6 +30,16 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+export interface BinaryDecoderDependencies {
+  loadRegistry: () => Promise<ProtoRegistry>;
+  enrichAgentStream: typeof enrichInsightsFromAgentStream;
+}
+
+const defaultDependencies: BinaryDecoderDependencies = {
+  loadRegistry: getProtoRegistry,
+  enrichAgentStream: enrichInsightsFromAgentStream,
+};
+
 function resolveMessageType(
   registry: ProtoRegistry,
   rpcPath: string,
@@ -92,7 +102,8 @@ function decodeFailure(
 async function decodeAgentStreamFallback(
   context: DecodeContext,
   entry: ProxyLogEntry,
-  error: string | undefined
+  error: string | undefined,
+  enrichAgentStream: typeof enrichInsightsFromAgentStream
 ): Promise<DecodeProtoResult> {
   if (
     (entry.direction !== 'request' && entry.direction !== 'response') ||
@@ -101,7 +112,7 @@ async function decodeAgentStreamFallback(
     return decodeFailure(context.rpcPath, error);
   }
 
-  const insights = await enrichInsightsFromAgentStream(
+  const insights = await enrichAgentStream(
     context.rpcPath,
     entry.direction,
     context.rawBody,
@@ -117,10 +128,11 @@ async function decodeAgentStreamFallback(
 
 export async function decodeBinaryPayloads(
   entry: ProxyLogEntry,
-  context: DecodeContext
+  context: DecodeContext,
+  dependencies: BinaryDecoderDependencies = defaultDependencies
 ): Promise<DecodeProtoResult> {
   try {
-    const registry = await getProtoRegistry();
+    const registry = await dependencies.loadRegistry();
     const type = resolveMessageType(registry, context.rpcPath, entry.direction);
     if (!type) {
       return { error: `Unknown RPC: ${context.rpcPath}`, rpcPath: context.rpcPath };
@@ -135,7 +147,12 @@ export async function decodeBinaryPayloads(
       return buildDecodedResult(context, decoded.decoded);
     }
 
-    return decodeAgentStreamFallback(context, entry, decoded.error);
+    return decodeAgentStreamFallback(
+      context,
+      entry,
+      decoded.error,
+      dependencies.enrichAgentStream
+    );
   } catch (error) {
     return {
       error: errorMessage(error),
