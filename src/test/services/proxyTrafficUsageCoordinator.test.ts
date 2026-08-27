@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { AgentTrackingService } from '../../services/agentTrackingService';
-import { ProxyTrafficUsageCoordinator } from '../../services/proxyTrafficUsageCoordinator';
+import type { IngestTrafficResult } from '../../application/types/agentPersistence';
+import {
+  ProxyTrafficUsageCoordinator,
+  type AgentTrafficIngestor,
+  type ProxyTrafficUsageLogger,
+} from '../../services/proxyTrafficUsageCoordinator';
 import { SHARED_PROXY_RUNTIME_KEY } from '../../proxy/types';
 import type { ProxyTrafficSummary } from '../../domain/types/proxyTraffic';
 
@@ -19,16 +23,18 @@ function traffic(
 }
 
 function tracking(
-  result: {
-    conversationId: string;
-    deltaPersisted: boolean;
-    turnEndedPersisted: boolean;
-    contextPersisted: boolean;
-  }
-): AgentTrackingService {
+  result: IngestTrafficResult
+): AgentTrafficIngestor {
   return {
     ingestTraffic: async () => result,
-  } as unknown as AgentTrackingService;
+  };
+}
+
+function logger(): ProxyTrafficUsageLogger {
+  return {
+    info: () => undefined,
+    warn: () => undefined,
+  };
 }
 
 describe('ProxyTrafficUsageCoordinator', () => {
@@ -48,6 +54,7 @@ describe('ProxyTrafficUsageCoordinator', () => {
       },
       getAgentTrackingService: () => service,
       onUsagePersisted: (event) => events.push(event),
+      logger: logger(),
     });
 
     const profileId = await coordinator.handle(
@@ -87,6 +94,7 @@ describe('ProxyTrafficUsageCoordinator', () => {
         });
       },
       onUsagePersisted: (event) => events.push(event),
+      logger: logger(),
     });
 
     await coordinator.handle(
@@ -116,6 +124,7 @@ describe('ProxyTrafficUsageCoordinator', () => {
       },
       getAgentTrackingService: () => undefined,
       onUsagePersisted: (event) => events.push(event),
+      logger: logger(),
     });
 
     const profileId = await coordinator.handle(
@@ -129,5 +138,78 @@ describe('ProxyTrafficUsageCoordinator', () => {
     assert.equal(profileId, SHARED_PROXY_RUNTIME_KEY);
     assert.equal(ensured, false);
     assert.deepEqual(events, []);
+  });
+
+  it('emits persisted usage for non-agent summaries returned by tracking', async () => {
+    const events: Array<{ conversationId: string; profileId: string }> = [];
+    const coordinator = new ProxyTrafficUsageCoordinator({
+      isSharedProxyActive: () => false,
+      ensureAgentTracking: async () => undefined,
+      getAgentTrackingService: () =>
+        tracking({
+          conversationId: 'conversation-4',
+          deltaPersisted: false,
+          turnEndedPersisted: false,
+          contextPersisted: true,
+        }),
+      onUsagePersisted: (event) => events.push(event),
+      logger: logger(),
+    });
+
+    await coordinator.handle(traffic({ profileId: 'profile-4' }));
+
+    assert.deepEqual(events, [
+      { conversationId: 'conversation-4', profileId: 'profile-4' },
+    ]);
+  });
+
+  it('warns and skips ingestion when agent traffic has no profile', async () => {
+    const warnings: string[] = [];
+    let ensured = false;
+    const coordinator = new ProxyTrafficUsageCoordinator({
+      isSharedProxyActive: () => false,
+      ensureAgentTracking: async () => {
+        ensured = true;
+      },
+      getAgentTrackingService: () => undefined,
+      onUsagePersisted: () => undefined,
+      logger: {
+        info: () => undefined,
+        warn: (message) => warnings.push(message),
+      },
+    });
+
+    const profileId = await coordinator.handle(
+      traffic({ isLiveTokenUpdate: true })
+    );
+
+    assert.equal(profileId, undefined);
+    assert.equal(ensured, false);
+    assert.deepEqual(warnings, [
+      '[AgentTracking] agent traffic without profileId — ingest skipped',
+    ]);
+  });
+
+  it('uses context conversation metadata for shared live usage', async () => {
+    const events: Array<{ conversationId: string; profileId: string }> = [];
+    const coordinator = new ProxyTrafficUsageCoordinator({
+      isSharedProxyActive: () => true,
+      ensureAgentTracking: async () => undefined,
+      getAgentTrackingService: () => undefined,
+      onUsagePersisted: (event) => events.push(event),
+      logger: logger(),
+    });
+
+    await coordinator.handle(
+      traffic({
+        profileId: 'profile-5',
+        isLiveTokenUpdate: true,
+        insights: { context: { conversationId: 'conversation-5' } },
+      })
+    );
+
+    assert.deepEqual(events, [
+      { conversationId: 'conversation-5', profileId: 'profile-5' },
+    ]);
   });
 });

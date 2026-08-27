@@ -301,6 +301,10 @@ function createTrafficUsageCoordinator(
     getAgentTrackingService: (profileId) =>
       agentTrackingCoordinator.get(profileId),
     onUsagePersisted: (event) => options.callbacks.notifyUsagePersisted(event),
+    logger: {
+      info: (message) => extensionLog.info(message),
+      warn: (message) => extensionLog.warn(message),
+    },
   });
 }
 
