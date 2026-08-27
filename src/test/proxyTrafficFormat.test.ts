@@ -4,6 +4,7 @@ import {
   abbreviateUserAgent,
   classifyBodyKind,
   formatTrafficLine,
+  redactHeadersForLog,
   toTrafficSummary,
 } from '../proxy/proxyTrafficFormat';
 import type { ProxyLogEntry, ProxyTrafficSummary } from '../proxy/types';
@@ -117,5 +118,22 @@ describe('proxyTrafficFormat', () => {
     assert.equal(classifyBodyKind('application/json', 10), 'json');
     assert.equal(classifyBodyKind('application/proto', 3), 'proto');
     assert.equal(classifyBodyKind(undefined, 0), 'empty');
+  });
+
+  it('redacts sensitive headers without changing safe headers', () => {
+    assert.deepEqual(
+      redactHeadersForLog({
+        Authorization: 'Bearer secret',
+        cookie: 'session=secret',
+        'set-cookie': 'session=secret; HttpOnly',
+        'x-request-id': 'request-1',
+      }),
+      {
+        Authorization: '[REDACTED]',
+        cookie: '[REDACTED]',
+        'set-cookie': '[REDACTED]',
+        'x-request-id': 'request-1',
+      }
+    );
   });
 });
