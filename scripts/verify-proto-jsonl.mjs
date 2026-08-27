@@ -9,6 +9,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import protobuf from 'protobufjs';
 import { buildRpcTypeMap } from './lib/proxy-rpc.mjs';
 import { loadCursorProtos } from './lib/cursor-proto-runtime.mjs';
 import {

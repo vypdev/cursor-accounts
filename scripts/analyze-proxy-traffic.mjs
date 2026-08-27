@@ -10,6 +10,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import protobuf from 'protobufjs';
 import {
   analyzeProxyFiles,
   resolveProxyLogFiles,

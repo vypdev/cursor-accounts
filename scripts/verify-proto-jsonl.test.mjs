@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 import zlib from 'node:zlib';
 import {
   connectPayloadCandidates,
@@ -13,6 +15,7 @@ import {
 } from './lib/proto-jsonl-verifier.mjs';
 
 const RPC_PATH = '/aiserver.v1.TestService/TestMethod';
+const SCRIPT_DIRECTORY = path.dirname(fileURLToPath(import.meta.url));
 
 function createFakeType() {
   return {
@@ -199,5 +202,24 @@ test('verifyLogs validates JSON, protobuf, gzip, empty, unknown, and invalid cap
     assert.deepEqual(unknown && unknown.fail, 1);
   } finally {
     fs.rmSync(logDir, { recursive: true, force: true });
+  }
+});
+
+test('verify-proto-jsonl CLI starts with an empty log directory', () => {
+  const directory = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'cursor-accounts-proto-cli-')
+  );
+  try {
+    const result = spawnSync(
+      process.execPath,
+      [path.join(SCRIPT_DIRECTORY, 'verify-proto-jsonl.mjs'), directory],
+      { encoding: 'utf8' }
+    );
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.error, undefined);
+    assert.match(result.stdout, /No captures found|Files|Summary/i);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
   }
 });

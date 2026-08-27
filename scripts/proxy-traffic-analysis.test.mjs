@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 import zlib from 'node:zlib';
 import {
   analyzeProxyFiles,
@@ -12,6 +14,7 @@ import {
 } from './lib/proxy-traffic-analysis.mjs';
 
 const RPC_PATH = '/agent.v1.AgentService/RunPoll';
+const SCRIPT_DIRECTORY = path.dirname(fileURLToPath(import.meta.url));
 
 function createFakeType() {
   return {
@@ -150,6 +153,25 @@ test('analyzeProxyFiles aggregates decoded RPCs and nested token insights', asyn
     assert.equal(report.insightSamples.length, 2);
     assert.equal(report.insightSamples[1].tokens.totalTokens, 17);
     assert.equal(report.insightSamples.length <= MAX_INSIGHT_SAMPLES, true);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('analyze-proxy-traffic CLI starts with an empty log directory', () => {
+  const directory = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'cursor-accounts-analysis-cli-')
+  );
+  try {
+    const result = spawnSync(
+      process.execPath,
+      [path.join(SCRIPT_DIRECTORY, 'analyze-proxy-traffic.mjs'), directory],
+      { encoding: 'utf8' }
+    );
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.error, undefined);
+    assert.match(result.stdout, /Files: 0/);
   } finally {
     fs.rmSync(directory, { recursive: true, force: true });
   }
