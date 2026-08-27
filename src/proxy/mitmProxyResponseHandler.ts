@@ -96,16 +96,19 @@ export function createMitmProxyResponseHandler(
       isCursorHost: isCursorHost(host),
     };
     const bodyChunks: Buffer[] = [];
+    let streamProcessing = Promise.resolve();
     ctx.onResponseData((_ctx, chunk, cb) => {
       bodyChunks.push(chunk);
       if (isRunSSE && requestId) {
-        void processRunSseChunk(
-          dependencies,
-          chunk,
-          requestId,
-          bidiRequestId,
-          decoderReady,
-          streamContext
+        streamProcessing = streamProcessing.then(() =>
+          processRunSseChunk(
+            dependencies,
+            chunk,
+            requestId,
+            bidiRequestId,
+            decoderReady,
+            streamContext
+          )
         );
       }
       cb(null, chunk);
@@ -125,7 +128,8 @@ export function createMitmProxyResponseHandler(
         bidiRequestId,
         durationMs,
         isRunSSE,
-        decoderReady
+        decoderReady,
+        streamProcessing
       ).then(endCallback, endCallback);
     });
 
@@ -179,7 +183,8 @@ async function finalizeResponse(
   bidiRequestId: string | undefined,
   durationMs: number | undefined,
   isRunSSE: boolean,
-  decoderReady: Promise<void> | undefined
+  decoderReady: Promise<void> | undefined,
+  streamProcessing: Promise<void>
 ): Promise<void> {
   const { statistics, requestLogger, streamingDecoders } = dependencies;
   statistics.activeConnections = Math.max(0, statistics.activeConnections - 1);
@@ -187,6 +192,7 @@ async function finalizeResponse(
   let incrementalTurnsAlreadyPersisted = false;
   if (isRunSSE && requestId) {
     try {
+      await streamProcessing;
       await decoderReady;
       const decoder = streamingDecoders.get(requestId);
       if (decoder) {
