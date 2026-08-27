@@ -21,15 +21,15 @@ acceptance criteria and evidence are recorded.
 
 | ID | Area | Status | Current evidence | Next required action |
 |---|---|---|---|---|
-| QA-0 | Baseline and finding reclassification | COMPLETE | `pnpm run audit` passes at `881c504`; current Graphify/Repowise/dependency evidence is captured on 2026-08-27 at `881c504` | Keep this baseline immutable and update it after every cross-cutting change |
-| QA-1 | CI, tests, localization, lint | PARTIAL | Full audit passes with 1,051 host tests, 85.47% lines, 79.54% branches, and 82.69% functions; localization is 26 locales/428 keys and webview is 51/51 across 13 files with 84.97% lines, 78.21% branches, 83.87% functions, and explicit risk-based floors; the host suite also passes independently under the Node 24 contract; shared runtime lifecycle adds direct application tests, proxy insight formatting adds a focused contract test, and API/JSONL ingress boundaries add transactional failure-path coverage while all prior contract suites remain green | Add repeated host/webview-run evidence and review generated-artifact/source-lint policy |
-| QA-2 | Dependencies and supply chain | PARTIAL | SDK `1.0.28`, legacy npm `sqlite3` removed, targeted `uuid@11.1.1` and `undici@6.28.0` overrides resolve; pinned pnpm 10.34 production audit reports 0 advisories; isolated pnpm 11.19 signature audit verifies 163/163 packages; CycloneDX 1.5 SBOM contains 163 components; clean VSIX tree has no package-manager store; `audit:supply-chain` now automates the checks and CI/release/hotfix upload the report for 14 days; the full audit at `881c504` passes the supply-chain stage | Review Cursor vendor terms and semaphore MIT attribution, decide release SBOM retention, and close the final attribution policy before marking complete |
+| QA-0 | Baseline and finding reclassification | COMPLETE | `pnpm run audit` passes at `40035c7`; current Graphify/Repowise/dependency evidence is captured on 2026-08-27 at `40035c7` | Keep this baseline immutable and update it after every cross-cutting change |
+| QA-1 | CI, tests, localization, lint | PARTIAL | Full audit passes with 1,057 host tests, 85.79% lines, 79.62% branches, and 83.20% functions; localization is 26 locales/428 keys and webview is 51/51 across 13 files with 84.97% lines, 78.24% branches, 83.87% functions, and explicit risk-based floors; the host suite also passes independently under the Node 24 contract; shared runtime lifecycle adds direct application tests, proxy insight formatting adds a focused contract test, and API/JSONL ingress boundaries plus the WebSocket transport add transactional/reconnection failure-path coverage while all prior contract suites remain green | Add repeated host/webview-run evidence and review generated-artifact/source-lint policy |
+| QA-2 | Dependencies and supply chain | PARTIAL | SDK `1.0.28`, legacy npm `sqlite3` removed, targeted `uuid@11.1.1` and `undici@6.28.0` overrides resolve; pinned pnpm 10.34 production audit reports 0 advisories; isolated pnpm 11.19 signature audit verifies 163/163 packages; CycloneDX 1.5 SBOM contains 163 components; clean VSIX tree has no package-manager store; `audit:supply-chain` now automates the checks and CI/release/hotfix upload the report for 14 days; the full audit at `40035c7` passes the supply-chain stage | Review Cursor vendor terms and semaphore MIT attribution, decide release SBOM retention, and close the final attribution policy before marking complete |
 | QA-3 | Native runtime and packaging | PARTIAL | Current-target clean build passes with target-specific Electron ABI 128, official SHA-256 validation, sanitized runtime native tree, clean-room Node 24/pnpm 10 installation, and 49,430,263-byte (47.14 MiB) VSIX verification; darwin-arm64 and linux-arm64 cross-target builds pass with embedded native-header validation; the shared VSIX verifier contract is covered by 4/4 tests and used by both build-time and standalone verification | Expand evidence across the complete darwin, Linux, and Windows target matrix on their intended runners |
 | QA-4 | Token and cost correctness | PARTIAL | Accounting contract, authoritative server-cost precedence, model-aware fallback calculation, non-finite input guards, SQLite replay golden test, versioned pricing metadata, current visible Cursor model rates, exact fast-variant pricing, and migration 010 provenance persistence are implemented; focused provenance coverage passes | Complete decoder-shape, rounding, and unknown/cache-rate reconciliation coverage |
-| QA-5 | Clean Architecture enforcement | PARTIAL | TypeScript-AST resolver-backed checker passes for 357 production files; negative fixtures cover domain/application/package/cycle cases; storage cleanup keeps efficiency-event SQLite construction behind a domain port and persistence adapter, policy-specific actions behind a cohesive runner, proxy insight dispatch/redaction behind focused application boundaries, ProxyManager construction behind a composition boundary, Composer polling through injected boundaries, efficiency toggling behind a dedicated workflow, extension activation through focused composition modules, build-target selection and VSIX policy behind pure/shared boundaries, webview state and bridge behavior behind typed/injectable boundaries, live usage accounting/rendering behind application/presentation policies, Accounts HTML/CSP behind a pure renderer, proxy traffic analysis and diagnostics behind focused boundaries, protobuf framing/report rendering behind pure script boundaries, ProxyManager event coordination behind an application boundary, Agent Tracking ingestion behind an application use case, token resolution behind an application policy and domain OAuth port, quota refresh behind application/cache/fetch ports, persisted proxy attachment behind an application use case, streaming Connect framing/session behind adapter/application/domain boundaries, profile stop/restore behind an application use case, shared proxy startup and ensure/stop decisions behind application use cases, proxy control-plane operations behind a shared domain port, traffic insight formatting behind pure helpers, and API/JSONL traffic ingress behind dedicated composition/adapters with transactional startup cleanup; current Graphify/Repowise hotspots remain | Split the remaining large composition functions and add direct contract tests without weakening the dependency direction |
+| QA-5 | Clean Architecture enforcement | PARTIAL | TypeScript-AST resolver-backed checker passes for 358 production files; negative fixtures cover domain/application/package/cycle cases; storage cleanup keeps efficiency-event SQLite construction behind a domain port and persistence adapter, policy-specific actions behind a cohesive runner, proxy insight dispatch/redaction behind focused application boundaries, ProxyManager construction behind a composition boundary, Composer polling through injected boundaries, efficiency toggling behind a dedicated workflow, extension activation through focused composition modules, build-target selection and VSIX policy behind pure/shared boundaries, webview state and bridge behavior behind typed/injectable boundaries, live usage accounting/rendering behind application/presentation policies, Accounts HTML/CSP behind a pure renderer, proxy traffic analysis and diagnostics behind focused boundaries, protobuf framing/report rendering behind pure script boundaries, ProxyManager event coordination behind an application boundary, Agent Tracking ingestion behind an application use case, token resolution behind an application policy and domain OAuth port, quota refresh behind application/cache/fetch ports, persisted proxy attachment behind an application use case, streaming Connect framing/session behind adapter/application/domain boundaries, profile stop/restore behind an application use case, shared proxy startup and ensure/stop decisions behind application use cases, proxy control-plane operations behind a shared domain port, traffic insight formatting behind pure helpers, API/JSONL ingress behind dedicated composition/adapters with transactional startup cleanup, and WebSocket lifecycle behind a dedicated transport adapter; current Graphify/Repowise hotspots remain | Split the remaining large composition functions and add direct contract tests without weakening the dependency direction |
 | QA-6 | Security and privacy | PARTIAL | Threat model recorded; API error details are generic; loopback/token parity, redaction, sidecar safety, text-safe webview rendering, certificate platform validation, injected certificate-process failure tests, bounded certificate-process timeout/kill escalation, fail-closed migration execution, SQLite snapshot backup/restore validation, sidecar preservation, partial-cleanup accounting, typed ENOSPC classification with actionable error reporting, and Repowise history scan are evidenced | Complete physical disk-full/crash-restart testing, native privileged command execution review on supported OS runners, protocol-specific redaction, and the legacy optional-token decision |
-| QA-7 | Reliability and lifecycle | PARTIAL | Tracking ingress shutdown is idempotent; MITM startup is single-flight, transactional on listener failure, and bounded during close; proxy startup failures attempt MITM/ingress/API cleanup; API and JSONL ingress now clean up clients, subscriptions, and tailers when initial startup fails; direct `SIGTERM`/`SIGINT` uses graceful shutdown; the real runtime integration suite passes 3/3; SQLite persistence has 2-process concurrency/reopen, migration rollback/retry, consistent backup, validated restore, corrupted-database sidecar preservation, partial cleanup reporting including reclaimed-byte preservation after ENOSPC, long-lived-reader checkpoint evidence, and real child hang escalation coverage; ProxyManager event coordination now owns primary and external traffic unsubscription, listener error isolation, post-disposal registration guards, and idempotent disposal; extension deactivation awaits tracked profile initialization so hermetic tests cannot race temporary-storage cleanup | Add physical disk-full/crash-restart reconciliation and release-level recovery rehearsal |
-| QA-8 | Local test confidence | PARTIAL | Full audit passes 1,051 host tests and 51 webview tests across 13 files; overall host c8 is 85.47% lines/79.54% branches/82.69% functions and webview V8 coverage is 84.97% lines/78.21% branches/83.87% functions; the webview gate enforces global 40/70/80/40 floors plus tested-boundary floors for the reducer, VS Code bridge, boot-error renderer, and ProfileCard; shared runtime ensure/start/stop boundaries have direct application tests, the proxy insight formatter has a deterministic output contract, and API/JSONL ingress now have direct routing and startup-failure contracts; all previously recorded Composer, efficiency, storage, certificate, proxy-runtime, MITM, insight, ProxyManager, extension, webview, protobuf, Accounts panel, diagnostics, streaming decoder/framing, profile-stop, token-resolution, RunSSE, Agent Tracking, and quota-refresh suites remain part of the full-audit evidence; Repowise ingests the merged host and webview LCOV reports with 312 retained files at 85.4% lines and 78.6% branches | Standardize repeated static-analysis coverage ingestion and cover the next process, storage, and release hotspots |
+| QA-7 | Reliability and lifecycle | PARTIAL | Tracking ingress shutdown is idempotent; MITM startup is single-flight, transactional on listener failure, and bounded during close; proxy startup failures attempt MITM/ingress/API cleanup; API and JSONL ingress now clean up clients, subscriptions, and tailers when initial startup fails; the WebSocket transport bounds initial connection, prevents concurrent connect/reconnect duplication, isolates listener failures, and retries only after an established socket closes; direct `SIGTERM`/`SIGINT` uses graceful shutdown; the real runtime integration suite passes 3/3; SQLite persistence has 2-process concurrency/reopen, migration rollback/retry, consistent backup, validated restore, corrupted-database sidecar preservation, partial cleanup reporting including reclaimed-byte preservation after ENOSPC, long-lived-reader checkpoint evidence, and real child hang escalation coverage; ProxyManager event coordination now owns primary and external traffic unsubscription, listener error isolation, post-disposal registration guards, and idempotent disposal; extension deactivation awaits tracked profile initialization so hermetic tests cannot race temporary-storage cleanup | Add physical disk-full/crash-restart reconciliation and release-level recovery rehearsal |
+| QA-8 | Local test confidence | PARTIAL | Full audit passes 1,057 host tests and 51 webview tests across 13 files; overall host c8 is 85.79% lines/79.62% branches/83.20% functions and webview V8 coverage is 84.97% lines/78.24% branches/83.87% functions; the webview gate enforces global 40/70/80/40 floors plus tested-boundary floors for the reducer, VS Code bridge, boot-error renderer, and ProfileCard; shared runtime ensure/start/stop boundaries have direct application tests, the proxy insight formatter has a deterministic output contract, and API/JSONL ingress plus WebSocket transport now have direct routing, startup-failure, timeout, and reconnection contracts; all previously recorded Composer, efficiency, storage, certificate, proxy-runtime, MITM, insight, ProxyManager, extension, webview, protobuf, Accounts panel, diagnostics, streaming decoder/framing, profile-stop, token-resolution, RunSSE, Agent Tracking, and quota-refresh suites remain part of the full-audit evidence; Repowise ingests the merged host and webview LCOV reports with 313 retained files at 85.7% lines and 78.7% branches | Standardize repeated static-analysis coverage ingestion and cover the next process, storage, and release hotspots |
 | QA-9 | Documentation and operations | PARTIAL | Plan, audit links, dependency inventory, advisory register, and English docs are synchronized for this slice | Add task/decision records, reproducible audit artifact output, and runbooks |
 | QA-10 | Independent final audit and release rehearsal | OPEN | Not started | Run only after QA-1 through QA-9 have current evidence |
 
@@ -40,30 +40,30 @@ acceptance criteria and evidence are recorded.
 | Item | Value |
 |---|---|
 | Branch | feature/3-mitm-proxy |
-| Latest implementation commit | 881c504 |
+| Latest implementation commit | 40035c7 |
 | Latest documentation checkpoint | Current branch HEAD (this register) |
 | Node | v24.19.0 (nvm-managed via `.nvmrc`) |
 | pnpm | 10.34.0 (Corepack, declared by both package manifests) |
 | Graphify | 0.9.48 |
 | Repowise | 0.45.0 |
-| Architecture gate | 357 production TypeScript files; tests excluded by contract |
+| Architecture gate | 358 production TypeScript files; tests excluded by contract |
 | Documentation gate | 50 Markdown files |
 
 ### Reproducible audit
 
-The latest `pnpm run audit` passed on 2026-08-27 at commit `881c504` with:
+The latest `pnpm run audit` passed on 2026-08-27 at commit `40035c7` with:
 
 - extension-host tests: passed across the compiled host test suite;
-- 1,051 host tests and coverage of 85.47% lines, 79.54% branches, and 82.69%
+- 1,057 host tests and coverage of 85.79% lines, 79.62% branches, and 83.20%
   functions;
-- architecture rules and fixtures: passed for 357 production TypeScript files;
+- architecture rules and fixtures: passed for 358 production TypeScript files;
 - localization: 26 locales with 428 keys each;
-- webview tests: 13 files and 51 tests passed, with 84.97% lines, 78.21%
+- webview tests: 13 files and 51 tests passed, with 84.97% lines, 78.24%
   branches, and 83.87% functions under the V8 coverage gate;
 - current VSIX content verification: passed.
 
 The complete host suite was also executed independently under the repository's
-Node 24 runtime contract and passed 1,039/1,039 tests with zero failures,
+Node 24 runtime contract and passed 1,057/1,057 tests with zero failures,
 cancellations, or skips. Running the compiled suite with the unrelated global
 Node 22 runtime is not valid evidence because the native SQLite binding is
 ABI-specific; that invocation fails at database creation and is intentionally
@@ -119,26 +119,26 @@ evidence is recorded in
 ### Graphify
 
 The latest graph was generated with Graphify `0.9.48` for the code tree at
-`881c504` using `--code-only`, no clustering, and a single worker. It contains
-764 code files, 4,759 nodes, and 13,209 raw edges; the post-build diagnostic
-graph contains 11,267 edges.
+`40035c7` using `--code-only`, no clustering, and a single worker. It contains
+766 code files, 4,775 nodes, and 13,248 raw edges; the post-build diagnostic
+graph contains 11,300 edges.
 The highest relevant
 hotspots include:
 
 - `t()`: degree 111;
 - ProxyManager: degree 40 in the god-node ranking; the facade remains an
   intentional public coordination boundary after event/diagnostics extraction;
-- ProxyTrafficSummary: degree 73;
+- ProxyTrafficSummary: degree 80;
 - scripts: degree 69;
 - IProfileDetector: degree 51;
 - IProfileReader: degree 57;
-- AgentSessionInfo: degree 42;
+- AgentSessionInfo: degree 43;
 - IAgentTrackingRepository: degree 41;
 - VSCodeAPI: degree 38;
 
 Graphify skipped 87 non-code files by contract, ten SQL contributions because
 `tree_sitter_sql` is not installed, and `.npmrc` as potentially sensitive. The
-multigraph diagnostic reports 1,805 dangling endpoint edges, one self-loop,
+multigraph diagnostic reports 1,820 dangling endpoint edges, one self-loop,
 no missing endpoints, and 127 same-endpoint relation groups; these are
 analysis signals, not architecture violations by themselves. `ProxyManager`
 is explained as a facade with the composition root, default dependencies,
@@ -160,12 +160,12 @@ configured; the code-only graph is the reproducible structural evidence.
   `webview/src/components/ProfileCard.tsx`, `src/proxy/mitmProxyServer.ts`,
   `src/modelEfficiency/efficiencyService.ts`, and high-fan-out type barrels.
 
-The latest Repowise index covers the code tree at `881c504`; the host and
+The latest Repowise index covers the code tree at `40035c7`; the host and
 webview lcov reports were explicitly merged with `repowise coverage add
 coverage/lcov.info webview/coverage/lcov.info`. The latest ingestion accepted
-313 file entries (289 exact and 24 resolved mappings); the retained coverage
-index reports 312 files, 85.4% lines, and 78.6% branches.
-Detailed health reports average health at 8.76/10, hotspot health at 6.42/10,
+314 file entries (290 exact and 24 resolved mappings); the retained coverage
+index reports 313 files, 85.7% lines, and 78.7% branches.
+Detailed health reports average health at 8.77/10, hotspot health at 6.45/10,
 worst-performer health at 4.15/10 for `packages/types/src/index.ts`,
 maintainability at 9.49/10, and performance at 9.93/10. These findings are
 prioritization signals, not release gates.
@@ -238,7 +238,7 @@ evidence of a new dead-code or dependency-direction violation. The API helper
 has its own direct tests and the remaining low-cohesion marker is retained as
 a follow-up review item rather than hidden by suppressions.
 
-Repowise sync metadata points to commit `881c504`, with no embedding provider or
+Repowise sync metadata points to commit `40035c7`, with no embedding provider or
 model configured. Its health output is therefore treated as a heuristic
 source-code signal, not as a release gate; the missing real embedder is an
 explicit tooling limitation and does not block the deterministic audit.
@@ -939,6 +939,70 @@ tailer ownership, and API delegation can be expressed as a smaller
 application-level policy without weakening the stable public contract. This
 checkpoint improves the reliability and testability of the ingress boundary,
 but it does not close QA-5, QA-7, or QA-8 globally.
+
+## QA-5 / QA-7 / QA-8.58 proxy API client and WebSocket transport hardening — 2026-08-27
+
+This slice separates the proxy control-plane client from its WebSocket
+transport and hardens the failure behavior discovered during the review. The
+implementation is recorded in commits `75a7cb6`, `326ec14`, `a7b821d`, and
+`40035c7`.
+
+`ProxyApiClient` remains the stable implementation of the domain
+`IProxyApiClient` port, but no longer owns WebSocket connection state. The new
+`ProxyApiWebSocketTransport` adapter owns the WebSocket URL/authentication,
+bounded initial connection, idempotent/concurrent connection handling,
+listener dispatch, stale-socket protection, and retry scheduling. The client
+keeps REST status/statistics/shutdown operations and now applies one bounded
+request policy to all three calls through `AbortController`.
+
+The review found and corrected a concrete retry defect: a failed reconnect
+could previously schedule once from the socket `close` event and again from
+the rejected connection promise. Failed attempts are now scheduled only by
+the rejected attempt, while an established socket schedules one retry on
+close. Reconnection delay is injectable for deterministic tests. Listener
+exceptions are isolated so one consumer cannot suppress delivery to other
+consumers, and a late close event from a replaced socket cannot clear the
+current connection.
+
+Evidence for this checkpoint:
+
+- `CI=true pnpm run audit` passes under Node `24.19.0` and pnpm `10.34.0`;
+  the architecture checker covers 358 production TypeScript files, and the
+  complete host suite passes 1,057/1,057 tests with zero failures,
+  cancellations, or skips;
+- webview tests pass 51/51 across 13 files, with 84.97% lines, 78.24%
+  branches, and 83.87% functions; host c8 reports 85.79% lines, 79.62%
+  branches, and 83.20% functions;
+- the focused API client contracts pass 6/6 against a real local
+  HTTP/WebSocket server, including REST reads, capability-token enforcement,
+  HTTP error propagation, bounded REST timeout, listener isolation,
+  concurrent `connect()` calls, and reconnection after an established socket
+  closes;
+- direct host coverage reports `proxyApiClient.ts` at 99.23% lines, 92.85%
+  branches, and 100.00% functions, and
+  `proxyApiWebSocketTransport.ts` at 89.53% lines, 76.92% branches, and
+  100.00% functions;
+- Repowise `0.45.0` reports `proxyApiClient.ts` at `8.5/10` with CCN 3,
+  nesting 3, and NLOC 106, and the extracted transport at `8.8/10` with
+  CCN 6, nesting 3, and NLOC 140. The remaining markers are low-severity
+  history/coverage/error-handling signals; no alert-level file, dead-code
+  candidate, or dependency-direction violation was introduced;
+- Repowise coverage ingestion accepts 314 LCOV entries (290 exact and 24
+  resolved), retains 313 files at 85.7% lines and 78.7% branches, and reports
+  8.77/10 average health, 6.45/10 hotspot health, 9.49/10 maintainability,
+  and 9.9/10 performance;
+- Graphify `0.9.48` code-only extraction reports 766 files, 4,775 nodes,
+  13,248 raw edges, 11,300 post-build edges, 1,820 dangling endpoints, one
+  self-loop, no missing endpoints, and 127 same-endpoint relation groups.
+  `ProxyApiEvent` rises only to degree 28 in the explainable shared-contract
+  ranking; the new transport does not create an unexplained cycle or
+  high-fan-out public abstraction.
+
+This checkpoint improves the control-plane reliability and keeps the
+transport boundary aligned with Clean Architecture, but QA-5, QA-7, and QA-8
+remain globally PARTIAL until the remaining process, storage, UI, native
+matrix, disk-full/crash-restart, operational, and release-rehearsal work is
+completed.
 
 ### Production dependency audit
 
