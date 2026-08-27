@@ -14,7 +14,7 @@ import {
 import { buildProfileWorkspaceMap } from './presentation/profileWorkspacePresentation';
 import type { AccountsPanelProxyStateCoordinator } from './accountsPanelProxyStateCoordinator';
 
-export interface AccountsPanelInitialDataReaderDependencies {
+interface AccountsPanelInitialDataReaderDependencies {
   profileManager: IProfileReader;
   profileDetector: IProfileDetector;
   quotaService: Pick<MultiProfileQuotaService, 'getAllCachedQuotas'>;
