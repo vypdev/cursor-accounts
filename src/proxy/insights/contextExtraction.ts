@@ -1,6 +1,31 @@
 import type { ConversationContext } from '../../application/types/proxyInsights';
 import { asNumber } from './fieldNormalization';
 
+function extractFilePath(value: unknown): string | undefined {
+  if (!value || typeof value !== 'object') {
+    return undefined;
+  }
+  const filePath = (value as Record<string, unknown>).path;
+  return typeof filePath === 'string' ? filePath : undefined;
+}
+
+function extractMessageFilePaths(message: unknown): string[] {
+  if (!message || typeof message !== 'object') {
+    return [];
+  }
+  const userContext = (message as Record<string, unknown>).user_context;
+  if (!userContext || typeof userContext !== 'object') {
+    return [];
+  }
+  const files = (userContext as Record<string, unknown>).files;
+  if (!Array.isArray(files)) {
+    return [];
+  }
+  return files
+    .map(extractFilePath)
+    .filter((filePath): filePath is string => filePath !== undefined);
+}
+
 /** Extract conversation context from composer/chat requests. */
 export function extractConversationContext(
   decoded: Record<string, unknown> | null | undefined
@@ -14,26 +39,9 @@ export function extractConversationContext(
     return null;
   }
 
-  const files = new Set<string>();
-  for (const msg of messages) {
-    if (!msg || typeof msg !== 'object') {
-      continue;
-    }
-    const userContext = (msg as Record<string, unknown>).user_context as
-      | Record<string, unknown>
-      | undefined;
-    const fileList = userContext?.files;
-    if (Array.isArray(fileList)) {
-      for (const file of fileList) {
-        if (file && typeof file === 'object') {
-          const path = (file as Record<string, unknown>).path;
-          if (typeof path === 'string') {
-            files.add(path);
-          }
-        }
-      }
-    }
-  }
+  const files = new Set(
+    messages.flatMap((message) => extractMessageFilePaths(message))
+  );
 
   return {
     conversationId:

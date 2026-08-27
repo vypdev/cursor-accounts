@@ -167,6 +167,32 @@ describe('proxyInsightExtractor', () => {
     assert.deepEqual(ctx?.includedFiles, ['/src/a.ts']);
   });
 
+  it('returns conversation metadata when context files are absent or malformed', () => {
+    assert.equal(extractConversationContext(undefined), null);
+    assert.equal(
+      extractConversationContext({ conversation_messages: [] }),
+      null
+    );
+
+    const context = extractConversationContext({
+      conversationId: 'conv-2',
+      total_context_tokens: '12',
+      conversation_messages: [
+        null,
+        { user_context: null },
+        { user_context: { files: [{ path: 123 }, 'invalid'] } },
+        { user_context: { files: [{ path: '/src/a.ts' }] } },
+      ],
+    });
+
+    assert.deepEqual(context, {
+      conversationId: 'conv-2',
+      messageCount: 4,
+      totalContextTokens: 12,
+      includedFiles: ['/src/a.ts'],
+    });
+  });
+
   it('redacts sensitive fields', () => {
     const out = redactSensitive({
       token: 'secret',
