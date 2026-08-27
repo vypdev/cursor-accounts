@@ -11,6 +11,33 @@ import {
 
 const MAX_CONNECT_FRAME_BYTES = 5_000_000;
 
+function decodeCompressedConnectPayload<T>(
+  raw: Buffer,
+  decodeFrame: (frame: Buffer) => T | null
+): T | null {
+  const candidates: Buffer[] = [raw];
+  try {
+    candidates.push(gunzipSync(raw));
+  } catch {
+    // Not gzip; the raw payload remains the only candidate.
+  }
+
+  for (const candidate of candidates) {
+    for (const framed of connectPayloadCandidates(candidate)) {
+      try {
+        const decoded = decodeFrame(framed);
+        if (decoded !== null) {
+          return decoded;
+        }
+      } catch {
+        // Try the next framing candidate.
+      }
+    }
+  }
+
+  return null;
+}
+
 export interface AgentStreamScanResult {
   messageCount: number;
   tokenDeltaCount: number;
@@ -43,23 +70,9 @@ function decodeAgentMessageBytes(
     return null;
   }
 
-  const candidates: Buffer[] = [raw];
-  try {
-    candidates.push(gunzipSync(raw));
-  } catch {
-    // not gzip
-  }
-  for (const candidate of candidates) {
-    for (const framed of connectPayloadCandidates(candidate)) {
-      try {
-        return registry.decode(type, framed);
-      } catch {
-        // try next candidate
-      }
-    }
-  }
-
-  return null;
+  return decodeCompressedConnectPayload(raw, (framed) =>
+    registry.decode(type, framed)
+  );
 }
 
 function decodeHealthWrappedAgentPayload(
@@ -71,34 +84,16 @@ function decodeHealthWrappedAgentPayload(
     return null;
   }
 
-  const candidates: Buffer[] = [payload];
-  try {
-    candidates.push(gunzipSync(payload));
-  } catch {
-    // not gzip
-  }
-
-  for (const candidate of candidates) {
-    for (const framed of connectPayloadCandidates(candidate)) {
-      try {
-        const health = registry.decode(healthType, framed) as {
-          payload?: unknown;
-        };
-        const inner = bidiDataToBuffer(health.payload);
-        if (!inner?.length) {
-          continue;
-        }
-        const agent = decodeAgentMessageBytes(registry, inner);
-        if (agent) {
-          return agent;
-        }
-      } catch {
-        // try next candidate
-      }
+  return decodeCompressedConnectPayload(payload, (framed) => {
+    const health = registry.decode(healthType, framed) as {
+      payload?: unknown;
+    };
+    const inner = bidiDataToBuffer(health.payload);
+    if (!inner?.length) {
+      return null;
     }
-  }
-
-  return null;
+    return decodeAgentMessageBytes(registry, inner);
+  });
 }
 
 /** Decode one Connect frame payload as AgentServerMessage (direct or HealthResponse-wrapped). */

@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
+import { gzipSync } from 'node:zlib';
 import { describe, it } from 'node:test';
 import {
+  decodeAgentServerPayload,
   isAgentServerStreamRpc,
   mergeAgentStreamFrameInsights,
   scanConnectAgentServerStream,
@@ -53,6 +55,31 @@ describe('agentStreamDecode', () => {
     const scan = scanConnectAgentServerStream(registry, stream);
     assert.equal(scan.tokenDeltaCount, 1);
     assert.equal(scan.mergedAgent?.streamingTokens, 77);
+  });
+
+  it('decodes gzip-compressed Connect payloads', async () => {
+    resetProtoRegistryForTests();
+    const registry = await getProtoRegistry();
+    const type = registry.lookupMessageType('agent.v1.AgentServerMessage');
+    assert.ok(type);
+
+    const agentBytes = type.encode(
+      type.create({
+        interactionUpdate: { tokenDelta: { tokens: 12 } },
+      })
+    ).finish();
+
+    const decoded = decodeAgentServerPayload(
+      registry,
+      gzipSync(wrapConnectEnvelope(Buffer.from(agentBytes)))
+    );
+
+    assert.ok(decoded);
+    assert.equal(
+      (decoded.interactionUpdate as { tokenDelta?: { tokens?: number } })
+        .tokenDelta?.tokens,
+      12
+    );
   });
 
   it('merges stream frames preferring turn_ended over token_delta', () => {
