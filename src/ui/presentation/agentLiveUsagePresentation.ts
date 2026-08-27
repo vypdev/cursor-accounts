@@ -3,29 +3,11 @@ import {
   type AgentLiveUsageSessionState,
 } from '../../application/services/agentLiveUsageState';
 import { t } from '../../l10n';
+import { formatCostUsd, formatTokenCount } from './tokenCostFormatting';
 
 export type AgentLiveUsageDisplay =
   | { visible: false }
   | { visible: true; text: string; tooltip: string };
-
-function formatTokenCount(count: number): string {
-  if (count >= 1_000_000) {
-    return `${(count / 1_000_000).toFixed(1)}m`;
-  }
-  if (count >= 1000) {
-    return `${(count / 1000).toFixed(1)}k`;
-  }
-  return String(Math.round(count));
-}
-
-function formatCostUsd(costCents: number, authoritative: boolean): string {
-  const costUsd = costCents / 100;
-  if (costUsd < 0.01) {
-    return '<$0.01';
-  }
-  const label = `$${costUsd.toFixed(2)}`;
-  return authoritative ? label : `~${label}`;
-}
 
 /** Builds the user-visible live-usage content without depending on VS Code. */
 export function buildAgentLiveUsageDisplay(
