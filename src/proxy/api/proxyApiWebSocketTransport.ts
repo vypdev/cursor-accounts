@@ -2,7 +2,7 @@ import WebSocket from 'ws';
 import type { ProxyApiEvent } from '../../application/types/proxyApi';
 
 const DEFAULT_CONNECT_TIMEOUT_MS = 10_000;
-const RECONNECT_DELAY_MS = 2_000;
+const DEFAULT_RECONNECT_DELAY_MS = 2_000;
 const MAX_RECONNECT_ATTEMPTS = 5;
 
 export interface ProxyApiWebSocketTransportOptions {
@@ -10,6 +10,7 @@ export interface ProxyApiWebSocketTransportOptions {
   connectTimeoutMs?: number;
   reconnect?: boolean;
   maxReconnectAttempts?: number;
+  reconnectDelayMs?: number;
   apiToken?: string;
 }
 
@@ -82,6 +83,7 @@ export class ProxyApiWebSocketTransport {
         headers: this.authHeaders(),
       });
       this.ws = ws;
+      let opened = false;
 
       const timeout = setTimeout(() => {
         ws.close();
@@ -90,6 +92,7 @@ export class ProxyApiWebSocketTransport {
 
       ws.once('open', () => {
         clearTimeout(timeout);
+        opened = true;
         this.reconnectAttempts = 0;
         resolve();
       });
@@ -118,7 +121,9 @@ export class ProxyApiWebSocketTransport {
       ws.on('close', () => {
         if (this.ws === ws) {
           this.ws = null;
-          this.scheduleReconnect();
+          if (opened) {
+            this.scheduleReconnect();
+          }
         }
       });
     });
@@ -142,11 +147,13 @@ export class ProxyApiWebSocketTransport {
     }
 
     this.reconnectAttempts += 1;
+    const delayMs = this.options.reconnectDelayMs ?? DEFAULT_RECONNECT_DELAY_MS;
     this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
       void this.connectWebSocket().catch(() => {
         this.scheduleReconnect();
       });
-    }, RECONNECT_DELAY_MS);
+    }, delayMs);
   }
 }
 

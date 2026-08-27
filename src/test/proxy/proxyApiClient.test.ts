@@ -9,6 +9,7 @@ import {
   resolveProxyApiPort,
 } from '../../proxy/api/proxyApiClient';
 import { ProxyApiServer } from '../../proxy/api/proxyApiServer';
+import { ProxyApiWebSocketTransport } from '../../proxy/api/proxyApiWebSocketTransport';
 
 const BASE_API_PORT = 19_082;
 
@@ -62,7 +63,7 @@ describe('ProxyApiClient', () => {
         unsubscribe = client.onEvent(resolve);
       });
 
-      await client.connect();
+      await Promise.all([client.connect(), client.connect()]);
       assert.equal(client.isConnected(), true);
 
       const status = await client.getStatus();
@@ -161,6 +162,29 @@ describe('ProxyApiClient', () => {
     }
   });
 
+  it('reconnects after an established WebSocket is closed', async () => {
+    const apiPort = BASE_API_PORT + 2;
+    const server = new ProxyApiServer();
+    const transport = new ProxyApiWebSocketTransport({
+      baseUrl: `http://127.0.0.1:${apiPort}`,
+      reconnectDelayMs: 20,
+      maxReconnectAttempts: 2,
+    });
+    await server.start(serverOptions(apiPort));
+
+    try {
+      await transport.connect();
+      await server.stop();
+      await server.start(serverOptions(apiPort));
+
+      await waitFor(() => transport.isConnected(), 500);
+      assert.equal(transport.isConnected(), true);
+    } finally {
+      transport.disconnect();
+      await server.stop();
+    }
+  });
+
   it('normalizes API URLs and resolves persisted API ports', () => {
     const client = new ProxyApiClient({ baseUrl: 'http://127.0.0.1:19085/' });
     assert.equal(client.baseUrl, 'http://127.0.0.1:19085');
@@ -170,3 +194,13 @@ describe('ProxyApiClient', () => {
     assert.equal(PROXY_API_PATHS.status, '/api/status');
   });
 });
+
+async function waitFor(predicate: () => boolean, timeoutMs: number): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (!predicate()) {
+    if (Date.now() >= deadline) {
+      throw new Error(`Condition was not met within ${timeoutMs}ms`);
+    }
+    await new Promise<void>((resolve) => setTimeout(resolve, 10));
+  }
+}
