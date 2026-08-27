@@ -10,23 +10,15 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import protobuf from 'protobufjs';
 import {
   analyzeProxyFiles,
   resolveProxyLogFiles,
 } from './lib/proxy-traffic-analysis.mjs';
+import { loadCursorProtos } from './lib/cursor-proto-runtime.mjs';
 import {
   buildRpcTypeMap,
   isInteractiveRpcPath,
 } from './lib/proxy-rpc.mjs';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = path.resolve(__dirname, '..');
-const PROTO_FILES = [
-  path.join(REPO_ROOT, 'proto', 'agent', 'v1', 'agent.proto'),
-  path.join(REPO_ROOT, 'proto', 'aiserver', 'v1', 'aiserver.proto'),
-];
 
 const DEFAULT_LOG_DIR = path.join(
   os.homedir(),
@@ -42,7 +34,7 @@ async function main() {
     process.exit(1);
   }
 
-  const root = await protobuf.load(PROTO_FILES);
+  const root = await loadCursorProtos();
   const rpcMap = buildRpcTypeMap(root, protobuf.Service);
   const { files, logDir } = resolveProxyLogFiles(target);
   const report = await analyzeProxyFiles(files, logDir, rpcMap);

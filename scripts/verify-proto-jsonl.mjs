@@ -9,21 +9,13 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import protobuf from 'protobufjs';
 import { buildRpcTypeMap } from './lib/proxy-rpc.mjs';
+import { loadCursorProtos } from './lib/cursor-proto-runtime.mjs';
 import {
   renderProtoJsonlReport,
   summarizeProtoJsonlReport,
 } from './lib/proto-jsonl-report.mjs';
 import { verifyLogs } from './lib/proto-jsonl-verifier.mjs';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = path.resolve(__dirname, '..');
-const PROTO_FILES = [
-  path.join(REPO_ROOT, 'proto', 'agent', 'v1', 'agent.proto'),
-  path.join(REPO_ROOT, 'proto', 'aiserver', 'v1', 'aiserver.proto'),
-];
 
 const DEFAULT_LOG_DIR = path.join(
   process.env.HOME ?? '',
@@ -40,7 +32,7 @@ async function main() {
   }
 
   console.log('Loading protos...');
-  const root = await protobuf.load(PROTO_FILES);
+  const root = await loadCursorProtos();
   console.log(`Scanning ${logDir}\n`);
 
   const rpcMap = buildRpcTypeMap(root, protobuf.Service);
