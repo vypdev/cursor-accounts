@@ -86,6 +86,24 @@ describe('EfficiencyAnalyzer', () => {
       METADATA,
     ]);
   });
+
+  it('uses a stable fallback message for non-Error queue failures', async () => {
+    const presenter = createPresenter();
+    const nonErrorFailure = { reason: 'classifier failed' };
+    // The classifier boundary is typed as a Promise, but external code can
+    // still reject it with an arbitrary runtime value.
+    const rejectedAsUnknown = nonErrorFailure as unknown as Error;
+    const classify = mock.fn(() => Promise.reject(rejectedAsUnknown));
+    const fixture = createFixture({ presenter, classify });
+
+    fixture.analyzer.enqueue(METADATA);
+    await waitForQueue();
+
+    assert.deepEqual(presenter.presentError.mock.calls[0]?.arguments, [
+      'Unknown analysis error',
+      METADATA,
+    ]);
+  });
 });
 
 function createFixture(overrides: {
