@@ -47,7 +47,10 @@ export class CertificateManager {
       ]);
       try {
         await fs.access(publicKeyPath);
-      } catch {
+      } catch (error) {
+        if (!isMissingFile(error)) {
+          throw error;
+        }
         const cert = forge.pki.certificateFromPem(certPem);
         await fs.writeFile(
           publicKeyPath,
@@ -94,4 +97,13 @@ export class CertificateManager {
     return certPath;
   }
 
+}
+
+function isMissingFile(error: unknown): boolean {
+  return (
+    error !== null &&
+    typeof error === 'object' &&
+    'code' in error &&
+    error.code === 'ENOENT'
+  );
 }
