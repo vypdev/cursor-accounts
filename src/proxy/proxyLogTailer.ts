@@ -29,6 +29,8 @@ export interface ProxyLogTailerOptions {
  */
 export class ProxyLogTailer {
   private running = false;
+  private lifecycleGeneration = 0;
+  private startPromise: Promise<void> | null = null;
   private currentFilePath: string | null = null;
   private fileOffset = 0;
   private partialLine = '';
@@ -52,16 +54,32 @@ export class ProxyLogTailer {
   }
 
   async start(): Promise<void> {
-    if (this.running) {
+    const pendingStart = this.startPromise;
+    if (pendingStart) {
+      await pendingStart;
+      if (this.running) {
+        return;
+      }
+    } else if (this.running) {
       return;
     }
+
+    const generation = ++this.lifecycleGeneration;
     this.running = true;
-    await this.resolveActiveLogFile(true);
-    this.startWatching();
-    this.scheduleRead();
+    const startPromise = this.startInternal(generation);
+    this.startPromise = startPromise;
+
+    try {
+      await startPromise;
+    } finally {
+      if (this.startPromise === startPromise) {
+        this.startPromise = null;
+      }
+    }
   }
 
   stop(): void {
+    this.lifecycleGeneration += 1;
     this.running = false;
     if (this.dirWatcher) {
       this.dirWatcher.close();
@@ -77,38 +95,76 @@ export class ProxyLogTailer {
     this.requestStartedAt.clear();
   }
 
-  private startWatching(): void {
+  private async startInternal(generation: number): Promise<void> {
+    try {
+      await this.resolveActiveLogFile(true, generation);
+      if (!this.isActive(generation)) {
+        return;
+      }
+      this.startWatching(generation);
+      void this.scheduleRead(generation);
+    } catch (error) {
+      if (generation === this.lifecycleGeneration) {
+        this.stop();
+      }
+      throw error;
+    }
+  }
+
+  private startWatching(generation: number): void {
     const interval = this.options.pollIntervalMs ?? POLL_INTERVAL_MS;
 
     try {
-      this.dirWatcher = watch(this.logDir, () => {
-        void this.scheduleRead();
+      const watcher = watch(this.logDir, () => {
+        void this.scheduleRead(generation);
       });
+      watcher.on('error', () => {
+        if (this.isActive(generation)) {
+          void this.scheduleRead(generation);
+        }
+      });
+      this.dirWatcher = watcher;
     } catch {
       // logDir may not exist yet; polling will retry
     }
 
     this.pollTimer = setInterval(() => {
-      void this.scheduleRead();
+      void this.scheduleRead(generation);
     }, interval);
   }
 
-  private scheduleRead(): void {
-    this.readChain = this.readChain.then(async () => {
-      if (!this.running) {
-        return;
-      }
-      await this.resolveActiveLogFile(false);
-      await this.readNewLines();
-    });
+  private scheduleRead(generation = this.lifecycleGeneration): Promise<void> {
+    this.readChain = this.readChain
+      .catch(() => undefined)
+      .then(async () => {
+        if (!this.isActive(generation)) {
+          return;
+        }
+        await this.resolveActiveLogFile(false, generation);
+        if (!this.isActive(generation)) {
+          return;
+        }
+        await this.readNewLines(generation);
+      })
+      .catch(() => undefined);
+    return this.readChain;
   }
 
-  private async resolveActiveLogFile(isInitial: boolean): Promise<void> {
+  private async resolveActiveLogFile(
+    isInitial: boolean,
+    generation: number
+  ): Promise<void> {
     let entries: string[];
     try {
       entries = await fs.readdir(this.logDir);
     } catch {
-      this.handlers.onLogFileResolved?.(null);
+      if (this.isActive(generation)) {
+        this.handlers.onLogFileResolved?.(null);
+      }
+      return;
+    }
+
+    if (!this.isActive(generation)) {
       return;
     }
 
@@ -116,18 +172,41 @@ export class ProxyLogTailer {
       (name) => name.startsWith(LOG_FILE_PREFIX) && name.endsWith(LOG_FILE_EXT)
     );
     if (logFiles.length === 0) {
+      this.currentFilePath = null;
+      this.fileOffset = 0;
+      this.partialLine = '';
+      this.requestStartedAt.clear();
       this.handlers.onLogFileResolved?.(null);
       return;
     }
 
-    const withStats = await Promise.all(
-      logFiles.map(async (name) => {
-        const filePath = path.join(this.logDir, name);
-        const stat = await fs.stat(filePath);
-        return { filePath, mtime: stat.mtimeMs, size: stat.size };
-      })
-    );
-    withStats.sort((a, b) => a.mtime - b.mtime);
+    const withStats = (
+      await Promise.all(
+        logFiles.map(async (name) => {
+          const filePath = path.join(this.logDir, name);
+          try {
+            const stat = await fs.stat(filePath);
+            return { filePath, mtime: stat.mtimeMs, size: stat.size };
+          } catch {
+            return null;
+          }
+        })
+      )
+    ).filter((value): value is NonNullable<typeof value> => value !== null);
+
+    if (!this.isActive(generation)) {
+      return;
+    }
+    if (withStats.length === 0) {
+      this.currentFilePath = null;
+      this.fileOffset = 0;
+      this.partialLine = '';
+      this.requestStartedAt.clear();
+      this.handlers.onLogFileResolved?.(null);
+      return;
+    }
+
+    withStats.sort((a, b) => a.mtime - b.mtime || comparePaths(a.filePath, b.filePath));
     const latest = withStats[withStats.length - 1]!;
 
     if (this.currentFilePath === latest.filePath) {
@@ -148,17 +227,27 @@ export class ProxyLogTailer {
     this.handlers.onLogFileResolved?.(latest.filePath);
   }
 
-  private async readNewLines(): Promise<void> {
-    if (!this.currentFilePath) {
+  private async readNewLines(generation: number): Promise<void> {
+    const filePath = this.currentFilePath;
+    if (!this.isActive(generation) || !filePath) {
       return;
     }
 
     let stat;
     try {
-      stat = await fs.stat(this.currentFilePath);
+      stat = await fs.stat(filePath);
     } catch {
-      this.currentFilePath = null;
-      this.fileOffset = 0;
+      if (this.isActive(generation) && this.currentFilePath === filePath) {
+        this.currentFilePath = null;
+        this.fileOffset = 0;
+        this.partialLine = '';
+        this.requestStartedAt.clear();
+        this.handlers.onLogFileResolved?.(null);
+      }
+      return;
+    }
+
+    if (!this.isActive(generation) || this.currentFilePath !== filePath) {
       return;
     }
 
@@ -171,21 +260,27 @@ export class ProxyLogTailer {
       return;
     }
 
-    const handle = await fs.open(this.currentFilePath, 'r');
+    const handle = await fs.open(filePath, 'r');
     try {
+      if (!this.isActive(generation) || this.currentFilePath !== filePath) {
+        return;
+      }
       const length = stat.size - this.fileOffset;
       const buffer = Buffer.alloc(length);
       const { bytesRead } = await handle.read(buffer, 0, length, this.fileOffset);
+      if (!this.isActive(generation) || this.currentFilePath !== filePath) {
+        return;
+      }
       this.fileOffset += bytesRead;
 
       const chunk = buffer.subarray(0, bytesRead).toString('utf8');
-      this.processChunk(chunk);
+      this.processChunk(chunk, generation);
     } finally {
       await handle.close();
     }
   }
 
-  private processChunk(chunk: string): void {
+  private processChunk(chunk: string, generation: number): void {
     const combined = this.partialLine + chunk;
     const lines = combined.split('\n');
     this.partialLine = lines.pop() ?? '';
@@ -195,11 +290,11 @@ export class ProxyLogTailer {
       if (trimmed.length === 0) {
         continue;
       }
-      this.processLine(trimmed);
+      this.processLine(trimmed, generation);
     }
   }
 
-  private processLine(line: string): void {
+  private processLine(line: string, generation: number): void {
     let entry: ProxyLogEntry;
     try {
       entry = JSON.parse(line) as ProxyLogEntry;
@@ -225,12 +320,22 @@ export class ProxyLogTailer {
     }
 
     if (entry.direction === 'request' || entry.direction === 'response') {
-      void buildTrafficSummary(entry, durationMs, { logDir: this.logDir }).then((summary) => {
-        this.handlers.onTraffic(summary);
-      }).catch(() => {
-        this.handlers.onTraffic(toTrafficSummary(entry, durationMs));
-      });
+      void buildTrafficSummary(entry, durationMs, { logDir: this.logDir })
+        .then((summary) => {
+          if (this.isActive(generation)) {
+            this.handlers.onTraffic(summary);
+          }
+        })
+        .catch(() => {
+          if (this.isActive(generation)) {
+            this.handlers.onTraffic(toTrafficSummary(entry, durationMs));
+          }
+        });
     }
+  }
+
+  private isActive(generation: number): boolean {
+    return this.running && this.lifecycleGeneration === generation;
   }
 }
 
@@ -247,12 +352,24 @@ export async function listProxyLogFiles(logDir: string): Promise<string[]> {
     .filter((name) => name.startsWith(LOG_FILE_PREFIX) && name.endsWith(LOG_FILE_EXT))
     .map((name) => path.join(logDir, name));
 
-  const withStats = await Promise.all(
-    paths.map(async (filePath) => ({
-      filePath,
-      mtime: (await fs.stat(filePath)).mtimeMs,
-    }))
-  );
-  withStats.sort((a, b) => a.mtime - b.mtime);
+  const withStats = (
+    await Promise.all(
+      paths.map(async (filePath) => {
+        try {
+          return {
+            filePath,
+            mtime: (await fs.stat(filePath)).mtimeMs,
+          };
+        } catch {
+          return null;
+        }
+      })
+    )
+  ).filter((value): value is NonNullable<typeof value> => value !== null);
+  withStats.sort((a, b) => a.mtime - b.mtime || comparePaths(a.filePath, b.filePath));
   return withStats.map((x) => x.filePath);
+}
+
+function comparePaths(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
 }

@@ -159,6 +159,57 @@ describe('ProxyLogTailer', () => {
 
     assert.equal(errors[0], 'ECONNRESET');
   });
+
+  it('does not reactivate the watcher when stopped during startup', async () => {
+    const logPath = path.join(tempDir, 'proxy-2026-06-03-race.jsonl');
+    await fs.writeFile(logPath, '', 'utf8');
+
+    const resolved: Array<string | null> = [];
+    const tailer = new ProxyLogTailer(tempDir, {
+      onTraffic: () => undefined,
+      onLogFileResolved: (filePath) => resolved.push(filePath),
+    }, { pollIntervalMs: 50 });
+
+    const starting = tailer.start();
+    tailer.stop();
+    await starting;
+
+    assert.equal(tailer.isRunning(), false);
+    assert.deepEqual(resolved, []);
+  });
+
+  it('recovers when a candidate log disappears during startup', async () => {
+    const logPath = path.join(tempDir, 'proxy-2026-06-03-disappearing.jsonl');
+    await fs.symlink(path.join(tempDir, 'missing-target.jsonl'), logPath);
+
+    const traffic: string[] = [];
+    const resolved: Array<string | null> = [];
+    const tailer = new ProxyLogTailer(tempDir, {
+      onTraffic: (summary) => traffic.push(summary.method ?? ''),
+      onLogFileResolved: (filePath) => resolved.push(filePath),
+    }, { pollIntervalMs: 50 });
+
+    await tailer.start();
+    assert.equal(tailer.isRunning(), true);
+    assert.equal(resolved.at(-1), null);
+
+    await fs.rm(logPath);
+    await fs.writeFile(logPath, '', 'utf8');
+    await waitFor(
+      () => resolved.some((filePath) => filePath?.endsWith(path.basename(logPath))),
+      2000
+    );
+    await fs.appendFile(
+      logPath,
+      `${JSON.stringify(entry({ method: 'OPTIONS' }))}\n`,
+      'utf8'
+    );
+
+    await waitFor(() => traffic.includes('OPTIONS'), 2000);
+    tailer.stop();
+
+    assert.deepEqual(traffic, ['OPTIONS']);
+  });
 });
 
 async function waitFor(
