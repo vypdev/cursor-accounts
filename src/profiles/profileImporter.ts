@@ -22,6 +22,12 @@ const DEFAULT_IMPORT_OPTIONS: ImportOptions = {
   strictValidation: true,
 };
 
+interface ProfileImportContext {
+  existing: Profile[];
+  existingEmails: Set<string>;
+  result: ImportResult;
+}
+
 export class ProfileImporterError extends Error {
   constructor(
     message: string,
@@ -67,16 +73,14 @@ export class ProfileImporter {
     };
 
     const existing = await this.profileManager.getProfiles();
-    const existingEmails = new Set(existing.map((p) => p.email.toLowerCase()));
+    const context: ProfileImportContext = {
+      existing,
+      existingEmails: new Set(existing.map((p) => p.email.toLowerCase())),
+      result,
+    };
 
     for (const exported of exportData.profiles) {
-      await this.importSingleProfile(
-        exported,
-        opts,
-        existing,
-        existingEmails,
-        result
-      );
+      await this.importSingleProfile(exported, opts, context);
     }
 
     result.success = result.errors.length === 0;
@@ -86,48 +90,59 @@ export class ProfileImporter {
   private async importSingleProfile(
     exported: ExportedProfile,
     options: ImportOptions,
-    existing: Profile[],
-    existingEmails: Set<string>,
-    result: ImportResult
+    context: ProfileImportContext
   ): Promise<void> {
     try {
       const emailLower = exported.email.toLowerCase();
-      const existingProfile = existing.find(
+      const existingProfile = context.existing.find(
         (profile) => profile.email.toLowerCase() === emailLower
       );
 
-      if (
-        existingEmails.has(emailLower) &&
-        options.skipDuplicates &&
-        !options.overwriteExisting
-      ) {
-        result.skipped.push(exported);
-        return;
-      }
-
-      if (existingEmails.has(emailLower) && options.overwriteExisting) {
-        if (existingProfile) {
-          result.imported.push(
-            await this.updateProfileFromExport(
-              existingProfile,
-              exported,
-              options
-            )
-          );
+      if (context.existingEmails.has(emailLower)) {
+        const handled = await this.handleExistingProfile(
+          existingProfile,
+          exported,
+          options,
+          context
+        );
+        if (handled) {
+          return;
         }
-        return;
       }
 
-      result.imported.push(
+      context.result.imported.push(
         await this.createProfileFromExport(exported, options)
       );
-      existingEmails.add(emailLower);
+      context.existingEmails.add(emailLower);
     } catch (error) {
-      result.errors.push({
+      context.result.errors.push({
         profile: exported,
         error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
+  }
+
+  private async handleExistingProfile(
+    existingProfile: Profile | undefined,
+    exported: ExportedProfile,
+    options: ImportOptions,
+    context: ProfileImportContext
+  ): Promise<boolean> {
+    if (options.skipDuplicates && !options.overwriteExisting) {
+      context.result.skipped.push(exported);
+      return true;
+    }
+
+    if (!options.overwriteExisting) {
+      return false;
+    }
+
+    if (existingProfile) {
+      context.result.imported.push(
+        await this.updateProfileFromExport(existingProfile, exported, options)
+      );
+    }
+    return true;
   }
 
   /**
