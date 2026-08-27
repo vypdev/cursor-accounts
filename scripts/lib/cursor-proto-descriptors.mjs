@@ -47,6 +47,38 @@ export function extractDescriptors(bundle, packages = OUTPUT_PACKAGES) {
     .map(({ packageId }) => escapeRegex(packageId))
     .join('|');
 
+  extractMessageDescriptors(
+    bundle,
+    packagePrefixes,
+    symToType,
+    messageFieldsBlob
+  );
+  extractEnumDescriptors(
+    bundle,
+    packages,
+    packagePrefixes,
+    symToType,
+    enumValues
+  );
+  extractServiceDescriptors(bundle, packagePrefixes, services);
+
+  return { symToType, messageFieldsBlob, enumValues, services };
+}
+
+/**
+ * Extract message descriptors emitted by the supported protobuf runtimes.
+ *
+ * @param {string} bundle
+ * @param {string} packagePrefixes
+ * @param {Map<string, string>} symToType
+ * @param {Map<string, string>} messageFieldsBlob
+ */
+function extractMessageDescriptors(
+  bundle,
+  packagePrefixes,
+  symToType,
+  messageFieldsBlob
+) {
   const classRe = new RegExp(
     `(\\w+)=class \\w+ extends \\w+\\{[\\s\\S]*?typeName="((${packagePrefixes})\\.[^"]+)"[\\s\\S]*?newFieldList\\(\\(\\)=>\\[([\\s\\S]*?)\\]\\)\\}`,
     'g'
@@ -71,22 +103,6 @@ export function extractDescriptors(bundle, packages = OUTPUT_PACKAGES) {
     symToType.set(match[1], match[2]);
     if (!messageFieldsBlob.has(match[2])) {
       messageFieldsBlob.set(match[2], bundle.slice(fieldsStart + 1, fieldsEnd));
-    }
-  }
-
-  const makeEnumRe = new RegExp(
-    `(\\w+)=\\w+\\.makeEnum\\("((${packagePrefixes})\\.[^"]+)",\\[`,
-    'g'
-  );
-  for (const match of bundle.matchAll(makeEnumRe)) {
-    const valuesStart = match.index + match[0].length - 1;
-    const valuesEnd = findBalancedDelimiterEnd(bundle, valuesStart, '[', ']');
-    if (valuesEnd === -1) {
-      continue;
-    }
-    symToType.set(match[1], match[2]);
-    if (!enumValues.has(match[2])) {
-      enumValues.set(match[2], parseEnumValues(bundle.slice(valuesStart + 1, valuesEnd)));
     }
   }
 
@@ -119,6 +135,39 @@ export function extractDescriptors(bundle, packages = OUTPUT_PACKAGES) {
       messageFieldsBlob.set(match[1], '');
     }
   }
+}
+
+/**
+ * Extract enum descriptors emitted by the supported protobuf runtimes.
+ *
+ * @param {string} bundle
+ * @param {ReadonlyArray<{ packageId: string }>} packages
+ * @param {string} packagePrefixes
+ * @param {Map<string, string>} symToType
+ * @param {Map<string, Array<{ name: string, number: number }>>} enumValues
+ */
+function extractEnumDescriptors(
+  bundle,
+  packages,
+  packagePrefixes,
+  symToType,
+  enumValues
+) {
+  const makeEnumRe = new RegExp(
+    `(\\w+)=\\w+\\.makeEnum\\("((${packagePrefixes})\\.[^"]+)",\\[`,
+    'g'
+  );
+  for (const match of bundle.matchAll(makeEnumRe)) {
+    const valuesStart = match.index + match[0].length - 1;
+    const valuesEnd = findBalancedDelimiterEnd(bundle, valuesStart, '[', ']');
+    if (valuesEnd === -1) {
+      continue;
+    }
+    symToType.set(match[1], match[2]);
+    if (!enumValues.has(match[2])) {
+      enumValues.set(match[2], parseEnumValues(bundle.slice(valuesStart + 1, valuesEnd)));
+    }
+  }
 
   const enumRe = /\.util\.setEnumType\((\w+),"([^"]+)",\[([\s\S]*?)\]\)/g;
   for (const match of bundle.matchAll(enumRe)) {
@@ -133,7 +182,16 @@ export function extractDescriptors(bundle, packages = OUTPUT_PACKAGES) {
       enumValues.set(match[2], parseEnumValues(match[3]));
     }
   }
+}
 
+/**
+ * Extract service descriptors and their RPC method metadata.
+ *
+ * @param {string} bundle
+ * @param {string} packagePrefixes
+ * @param {Map<string, { methods: Array<{ name: string, I: string, O: string, kind: string }> }>} services
+ */
+function extractServiceDescriptors(bundle, packagePrefixes, services) {
   const serviceHeaderRe = new RegExp(
     `typeName:"((${packagePrefixes})\\.[A-Za-z0-9_]+Service)",methods:\\{`,
     'g'
@@ -157,8 +215,6 @@ export function extractDescriptors(bundle, packages = OUTPUT_PACKAGES) {
     }
     services.set(match[1], { methods });
   }
-
-  return { symToType, messageFieldsBlob, enumValues, services };
 }
 
 /**

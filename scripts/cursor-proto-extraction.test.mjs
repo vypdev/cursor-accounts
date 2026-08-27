@@ -63,6 +63,23 @@ test('extractDescriptors parses legacy and current Cursor descriptor formats', (
   ]);
 });
 
+test('extractDescriptors ignores malformed and unsupported descriptor fragments', () => {
+  const descriptors = extractDescriptors(
+    [
+      'Broken=r.makeMessageType("ignored.v1.Broken",()=>[{no:1,name:"never"}',
+      'External=r.makeEnum("ignored.v1.External",[{no:1,name:"NO"}])',
+      'UnknownService={typeName:"ignored.v1.UnknownService",methods:{}}',
+      'Valid=r.makeMessageType("agent.v1.Valid",()=>[])',
+    ].join('\n'),
+    [{ packageId: 'agent.v1' }]
+  );
+
+  assert.equal(descriptors.symToType.has('Broken'), false);
+  assert.equal(descriptors.symToType.has('External'), false);
+  assert.equal(descriptors.services.has('ignored.v1.UnknownService'), false);
+  assert.equal(descriptors.symToType.get('Valid'), 'agent.v1.Valid');
+});
+
 test('field helpers preserve nested descriptors and resolve field kinds', () => {
   assert.deepEqual(splitFields('first:{nested:{value:1}},second:{value:2},third'), [
     'first:{nested:{value:1}}',
