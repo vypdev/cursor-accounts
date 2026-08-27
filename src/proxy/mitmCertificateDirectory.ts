@@ -4,9 +4,11 @@ import type { IMitmCertificateDirectory } from '../domain/ports/IMitmCertificate
 
 interface CertificateMaterial {
   ensureCaCertificate(): Promise<string>;
-  getCertificatePath(): string;
-  getKeyPath(): string;
-  getPublicKeyPath(): string;
+  getPaths(): {
+    certificatePath: string;
+    keyPath: string;
+    publicKeyPath: string;
+  };
 }
 
 /** Adapts managed CA material to the sslCaDir layout required by http-mitm-proxy. */
@@ -27,18 +29,11 @@ export class MitmCertificateDirectory implements IMitmCertificateDirectory {
     const mitmKeyPath = path.join(keysDir, 'ca.private.key');
     const mitmPublicKeyPath = path.join(keysDir, 'ca.public.key');
 
-    const certPem = await fs.readFile(
-      this.certificateMaterial.getCertificatePath(),
-      'utf8'
-    );
-    const keyPem = await fs.readFile(
-      this.certificateMaterial.getKeyPath(),
-      'utf8'
-    );
-    const publicKeyPem = await fs.readFile(
-      this.certificateMaterial.getPublicKeyPath(),
-      'utf8'
-    );
+    const { certificatePath, keyPath, publicKeyPath } =
+      this.certificateMaterial.getPaths();
+    const certPem = await fs.readFile(certificatePath, 'utf8');
+    const keyPem = await fs.readFile(keyPath, 'utf8');
+    const publicKeyPem = await fs.readFile(publicKeyPath, 'utf8');
 
     const replaceHostCerts = await this.shouldReplaceMitmCa(mitmCaPath, certPem);
 

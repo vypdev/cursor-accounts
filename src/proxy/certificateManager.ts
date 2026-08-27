@@ -11,6 +11,12 @@ export const CA_PUBLIC_KEY_FILE = 'ca-public.key';
 
 const CA_VALIDITY_YEARS = 10;
 
+export interface CertificateMaterialPaths {
+  certificatePath: string;
+  keyPath: string;
+  publicKeyPath: string;
+}
+
 /**
  * Generates and stores a self-signed CA for HTTPS MITM.
  * Certificate files live under the given storage directory.
@@ -18,16 +24,12 @@ const CA_VALIDITY_YEARS = 10;
 export class CertificateManager {
   constructor(private readonly storageDir: string) {}
 
-  getCertificatePath(): string {
-    return path.join(this.storageDir, CA_CERT_FILE);
-  }
-
-  getKeyPath(): string {
-    return path.join(this.storageDir, CA_KEY_FILE);
-  }
-
-  getPublicKeyPath(): string {
-    return path.join(this.storageDir, CA_PUBLIC_KEY_FILE);
+  getPaths(): CertificateMaterialPaths {
+    return {
+      certificatePath: path.join(this.storageDir, CA_CERT_FILE),
+      keyPath: path.join(this.storageDir, CA_KEY_FILE),
+      publicKeyPath: path.join(this.storageDir, CA_PUBLIC_KEY_FILE),
+    };
   }
 
   /**
@@ -36,9 +38,7 @@ export class CertificateManager {
   async ensureCaCertificate(): Promise<string> {
     await fs.mkdir(this.storageDir, { recursive: true });
 
-    const certPath = this.getCertificatePath();
-    const keyPath = this.getKeyPath();
-    const publicKeyPath = this.getPublicKeyPath();
+    const { certificatePath: certPath, keyPath, publicKeyPath } = this.getPaths();
 
     try {
       const [certPem, keyPem] = await Promise.all([
