@@ -82,6 +82,40 @@ describe('ProfileCard', () => {
     ).toBeDisabled();
   });
 
+  it('renders runtime badges, account metadata, and profile metadata', () => {
+    renderCard({
+      profile: {
+        ...profile,
+        emoji: '🛠️',
+        theme: 'dark',
+        lastLaunched: '2026-08-26T00:00:00.000Z',
+      },
+      account: {
+        profileId: profile.id,
+        accountName: 'Account Name',
+        pictureUrl: 'https://example.test/avatar',
+        fetchedAt: 0,
+      },
+      quota: {
+        profileId: profile.id,
+        quota: { ...quotaData, membershipType: 'pro' },
+        fetchedAt: 0,
+      },
+      isRunning: true,
+      proxyTemporary: true,
+    });
+
+    expect(screen.getByRole('heading', { name: 'Account Name' })).toBeInTheDocument();
+    expect(screen.getByTitle('profileCard.running')).toBeInTheDocument();
+    expect(screen.getByTitle('profileCard.proxyTemporaryHint')).toHaveTextContent(
+      'profileCard.proxyTemporary'
+    );
+    expect(screen.getByTitle('profileCard.accountType')).toHaveTextContent('Pro');
+    expect(screen.getByText('🛠️')).toBeInTheDocument();
+    expect(screen.getByText('profileCard.theme')).toBeInTheDocument();
+    expect(screen.getByText('profileCard.lastLaunched')).toBeInTheDocument();
+  });
+
   it('offers sign-in for authentication quota failures and launches the profile', () => {
     renderCard({
       quota: {
@@ -284,6 +318,40 @@ describe('ProfileCard', () => {
       screen.getByRole('menuitem', { name: 'profileCard.delete' })
     );
     expect(callbacks.onDelete).toHaveBeenCalledWith(profile.id);
+  });
+
+  it('closes the menu from outside clicks and preserves it when deletion is cancelled', () => {
+    vi.stubGlobal('confirm', vi.fn(() => false));
+    renderCard();
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'profileCard.profileActions' })
+    );
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+    fireEvent.mouseDown(document.body);
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'profileCard.profileActions' })
+    );
+    fireEvent.click(screen.getByRole('menuitem', { name: 'profileCard.delete' }));
+
+    expect(callbacks.onDelete).not.toHaveBeenCalled();
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+  });
+
+  it('disables launch and deletion while the profile is already running', () => {
+    renderCard({ isRunning: true });
+
+    expect(
+      screen.getByRole('button', { name: 'profileCard.alreadyRunning' })
+    ).toBeDisabled();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'profileCard.profileActions' })
+    );
+    expect(
+      screen.getByRole('menuitem', { name: 'profileCard.delete' })
+    ).toBeDisabled();
   });
 
   it('renders and expands repository and branch efficiency breakdowns', () => {
