@@ -209,6 +209,43 @@ describe('QuotaClient', () => {
     assert.equal(usage.dataSource, 'ide');
   });
 
+  it('merges IDE usage with the successful web summary source', async () => {
+    const accessToken = makeJwt({ sub: 'user_merged_usage' });
+    globalThis.fetch = mock.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes('GetCurrentPeriodUsage')) {
+        return Response.json(
+          {
+            billingCycleEnd: '2026-08-31T00:00:00.000Z',
+            planUsage: { totalPercentUsed: 17, limit: 100 },
+          },
+          { status: 200 }
+        );
+      }
+      return Response.json(
+        {
+          billingCycleEnd: '2026-09-01T00:00:00.000Z',
+          membershipType: 'pro',
+          individualUsage: {
+            plan: { totalPercentUsed: 42 },
+          },
+        },
+        { status: 200 }
+      );
+    }) as typeof fetch;
+
+    const provider: ITokenProvider = {
+      getValidTokens: async () => ({ accessToken }),
+    };
+
+    const usage = await new QuotaClient(provider).getUsage();
+
+    assert.equal(usage.totalPercentUsed, 17);
+    assert.equal(usage.membershipType, 'pro');
+    assert.equal(usage.dataSource, 'web');
+    assert.equal(usage.billingCycleEnd, '2026-09-01T00:00:00.000Z');
+  });
+
   it('reports a normalized error when both usage sources fail', async () => {
     const accessToken = makeJwt({ sub: 'user_no_usage' });
     globalThis.fetch = mock.fn(async (input: string | URL | Request) => {
