@@ -7,6 +7,7 @@ import type {
 } from '../domain/ports/IProfileSettingsManager';
 import type { IProxySettingsBackupReader } from '../domain/ports/IProxySettingsBackupReader';
 import * as extensionLog from '../logging/extensionLog';
+import type { Profile } from '../profiles/types';
 import {
   clearProxyVscodeConfiguration,
   syncProxyVscodeConfiguration,
@@ -29,30 +30,8 @@ export class ProxySettingsService implements IProxySettingsBackupReader {
    */
   async applyProxyForAllProfiles(proxyUrl: string): Promise<void> {
     const profiles = await this.profileManager.getProfiles();
-    for (const profile of profiles) {
-      try {
-        await this.profileSettingsManager.applyProxySettings(
-          profile.userDataDir,
-          proxyUrl
-        );
-      } catch (error) {
-        extensionLog.warn(
-          `[ProxySettings] Failed to apply proxy for ${profile.displayName}: ${
-            error instanceof Error ? error.message : String(error)
-          }`
-        );
-      }
-    }
-
-    try {
-      await syncProxyVscodeConfiguration(proxyUrl);
-    } catch (error) {
-      extensionLog.warn(
-        `[ProxySettings] Failed to sync proxy to active window: ${
-          error instanceof Error ? error.message : String(error)
-        }`
-      );
-    }
+    await this.applyProxyToProfiles(profiles, proxyUrl, '');
+    await this.syncProxyConfiguration(proxyUrl);
   }
 
   /**
@@ -65,34 +44,12 @@ export class ProxySettingsService implements IProxySettingsBackupReader {
 
     const running = await this.instanceDetector.detectRunningInstances();
     const profiles = await this.profileManager.getProfiles();
-
-    for (const profile of profiles) {
-      if (!running.has(profile.id)) {
-        continue;
-      }
-      try {
-        await this.profileSettingsManager.applyProxySettings(
-          profile.userDataDir,
-          proxyUrl
-        );
-      } catch (error) {
-        extensionLog.warn(
-          `[ProxySettings] Failed to apply proxy for running profile ${profile.displayName}: ${
-            error instanceof Error ? error.message : String(error)
-          }`
-        );
-      }
-    }
-
-    try {
-      await syncProxyVscodeConfiguration(proxyUrl);
-    } catch (error) {
-      extensionLog.warn(
-        `[ProxySettings] Failed to sync proxy to active window: ${
-          error instanceof Error ? error.message : String(error)
-        }`
-      );
-    }
+    await this.applyProxyToProfiles(
+      profiles.filter((profile) => running.has(profile.id)),
+      proxyUrl,
+      'running profile '
+    );
+    await this.syncProxyConfiguration(proxyUrl);
   }
 
   async restoreAllProfiles(): Promise<RestoreAllProfilesResult> {
@@ -152,5 +109,38 @@ export class ProxySettingsService implements IProxySettingsBackupReader {
     );
 
     return infoMap;
+  }
+
+  private async applyProxyToProfiles(
+    profiles: readonly Profile[],
+    proxyUrl: string,
+    profilePrefix: string
+  ): Promise<void> {
+    for (const profile of profiles) {
+      try {
+        await this.profileSettingsManager.applyProxySettings(
+          profile.userDataDir,
+          proxyUrl
+        );
+      } catch (error) {
+        extensionLog.warn(
+          `[ProxySettings] Failed to apply proxy for ${profilePrefix}${profile.displayName}: ${
+            error instanceof Error ? error.message : String(error)
+          }`
+        );
+      }
+    }
+  }
+
+  private async syncProxyConfiguration(proxyUrl: string): Promise<void> {
+    try {
+      await syncProxyVscodeConfiguration(proxyUrl);
+    } catch (error) {
+      extensionLog.warn(
+        `[ProxySettings] Failed to sync proxy to active window: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    }
   }
 }
