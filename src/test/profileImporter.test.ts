@@ -95,6 +95,43 @@ describe('ProfileImporter', () => {
     assert.equal(result.errors.length, 0);
   });
 
+  it('skips repeated emails within one export after the first import', async () => {
+    const exportData = buildExport([
+      { email: 'repeated@example.com', displayName: 'First' },
+      { email: 'repeated@example.com', displayName: 'Second' },
+    ]);
+
+    const result = await importer.importProfiles(exportData);
+
+    assert.equal(result.imported.length, 1);
+    assert.equal(result.skipped.length, 1);
+    assert.equal(result.errors.length, 0);
+  });
+
+  it('overwrites an existing profile when explicitly requested', async () => {
+    const existing = await manager.createProfile({
+      email: 'overwrite@example.com',
+      displayName: 'Before import',
+    });
+
+    const result = await importer.importProfiles(
+      buildExport([
+        {
+          email: existing.email,
+          displayName: 'After import',
+          color: '#ef4444',
+        },
+      ]),
+      { overwriteExisting: true }
+    );
+
+    assert.equal(result.imported.length, 1);
+    assert.equal(result.skipped.length, 0);
+    assert.equal(result.errors.length, 0);
+    assert.equal(first(result.imported).displayName, 'After import');
+    assert.equal(first(result.imported).color, '#ef4444');
+  });
+
   it('imports settings when requested', async () => {
     const exportData = buildExport([
       {

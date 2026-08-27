@@ -9,7 +9,8 @@ import type {
   ImportResult,
   ImportValidationResult,
   Profile,
-  ProfileExport} from './types';
+  ProfileExport,
+  ProfileMetadata} from './types';
 import {
   PROFILE_EXPORT_VERSION
 } from './types';
@@ -69,44 +70,64 @@ export class ProfileImporter {
     const existingEmails = new Set(existing.map((p) => p.email.toLowerCase()));
 
     for (const exported of exportData.profiles) {
-      try {
-        const emailLower = exported.email.toLowerCase();
-
-        if (existingEmails.has(emailLower)) {
-          if (opts.skipDuplicates && !opts.overwriteExisting) {
-            result.skipped.push(exported);
-            continue;
-          }
-
-          if (opts.overwriteExisting) {
-            const existingProfile = existing.find(
-              (p) => p.email.toLowerCase() === emailLower
-            );
-            if (existingProfile) {
-              const updated = await this.updateProfileFromExport(
-                existingProfile,
-                exported,
-                opts
-              );
-              result.imported.push(updated);
-            }
-            continue;
-          }
-        }
-
-        const profile = await this.createProfileFromExport(exported, opts);
-        result.imported.push(profile);
-        existingEmails.add(emailLower);
-      } catch (error) {
-        result.errors.push({
-          profile: exported,
-          error: error instanceof Error ? error.message : 'Unknown error',
-        });
-      }
+      await this.importSingleProfile(
+        exported,
+        opts,
+        existing,
+        existingEmails,
+        result
+      );
     }
 
     result.success = result.errors.length === 0;
     return result;
+  }
+
+  private async importSingleProfile(
+    exported: ExportedProfile,
+    options: ImportOptions,
+    existing: Profile[],
+    existingEmails: Set<string>,
+    result: ImportResult
+  ): Promise<void> {
+    try {
+      const emailLower = exported.email.toLowerCase();
+      const existingProfile = existing.find(
+        (profile) => profile.email.toLowerCase() === emailLower
+      );
+
+      if (
+        existingEmails.has(emailLower) &&
+        options.skipDuplicates &&
+        !options.overwriteExisting
+      ) {
+        result.skipped.push(exported);
+        return;
+      }
+
+      if (existingEmails.has(emailLower) && options.overwriteExisting) {
+        if (existingProfile) {
+          result.imported.push(
+            await this.updateProfileFromExport(
+              existingProfile,
+              exported,
+              options
+            )
+          );
+        }
+        return;
+      }
+
+      result.imported.push(
+        await this.createProfileFromExport(exported, options)
+      );
+      existingEmails.add(emailLower);
+    } catch (error) {
+      result.errors.push({
+        profile: exported,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
   }
 
   /**
@@ -224,17 +245,10 @@ export class ProfileImporter {
     });
 
     const updated = await this.profileManager.updateProfile(profile.id, {
-      metadata: {
-        ...exported.metadata,
-        source: 'imported',
-      },
+      metadata: this.buildImportedMetadata(exported.metadata),
     });
 
-    if (options.importSettings && exported.settings) {
-      await this.writeProfileSettings(updated.userDataDir, exported.settings);
-    }
-
-    return updated;
+    return this.finalizeImportedProfile(updated, exported, options);
   }
 
   private async updateProfileFromExport(
@@ -247,12 +261,24 @@ export class ProfileImporter {
       theme: exported.theme,
       color: exported.color,
       emoji: exported.emoji,
-      metadata: {
-        ...exported.metadata,
-        source: 'imported',
-      },
+      metadata: this.buildImportedMetadata(exported.metadata),
     });
 
+    return this.finalizeImportedProfile(updated, exported, options);
+  }
+
+  private buildImportedMetadata(metadata?: ProfileMetadata): ProfileMetadata {
+    return {
+      ...metadata,
+      source: 'imported',
+    };
+  }
+
+  private async finalizeImportedProfile(
+    updated: Profile,
+    exported: ExportedProfile,
+    options: ImportOptions
+  ): Promise<Profile> {
     if (options.importSettings && exported.settings) {
       await this.writeProfileSettings(updated.userDataDir, exported.settings);
     }
