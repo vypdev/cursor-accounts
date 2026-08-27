@@ -1,4 +1,5 @@
 import type { ProxyLogEntry, ProxyTrafficSummary } from './types';
+import type { AgentSessionInfo } from '../domain/types/agentTracking';
 
 export const PROXY_TRAFFIC_TAG = '[ProxyTraffic]';
 
@@ -165,42 +166,73 @@ function formatResponseMetadata(summary: ProxyTrafficSummary): string {
 }
 
 function formatInsightHint(summary: ProxyTrafficSummary): string {
-  const parts: string[] = [];
-  if (summary.insights?.billing?.spendLimit?.currentSpendUsd != null) {
-    parts.push(`$${summary.insights.billing.spendLimit.currentSpendUsd.toFixed(2)}`);
-  }
-
-  const agent = summary.insights?.agent;
-  const billed =
-    (agent?.inputTokens ?? 0) +
-    (agent?.outputTokens ?? 0) +
-    (agent?.cacheReadTokens ?? 0) +
-    (agent?.cacheWriteTokens ?? 0);
-  const liveTokens =
-    billed > 0 ? billed : agent?.streamingTokens ?? summary.insights?.tokens?.totalTokens;
-  if (liveTokens != null) {
-    const label =
-      agent?.usageEvent === 'turn_ended'
-        ? `${liveTokens} tok (turn)`
-        : agent?.streamingTokens != null
-          ? `${liveTokens} tok (live)`
-          : `${liveTokens} tok`;
-    parts.push(label);
-  } else if (summary.insights?.tokens?.totalTokens != null) {
-    parts.push(`${summary.insights.tokens.totalTokens} tok`);
-  }
-
-  if (agent?.estimatedCostUsd != null && agent.estimatedCostUsd > 0) {
-    parts.push(`~$${agent.estimatedCostUsd.toFixed(2)}`);
-  }
-
-  if (summary.insights?.context?.messageCount != null) {
-    parts.push(`${summary.insights.context.messageCount} msgs`);
-  }
-  if (agent?.requestId) {
-    parts.push(`agent=${agent.requestId.slice(0, 8)}`);
-  }
+  const parts = [
+    formatSpendHint(summary),
+    formatTokenHint(summary),
+    formatEstimatedCostHint(summary),
+    formatMessageCountHint(summary),
+    formatAgentRequestHint(summary),
+  ].filter((part): part is string => part !== undefined);
   return parts.length > 0 ? `, ${parts.join(', ')}` : '';
+}
+
+function formatSpendHint(summary: ProxyTrafficSummary): string | undefined {
+  const spend = summary.insights?.billing?.spendLimit?.currentSpendUsd;
+  return spend != null ? `$${spend.toFixed(2)}` : undefined;
+}
+
+function formatTokenHint(summary: ProxyTrafficSummary): string | undefined {
+  const agent = summary.insights?.agent;
+  const billed = sumAgentTokens(agent);
+  const totalTokens = summary.insights?.tokens?.totalTokens;
+  const liveTokens =
+    billed > 0 ? billed : agent?.streamingTokens ?? totalTokens;
+  if (liveTokens == null) {
+    return undefined;
+  }
+
+  if (agent?.usageEvent === 'turn_ended') {
+    return `${liveTokens} tok (turn)`;
+  }
+  if (agent?.streamingTokens != null) {
+    return `${liveTokens} tok (live)`;
+  }
+  return `${liveTokens} tok`;
+}
+
+function sumAgentTokens(
+  agent: AgentSessionInfo | undefined
+): number {
+  if (!agent) {
+    return 0;
+  }
+  return (
+    (agent.inputTokens ?? 0) +
+    (agent.outputTokens ?? 0) +
+    (agent.cacheReadTokens ?? 0) +
+    (agent.cacheWriteTokens ?? 0)
+  );
+}
+
+function formatEstimatedCostHint(
+  summary: ProxyTrafficSummary
+): string | undefined {
+  const cost = summary.insights?.agent?.estimatedCostUsd;
+  return cost != null && cost > 0 ? `~$${cost.toFixed(2)}` : undefined;
+}
+
+function formatMessageCountHint(
+  summary: ProxyTrafficSummary
+): string | undefined {
+  const count = summary.insights?.context?.messageCount;
+  return count != null ? `${count} msgs` : undefined;
+}
+
+function formatAgentRequestHint(
+  summary: ProxyTrafficSummary
+): string | undefined {
+  const requestId = summary.insights?.agent?.requestId;
+  return requestId ? `agent=${requestId.slice(0, 8)}` : undefined;
 }
 
 export function redactHeadersForLog(

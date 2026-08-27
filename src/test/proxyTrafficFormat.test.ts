@@ -6,7 +6,7 @@ import {
   formatTrafficLine,
   toTrafficSummary,
 } from '../proxy/proxyTrafficFormat';
-import type { ProxyLogEntry } from '../proxy/types';
+import type { ProxyLogEntry, ProxyTrafficSummary } from '../proxy/types';
 
 describe('proxyTrafficFormat', () => {
   const baseEntry = (
@@ -80,6 +80,37 @@ describe('proxyTrafficFormat', () => {
     assert.match(line, /\[ProxyTraffic\]/);
     assert.match(line, /ON_REQUEST_END_ERROR/);
     assert.match(line, /socket hang up/);
+  });
+
+  it('formats billing, token, cost, context, and agent hints deterministically', () => {
+    const summary: ProxyTrafficSummary = {
+      timestamp: '2026-06-03T14:53:33.540Z',
+      kind: 'response',
+      url: 'https://api2.cursor.sh/agent',
+      host: 'api2.cursor.sh',
+      endpoint: '/agent',
+      bodyKind: 'proto',
+      bodyBytes: 128,
+      insights: {
+        billing: { spendLimit: { currentSpendUsd: 12.5 } },
+        agent: {
+          inputTokens: 10,
+          outputTokens: 5,
+          streamingTokens: 2,
+          usageEvent: 'turn_ended',
+          estimatedCostUsd: 0.75,
+          requestId: 'abcdefgh-1234',
+        },
+        context: { messageCount: 3 },
+      },
+    };
+
+    const line = formatTrafficLine(summary, '14:53:35');
+
+    assert.match(
+      line,
+      /\$12\.50, 15 tok \(turn\), ~\$0\.75, 3 msgs, agent=abcdefgh/
+    );
   });
 
   it('classifies body kinds', () => {
