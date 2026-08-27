@@ -79,6 +79,29 @@ function extractMessageDescriptors(
   symToType,
   messageFieldsBlob
 ) {
+  extractMessageFactoryDescriptors(
+    bundle,
+    packagePrefixes,
+    symToType,
+    messageFieldsBlob
+  );
+  extractMessageReferenceDescriptors(bundle, packagePrefixes, symToType, messageFieldsBlob);
+}
+
+/**
+ * Extract message descriptors that expose their field list through a runtime factory.
+ *
+ * @param {string} bundle
+ * @param {string} packagePrefixes
+ * @param {Map<string, string>} symToType
+ * @param {Map<string, string>} messageFieldsBlob
+ */
+function extractMessageFactoryDescriptors(
+  bundle,
+  packagePrefixes,
+  symToType,
+  messageFieldsBlob
+) {
   const classRe = new RegExp(
     `(\\w+)=class \\w+ extends \\w+\\{[\\s\\S]*?typeName="((${packagePrefixes})\\.[^"]+)"[\\s\\S]*?newFieldList\\(\\(\\)=>\\[([\\s\\S]*?)\\]\\)\\}`,
     'g'
@@ -105,7 +128,22 @@ function extractMessageDescriptors(
       messageFieldsBlob.set(match[2], bundle.slice(fieldsStart + 1, fieldsEnd));
     }
   }
+}
 
+/**
+ * Extract message descriptors represented by static or quoted type references.
+ *
+ * @param {string} bundle
+ * @param {string} packagePrefixes
+ * @param {Map<string, string>} symToType
+ * @param {Map<string, string>} messageFieldsBlob
+ */
+function extractMessageReferenceDescriptors(
+  bundle,
+  packagePrefixes,
+  symToType,
+  messageFieldsBlob
+) {
   // Bufbuild static blocks contain nested braces that defeat the generic class expression.
   const staticFieldListRe = new RegExp(
     `(\\w+)=class[^;]{0,4000}?static\\{this\\.typeName="((${packagePrefixes})\\.[^"]+)"\\}static\\{this\\.fields=n\\.util\\.newFieldList\\(\\(\\)=>\\[([\\s\\S]*?)\\]\\)\\}`,
