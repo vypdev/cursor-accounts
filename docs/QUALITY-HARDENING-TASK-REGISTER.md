@@ -180,9 +180,9 @@ The current high-risk production targets include
 `src/services/sharedProxyLifecycleCoordinator.ts` (7.63/10, NLOC 180, max CCN
 3, max nesting 1, 94.82% lines and 94.87% branches; remaining findings are
 duplication, coverage-gradient, and historical change-entropy signals),
-`src/proxy/proxyTrafficFormat.ts` (6.12/10, NLOC 226, max CCN 8, max nesting
-3, 90.40% lines and 74.00% branches; remaining findings are coverage and
-history/fan-out signals), `src/services/multiProfileQuotaService.ts` (6.30/10,
+`src/proxy/proxyTrafficFormat.ts` (6.34/10, NLOC 226, max CCN 8, max nesting
+3, 96.00% lines and 76.92% branches; remaining findings are a small coverage
+gradient and history/fan-out signals), `src/services/multiProfileQuotaService.ts` (6.30/10,
 NLOC 160, max CCN 3,
 max nesting 2; remaining findings are coverage-gradient and historical churn,
 change-entropy, and co-change signals),
