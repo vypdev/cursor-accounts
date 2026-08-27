@@ -19,7 +19,6 @@ import type {
 } from '../domain/ports/IProxyOutputPresenter';
 import type { IProxyStateStore } from '../domain/ports/IProxyStateStore';
 import {
-  isProfileProxyEnabled,
   type ProxyInstallGuide,
   type ProxyStatus,
   type Profile,
@@ -45,6 +44,7 @@ import {
 import {
   ProxyManagerEventRegistry,
 } from './proxyManagerEventRegistry';
+import { ProxyProfileLifecycleUseCase } from '../application/services/proxyProfileLifecycleUseCase';
 
 export type { ConversationUsagePersistedEvent, ConversationUsagePersistedListener, ProxyTrafficListener } from '../domain/ports/IProxyTraffic';
 
@@ -63,6 +63,7 @@ export class ProxyManager implements IProxyManager {
   private readonly deps: ProxyManagerDependencies;
   private readonly composition: ProxyManagerComposition;
   private readonly events: ProxyManagerEventRegistry;
+  private readonly profileLifecycleUseCase: ProxyProfileLifecycleUseCase;
 
   constructor(
     private readonly stateStore: IProxyStateStore,
@@ -144,6 +145,14 @@ export class ProxyManager implements IProxyManager {
     this.events.setTrafficHandler((summary, profileId) =>
       this.handleTraffic(summary, profileId)
     );
+    this.profileLifecycleUseCase = new ProxyProfileLifecycleUseCase({
+      profileReader: this.profileManager,
+      ensureSharedProxy: (profiles) => this.ensureSharedProxy(profiles),
+      isRunning: (profileId) => this.isRunning(profileId),
+      stop: (profileId, options) =>
+        this.composition.profileLifecycleCoordinator.stop(profileId, options),
+      logInfo: (message) => extensionLog.info(message),
+    });
   }
 
   async ensureSharedProxy(profiles: Profile[]): Promise<ProxyStartResult> {
@@ -198,17 +207,7 @@ export class ProxyManager implements IProxyManager {
   }
 
   async start(profileId: string): Promise<ProxyStartResult> {
-    const profile = await this.profileManager.getProfile(profileId);
-    if (!profile) {
-      return { success: false, error: `Profile ${profileId} not found` };
-    }
-
-    if (isProfileProxyEnabled(profile)) {
-      const profiles = await this.profileManager.getProfiles();
-      return this.ensureSharedProxy(profiles);
-    }
-
-    return { success: false, error: 'Proxy is disabled for this profile' };
+    return this.profileLifecycleUseCase.start(profileId);
   }
 
   async stop(
@@ -219,20 +218,7 @@ export class ProxyManager implements IProxyManager {
   }
 
   async restartProfileProxy(profileId: string): Promise<ProxyStartResult> {
-    const profile = await this.profileManager.getProfile(profileId);
-    if (!profile) {
-      return { success: false, error: `Profile ${profileId} not found` };
-    }
-
-    if (!(await this.isRunning(profileId))) {
-      return { success: true };
-    }
-
-    extensionLog.info(
-      `[Proxy:${profileId}] Restarting proxy after JSONL logging change`
-    );
-    await this.stop(profileId, { restoreSettings: false });
-    return await this.start(profileId);
+    return this.profileLifecycleUseCase.restart(profileId);
   }
 
   async getStatus(profileId: string): Promise<ProxyStatus | null> {
@@ -336,12 +322,7 @@ export class ProxyManager implements IProxyManager {
   }
 
   async ensureProfileProxy(profileId: string): Promise<ProxyStartResult> {
-    const profile = await this.profileManager.getProfile(profileId);
-    if (!profile || !isProfileProxyEnabled(profile)) {
-      return { success: false, error: 'Proxy is disabled for this profile' };
-    }
-    const profiles = await this.profileManager.getProfiles();
-    return this.ensureSharedProxy(profiles);
+    return this.profileLifecycleUseCase.ensureProfileProxy(profileId);
   }
 
 }
