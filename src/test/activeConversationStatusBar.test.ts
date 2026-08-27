@@ -10,6 +10,7 @@ import {
   formatContextPercent,
   resolveConversationDisplayTotals,
 } from '../ui/activeConversationStatusBar';
+import { buildActiveConversationStatusBarDisplay } from '../ui/presentation/activeConversationStatusBarPresentation';
 
 function emptyTotals(): ConversationTokenTotals {
   return {
@@ -87,6 +88,41 @@ describe('resolveConversationDisplayTotals', () => {
     assert.equal(result.tokens, 2000);
     assert.equal(result.costCents, 1.5);
     assert.equal(result.costAuthoritative, true);
+  });
+});
+
+describe('buildActiveConversationStatusBarDisplay', () => {
+  it('renders the empty state without a warning background', () => {
+    const display = buildActiveConversationStatusBarDisplay(null, null);
+
+    assert.match(display.text, /comment-discussion/);
+    assert.equal(display.tooltip.length > 0, true);
+    assert.equal(display.showWarning, false);
+  });
+
+  it('renders conversation totals, context usage, and selected composers', () => {
+    const display = buildActiveConversationStatusBarDisplay(
+      {
+        lastFocusedComposerId: 'conversation-123456789',
+        selectedComposerIds: ['conversation-123456789', 'conversation-2'],
+        sourceKey: COMPOSER_WORKSPACE_DATA_KEY,
+      },
+      {
+        ...emptyTotals(),
+        totalDeltaTokens: 1250,
+        totalDeltaCostCents: 1.5,
+        latestContextUsedTokens: 50_000,
+        latestContextMaxTokens: 200_000,
+        models: ['gpt-4.1'],
+      }
+    );
+
+    assert.match(display.text, /conversa/);
+    assert.match(display.text, /25%/);
+    assert.match(display.text, /1\.3k/);
+    assert.match(display.tooltip, /conversation-123456789/);
+    assert.match(display.tooltip, /gpt-4\.1/);
+    assert.equal(display.showWarning, true);
   });
 });
 
