@@ -53,6 +53,11 @@ const checks = [
     args: ['run', 'test:cursor-proto-extraction'],
   },
   {
+    label: 'Cursor protobuf runtime tests',
+    command: 'pnpm',
+    args: ['run', 'test:cursor-proto-runtime'],
+  },
+  {
     label: 'protobuf JSONL verifier tests',
     command: 'pnpm',
     args: ['run', 'test:verify-proto-jsonl'],
