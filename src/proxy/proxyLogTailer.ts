@@ -1,12 +1,12 @@
-import * as fs from 'fs/promises';
 import { watch, type FSWatcher } from 'fs';
-import * as path from 'path';
-import { toTrafficSummary } from './proxyTrafficFormat';
-import { buildTrafficSummary } from './trafficSummaryBuilder';
-import type { ProxyLogEntry, ProxyTrafficSummary } from './types';
+import { ProxyLogEntryProcessor } from './proxyLogEntryProcessor';
+import {
+  findProxyLogFiles,
+  readProxyLogFile,
+  type ProxyLogFileMetadata,
+} from './proxyLogFileReader';
+import type { ProxyTrafficSummary } from './types';
 
-const LOG_FILE_PREFIX = 'proxy-';
-const LOG_FILE_EXT = '.jsonl';
 const POLL_INTERVAL_MS = 500;
 
 export interface ProxyLogTailerHandlers {
@@ -33,17 +33,18 @@ export class ProxyLogTailer {
   private startPromise: Promise<void> | null = null;
   private currentFilePath: string | null = null;
   private fileOffset = 0;
-  private partialLine = '';
   private dirWatcher: FSWatcher | null = null;
   private pollTimer: ReturnType<typeof setInterval> | null = null;
   private readChain: Promise<void> = Promise.resolve();
-  private readonly requestStartedAt = new Map<string, number>();
+  private readonly entryProcessor: ProxyLogEntryProcessor;
 
   constructor(
     private readonly logDir: string,
     private readonly handlers: ProxyLogTailerHandlers,
     private readonly options: ProxyLogTailerOptions = {}
-  ) {}
+  ) {
+    this.entryProcessor = new ProxyLogEntryProcessor(logDir, handlers);
+  }
 
   getActiveLogPath(): string | null {
     return this.currentFilePath;
@@ -81,18 +82,13 @@ export class ProxyLogTailer {
   stop(): void {
     this.lifecycleGeneration += 1;
     this.running = false;
-    if (this.dirWatcher) {
-      this.dirWatcher.close();
-      this.dirWatcher = null;
-    }
+    this.dirWatcher?.close();
+    this.dirWatcher = null;
     if (this.pollTimer) {
       clearInterval(this.pollTimer);
       this.pollTimer = null;
     }
-    this.currentFilePath = null;
-    this.fileOffset = 0;
-    this.partialLine = '';
-    this.requestStartedAt.clear();
+    this.clearActiveFile();
   }
 
   private async startInternal(generation: number): Promise<void> {
@@ -113,7 +109,6 @@ export class ProxyLogTailer {
 
   private startWatching(generation: number): void {
     const interval = this.options.pollIntervalMs ?? POLL_INTERVAL_MS;
-
     try {
       const watcher = watch(this.logDir, () => {
         void this.scheduleRead(generation);
@@ -154,77 +149,33 @@ export class ProxyLogTailer {
     isInitial: boolean,
     generation: number
   ): Promise<void> {
-    let entries: string[];
-    try {
-      entries = await fs.readdir(this.logDir);
-    } catch {
-      if (this.isActive(generation)) {
-        this.handlers.onLogFileResolved?.(null);
-      }
-      return;
-    }
-
+    const files = await findProxyLogFiles(this.logDir);
     if (!this.isActive(generation)) {
       return;
     }
 
-    const logFiles = entries.filter(
-      (name) => name.startsWith(LOG_FILE_PREFIX) && name.endsWith(LOG_FILE_EXT)
-    );
-    if (logFiles.length === 0) {
-      this.currentFilePath = null;
-      this.fileOffset = 0;
-      this.partialLine = '';
-      this.requestStartedAt.clear();
+    const latest = files.at(-1);
+    if (!latest) {
+      this.clearActiveFile();
       this.handlers.onLogFileResolved?.(null);
       return;
     }
-
-    const withStats = (
-      await Promise.all(
-        logFiles.map(async (name) => {
-          const filePath = path.join(this.logDir, name);
-          try {
-            const stat = await fs.stat(filePath);
-            return { filePath, mtime: stat.mtimeMs, size: stat.size };
-          } catch {
-            return null;
-          }
-        })
-      )
-    ).filter((value): value is NonNullable<typeof value> => value !== null);
-
-    if (!this.isActive(generation)) {
-      return;
-    }
-    if (withStats.length === 0) {
-      this.currentFilePath = null;
-      this.fileOffset = 0;
-      this.partialLine = '';
-      this.requestStartedAt.clear();
-      this.handlers.onLogFileResolved?.(null);
-      return;
-    }
-
-    withStats.sort((a, b) => a.mtime - b.mtime || comparePaths(a.filePath, b.filePath));
-    const latest = withStats[withStats.length - 1]!;
-
     if (this.currentFilePath === latest.filePath) {
       return;
     }
 
     this.currentFilePath = latest.filePath;
-    this.partialLine = '';
-    this.requestStartedAt.clear();
-
-    if (isInitial && this.options.tailFromStart) {
-      const maxBytes = this.options.tailFromStartMaxBytes ?? 64 * 1024;
-      this.fileOffset = Math.max(0, latest.size - maxBytes);
-    } else {
-      this.fileOffset = latest.size;
-    }
-
+    this.entryProcessor.reset();
+    this.fileOffset = this.initialOffset(latest, isInitial);
     this.handlers.onLogFileResolved?.(latest.filePath);
+  }
+
+  private initialOffset(file: ProxyLogFileMetadata, isInitial: boolean): number {
+    if (!isInitial || !this.options.tailFromStart) {
+      return file.size;
+    }
+    const maxBytes = this.options.tailFromStartMaxBytes ?? 64 * 1024;
+    return Math.max(0, file.size - maxBytes);
   }
 
   private async readNewLines(generation: number): Promise<void> {
@@ -233,105 +184,31 @@ export class ProxyLogTailer {
       return;
     }
 
-    let stat;
-    try {
-      stat = await fs.stat(filePath);
-    } catch {
-      if (this.isActive(generation) && this.currentFilePath === filePath) {
-        this.currentFilePath = null;
-        this.fileOffset = 0;
-        this.partialLine = '';
-        this.requestStartedAt.clear();
-        this.handlers.onLogFileResolved?.(null);
-      }
-      return;
-    }
-
+    const result = await readProxyLogFile(filePath, this.fileOffset);
     if (!this.isActive(generation) || this.currentFilePath !== filePath) {
       return;
     }
-
-    if (stat.size < this.fileOffset) {
-      this.fileOffset = 0;
-      this.partialLine = '';
+    if (result.kind === 'missing') {
+      this.clearActiveFile();
+      this.handlers.onLogFileResolved?.(null);
+      return;
     }
-
-    if (stat.size === this.fileOffset) {
+    if (result.truncated) {
+      this.entryProcessor.reset();
+    }
+    if (result.kind === 'unchanged') {
+      this.fileOffset = result.truncated ? 0 : this.fileOffset;
       return;
     }
 
-    const handle = await fs.open(filePath, 'r');
-    try {
-      if (!this.isActive(generation) || this.currentFilePath !== filePath) {
-        return;
-      }
-      const length = stat.size - this.fileOffset;
-      const buffer = Buffer.alloc(length);
-      const { bytesRead } = await handle.read(buffer, 0, length, this.fileOffset);
-      if (!this.isActive(generation) || this.currentFilePath !== filePath) {
-        return;
-      }
-      this.fileOffset += bytesRead;
-
-      const chunk = buffer.subarray(0, bytesRead).toString('utf8');
-      this.processChunk(chunk, generation);
-    } finally {
-      await handle.close();
-    }
+    this.fileOffset = result.nextOffset;
+    this.entryProcessor.processChunk(result.chunk, () => this.isActive(generation));
   }
 
-  private processChunk(chunk: string, generation: number): void {
-    const combined = this.partialLine + chunk;
-    const lines = combined.split('\n');
-    this.partialLine = lines.pop() ?? '';
-
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (trimmed.length === 0) {
-        continue;
-      }
-      this.processLine(trimmed, generation);
-    }
-  }
-
-  private processLine(line: string, generation: number): void {
-    let entry: ProxyLogEntry;
-    try {
-      entry = JSON.parse(line) as ProxyLogEntry;
-    } catch {
-      return;
-    }
-
-    if (entry.direction === 'error') {
-      this.handlers.onError?.(toTrafficSummary(entry));
-      return;
-    }
-
-    const requestId = entry.requestId;
-    let durationMs: number | undefined;
-    if (entry.direction === 'request' && requestId) {
-      this.requestStartedAt.set(requestId, Date.parse(entry.timestamp));
-    } else if (entry.direction === 'response' && requestId) {
-      const startedAt = this.requestStartedAt.get(requestId);
-      if (startedAt != null && !Number.isNaN(startedAt)) {
-        durationMs = Math.max(0, Date.parse(entry.timestamp) - startedAt);
-      }
-      this.requestStartedAt.delete(requestId);
-    }
-
-    if (entry.direction === 'request' || entry.direction === 'response') {
-      void buildTrafficSummary(entry, durationMs, { logDir: this.logDir })
-        .then((summary) => {
-          if (this.isActive(generation)) {
-            this.handlers.onTraffic(summary);
-          }
-        })
-        .catch(() => {
-          if (this.isActive(generation)) {
-            this.handlers.onTraffic(toTrafficSummary(entry, durationMs));
-          }
-        });
-    }
+  private clearActiveFile(): void {
+    this.currentFilePath = null;
+    this.fileOffset = 0;
+    this.entryProcessor.reset();
   }
 
   private isActive(generation: number): boolean {
@@ -339,37 +216,4 @@ export class ProxyLogTailer {
   }
 }
 
-/** Lists proxy JSONL files in logDir sorted by mtime (oldest first). */
-export async function listProxyLogFiles(logDir: string): Promise<string[]> {
-  let entries: string[];
-  try {
-    entries = await fs.readdir(logDir);
-  } catch {
-    return [];
-  }
-
-  const paths = entries
-    .filter((name) => name.startsWith(LOG_FILE_PREFIX) && name.endsWith(LOG_FILE_EXT))
-    .map((name) => path.join(logDir, name));
-
-  const withStats = (
-    await Promise.all(
-      paths.map(async (filePath) => {
-        try {
-          return {
-            filePath,
-            mtime: (await fs.stat(filePath)).mtimeMs,
-          };
-        } catch {
-          return null;
-        }
-      })
-    )
-  ).filter((value): value is NonNullable<typeof value> => value !== null);
-  withStats.sort((a, b) => a.mtime - b.mtime || comparePaths(a.filePath, b.filePath));
-  return withStats.map((x) => x.filePath);
-}
-
-function comparePaths(left: string, right: string): number {
-  return left < right ? -1 : left > right ? 1 : 0;
-}
+export { listProxyLogFiles } from './proxyLogFileReader';
