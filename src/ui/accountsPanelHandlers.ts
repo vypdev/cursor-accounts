@@ -1,5 +1,4 @@
 import * as vscode from 'vscode';
-import * as path from 'path';
 import type { IProfileAuthReader } from '../domain/ports/IProfileAuthReader';
 import type { IProfileDetector } from '../domain/ports/IProfileDetector';
 import type { IProfileManager } from '../domain/ports/IProfileManager';
@@ -15,18 +14,17 @@ import type {
   FromWebviewMessage,
   ToWebviewMessage,
 } from '../profiles/types';
-import { resolveRecentProjectLaunch } from '../profiles/recentProjectLaunchRouter';
 import type { ProfileWorkspaceService } from '../application/services/profileWorkspaceService';
 import type { IProfileSettingsManager } from '../domain/ports/IProfileSettingsManager';
 import type { IProxyCertificate } from '../domain/ports/IProxyCertificate';
 import type { IProxyLifecycle } from '../domain/ports/IProxyLifecycle';
 import type { IProxyOutput } from '../domain/ports/IProxyOutput';
-import { getOpenWorkspacePaths } from '../services/activeWorkspaceService';
 import { buildSuggestedProfileResponse } from './suggestedProfile';
 import { AccountsPanelProxyHandlers } from './accountsPanelProxyHandlers';
 import { AccountsPanelStorageHandlers } from './accountsPanelStorageHandlers';
 import { AccountsPanelProfileHandlers } from './accountsPanelProfileHandlers';
 import { AccountsPanelGithubHandlers } from './accountsPanelGithubHandlers';
+import { AccountsPanelLaunchHandlers } from './accountsPanelLaunchHandlers';
 
 /** Callbacks the panel provides for webview messaging and refresh orchestration. */
 export interface AccountsPanelHandlerCallbacks {
@@ -58,7 +56,7 @@ export interface AccountsPanelHandlerDeps {
  * Keeps AccountsPanelProvider focused on webview lifecycle and message routing.
  */
 export class AccountsPanelHandlers {
-  private readonly launchInFlight = new Set<string>();
+  private readonly launchHandlers: AccountsPanelLaunchHandlers;
   private readonly proxyHandlers: AccountsPanelProxyHandlers;
   private readonly storageHandlers: AccountsPanelStorageHandlers;
   private readonly profileHandlers: AccountsPanelProfileHandlers;
@@ -109,12 +107,25 @@ export class AccountsPanelHandlers {
         refreshGithubSummaries: () => callbacks.refreshGithubSummaries(),
       }
     );
+    this.launchHandlers = new AccountsPanelLaunchHandlers(
+      {
+        profileManager: deps.profileManager,
+        profileLauncher: deps.profileLauncher,
+        profileDetector: deps.profileDetector,
+        profileWorkspaceService: deps.profileWorkspaceService,
+      },
+      {
+        postMessage: (message) => callbacks.postMessage(message),
+        refresh: () => callbacks.refresh(),
+        refreshInstances: () => callbacks.refreshInstances(),
+      }
+    );
   }
 
   async handle(message: FromWebviewMessage): Promise<void> {
     switch (message.type) {
       case 'launch':
-        await this.handleLaunch(message.profileId, message.projectPath);
+        await this.launchHandlers.launch(message.profileId, message.projectPath);
         break;
 
       case 'add':
@@ -206,105 +217,6 @@ export class AccountsPanelHandlers {
 
       default:
         break;
-    }
-  }
-
-  private async handleLaunch(
-    profileId: string,
-    projectPath?: string
-  ): Promise<void> {
-    if (this.launchInFlight.has(profileId)) {
-      extensionLog.debug(
-        `[AccountsPanel] Launch ignored for ${profileId} (already in flight)`
-      );
-      return;
-    }
-
-    this.launchInFlight.add(profileId);
-    try {
-      extensionLog.info(
-        `[AccountsPanel] Launch requested for profile ${profileId}${
-          projectPath ? ` with project ${projectPath}` : ''
-        }`
-      );
-
-      const current = await this.deps.profileDetector.detectCurrentProfile();
-      const openWorkspacePaths = getOpenWorkspacePaths();
-
-      if (projectPath) {
-        const action = resolveRecentProjectLaunch({
-          targetProfileId: profileId,
-          projectPath,
-          currentProfileId: current?.id ?? null,
-          openWorkspacePaths,
-        });
-
-        if (action.kind === 'noop') {
-          extensionLog.debug(
-            `[AccountsPanel] Project already open in session: ${projectPath}`
-          );
-          return;
-        }
-
-        if (action.kind === 'openInCurrentWindow') {
-          await vscode.commands.executeCommand(
-            'vscode.openFolder',
-            vscode.Uri.file(action.projectPath),
-            { forceNewWindow: false }
-          );
-          await this.callbacks.refresh();
-          return;
-        }
-
-        const result = await this.deps.profileLauncher.launch(
-          action.profileId,
-          { projectPath: action.projectPath }
-        );
-        await this.postLaunchResult(profileId, action.projectPath, result);
-        return;
-      }
-
-      const resolvedProjectPath =
-        await this.deps.profileWorkspaceService.getMostRecentWorkspace(
-          profileId
-        );
-
-      const result = await this.deps.profileLauncher.launch(profileId, {
-        projectPath: resolvedProjectPath,
-      });
-      await this.postLaunchResult(profileId, resolvedProjectPath, result);
-
-    } finally {
-      this.launchInFlight.delete(profileId);
-    }
-  }
-
-  private async postLaunchResult(
-    profileId: string,
-    resolvedProjectPath: string | undefined,
-    result: { success: boolean; error?: string }
-  ): Promise<void> {
-    if (result.success) {
-      const profile = await this.deps.profileManager.getProfile(profileId);
-      const successMessage = resolvedProjectPath
-        ? t('panel.launchedWithProject', {
-            name: profile?.displayName ?? t('panel.profileFallback'),
-            project: path.basename(resolvedProjectPath),
-          })
-        : t('panel.launched', {
-            name: profile?.displayName ?? t('panel.profileFallback'),
-          });
-      await this.callbacks.postMessage({
-        type: 'success',
-        message: successMessage,
-      });
-      await this.callbacks.refresh();
-      void this.callbacks.refreshInstances();
-    } else {
-      await this.callbacks.postMessage({
-        type: 'error',
-        message: result.error ?? t('errors.failedLaunchProfile'),
-      });
     }
   }
 
