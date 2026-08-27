@@ -52,6 +52,24 @@ export default defineConfig({
           functions: 100,
           branches: 90,
         },
+        'src/components/StorageBreakdownTable.tsx': {
+          statements: 90,
+          lines: 90,
+          functions: 100,
+          branches: 90,
+        },
+        'src/components/StorageCleanupActions.tsx': {
+          statements: 90,
+          lines: 90,
+          functions: 100,
+          branches: 90,
+        },
+        'src/components/StorageManagementModal.tsx': {
+          statements: 90,
+          lines: 90,
+          functions: 100,
+          branches: 80,
+        },
         'src/components/ProfileCardEfficiency.tsx': {
           statements: 90,
           lines: 90,
