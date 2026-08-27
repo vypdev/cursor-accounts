@@ -21,15 +21,15 @@ acceptance criteria and evidence are recorded.
 
 | ID | Area | Status | Current evidence | Next required action |
 |---|---|---|---|---|
-| QA-0 | Baseline and finding reclassification | COMPLETE | `pnpm run audit` passes at `7bca506`; current Graphify/Repowise/dependency evidence is captured on 2026-08-27 after the shared-proto-runtime audit-gate, workspace application boundary, GitHub/workspace/accounts-panel composition boundaries, request-logger reliability fixes and storage extraction, profile-account fetch consolidation, transactional MITM startup/composition hardening, proxy log tailer boundary extraction, agent insight policy extraction, conversation-context policy extraction, RunSSE response processing serialization, profile import/export command decomposition, profile CRUD command decomposition with failure-path coverage, accounts-panel launch workflow extraction, remaining Accounts panel presentation-workflow extraction, AccountsPanelDataRefresher coverage hardening, active-conversation totals loading isolation, profile proxy lifecycle decision isolation, certificate material generation/single-flight hardening, certificate filesystem-error propagation, status-bar display-policy extraction/refinement, binary proxy decoder/recovery-path isolation, shared proxy-header redaction, traffic-summary/presentation boundary separation, proxy-settings application-operation deduplication, proxy-settings application/restoration/backup responsibility separation, proxy-window adapter coverage, proxy-settings compatibility-facade removal, efficiency persistence read-adapter separation, and agent stream payload decoding consolidation | Keep this baseline immutable and update it after every cross-cutting change |
-| QA-1 | CI, tests, localization, lint | PARTIAL | Full audit at `7bca506` passes with 1,210 host tests and 69 webview tests; exact host coverage is 90.14% lines/83.22% branches/86.36% functions, webview coverage is 93.96% lines/84.85% branches/92.55% functions, localization is 26 locales/428 keys, architecture is checked for 426 production TypeScript files, and the proxy-settings application/restoration/backup plus VS Code window-configuration boundaries have direct contracts. The complete host suite also passes independently under the declared Node 24.19.0 runtime | Add repeated host/webview-run evidence and review generated-artifact/source-lint policy |
+| QA-0 | Baseline and finding reclassification | COMPLETE | `pnpm run audit` passes at `cafd173`; current Graphify/Repowise/dependency evidence is captured on 2026-08-27 after the shared-proto-runtime audit-gate, workspace application boundary, GitHub/workspace/accounts-panel composition boundaries, request-logger reliability fixes and storage extraction, profile-account fetch consolidation, transactional MITM startup/composition hardening, proxy log tailer boundary extraction, agent insight policy extraction, conversation-context policy extraction, RunSSE response processing serialization, profile import/export command decomposition, profile CRUD command decomposition with failure-path coverage, accounts-panel launch workflow extraction, remaining Accounts panel presentation-workflow extraction, AccountsPanelDataRefresher coverage hardening, active-conversation totals loading isolation, profile proxy lifecycle decision isolation, certificate material generation/single-flight hardening, certificate filesystem-error propagation, status-bar display-policy extraction/refinement, binary proxy decoder/recovery-path isolation, shared proxy-header redaction, traffic-summary/presentation boundary separation, proxy-settings application-operation deduplication, proxy-settings application/restoration/backup responsibility separation, proxy-window adapter coverage, proxy-settings compatibility-facade removal, efficiency persistence read-adapter separation, agent stream payload decoding consolidation, webview profile-action bridge/form separation, and shared proxy relationship enrichment | Keep this baseline immutable and update it after every cross-cutting change |
+| QA-1 | CI, tests, localization, lint | PARTIAL | Full audit at `cafd173` passes with 1,210 host tests and 70 webview tests; exact host coverage is 90.16% lines/83.22% branches/86.32% functions, webview coverage is 94.19% lines/85.40% branches/92.73% functions, localization is 26 locales/428 keys, architecture is checked for 426 production TypeScript files, and the proxy-settings application/restoration/backup plus VS Code window-configuration boundaries have direct contracts. The complete host suite also passes independently under the declared Node 24.19.0 runtime | Add repeated host/webview-run evidence and review generated-artifact/source-lint policy |
 | QA-2 | Dependencies and supply chain | PARTIAL | SDK `1.0.28`, legacy npm `sqlite3` removed, targeted `uuid@11.1.1` and `undici@6.28.0` overrides resolve; pinned pnpm 10.34 production audit reports 0 advisories; isolated pnpm 11.19 signature audit verifies 163/163 packages; CycloneDX 1.5 SBOM contains 163 components; clean VSIX tree has no package-manager store; `audit:supply-chain` now automates the checks and CI/release/hotfix upload the report for 14 days; the full audit at `3f1f58f` passes the supply-chain stage | Review Cursor vendor terms and semaphore MIT attribution, decide release SBOM retention, and close the final attribution policy before marking complete |
 | QA-3 | Native runtime and packaging | PARTIAL | Current-target clean build passes with target-specific Electron ABI 128, official SHA-256 validation, sanitized runtime native tree, clean-room Node 24/pnpm 10 installation, and 49,430,263-byte (47.14 MiB) VSIX verification; darwin-arm64 and linux-arm64 cross-target builds pass with embedded native-header validation; the shared VSIX verifier contract is covered by 4/4 tests and used by both build-time and standalone verification | Expand evidence across the complete darwin, Linux, and Windows target matrix on their intended runners |
 | QA-4 | Token and cost correctness | PARTIAL | Accounting contract, authoritative server-cost precedence, model-aware fallback calculation, non-finite input guards, SQLite replay golden test, versioned pricing metadata, current visible Cursor model rates, exact fast-variant pricing, and migration 010 provenance persistence are implemented; focused provenance coverage passes | Complete decoder-shape, rounding, and unknown/cache-rate reconciliation coverage |
-| QA-5 | Clean Architecture enforcement | PARTIAL | TypeScript-AST resolver-backed checker passes for 426 production files; negative fixtures cover domain/application/package/cycle cases; storage cleanup keeps efficiency-event SQLite construction behind a domain port and persistence adapter, policy-specific actions behind a cohesive runner, proxy insight dispatch/redaction behind focused application boundaries, ProxyManager construction behind a composition boundary, Composer polling through injected boundaries, efficiency toggling behind a dedicated workflow, extension activation through focused composition modules, build-target selection and VSIX policy behind pure/shared boundaries, webview state and bridge behavior behind typed/injectable boundaries, live usage accounting/rendering behind application/presentation policies, Accounts HTML/CSP behind a pure renderer, proxy traffic analysis and diagnostics behind focused boundaries, protobuf framing/report rendering/runtime loading behind pure script boundaries, ProxyManager event coordination behind an application boundary, Agent Tracking ingestion behind an application use case, token resolution behind an application policy and domain OAuth port, quota refresh behind application/cache/fetch ports, persisted proxy attachment behind an application use case, streaming Connect framing/session behind adapter/application/domain boundaries, profile stop/restore behind an application use case, shared proxy startup and ensure/stop decisions behind application use cases, profile start/ensure/restart validation behind an application use case, proxy control-plane operations behind a shared domain port, traffic insight formatting behind pure helpers, API/JSONL ingress behind dedicated composition/adapters with transactional startup cleanup, WebSocket lifecycle behind a dedicated transport adapter, proxy state persistence behind a filesystem adapter with collision-safe temporary files and typed failure boundaries, token-detector formatting behind a pure presentation policy separated from the VS Code OutputChannel adapter, traffic-summary decode/correlation decisions behind a pure policy separated from summary orchestration, traffic-summary construction behind a proxy/domain boundary and live-line rendering behind a UI/presentation boundary, proxy-settings application/restoration/backup responsibilities behind dedicated application boundaries and a VS Code adapter at the composition root, ProxyManager now consumes the application and restoration contracts directly without the old compatibility facade, efficiency database aggregate/event/quota reads behind separate injected persistence adapters, ProfileCard quota/leaderboard/efficiency/workspace sections behind cohesive webview components, App host-message side effects behind a typed webview bridge hook, App dialog selection behind a presentation-only composition component, storage modal breakdown/actions behind cohesive presentation components, profile import orchestration and duplicate decisions behind explicit application helpers, profile import/export command registration behind separate VS Code adapters with focused command contracts, profile CRUD command registration behind separate adapters with cancellation and failure-path contracts, platform-specific process-output parsing behind shared pure conversion and tokenizer boundaries, certificate material, trust, MITM-directory, and operation adaptation behind explicit ports assembled at the composition root, workspace scanning behind a domain port consumed by an application service, Accounts panel initial-data and workspace-state reads behind private coordinator contracts, GitHub enrichment behind direct structural fakes, Accounts panel dependencies behind one explicit composition object, MITM startup transaction/configuration behind private composition helpers, proxy JSONL lifecycle/file-reader/entry-processing behind separate infrastructure/application boundaries, agent insight usage/relationship extraction behind cohesive feature policies, conversation-context parsing behind a focused policy, accounts-panel launch routing/deduplication behind a dedicated UI workflow adapter, Accounts panel efficiency, suggestion, and explorer actions behind focused UI adapters, certificate material generation/single-flight coordination behind an infrastructure/application boundary, and status-bar display-state resolution behind a pure UI policy; current Graphify/Repowise hotspots remain | Split the remaining large composition functions and add direct contract tests without weakening the dependency direction |
+| QA-5 | Clean Architecture enforcement | PARTIAL | TypeScript-AST resolver-backed checker passes for 426 production files; negative fixtures cover domain/application/package/cycle cases; storage cleanup keeps efficiency-event SQLite construction behind a domain port and persistence adapter, policy-specific actions behind a cohesive runner, proxy insight dispatch/redaction behind focused application boundaries, ProxyManager construction behind a composition boundary, Composer polling through injected boundaries, efficiency toggling behind a dedicated workflow, extension activation through focused composition modules, build-target selection and VSIX policy behind pure/shared boundaries, webview state and bridge behavior behind typed/injectable boundaries, live usage accounting/rendering behind application/presentation policies, Accounts HTML/CSP behind a pure renderer, proxy traffic analysis and diagnostics behind focused boundaries, protobuf framing/report rendering/runtime loading behind pure script boundaries, ProxyManager event coordination behind an application boundary, Agent Tracking ingestion behind an application use case, token resolution behind an application policy and domain OAuth port, quota refresh behind application/cache/fetch ports, persisted proxy attachment behind an application use case, streaming Connect framing/session behind adapter/application/domain boundaries, profile stop/restore behind an application use case, shared proxy startup and ensure/stop decisions behind application use cases, profile start/ensure/restart validation behind an application use case, proxy control-plane operations behind a shared domain port, traffic insight formatting behind pure helpers, API/JSONL ingress behind dedicated composition/adapters with transactional startup cleanup, WebSocket lifecycle behind a dedicated transport adapter, proxy state persistence behind a filesystem adapter with collision-safe temporary files and typed failure boundaries, token-detector formatting behind a pure presentation policy separated from the VS Code OutputChannel adapter, traffic-summary decode/correlation decisions behind a pure policy separated from summary orchestration, traffic-summary construction behind a proxy/domain boundary and live-line rendering behind a UI/presentation boundary, proxy-settings application/restoration/backup responsibilities behind dedicated application boundaries and a VS Code adapter at the composition root, ProxyManager now consumes the application and restoration contracts directly without the old compatibility facade, efficiency database aggregate/event/quota reads behind separate injected persistence adapters, ProfileCard quota/leaderboard/efficiency/workspace sections behind cohesive webview components, App host-message side effects behind a typed webview bridge hook, App dialog selection behind a presentation-only composition component, storage modal breakdown/actions behind cohesive presentation components, profile import orchestration and duplicate decisions behind explicit application helpers, profile import/export command registration behind separate VS Code adapters with focused command contracts, profile CRUD command registration behind separate adapters with cancellation and failure-path contracts, platform-specific process-output parsing behind shared pure conversion and tokenizer boundaries, certificate material, trust, MITM-directory, and operation adaptation behind explicit ports assembled at the composition root, workspace scanning behind a domain port consumed by an application service, Accounts panel initial-data and workspace-state reads behind private coordinator contracts, GitHub enrichment behind direct structural fakes, Accounts panel dependencies behind one explicit composition object, MITM startup transaction/configuration behind private composition helpers, proxy JSONL lifecycle/file-reader/entry-processing behind separate infrastructure/application boundaries, agent insight usage/relationship extraction behind cohesive feature policies, conversation-context parsing behind a focused policy, accounts-panel launch routing/deduplication behind a dedicated UI workflow adapter, Accounts panel efficiency, suggestion, and explorer actions behind focused UI adapters, certificate material generation/single-flight coordination behind an infrastructure/application boundary, status-bar display-state resolution behind a pure UI policy, webview profile bridge/form actions behind composable application hooks, and shared proxy relationship enrichment behind one pure policy; current Graphify/Repowise hotspots remain | Split the remaining large composition functions and add direct contract tests without weakening the dependency direction |
 | QA-6 | Security and privacy | PARTIAL | Threat model recorded; API error details are generic; loopback/token parity, case-insensitive protocol-header redaction including authorization, cookie, set-cookie, x-api-key, api-key, and x-auth-token, path-boundary containment, sidecar safety, text-safe webview rendering, certificate platform validation, injected certificate-process failure tests, bounded certificate-process timeout/kill escalation, fail-closed migration execution, private proxy-state file mode enforcement, SQLite snapshot backup/restore validation, sidecar preservation, partial-cleanup accounting, typed ENOSPC classification with actionable error reporting, and Repowise history scan are evidenced | Complete physical disk-full/crash-restart testing, native privileged command execution review on supported OS runners, protocol-specific redaction, and the legacy optional-token decision |
 | QA-7 | Reliability and lifecycle | PARTIAL | Tracking ingress shutdown is idempotent; MITM startup is single-flight, transactional on listener failure, and bounded during close; proxy startup failures attempt MITM/ingress/API cleanup; API and JSONL ingress now clean up clients, subscriptions, and tailers when initial startup fails; the WebSocket transport bounds initial connection, prevents concurrent connect/reconnect duplication, isolates listener failures, and retries only after an established socket closes; proxy state writes use unique temporary files and clean up after rename failures; the JSONL tailer now uses lifecycle generations, single-flight startup, recoverable read serialization, stale-callback suppression, deterministic rotation, and missing/truncated-file recovery; direct `SIGTERM`/`SIGINT` uses graceful shutdown; the real runtime integration suite passes 3/3; SQLite persistence has 2-process concurrency/reopen, migration rollback/retry, consistent backup, validated restore, corrupted-database sidecar preservation, partial cleanup reporting including reclaimed-byte preservation after ENOSPC, long-lived-reader checkpoint evidence, and real child hang escalation coverage; ProxyManager event coordination now owns primary and external traffic unsubscription, listener error isolation, post-disposal registration guards, and idempotent disposal; extension deactivation awaits tracked profile initialization so hermetic tests cannot race temporary-storage cleanup | Add physical disk-full/crash-restart reconciliation and release-level recovery rehearsal |
-| QA-8 | Local test confidence | PARTIAL | Full audit at `7bca506` passes 1,210 host tests and 69 webview tests across 18 files; exact host coverage is 90.14% lines/83.22% branches/86.36% functions and webview coverage is 93.96% lines/84.85% branches/92.55% functions; architecture is checked for 426 production TypeScript files, webview boundary floors remain enforced, proxy-settings application/restoration/backup and VS Code window-configuration boundaries have direct contracts, and the efficiency persistence read adapters and compressed agent payload path are covered by integration contracts; merged Repowise coverage retains 376 files at 90.49% lines and 82.78% branches | Standardize repeated static-analysis coverage ingestion and cover the next process, storage, and release hotspots |
+| QA-8 | Local test confidence | PARTIAL | Full audit at `cafd173` passes 1,210 host tests and 70 webview tests across 18 files; exact host coverage is 90.16% lines/83.22% branches/86.32% functions and webview coverage is 94.19% lines/85.40% branches/92.73% functions; architecture is checked for 426 production TypeScript files, webview boundary floors remain enforced, proxy-settings application/restoration/backup and VS Code window-configuration boundaries have direct contracts, the efficiency persistence read adapters and compressed agent payload path are covered by integration contracts, and the webview profile-action hooks are covered through App integration; merged Repowise coverage retains 379 files at 90.54% lines and 82.86% branches | Standardize repeated static-analysis coverage ingestion and cover the next process, storage, and release hotspots |
 | QA-9 | Documentation and operations | PARTIAL | Plan, audit links, dependency inventory, advisory register, and English docs are synchronized for this slice | Add task/decision records, reproducible audit artifact output, and runbooks |
 | QA-10 | Independent final audit and release rehearsal | OPEN | Not started | Run only after QA-1 through QA-9 have current evidence |
 
@@ -40,7 +40,7 @@ acceptance criteria and evidence are recorded.
 | Item | Value |
 |---|---|
 | Branch | feature/3-mitm-proxy |
-| Latest implementation commit | 7bca506 |
+| Latest implementation commit | cafd173 |
 | Latest documentation checkpoint | Current branch HEAD (this register) |
 | Node | v24.19.0 (nvm-managed via `.nvmrc`) |
 | pnpm | 10.34.0 (Corepack, declared by both package manifests) |
@@ -51,7 +51,7 @@ acceptance criteria and evidence are recorded.
 
 ### Reproducible audit
 
-The latest complete `pnpm run audit` passed on 2026-08-27 at commit `7bca506`
+The latest complete `pnpm run audit` passed on 2026-08-27 at commit `cafd173`
 with the follow-up filesystem-error hardening at `42ed7a8`, RunSSE serialization
 at `88d35fe`, response-finalization context extraction at `b241bc5`, profile
 import/export command decomposition at `f5e7958`, and CRUD command failure-path
@@ -66,16 +66,18 @@ extraction, proxy-settings application/restoration/backup responsibility
 separation, direct VS Code proxy-window adapter coverage, and removal of the
 proxy-settings compatibility facade, followed by the split of efficiency
 database aggregate, event, and quota reads into separate injected adapters,
-and consolidation of gzip/Connect payload candidate decoding for agent streams.
+and consolidation of gzip/Connect payload candidate decoding for agent streams,
+followed by webview profile-action bridge/form separation and shared proxy
+relationship enrichment.
 The complete audit included:
 
 - extension-host tests: passed across the compiled host test suite;
-- 1,210 host tests and exact coverage of 90.14% lines, 83.22% branches, and
-  86.36% functions;
+- 1,210 host tests and exact coverage of 90.16% lines, 83.22% branches, and
+  86.32% functions;
 - architecture rules and fixtures: passed for 426 production TypeScript files;
 - localization: 26 locales with 428 keys each;
-- webview tests: 18 files and 69 tests passed, with 93.96% lines, 84.85%
-  branches, and 92.55% functions under the V8 coverage gate;
+- webview tests: 18 files and 70 tests passed, with 94.19% lines, 85.40%
+  branches, and 92.73% functions under the V8 coverage gate;
 - current VSIX content verification: passed.
 
 The complete host suite passed as part of the audit with zero failures,
@@ -133,29 +135,30 @@ evidence is recorded in
 
 ### Graphify
 
-The latest graph was generated with Graphify `0.9.48` from the code tree at
-`7bca506` using `--code-only` and no clustering. It scanned 874 code files and
-contains 5,243 nodes and 14,812 raw edges; the directed post-build diagnostic
-graph contains 12,645 edges.
+The latest graph was generated with Graphify `0.9.48` from a clean temporary
+copy of the code tree at `cafd173` with documentation, generated output, and
+dependency directories excluded, using no clustering. It scanned 875 code
+files and contains 5,257 nodes and 14,861 raw edges; the normalized directed
+post-build diagnostic graph contains 12,685 edges.
 The highest relevant
 hotspots include:
 
 - `t()`: degree 120;
+- ProxyTrafficSummary: degree 87;
+- IProfileReader: degree 71;
+- IProfileDetector: degree 70;
 - ProxyManager: degree 41 in the god-node ranking; it remains an intentional
   public coordination boundary after event/diagnostics extraction;
-- ProxyTrafficSummary: degree 87;
 - scripts: degree 70;
-- IProfileDetector: degree 70;
-- IProfileReader: degree 71;
 - AgentSessionInfo: degree 45;
 - IAgentTrackingRepository: degree 41;
-- VSCodeAPI: degree 39;
+- VSCodeAPI: degree 41;
 
-Graphify skipped 87 non-code files by contract, ten SQL contributions because
+Graphify skipped non-code files by contract, ten SQL contributions because
 `tree_sitter_sql` is not installed, and `.npmrc` as potentially sensitive. The
 directed multigraph diagnostic reports 2,015 dangling endpoint edges, one
-self-loop, no missing endpoints, and 156 same-endpoint relation groups; it
-retains 12,797 valid candidate edges and collapses them to 12,645 directed
+self-loop, no missing endpoints, and 151 same-endpoint relation groups; it
+retains 12,842 valid candidate edges and collapses them to 12,685 directed
 post-build edges. These are
 analysis signals, not architecture violations by themselves. `ProxyManager`
 is explained as a facade with the composition root, default dependencies,
@@ -186,15 +189,15 @@ configured; the code-only graph is the reproducible structural evidence.
   The former `proxySettingsService.ts` target is no longer current because the
   compatibility facade was removed from production wiring.
 
-The latest Repowise index covers the code tree after `7bca506`; the host and
+The latest Repowise index covers the code tree after `cafd173`; the host and
 webview lcov reports were explicitly merged with `repowise coverage add
 coverage/lcov.info webview/coverage/lcov.info`. The latest ingestion accepted
-377 file entries (344 exact and 33 resolved mappings); the retained coverage
-index reports 376 files, 90.49% lines, and 82.78% branches.
-Detailed health reports average health at 8.94/10, hotspot health at 6.80/10,
+380 file entries (344 exact and 36 resolved mappings); the retained coverage
+index reports 379 files, 90.54% lines, and 82.86% branches.
+Detailed health reports average health at 8.94/10, hotspot health at 6.81/10,
 worst-performer health at 4.15/10 for `packages/types/src/index.ts`,
 maintainability at 9.54/10 overall with a 9.12/10 hotspot score, and
-performance at 9.94/10 overall with a 9.88/10 hotspot score. These findings are
+performance at 9.94/10 overall with a 9.89/10 hotspot score. These findings are
 prioritization signals, not release gates.
 
 The former `src/services/proxySettingsService.ts` hotspot was removed rather
@@ -225,6 +228,24 @@ runtime decoder to the separate protobuf-analysis scripts. Repowise reports
 medium nesting, cross-tooling duplication heuristic, two intentionally
 defensive decode catches, and recent churn. The decoder is covered by its
 existing stream contracts plus a gzip-compressed Connect regression test.
+The webview profile actions are now composed from two focused hooks: the
+bridge hook owns host-only profile commands, while the form hook owns editing,
+creation, and persisted UI-state transitions. The facade contains only typed
+composition. Repowise reports the facade at 10.00/10 (NLOC 46, maximum CCN 1,
+maximum nesting 0), the bridge hook at 9.65/10 (NLOC 64, maximum CCN 1,
+maximum nesting 0, 100% line/branch coverage), and the form hook at 9.62/10
+(NLOC 107, maximum CCN 5, maximum nesting 1, 100% line/branch coverage).
+Repowise's standalone-test-file flag is false for the two extracted hooks
+because their behavior is covered through `App.test.tsx`; the V8 report still
+records 100% direct line and branch coverage for both files. The bridge hook's
+self-clone marker is a low-value heuristic caused by repeated host-message
+shapes, so no generic dynamic sender abstraction was introduced.
+The proxy insight enricher now applies conversation and conversation-group
+relationships through one shared pure policy for Bidi and agent-stream paths.
+Repowise reports the enricher at 8.38/10 (NLOC 149, maximum CCN 7, maximum
+nesting 2, 77.84% lines and 60.71% branches); the remaining markers are a
+coverage gradient and prior-defect history, with no new duplication or
+dependency-direction finding.
 The extracted application boundaries report
 `proxySettingsApplicationService.ts` at 9.31/10 (NLOC 72, max CCN 3, max
 nesting 3, 95.18% lines and 87.50% branches),
@@ -5069,6 +5090,49 @@ native target-matrix execution, physical recovery/security testing,
 supply-chain attribution decisions, operational runbooks, and the independent
 release rehearsal.
 
+## QA-5 / QA-8.105 webview profile-action and proxy relationship boundaries — 2026-08-27
+
+Commits `238f5c2` and `cafd173` split the webview profile-action facade into
+typed bridge and form hooks, then centralized conversation and conversation-
+group relationship merging for Bidi and agent-stream proxy insights. The
+profile-action facade now only composes application-facing hooks; host command
+dispatch remains in the bridge hook, while form state and persisted webview
+state remain in the form hook. The proxy relationship policy is pure and is
+shared without combining the distinct Bidi and stream decoders.
+
+Evidence for this checkpoint:
+
+- the complete `pnpm run audit` passes at `cafd173` under Node `24.19.0` and
+  pnpm `10.34.0`, with 1,210 host tests and 70 webview tests across 18 files;
+- exact host c8 coverage is 90.16% lines, 83.22% branches, and 86.32%
+  functions; webview coverage is 94.19% lines, 85.40% branches, and 92.73%
+  functions;
+- the architecture checker and fixtures pass for 426 production TypeScript
+  files; lint, TypeScript compilation, localization, documentation links,
+  supply-chain checks, and VSIX verification also pass;
+- the focused proxy insight suite passes 4/4 tests, and the webview suite
+  passes 70/70 tests with 100% line and branch coverage for each extracted
+  profile-action hook through App integration;
+- clean temporary code-only Graphify `0.9.48` scans 875 code files and reports
+  5,257 nodes, 14,861 raw edges, and 12,685 normalized directed post-build
+  edges. Its diagnostic reports 2,019 dangling endpoints, one self-loop, no
+  missing endpoints, 151 same-endpoint groups, and 12,842 valid candidate
+  edges;
+- combined host/webview Repowise ingestion accepts 380 entries (344 exact and
+  36 resolved), retains 379 coverage files at 90.54% lines and 82.86% branches,
+  and reports 8.94 average / 6.81 hotspot health;
+- Repowise reports `useAppProfileActions.ts` at 10.00/10, the bridge hook at
+  9.65/10, and the form hook at 9.62/10. The shared relationship policy
+  removes a real duplicate block; `proxyInsightEnricher.ts` remains at
+  8.38/10 with coverage and prior-defect signals documented for follow-up.
+
+This checkpoint improves webview/application cohesion and removes duplicated
+proxy relationship policy. QA-5 and QA-8 remain partial because broader
+composition targets, repeated static-analysis evidence, native target-matrix
+execution, physical recovery/security testing, supply-chain attribution
+decisions, operational runbooks, and the independent release rehearsal remain
+open.
+
 ## Reclassification decisions
 
 The following historical findings are reclassified from the current baseline:
@@ -5208,6 +5272,7 @@ The following historical findings are reclassified from the current baseline:
 | 2026-08-27 | QA-5/QA-8.102 proxy-settings compatibility-facade removal | 3f1f58f | Removed the production `ProxySettingsService` facade, wired dedicated application/restoration/backup contracts directly from the composition root, and routed single-profile lifecycle application through `ProxySettingsApplicationService`; focused proxy-settings/integration/ProxyManager suites pass 17/17 and the complete Node 24.19.0/pnpm 10.34.0 audit passes with 1,210 host and 69 webview tests, 423 architecture-checked production files, host c8 89.85%/82.81%/86.04%, clean-archive Graphify 5,210 nodes/15,476 raw edges/13,480 normalized directed post-build edges, and Repowise 8.94 average / 6.82 hotspot health with 373 retained coverage files at 90.23%/82.23%; the removed facade no longer appears as a current production hotspot |
 | 2026-08-27 | QA-5/QA-8.103 efficiency persistence read-adapter separation | b90554b | Split aggregate, event, and quota projections into separate injected persistence adapters while preserving the `EfficiencyDatabase` public facade and SQLite schema; focused persistence suites pass 7/7 and the complete Node 24.19.0/pnpm 10.34.0 audit passes with 1,210 host and 69 webview tests, 426 architecture-checked production files, host c8 90.13%/83.17%/86.36%, webview 93.96%/84.85%/92.55%, Graphify 5,242 nodes/14,808 raw edges/12,642 normalized directed post-build edges, and Repowise 8.94 average / 6.79 hotspot health with 376 retained coverage files at 90.48%/82.73%; separated readers score 9.52/9.85/10.00 and safe-only dead-code remains empty |
 | 2026-08-27 | QA-5/QA-8.104 agent stream framing helper consolidation | 7bca506 | Centralized gzip/Connect candidate walking for direct and `HealthResponse` agent decoding, added a compressed-payload regression contract, and passed the complete Node 24.19.0/pnpm 10.34.0 audit with 1,210 host and 69 webview tests, 426 architecture-checked production files, host c8 90.14%/83.22%/86.36%, webview 93.96%/84.85%/92.55%, Graphify 5,243 nodes/14,812 raw edges/12,645 normalized directed post-build edges, and Repowise 8.94 average / 6.80 hotspot health with 376 retained coverage files at 90.49%/82.78%; decoder health is 7.26/10 with no new dependency-direction finding |
+| 2026-08-27 | QA-5/QA-8.105 webview profile-action and proxy relationship boundaries | 238f5c2, cafd173 | Split profile actions into typed bridge/form hooks and centralized relationship merging across Bidi and agent-stream paths; complete Node 24.19.0/pnpm 10.34.0 audit with 1,210 host and 70 webview tests, 426 architecture-checked production files, host c8 90.16%/83.22%/86.32%, webview 94.19%/85.40%/92.73%, Graphify 5,257 nodes/14,861 raw edges/12,685 normalized directed post-build edges, and Repowise 8.94 average / 6.81 hotspot health with 379 retained coverage files at 90.54%/82.86%; extracted hook health 10.00/9.65/9.62 and safe-only dead-code empty |
 
 This register must be updated in the same commit as each task's implementation
 or evidence change.
