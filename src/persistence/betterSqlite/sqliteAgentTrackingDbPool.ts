@@ -9,6 +9,10 @@ import { BetterSqliteConnectionManager } from './betterSqliteConnectionManager';
  */
 export class SqliteAgentTrackingDbPool implements IAgentTrackingDbPool {
   private readonly connections = new Map<string, IAgentTrackingRepository>();
+  private readonly pendingConnections = new Map<
+    string,
+    Promise<IAgentTrackingRepository>
+  >();
   private readonly connectionManager = new BetterSqliteConnectionManager();
 
   constructor(
@@ -17,9 +21,14 @@ export class SqliteAgentTrackingDbPool implements IAgentTrackingDbPool {
   ) {}
 
   async getRepositoryForProfile(profileId: string): Promise<IAgentTrackingRepository> {
-    let repo = this.connections.get(profileId);
+    const repo = this.connections.get(profileId);
     if (repo) {
       return repo;
+    }
+
+    const pending = this.pendingConnections.get(profileId);
+    if (pending) {
+      return pending;
     }
 
     const dbPath = this.profileDbPaths.get(profileId);
@@ -27,7 +36,22 @@ export class SqliteAgentTrackingDbPool implements IAgentTrackingDbPool {
       throw new Error(`No database path configured for profile ${profileId}`);
     }
 
-    repo = new BetterSqliteAgentTrackingRepository(
+    const initialization = this.openRepository(profileId, dbPath);
+    this.pendingConnections.set(profileId, initialization);
+    try {
+      return await initialization;
+    } finally {
+      if (this.pendingConnections.get(profileId) === initialization) {
+        this.pendingConnections.delete(profileId);
+      }
+    }
+  }
+
+  private async openRepository(
+    profileId: string,
+    dbPath: string
+  ): Promise<IAgentTrackingRepository> {
+    const repo = new BetterSqliteAgentTrackingRepository(
       this.connectionManager,
       dbPath,
       this.extensionPath
@@ -41,6 +65,12 @@ export class SqliteAgentTrackingDbPool implements IAgentTrackingDbPool {
   }
 
   async closeAll(): Promise<void> {
+    await Promise.all(
+      [...this.pendingConnections.values()].map((pending) =>
+        pending.catch(() => undefined)
+      )
+    );
+    this.pendingConnections.clear();
     for (const [profileId] of this.connections) {
       process.stderr.write(`[DbPool] Closed connection for profile ${profileId}\n`);
     }
@@ -49,6 +79,11 @@ export class SqliteAgentTrackingDbPool implements IAgentTrackingDbPool {
   }
 
   async closeProfile(profileId: string): Promise<void> {
+    const pending = this.pendingConnections.get(profileId);
+    if (pending) {
+      await pending.catch(() => undefined);
+    }
+
     const repo = this.connections.get(profileId);
     if (!repo) {
       return;
