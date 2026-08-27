@@ -11,6 +11,7 @@ import { pathsEqual, validateUserDataPath } from '../utils/pathUtils';
 import type { IProfileManager } from '../domain/ports/IProfileManager';
 import type { IProfileStorage } from '../domain/ports/IProfileStorage';
 import type { IInstanceDetector } from '../domain/ports/IInstanceDetector';
+import { generateProfileDisplayName } from '../domain/policies/profileDisplayName';
 import type {
   CreateProfileOptions,
   Profile,
@@ -148,7 +149,7 @@ export class ProfileManager implements IProfileManager {
       email: options.email,
       slug,
       displayName:
-        options.displayName ?? this.generateDisplayName(options.email),
+        options.displayName ?? generateProfileDisplayName(options.email),
       userDataDir,
       created: new Date().toISOString(),
       theme: options.theme,
@@ -336,15 +337,6 @@ export class ProfileManager implements IProfileManager {
       averageAge:
         ages.length > 0 ? ages.reduce((a, b) => a + b, 0) / ages.length : 0,
     };
-  }
-
-  private generateDisplayName(email: string): string {
-    const localPart = email.split('@')[0] ?? email;
-    return localPart
-      .replace(/[._]/g, ' ')
-      .split(' ')
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
   }
 
   private generateRandomColor(): string {

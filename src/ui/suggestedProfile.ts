@@ -1,14 +1,8 @@
 import type { Profile, ToWebviewMessage } from '../profiles/types';
 import { t } from '../l10n';
+import { generateProfileDisplayName } from '../domain/policies/profileDisplayName';
 
-export function generateDisplayNameFromEmail(email: string): string {
-  const localPart = email.split('@')[0] ?? email;
-  return localPart
-    .replace(/[._]/g, ' ')
-    .split(' ')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-}
+export const generateDisplayNameFromEmail = generateProfileDisplayName;
 
 export function buildSuggestedProfileResponse(
   detectedEmail: string | undefined,
