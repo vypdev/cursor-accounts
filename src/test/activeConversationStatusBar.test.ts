@@ -11,6 +11,10 @@ import {
   resolveConversationDisplayTotals,
 } from '../ui/activeConversationStatusBar';
 import { buildActiveConversationStatusBarDisplay } from '../ui/presentation/activeConversationStatusBarPresentation';
+import {
+  formatCostUsd,
+  formatTokenCount,
+} from '../ui/presentation/tokenCostFormatting';
 
 function emptyTotals(): ConversationTokenTotals {
   return {
@@ -58,6 +62,21 @@ describe('formatContextPercent', () => {
   it('formats whole and fractional percentages', () => {
     assert.equal(formatContextPercent(50_000, 200_000), '25%');
     assert.equal(formatContextPercent(33_333, 100_000), '33.3%');
+    assert.equal(formatContextPercent(1, 0), '');
+  });
+});
+
+describe('tokenCostFormatting', () => {
+  it('formats token counts at compact-number boundaries', () => {
+    assert.equal(formatTokenCount(999), '999');
+    assert.equal(formatTokenCount(1500), '1.5k');
+    assert.equal(formatTokenCount(1_500_000), '1.5m');
+  });
+
+  it('marks costs below one cent and distinguishes estimates', () => {
+    assert.equal(formatCostUsd(0.5, false), '<$0.01');
+    assert.equal(formatCostUsd(2, true), '$0.02');
+    assert.equal(formatCostUsd(2, false), '~$0.02');
   });
 });
 
@@ -122,6 +141,63 @@ describe('buildActiveConversationStatusBarDisplay', () => {
     assert.match(display.text, /1\.3k/);
     assert.match(display.tooltip, /conversation-123456789/);
     assert.match(display.tooltip, /gpt-4\.1/);
+    assert.equal(display.showWarning, true);
+  });
+
+  it('renders an active conversation without usage data', () => {
+    const display = buildActiveConversationStatusBarDisplay(
+      {
+        lastFocusedComposerId: 'conversation-empty',
+        selectedComposerIds: [],
+        sourceKey: COMPOSER_WORKSPACE_DATA_KEY,
+      },
+      null
+    );
+
+    assert.match(display.text, /conversa/);
+    assert.equal(display.showWarning, false);
+    assert.equal(display.tooltip.length > 0, true);
+  });
+
+  it('renders billed and live token details with an authoritative cost', () => {
+    const display = buildActiveConversationStatusBarDisplay(
+      {
+        lastFocusedComposerId: 'conversation-detailed',
+        selectedComposerIds: [],
+        sourceKey: COMPOSER_WORKSPACE_DATA_KEY,
+      },
+      {
+        ...emptyTotals(),
+        totalTokens: 2000,
+        totalDeltaTokens: 1250,
+        totalInputTokens: 1000,
+        totalOutputTokens: 1000,
+        totalTurnCostCents: 3,
+        models: ['gpt-4.1'],
+      }
+    );
+
+    assert.match(display.text, /2\.0k/);
+    assert.match(display.text, /\$0\.03/);
+    assert.match(display.tooltip, /conversation-detailed/);
+    assert.match(display.tooltip, /gpt-4\.1/);
+    assert.equal(display.showWarning, true);
+  });
+
+  it('renders the sub-cent estimate for a live-only conversation', () => {
+    const display = buildActiveConversationStatusBarDisplay(
+      {
+        lastFocusedComposerId: 'conversation-small-cost',
+        selectedComposerIds: [],
+        sourceKey: COMPOSER_WORKSPACE_DATA_KEY,
+      },
+      {
+        ...emptyTotals(),
+        totalDeltaTokens: 100,
+      }
+    );
+
+    assert.match(display.text, /<\$0\.01/);
     assert.equal(display.showWarning, true);
   });
 });
