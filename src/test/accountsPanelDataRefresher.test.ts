@@ -145,6 +145,64 @@ describe('AccountsPanelDataRefresher', () => {
     assert.ok(postedMessages.some((message) => message.type === 'quotas'));
   });
 
+  it('posts a localized error when the initial read fails', async () => {
+    const { refresher, postedMessages } = createDirectRefresher({
+      read: async () => {
+        throw new Error('database unavailable');
+      },
+    });
+
+    await refresher.refresh();
+
+    assert.deepEqual(postedMessages, [
+      { type: 'error', message: 'Failed to load profiles' },
+    ]);
+  });
+
+  it('posts efficiency statistics only while the webview is active', async () => {
+    const active = createDirectRefresher({
+      stats: { p1: { totalTokens: 12 } },
+    });
+    await active.refresher.postEfficiencyStats();
+
+    assert.deepEqual(active.postedMessages, [
+      {
+        type: 'efficiencyStats',
+        data: { p1: { totalTokens: 12 } },
+      },
+    ]);
+
+    const inactive = createDirectRefresher({ active: false });
+    await inactive.refresher.postEfficiencyStats();
+    assert.deepEqual(inactive.postedMessages, []);
+  });
+
+  it('delegates workspace, proxy, account, quota, and instance updates', async () => {
+    const { refresher, calls } = createDirectRefresher();
+    const quotas = new Map([['p1', { used: 1 } as never]]);
+    const instances = new Map([['p1', { pid: 42 } as never]]);
+
+    await refresher.refreshOpenWorkspaces();
+    await refresher.refreshProxyStatus({ checkCertificate: true });
+    await refresher.refreshInstances();
+    await refresher.refreshProfileAccounts();
+    await refresher.refreshGithubSummaries();
+    await refresher.refreshQuotas();
+    await refresher.postQuotas(quotas);
+    await refresher.postRunningInstances(instances);
+
+    assert.deepEqual(calls, [
+      'refresh-open-workspaces',
+      'refresh-proxy-status:true',
+      'refresh-instances',
+      'refresh-profile-accounts',
+      'refresh-github-summaries',
+      'refresh-quotas',
+      'post-quotas',
+      'post-running-instances',
+    ]);
+  });
+
   it('publishes empty proxy state for a window without a managed profile', async () => {
     const { refresher, postedMessages } = createRefresher();
 
@@ -156,3 +214,66 @@ describe('AccountsPanelDataRefresher', () => {
     ]);
   });
 });
+
+function createDirectRefresher(options: {
+  active?: boolean;
+  read?: () => Promise<unknown>;
+  stats?: unknown;
+} = {}) {
+  const postedMessages: ToWebviewMessage[] = [];
+  const calls: string[] = [];
+  const backgroundRefresh = {
+    refreshQuotas: async () => {
+      calls.push('refresh-quotas');
+    },
+    refreshProfileAccounts: async () => {
+      calls.push('refresh-profile-accounts');
+    },
+    refreshGithubSummaries: async () => {
+      calls.push('refresh-github-summaries');
+    },
+    postQuotas: async () => {
+      calls.push('post-quotas');
+    },
+  } as unknown as AccountsPanelBackgroundRefreshCoordinator;
+  const workspaceState = {
+    refreshOpenWorkspaces: async () => {
+      calls.push('refresh-open-workspaces');
+    },
+    refreshInstances: async () => {
+      calls.push('refresh-instances');
+    },
+    postRunningInstances: async () => {
+      calls.push('post-running-instances');
+    },
+  } as unknown as AccountsPanelWorkspaceStateCoordinator;
+  const refresher = new AccountsPanelDataRefresher(
+    {
+      backgroundRefresh,
+      efficiencyService: {
+        getStatsStorage: () => ({
+          getAllStats: () => options.stats ?? {},
+        }),
+      } as unknown as EfficiencyService,
+      initialDataReader: {
+        read: options.read ?? (async () => ({})),
+      } as unknown as AccountsPanelInitialDataReader,
+      proxyState: {
+        refresh: async (refreshOptions?: { checkCertificate?: boolean }) => {
+          calls.push(
+            `refresh-proxy-status:${refreshOptions?.checkCertificate === true}`
+          );
+        },
+      } as unknown as AccountsPanelProxyStateCoordinator,
+      workspaceState,
+    },
+    {
+      postMessage: async (message) => {
+        postedMessages.push(message);
+      },
+      hasActiveWebview: () => options.active ?? true,
+    }
+  );
+
+  return { refresher, postedMessages, calls };
+}
