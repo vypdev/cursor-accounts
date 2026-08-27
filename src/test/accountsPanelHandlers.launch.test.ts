@@ -6,7 +6,7 @@ import { initL10nForTests } from '../l10n';
 import type { ProfileDetector } from '../profiles/profileDetector';
 import type { ProfileLauncher } from '../profiles/profileLauncher';
 import type { ProfileManager } from '../profiles/profileManager';
-import type { ProfileWorkspaceService } from '../services/profileWorkspaceService';
+import type { ProfileWorkspaceService } from '../application/services/profileWorkspaceService';
 import { AccountsPanelHandlers } from '../ui/accountsPanelHandlers';
 
 const MESSAGES: Record<string, string> = {

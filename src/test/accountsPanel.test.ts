@@ -13,7 +13,7 @@ import { ProfileStorage } from '../profiles/profileStorage';
 import type { FromWebviewMessage, ToWebviewMessage } from '../profiles/types';
 import type { MultiProfileQuotaService } from '../services/multiProfileQuotaService';
 import type { ProfileAccountFetcher } from '../services/profileAccountFetcher';
-import type { ProfileWorkspaceService } from '../services/profileWorkspaceService';
+import type { ProfileWorkspaceService } from '../application/services/profileWorkspaceService';
 import type { EfficiencyService } from '../modelEfficiency/efficiencyService';
 import type { IProfileAuthReader } from '../domain/ports/IProfileAuthReader';
 import type { IProfileStorageAnalyzer } from '../domain/ports/IProfileStorageAnalyzer';

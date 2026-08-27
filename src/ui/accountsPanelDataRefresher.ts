@@ -19,7 +19,7 @@ import {
   getOpenProjectPathsForProfile,
   instanceMapToRecord,
 } from '../profiles/instanceDetector';
-import type { ProfileWorkspaceService } from '../services/profileWorkspaceService';
+import type { ProfileWorkspaceService } from '../application/services/profileWorkspaceService';
 import {
   getOpenWorkspacePaths,
   isWorkspacePathOpen,

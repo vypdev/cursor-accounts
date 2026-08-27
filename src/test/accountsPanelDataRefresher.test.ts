@@ -10,7 +10,7 @@ import { initL10nForTests } from '../l10n';
 import type { Profile, ToWebviewMessage } from '../profiles/types';
 import type { ProfileAccountFetcher } from '../services/profileAccountFetcher';
 import type { MultiProfileQuotaService } from '../services/multiProfileQuotaService';
-import type { ProfileWorkspaceService } from '../services/profileWorkspaceService';
+import type { ProfileWorkspaceService } from '../application/services/profileWorkspaceService';
 import type { ProfileGitHubEnrichmentService } from '../github/profileGitHubEnrichmentService';
 import { AccountsPanelBackgroundRefreshCoordinator } from '../ui/accountsPanelBackgroundRefreshCoordinator';
 import { AccountsPanelDataRefresher } from '../ui/accountsPanelDataRefresher';

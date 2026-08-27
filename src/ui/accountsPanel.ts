@@ -18,7 +18,7 @@ import type {
 } from '../profiles/types';
 import type { MultiProfileQuotaService } from '../services/multiProfileQuotaService';
 import type { ProfileAccountFetcher } from '../services/profileAccountFetcher';
-import type { ProfileWorkspaceService } from '../services/profileWorkspaceService';
+import type { ProfileWorkspaceService } from '../application/services/profileWorkspaceService';
 import { hasActiveWorkspace } from '../services/activeWorkspaceService';
 import { shouldAutoOpenAccountsPanel } from './accountsPanelStartup';
 import type { EfficiencyService } from '../modelEfficiency/efficiencyService';

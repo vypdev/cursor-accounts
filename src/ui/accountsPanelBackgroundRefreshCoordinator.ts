@@ -7,7 +7,7 @@ import type { MultiProfileQuotaService } from '../services/multiProfileQuotaServ
 import { quotaMapToRecord } from '../services/multiProfileQuotaService';
 import type { ProfileAccountFetcher } from '../services/profileAccountFetcher';
 import { accountMapToRecord } from '../services/profileAccountFetcher';
-import type { ProfileWorkspaceService } from '../services/profileWorkspaceService';
+import type { ProfileWorkspaceService } from '../application/services/profileWorkspaceService';
 
 export interface AccountsPanelBackgroundRefreshDependencies {
   profileManager: IProfileReader;

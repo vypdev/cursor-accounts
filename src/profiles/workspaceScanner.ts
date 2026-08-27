@@ -2,6 +2,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import type { WorkspaceInfo } from '@cursor-accounts/types';
+import type { IWorkspaceScanner } from '../domain/ports/IWorkspaceScanner';
 import * as extensionLog from '../logging/extensionLog';
 
 const MAX_WORKSPACES = 50;
@@ -14,7 +15,7 @@ interface WorkspaceJson {
 /**
  * Scans a profile's workspaceStorage directories for opened folder/workspace paths.
  */
-export class WorkspaceScanner {
+export class WorkspaceScanner implements IWorkspaceScanner {
   /**
    * List workspace folders opened under the given profile user data directory.
    * Sorted by storage directory mtime (most recently modified first).

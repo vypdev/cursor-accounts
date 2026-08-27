@@ -82,7 +82,7 @@ function createHandlers(overrides: {
         getMostRecentWorkspace: async () => undefined,
         getWorkspacesForProfile: async () => [],
         getProfilesWithWorkspaces: async () => [],
-      } as unknown as import('../services/profileWorkspaceService').ProfileWorkspaceService,
+      } as unknown as import('../application/services/profileWorkspaceService').ProfileWorkspaceService,
       proxyManager: {
         start: async () => ({ success: true, port: 8080 }),
         stop: async () => undefined,

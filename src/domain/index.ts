@@ -60,6 +60,7 @@ export * from './ports/IProfileStorageAnalyzer';
 export * from './ports/IProfileManager';
 export * from './ports/IProfileReader';
 export * from './ports/IProfileWriter';
+export * from './ports/IWorkspaceScanner';
 export * from './policies/profileCreation';
 export * from './policies/profileEmail';
 export type {

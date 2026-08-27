@@ -27,7 +27,7 @@ import { ProfileSettingsManager } from '../profiles/profileSettingsManager';
 import { WorkspaceScanner } from '../profiles/workspaceScanner';
 import { MultiProfileQuotaService } from '../services/multiProfileQuotaService';
 import { ProfileAccountFetcher } from '../services/profileAccountFetcher';
-import { ProfileWorkspaceService } from '../services/profileWorkspaceService';
+import { ProfileWorkspaceService } from '../application/services/profileWorkspaceService';
 import { ProxyManager } from '../services/proxyManager';
 import { ProxySettingsService } from '../services/proxySettingsService';
 import { RefreshService } from '../services/refreshService';

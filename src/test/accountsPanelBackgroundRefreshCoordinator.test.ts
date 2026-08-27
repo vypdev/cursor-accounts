@@ -7,7 +7,7 @@ import type { IProfileManager } from '../domain/ports/IProfileManager';
 import type { ProfileGitHubEnrichmentService } from '../github/profileGitHubEnrichmentService';
 import type { MultiProfileQuotaService } from '../services/multiProfileQuotaService';
 import type { ProfileAccountFetcher } from '../services/profileAccountFetcher';
-import type { ProfileWorkspaceService } from '../services/profileWorkspaceService';
+import type { ProfileWorkspaceService } from '../application/services/profileWorkspaceService';
 import { AccountsPanelBackgroundRefreshCoordinator } from '../ui/accountsPanelBackgroundRefreshCoordinator';
 
 const PROFILE: Profile = {

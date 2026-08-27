@@ -16,7 +16,7 @@ import type {
   ToWebviewMessage,
 } from '../profiles/types';
 import { resolveRecentProjectLaunch } from '../profiles/recentProjectLaunchRouter';
-import type { ProfileWorkspaceService } from '../services/profileWorkspaceService';
+import type { ProfileWorkspaceService } from '../application/services/profileWorkspaceService';
 import type { IProfileSettingsManager } from '../domain/ports/IProfileSettingsManager';
 import type { IProxyCertificate } from '../domain/ports/IProxyCertificate';
 import type { IProxyLifecycle } from '../domain/ports/IProxyLifecycle';
