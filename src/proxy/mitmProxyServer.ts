@@ -108,62 +108,16 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
   private async startInternal(config: ProxyServerConfig): Promise<void> {
     let proxy: Proxy | undefined;
     let loggerInitializationAttempted = false;
-    let sslCaDir: string;
 
     try {
-      sslCaDir = await this.certificateDirectory.ensureCaDirectoryForMitm();
+      const sslCaDir =
+        await this.certificateDirectory.ensureCaDirectoryForMitm();
       loggerInitializationAttempted = true;
       await this.requestLogger.initialize();
-
-      try {
-        await getProtoRegistry();
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        process.stderr.write(`[proxy] proto registry init failed: ${message}\n`);
-      }
+      await this.initializeProtoRegistry();
 
       proxy = this.createMitmProxy();
-      if (config.userIdToProfileId) {
-        this.sessionCoordinator.setUserIdToProfileId(
-          new Map(Object.entries(config.userIdToProfileId))
-        );
-      }
-      this.diagnostics = config.trafficDiagnostics
-        ? new ProxyTrafficDiagnosticsCollector()
-        : null;
-
-      registerMitmProxyHandlers(proxy, {
-        error: {
-          requestLogger: this.requestLogger,
-          getDiagnostics: () => this.diagnostics,
-          buildRequestUrl: (ctx) => this.buildRequestUrl(ctx),
-          onProxyError: (summary) => this.handlers?.onProxyError?.(summary),
-          emitError: (error) => this.emit('error', error),
-        },
-        request: {
-          statistics: this.statistics,
-          requestStartedAt: this.requestStartedAt,
-          requestLogger: this.requestLogger,
-          getDiagnostics: () => this.diagnostics,
-          buildRequestUrl: (ctx) => this.buildRequestUrl(ctx),
-          protocolVersionFor: (req) => this.protocolVersionFor(req),
-          recordDiagnostics: (input) => this.recordDiagnostics(input),
-          emitTrafficSummary: this.trafficSummaryDispatcher,
-        },
-        response: {
-          statistics: this.statistics,
-          requestStartedAt: this.requestStartedAt,
-          streamingDecoders: this.streamingDecoders,
-          requestLogger: this.requestLogger,
-          runSseHandler: this.runSseHandler,
-          getDiagnostics: () => this.diagnostics,
-          getProtoRegistry,
-          buildRequestUrl: (ctx) => this.buildRequestUrl(ctx),
-          protocolVersionFor: (req) => this.protocolVersionFor(req),
-          recordDiagnostics: (input) => this.recordDiagnostics(input),
-          emitTrafficSummary: this.trafficSummaryDispatcher,
-        },
-      });
+      this.configureProxy(proxy, config);
 
       const listenOptions = this.getMitmListenOptions(sslCaDir, config.port);
       await listenToMitmProxy(proxy, listenOptions);
@@ -172,6 +126,59 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
       await this.cleanupFailedStart(proxy, loggerInitializationAttempted);
       throw error;
     }
+  }
+
+  private async initializeProtoRegistry(): Promise<void> {
+    try {
+      await getProtoRegistry();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      process.stderr.write(`[proxy] proto registry init failed: ${message}\n`);
+    }
+  }
+
+  private configureProxy(proxy: Proxy, config: ProxyServerConfig): void {
+    if (config.userIdToProfileId) {
+      this.sessionCoordinator.setUserIdToProfileId(
+        new Map(Object.entries(config.userIdToProfileId))
+      );
+    }
+    this.diagnostics = config.trafficDiagnostics
+      ? new ProxyTrafficDiagnosticsCollector()
+      : null;
+
+    registerMitmProxyHandlers(proxy, {
+      error: {
+        requestLogger: this.requestLogger,
+        getDiagnostics: () => this.diagnostics,
+        buildRequestUrl: (ctx) => this.buildRequestUrl(ctx),
+        onProxyError: (summary) => this.handlers?.onProxyError?.(summary),
+        emitError: (error) => this.emit('error', error),
+      },
+      request: {
+        statistics: this.statistics,
+        requestStartedAt: this.requestStartedAt,
+        requestLogger: this.requestLogger,
+        getDiagnostics: () => this.diagnostics,
+        buildRequestUrl: (ctx) => this.buildRequestUrl(ctx),
+        protocolVersionFor: (req) => this.protocolVersionFor(req),
+        recordDiagnostics: (input) => this.recordDiagnostics(input),
+        emitTrafficSummary: this.trafficSummaryDispatcher,
+      },
+      response: {
+        statistics: this.statistics,
+        requestStartedAt: this.requestStartedAt,
+        streamingDecoders: this.streamingDecoders,
+        requestLogger: this.requestLogger,
+        runSseHandler: this.runSseHandler,
+        getDiagnostics: () => this.diagnostics,
+        getProtoRegistry,
+        buildRequestUrl: (ctx) => this.buildRequestUrl(ctx),
+        protocolVersionFor: (req) => this.protocolVersionFor(req),
+        recordDiagnostics: (input) => this.recordDiagnostics(input),
+        emitTrafficSummary: this.trafficSummaryDispatcher,
+      },
+    });
   }
 
   async stop(): Promise<void> {
