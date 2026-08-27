@@ -1,4 +1,3 @@
-import WebSocket from 'ws';
 import type { ProxyStatistics } from '@cursor-accounts/types';
 import type { IProxyApiClient } from '../../domain/ports/IProxyApiClient';
 import {
@@ -6,11 +5,9 @@ import {
   type ProxyApiEvent,
   type ProxyApiStatusResponse,
 } from '../../application/types/proxyApi';
+import { ProxyApiWebSocketTransport } from './proxyApiWebSocketTransport';
 
-const DEFAULT_CONNECT_TIMEOUT_MS = 10_000;
 const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
-const RECONNECT_DELAY_MS = 2_000;
-const MAX_RECONNECT_ATTEMPTS = 5;
 
 export interface ProxyApiClientOptions {
   /** Base URL, e.g. http://127.0.0.1:18080 */
@@ -27,54 +24,32 @@ export interface ProxyApiClientOptions {
  * Consumes traffic and stats via WebSocket; uses REST for control queries.
  */
 export class ProxyApiClient implements IProxyApiClient {
-  private ws: WebSocket | null = null;
-  private readonly listeners = new Set<(event: ProxyApiEvent) => void>();
-  private reconnectAttempts = 0;
-  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-  private intentionalDisconnect = false;
-  private connectPromise: Promise<void> | null = null;
+  private readonly webSocketTransport: ProxyApiWebSocketTransport;
 
-  constructor(private readonly options: ProxyApiClientOptions) {}
+  constructor(private readonly options: ProxyApiClientOptions) {
+    this.webSocketTransport = new ProxyApiWebSocketTransport({
+      baseUrl: this.baseUrl,
+      connectTimeoutMs: options.connectTimeoutMs,
+      reconnect: options.reconnect,
+      maxReconnectAttempts: options.maxReconnectAttempts,
+      apiToken: options.apiToken,
+    });
+  }
 
   get baseUrl(): string {
     return this.options.baseUrl.replace(/\/$/, '');
   }
 
   async connect(): Promise<void> {
-    if (this.isConnected()) {
-      return;
-    }
-    if (this.connectPromise) {
-      return this.connectPromise;
-    }
-
-    this.intentionalDisconnect = false;
-    this.connectPromise = this.connectWebSocket()
-      .catch((error: unknown) => {
-        // A failed initial connection must not leave an orphaned reconnect loop
-        // when the caller does not retain the client instance.
-        this.disconnect();
-        throw error;
-      })
-      .finally(() => {
-        this.connectPromise = null;
-      });
-    return this.connectPromise;
+    return this.webSocketTransport.connect();
   }
 
   disconnect(): void {
-    this.intentionalDisconnect = true;
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
-    }
-    this.ws?.removeAllListeners();
-    this.ws?.close();
-    this.ws = null;
+    this.webSocketTransport.disconnect();
   }
 
   isConnected(): boolean {
-    return this.ws?.readyState === WebSocket.OPEN;
+    return this.webSocketTransport.isConnected();
   }
 
   async getStatus(): Promise<ProxyApiStatusResponse> {
@@ -103,66 +78,7 @@ export class ProxyApiClient implements IProxyApiClient {
   }
 
   onEvent(listener: (event: ProxyApiEvent) => void): () => void {
-    this.listeners.add(listener);
-    return () => {
-      this.listeners.delete(listener);
-    };
-  }
-
-  private async connectWebSocket(): Promise<void> {
-    const wsUrl = `${this.baseUrl.replace(/^http/i, 'ws')}${PROXY_API_PATHS.ws}`;
-    const timeoutMs = this.options.connectTimeoutMs ?? DEFAULT_CONNECT_TIMEOUT_MS;
-
-    await new Promise<void>((resolve, reject) => {
-      const ws = new WebSocket(wsUrl, {
-        headers: this.authHeaders(),
-      });
-      this.ws = ws;
-
-      const timeout = setTimeout(() => {
-        ws.close();
-        reject(new Error(`WebSocket connect timed out after ${timeoutMs}ms`));
-      }, timeoutMs);
-
-      ws.once('open', () => {
-        clearTimeout(timeout);
-        this.reconnectAttempts = 0;
-        resolve();
-      });
-
-      ws.once('error', (error) => {
-        clearTimeout(timeout);
-        reject(error);
-      });
-
-      ws.on('message', (data) => {
-        try {
-          const payload = Buffer.isBuffer(data)
-            ? data.toString('utf8')
-            : typeof data === 'string'
-              ? data
-              : JSON.stringify(data);
-          const event = JSON.parse(payload) as ProxyApiEvent;
-          for (const listener of this.listeners) {
-            try {
-              listener(event);
-            } catch {
-              // An extension listener must not prevent other listeners from
-              // receiving the same proxy event.
-            }
-          }
-        } catch {
-          // Ignore malformed frames.
-        }
-      });
-
-      ws.on('close', () => {
-        if (this.ws === ws) {
-          this.ws = null;
-          this.scheduleReconnect();
-        }
-      });
-    });
+    return this.webSocketTransport.onEvent(listener);
   }
 
   private async request(pathname: string, init?: RequestInit): Promise<Response> {
@@ -198,24 +114,6 @@ export class ProxyApiClient implements IProxyApiClient {
       : {};
   }
 
-  private scheduleReconnect(): void {
-    if (this.intentionalDisconnect || this.options.reconnect === false) {
-      return;
-    }
-
-    const maxAttempts =
-      this.options.maxReconnectAttempts ?? MAX_RECONNECT_ATTEMPTS;
-    if (this.reconnectAttempts >= maxAttempts) {
-      return;
-    }
-
-    this.reconnectAttempts += 1;
-    this.reconnectTimer = setTimeout(() => {
-      void this.connectWebSocket().catch(() => {
-        this.scheduleReconnect();
-      });
-    }, RECONNECT_DELAY_MS);
-  }
 }
 
 /** Build the default API base URL from the API port. */
