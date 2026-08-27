@@ -51,27 +51,23 @@ describe('ProxyManager multi-window', () => {
       isRunning: () => false,
       getActivePort: () => null,
     };
-    const manager = new ProxyManager(
+    const manager = new ProxyManager({
       stateStore,
       profileManager,
-      {
+      context: {
         globalStorageUri: { fsPath: '/tmp/cursor-accounts-multi-window' },
         extensionPath: '/tmp/extension',
       } as never,
-      '/tmp/cursor-accounts-proxy-storage-multi',
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      {
+      storageDir: '/tmp/cursor-accounts-proxy-storage-multi',
+      dependencies: {
         certService: {} as never,
         trafficBus,
         trafficIngress,
         createProcess: () => {
           throw new Error('not used');
         },
-      }
-    );
+      },
+    });
 
     const originalFetch = globalThis.fetch;
     globalThis.fetch = (async (input: string | URL | Request) => {

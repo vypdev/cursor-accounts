@@ -56,34 +56,55 @@ import {
   type ProxyManagerRuntime,
 } from './proxyManagerComposition';
 
+export interface ProxyManagerOptions {
+  stateStore: IProxyStateStore;
+  profileManager: IProfileReader;
+  context: vscode.ExtensionContext;
+  storageDir?: string;
+  proxySettingsRestorer?: IProxySettingsRestorer;
+  profileSettingsManager?: IProfileSettingsManager;
+  outputPresenter?: IProxyOutputPresenter;
+  tokenDetectorPresenter?: ITokenDetectorOutputPresenter;
+  dependencies?: ProxyManagerDependencies;
+  getOutputConfig?: () => ProxyOutputSettings;
+  compositionFactory?: typeof createProxyManagerComposition;
+  proxySettingsApplicationService?: Pick<
+    ProxySettingsApplicationService,
+    'applyProxySettings'
+  >;
+}
+
 /**
  * Facade for per-profile MITM proxy lifecycle, certificates, and traffic distribution.
  */
 export class ProxyManager implements IProxyManager {
   private readonly runtimes = new Map<string, ProxyManagerRuntime>();
+  private readonly stateStore: IProxyStateStore;
+  private readonly profileManager: IProfileReader;
+  private readonly proxySettingsRestorer?: IProxySettingsRestorer;
   private readonly deps: ProxyManagerDependencies;
   private readonly composition: ProxyManagerComposition;
   private readonly events: ProxyManagerEventRegistry;
   private readonly profileLifecycleUseCase: ProxyProfileLifecycleUseCase;
 
-  constructor(
-    private readonly stateStore: IProxyStateStore,
-    private readonly profileManager: IProfileReader,
-    context: vscode.ExtensionContext,
-    storageDir: string = getSharedProxyStorageDir(),
-    private readonly proxySettingsRestorer?: IProxySettingsRestorer,
-    profileSettingsManager?: IProfileSettingsManager,
-    outputPresenter?: IProxyOutputPresenter,
-    tokenDetectorPresenter?: ITokenDetectorOutputPresenter,
-    deps?: ProxyManagerDependencies,
-    getOutputConfig?: () => ProxyOutputSettings,
-    compositionFactory: typeof createProxyManagerComposition =
-      createProxyManagerComposition,
-    proxySettingsApplicationService?: Pick<
-      ProxySettingsApplicationService,
-      'applyProxySettings'
-    >
-  ) {
+  constructor(options: ProxyManagerOptions) {
+    const {
+      stateStore,
+      profileManager,
+      context,
+      proxySettingsRestorer,
+      profileSettingsManager,
+      outputPresenter,
+      tokenDetectorPresenter,
+      dependencies,
+      getOutputConfig,
+      compositionFactory = createProxyManagerComposition,
+      proxySettingsApplicationService,
+    } = options;
+    const storageDir = options.storageDir ?? getSharedProxyStorageDir();
+    this.stateStore = stateStore;
+    this.profileManager = profileManager;
+    this.proxySettingsRestorer = proxySettingsRestorer;
     const logDir = path.join(storageDir, 'logs');
     const diagnosticsCoordinator = new ProxyManagerDiagnosticsCoordinator({
       getSettings: () => {
@@ -96,7 +117,7 @@ export class ProxyManager implements IProxyManager {
       outputPresenter,
     });
     this.deps =
-      deps ??
+      dependencies ??
       createDefaultProxyManagerDependencies({
         storageDir,
         logDir,

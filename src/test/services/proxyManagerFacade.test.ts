@@ -26,26 +26,22 @@ describe('ProxyManager facade', () => {
     } as never;
     let compositionCallbacks: ProxyManagerCompositionOptions['callbacks'] | undefined;
     const composition = createCompositionHarness(calls, () => status);
-    const manager = new ProxyManager(
-      createStateStore(),
-      createProfileReader(profile),
-      { extensionPath: '/tmp/extension' } as never,
-      '/tmp/proxy-manager-facade',
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      createDependencies(calls),
-      () => ({
+    const manager = new ProxyManager({
+      stateStore: createStateStore(),
+      profileManager: createProfileReader(profile),
+      context: { extensionPath: '/tmp/extension' } as never,
+      storageDir: '/tmp/proxy-manager-facade',
+      dependencies: createDependencies(calls),
+      getOutputConfig: () => ({
         logTrafficToOutput: true,
         autoShowOutputChannel: false,
         outputCursorHostsOnly: false,
       }),
-      (options) => {
+      compositionFactory: (options) => {
         compositionCallbacks = options.callbacks;
         return composition;
-      }
-    );
+      },
+    });
 
     const startResult = await manager.start(profile.id);
     assert.deepEqual(startResult, { success: true, port: 8080 });
@@ -122,22 +118,17 @@ describe('ProxyManager facade', () => {
     };
     let callbacks: ProxyManagerCompositionOptions['callbacks'] | undefined;
     const composition = createCompositionHarness(calls, () => ({ running: false }));
-    const manager = new ProxyManager(
-      createStateStore(),
-      createProfileReader(profile),
-      { extensionPath: '/tmp/extension' } as never,
-      '/tmp/proxy-manager-callbacks',
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      createDependencies(calls, trafficBus),
-      undefined,
-      (options) => {
+    const manager = new ProxyManager({
+      stateStore: createStateStore(),
+      profileManager: createProfileReader(profile),
+      context: { extensionPath: '/tmp/extension' } as never,
+      storageDir: '/tmp/proxy-manager-callbacks',
+      dependencies: createDependencies(calls, trafficBus),
+      compositionFactory: (options) => {
         callbacks = options.callbacks;
         return composition;
-      }
-    );
+      },
+    });
 
     let statusChanges = 0;
     let usageEvents = 0;

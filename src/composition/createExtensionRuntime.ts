@@ -116,20 +116,19 @@ export function createExtensionRuntime(
   });
   const proxyOutputPresenter = new ProxyOutputPresenter();
   const tokenDetectorPresenter = new TokenDetectorOutputPresenter();
-  const proxyManager = new ProxyManager(
-    proxyStateStore,
+  const proxyManager = new ProxyManager({
+    stateStore: proxyStateStore,
     profileManager,
     context,
-    sharedProxyDir,
-    proxySettingsRestorationService,
+    storageDir: sharedProxyDir,
+    proxySettingsRestorer: proxySettingsRestorationService,
     profileSettingsManager,
-    proxyOutputPresenter,
+    outputPresenter: proxyOutputPresenter,
     tokenDetectorPresenter,
-    undefined,
-    getProxyOutputConfig,
-    createProxyManagerComposition,
-    proxySettingsApplicationService
-  );
+    getOutputConfig: getProxyOutputConfig,
+    compositionFactory: createProxyManagerComposition,
+    proxySettingsApplicationService,
+  });
 
   const profileLauncher = new ProfileLauncher(
     profileManager,

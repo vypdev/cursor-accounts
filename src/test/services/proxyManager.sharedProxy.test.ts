@@ -30,19 +30,15 @@ describe('ProxyManager shared proxy', () => {
     } as unknown as IProfileManager;
 
     const trafficBus = new ProxyTrafficBus();
-    const manager = new ProxyManager(
+    const manager = new ProxyManager({
       stateStore,
       profileManager,
-      {
+      context: {
         globalStorageUri: { fsPath: '/tmp/cursor-accounts-shared-proxy' },
         extensionPath: '/tmp/extension',
       } as never,
-      '/tmp/cursor-accounts-proxy-storage-shared',
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      {
+      storageDir: '/tmp/cursor-accounts-proxy-storage-shared',
+      dependencies: {
         certService: {} as never,
         trafficBus,
         trafficIngress: new ProxyTrafficIngress('/tmp/logs', trafficBus, () => false),
@@ -63,8 +59,8 @@ describe('ProxyManager shared proxy', () => {
         createProcess: () => {
           throw new Error('not used');
         },
-      }
-    );
+      },
+    });
 
     const internal = manager as unknown as {
       runtimes: Map<
@@ -96,26 +92,22 @@ describe('ProxyManager shared proxy', () => {
       proxyEnabled: true,
     } as Profile;
 
-    const manager = new ProxyManager(
-      {
+    const manager = new ProxyManager({
+      stateStore: {
         read: async () => null,
         write: async () => undefined,
         clear: async () => undefined,
       },
-      {
+      profileManager: {
         getProfile: async () => profile,
         getProfiles: async () => [profile],
       } as never,
-      {
+      context: {
         globalStorageUri: { fsPath: '/tmp/cursor-accounts-shared-proxy-2' },
         extensionPath: '/tmp/extension',
       } as never,
-      '/tmp/cursor-accounts-proxy-storage-shared-2',
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      {
+      storageDir: '/tmp/cursor-accounts-proxy-storage-shared-2',
+      dependencies: {
         certService: {} as never,
         trafficBus: new ProxyTrafficBus(),
         trafficIngress: new ProxyTrafficIngress(
@@ -126,8 +118,8 @@ describe('ProxyManager shared proxy', () => {
         createProcess: () => {
           throw new Error('not used');
         },
-      }
-    );
+      },
+    });
 
     let ensureSharedCalled = false;
     (manager as unknown as {

@@ -47,19 +47,15 @@ describe('ProxyManager integration', () => {
     } as unknown as IProfileManager;
 
     const trafficBus = createTrafficBus();
-    const manager = new ProxyManager(
+    const manager = new ProxyManager({
       stateStore,
       profileManager,
-      {
+      context: {
         globalStorageUri: { fsPath: '/tmp/cursor-accounts-proxy-test' },
         extensionPath: '/tmp/extension',
       } as never,
-      '/tmp/cursor-accounts-proxy-storage',
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      {
+      storageDir: '/tmp/cursor-accounts-proxy-storage',
+      dependencies: {
         certService: {
           ensureCaCertificate: async () => '/tmp/ca.pem',
         } as never,
@@ -68,8 +64,8 @@ describe('ProxyManager integration', () => {
         createProcess: () => {
           throw new Error('not used');
         },
-      }
-    );
+      },
+    });
 
     const received: ProxyTrafficSummary[] = [];
     manager.onTraffic((summary) => {
@@ -90,31 +86,27 @@ describe('ProxyManager integration', () => {
     const { ProxyManager } = await import('../../services/proxyManager.js');
     const trafficBus = createTrafficBus();
 
-    const manager = new ProxyManager(
-      {
+    const manager = new ProxyManager({
+      stateStore: {
         read: async () => null,
         write: async () => undefined,
         clear: async () => undefined,
       },
-      { getProfile: async () => null, getProfiles: async () => [] } as unknown as IProfileManager,
-      {
+      profileManager: { getProfile: async () => null, getProfiles: async () => [] } as unknown as IProfileManager,
+      context: {
         globalStorageUri: { fsPath: '/tmp/cursor-accounts-proxy-test-2' },
         extensionPath: '/tmp/extension',
       } as never,
-      '/tmp/cursor-accounts-proxy-storage-2',
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      {
+      storageDir: '/tmp/cursor-accounts-proxy-storage-2',
+      dependencies: {
         certService: {} as never,
         trafficBus,
         trafficIngress: new ProxyTrafficIngress('/tmp/logs', trafficBus, () => false),
         createProcess: () => {
           throw new Error('not used');
         },
-      }
-    );
+      },
+    });
 
     let okCount = 0;
     manager.onTraffic(() => {
@@ -140,20 +132,20 @@ describe('ProxyManager integration', () => {
       restoreAllProfiles: async () => expected,
     };
 
-    const manager = new ProxyManager(
-      {
+    const manager = new ProxyManager({
+      stateStore: {
         read: async () => null,
         write: async () => undefined,
         clear: async () => undefined,
       },
-      { getProfile: async () => null, getProfiles: async () => [] } as unknown as IProfileManager,
-      {
+      profileManager: { getProfile: async () => null, getProfiles: async () => [] } as unknown as IProfileManager,
+      context: {
         globalStorageUri: { fsPath: '/tmp/cursor-accounts-proxy-test-3' },
         extensionPath: '/tmp/extension',
       } as never,
-      '/tmp/cursor-accounts-proxy-storage-3',
-      proxySettingsRestorer
-    );
+      storageDir: '/tmp/cursor-accounts-proxy-storage-3',
+      proxySettingsRestorer,
+    });
 
     const result = await manager.restoreAllProfileProxySettings();
     assert.deepEqual(result, expected);
@@ -162,18 +154,18 @@ describe('ProxyManager integration', () => {
   it('restoreAllProfileProxySettings returns empty result without settings service', async () => {
     const { ProxyManager } = await import('../../services/proxyManager.js');
 
-    const manager = new ProxyManager(
-      {
+    const manager = new ProxyManager({
+      stateStore: {
         read: async () => null,
         write: async () => undefined,
         clear: async () => undefined,
       },
-      { getProfile: async () => null, getProfiles: async () => [] } as unknown as IProfileManager,
-      {
+      profileManager: { getProfile: async () => null, getProfiles: async () => [] } as unknown as IProfileManager,
+      context: {
         globalStorageUri: { fsPath: '/tmp/cursor-accounts-proxy-test-4' },
         extensionPath: '/tmp/extension',
       } as never
-    );
+    });
 
     const result = await manager.restoreAllProfileProxySettings();
     assert.deepEqual(result, { restored: 0, errors: [] });

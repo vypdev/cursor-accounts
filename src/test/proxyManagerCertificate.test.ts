@@ -12,21 +12,21 @@ describe('ProxyManager certificate cache', () => {
 
     const { ProxyManager } = await import('../services/proxyManager.js');
 
-    const manager = new ProxyManager(
-      {
+    const manager = new ProxyManager({
+      stateStore: {
         read: async () => null,
         write: async () => undefined,
         clear: async () => undefined,
       },
-      {
+      profileManager: {
         getProfile: async () => null,
         getProfiles: async () => [],
       } as never,
-      {
+      context: {
         globalStorageUri: { fsPath: '/tmp/cursor-accounts-test' },
         extensionPath: '/tmp/extension',
       } as never
-    );
+    });
 
     assert.equal(manager.getCachedCertificateInstalled(), undefined);
 
