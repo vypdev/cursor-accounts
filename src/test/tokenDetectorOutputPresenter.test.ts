@@ -1,9 +1,70 @@
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
+import { afterEach, beforeEach, describe, it } from 'node:test';
+import * as vscode from 'vscode';
 import {
+  TokenDetectorOutputPresenter,
   formatTokenDetectorLine,
 } from '../ui/presentation/tokenDetectorOutputPresenter';
 import type { ProxyTrafficSummary } from '../proxy/types';
+
+type OutputChannelProbe = {
+  lines: string[];
+  showCalls: number;
+  disposeCalls: number;
+};
+
+const originalCreateOutputChannel = vscode.window.createOutputChannel;
+const originalGetConfiguration = vscode.workspace.getConfiguration;
+let outputProbe: OutputChannelProbe;
+let logEnabled = true;
+let autoShowEnabled = false;
+
+beforeEach(() => {
+  outputProbe = { lines: [], showCalls: 0, disposeCalls: 0 };
+  logEnabled = true;
+  autoShowEnabled = false;
+  (vscode.window as unknown as {
+    createOutputChannel: () => vscode.OutputChannel;
+  }).createOutputChannel = () =>
+    ({
+      appendLine: (line: string) => outputProbe.lines.push(line),
+      append: () => undefined,
+      replace: () => undefined,
+      clear: () => undefined,
+      show: () => {
+        outputProbe.showCalls += 1;
+      },
+      hide: () => undefined,
+      dispose: () => {
+        outputProbe.disposeCalls += 1;
+      },
+      name: 'Token detector',
+      logLevel: 0,
+      trace: () => undefined,
+      debug: () => undefined,
+      info: () => undefined,
+      warn: () => undefined,
+      error: () => undefined,
+    }) as vscode.OutputChannel;
+  (vscode.workspace as unknown as {
+    getConfiguration: typeof vscode.workspace.getConfiguration;
+  }).getConfiguration = (() => ({
+    get: <T>(key: string, defaultValue?: T): T | undefined => {
+      if (key === 'logTokenDetectorToOutput') {
+        return logEnabled as T;
+      }
+      if (key === 'autoShowTokenDetectorChannel') {
+        return autoShowEnabled as T;
+      }
+      return defaultValue;
+    },
+  })) as typeof vscode.workspace.getConfiguration;
+});
+
+afterEach(() => {
+  vscode.window.createOutputChannel = originalCreateOutputChannel;
+  vscode.workspace.getConfiguration = originalGetConfiguration;
+});
 
 describe('tokenDetectorOutputPresenter', () => {
   it('formats agent token events with conversation and request ids', () => {
@@ -186,5 +247,68 @@ describe('tokenDetectorOutputPresenter', () => {
     } satisfies ProxyTrafficSummary);
 
     assert.equal(line, null);
+  });
+
+  it('controls the VS Code output channel and auto-show behavior', () => {
+    const presenter = new TokenDetectorOutputPresenter();
+
+    presenter.appendInitialized('profile-123456789');
+    presenter.appendNote('tracking started');
+    presenter.appendTraffic({
+      timestamp: new Date().toISOString(),
+      kind: 'response',
+      url: 'https://api2.cursor.sh/agent.v1.AgentService/RunPoll',
+      host: 'api2.cursor.sh',
+      endpoint: '/agent.v1.AgentService/RunPoll',
+      insights: { agent: { requestId: 'request-123456789' } },
+    } satisfies ProxyTrafficSummary);
+
+    assert.equal(outputProbe.lines.length, 3);
+    assert.match(outputProbe.lines[0]!, /profile-/);
+    assert.match(outputProbe.lines[1]!, /tracking started/);
+    assert.match(outputProbe.lines[2]!, /agent=request-123/);
+    assert.equal(outputProbe.showCalls, 0);
+
+    presenter.show();
+    presenter.dispose();
+    assert.equal(outputProbe.showCalls, 1);
+    assert.equal(outputProbe.disposeCalls, 1);
+  });
+
+  it('logs one auto-show request for the first useful traffic line', () => {
+    autoShowEnabled = true;
+    const presenter = new TokenDetectorOutputPresenter();
+    const summary = {
+      timestamp: new Date().toISOString(),
+      kind: 'response',
+      url: 'https://api2.cursor.sh/agent.v1.AgentService/RunPoll',
+      host: 'api2.cursor.sh',
+      endpoint: '/agent.v1.AgentService/RunPoll',
+      insights: { agent: { requestId: 'request-123456789' } },
+    } satisfies ProxyTrafficSummary;
+
+    presenter.appendTraffic(summary);
+    presenter.appendTraffic(summary);
+
+    assert.equal(outputProbe.lines.length, 2);
+    assert.equal(outputProbe.showCalls, 1);
+  });
+
+  it('does not write when token detector logging is disabled', () => {
+    logEnabled = false;
+    const presenter = new TokenDetectorOutputPresenter();
+
+    presenter.appendNote('hidden');
+    presenter.appendTraffic({
+      timestamp: new Date().toISOString(),
+      kind: 'response',
+      url: 'https://api2.cursor.sh/agent.v1.AgentService/RunPoll',
+      host: 'api2.cursor.sh',
+      endpoint: '/agent.v1.AgentService/RunPoll',
+      insights: { agent: { requestId: 'request-123456789' } },
+    } satisfies ProxyTrafficSummary);
+
+    assert.equal(outputProbe.lines.length, 0);
+    assert.equal(outputProbe.showCalls, 0);
   });
 });
