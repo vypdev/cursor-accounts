@@ -100,6 +100,19 @@ describe('InstanceDetector Process Parsing', () => {
       );
     });
 
+    it('extracts the last workspace path after macOS launch flags', () => {
+      const stdout =
+        ' 55555 Mon May 27 10:30:00 2026 /Applications/Cursor.app/Contents/MacOS/Cursor --new-window --user-data-dir "/Users/test/My Profiles/work" "/Users/test/My Repo"\n';
+
+      assert.deepEqual(parseMacOSPsOutput(stdout), [
+        {
+          pid: 55555,
+          userDataDir: '/Users/test/My Profiles/work',
+          projectPath: '/Users/test/My Repo',
+        },
+      ]);
+    });
+
     it('handles empty output', () => {
       assert.deepEqual(parseMacOSPsOutput(''), []);
       assert.deepEqual(parseMacOSPsOutput('\n  \n'), []);
@@ -143,6 +156,17 @@ describe('InstanceDetector Process Parsing', () => {
     it('handles empty output', () => {
       assert.deepEqual(parseWindowsPowerShellJson(''), []);
     });
+
+    it('skips entries without numeric ids and preserves missing command lines', () => {
+      const stdout = JSON.stringify([
+        { Id: 'not-a-pid', CommandLine: 'cursor' },
+        { Id: 1234 },
+      ]);
+
+      assert.deepEqual(parseWindowsPowerShellJson(stdout), [
+        { pid: 1234, userDataDir: undefined },
+      ]);
+    });
   });
 
   describe('Windows wmic parsing', () => {
@@ -154,6 +178,13 @@ describe('InstanceDetector Process Parsing', () => {
       const process = first(processes);
       assert.equal(process.pid, 7777);
       assert.equal(process.userDataDir, 'C:\\Users\\test\\.cursor-work');
+    });
+
+    it('preserves a valid process when WMIC omits its command line', () => {
+      assert.deepEqual(
+        parseWindowsWmicOutput('ProcessId=7777\n\n'),
+        [{ pid: 7777, userDataDir: undefined }]
+      );
     });
   });
 
