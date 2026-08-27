@@ -48,6 +48,11 @@ const checks = [
     args: ['run', 'test:proxy-traffic-analysis'],
   },
   {
+    label: 'session token summary contract tests',
+    command: 'pnpm',
+    args: ['run', 'test:session-token-summary'],
+  },
+  {
     label: 'Cursor protobuf extraction contract tests',
     command: 'pnpm',
     args: ['run', 'test:cursor-proto-extraction'],

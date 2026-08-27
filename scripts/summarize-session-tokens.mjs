@@ -27,6 +27,17 @@ import {
   resolveRpcMessageType,
 } from './lib/proxy-rpc.mjs';
 import { connectPayloadCandidates } from './lib/connect-payload.mjs';
+import {
+  DEFAULT_DOLLARS_PER_M,
+  buildSessionReport,
+  centsToUsd,
+  createSessionSummaryState,
+  planSpend,
+  recordAgentInsight,
+  recordBillingSnapshot,
+  recordRequestId,
+  recordSessionTimestamp,
+} from './lib/session-token-summary.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -41,8 +52,6 @@ const DEFAULT_LOG_DIR = path.join(
   'proxy',
   'logs'
 );
-
-const DEFAULT_DOLLARS_PER_M = 4;
 
 function tryDecode(Type, raw) {
   for (const payload of connectPayloadCandidates(raw)) {
@@ -61,78 +70,10 @@ function tryDecode(Type, raw) {
   return null;
 }
 
-function centsToUsd(cents) {
-  return (Number(cents) / 100).toFixed(2);
-}
-
-function planSpend(planUsage) {
-  if (!planUsage || typeof planUsage !== 'object') {
-    return null;
-  }
-  const total = planUsage.totalSpend ?? planUsage.total_spend;
-  const included = planUsage.includedSpend ?? planUsage.included_spend;
-  const bonus = planUsage.bonusSpend ?? planUsage.bonus_spend;
-  const limit = planUsage.limit;
-  return { total, included, bonus, limit };
-}
-
-/** Major model steps: counter reset after a large peak (new generation). */
-function groupMajorTurnPeaks(peaks) {
-  const sorted = [...peaks].sort((a, b) => a.seqno - b.seqno);
-  const turns = [];
-  let cur = { max: 0, count: 0 };
-  for (const p of sorted) {
-    if (cur.count > 0 && cur.max >= 300 && p.tokens <= 150) {
-      turns.push({ max: cur.max, count: cur.count });
-      cur = { max: 0, count: 0 };
-    }
-    cur.count += 1;
-    if (p.tokens > cur.max) {
-      cur.max = p.tokens;
-    }
-  }
-  if (cur.count > 0) {
-    turns.push({ max: cur.max, count: cur.count });
-  }
-  return turns;
-}
-
-function recordAgentInsight(insight, ts, tokenPeaks, turnEndedTotals, counters) {
-  if (!insight) {
-    return;
-  }
-  if (insight.usageEvent === 'turn_ended') {
-    counters.turnEndedCount += 1;
-    turnEndedTotals.input += Number(insight.inputTokens) || 0;
-    turnEndedTotals.output += Number(insight.outputTokens) || 0;
-    turnEndedTotals.cacheRead += Number(insight.cacheReadTokens) || 0;
-    turnEndedTotals.cacheWrite += Number(insight.cacheWriteTokens) || 0;
-  } else if (insight.usageEvent === 'token_delta' && insight.streamingTokens != null) {
-    tokenPeaks.push({
-      ts,
-      seqno: 0,
-      tokens: insight.streamingTokens,
-    });
-  } else if (insight.usageEvent === 'token_details') {
-    counters.tokenDetailsCount += 1;
-  }
-}
-
 async function analyzeFile(filePath, root, rpcMap) {
   const logDir = path.dirname(filePath);
-  const billingSnapshots = [];
-  const tokenPeaks = [];
-  let turnEndedCount = 0;
-  let tokenDetailsCount = 0;
-  let turnEndedTotals = {
-    input: 0,
-    output: 0,
-    cacheRead: 0,
-    cacheWrite: 0,
-  };
-  const requestIds = new Set();
-  let firstTs = null;
-  let lastTs = null;
+  const summary = createSessionSummaryState();
+  const agentServerType = root.lookupType('agent.v1.AgentServerMessage');
 
   for (const line of fs.readFileSync(filePath, 'utf8').split('\n')) {
     if (!line.trim()) continue;
@@ -146,10 +87,7 @@ async function analyzeFile(filePath, root, rpcMap) {
       continue;
     }
     const ts = entry.timestamp;
-    if (ts) {
-      if (!firstTs || ts < firstTs) firstTs = ts;
-      if (!lastTs || ts > lastTs) lastTs = ts;
-    }
+    recordSessionTimestamp(summary, ts);
 
     const rpcPath = parseConnectRpcPath(entry.url ?? '');
     if (!rpcPath) continue;
@@ -176,20 +114,15 @@ async function analyzeFile(filePath, root, rpcMap) {
     if (rpcPath.includes('GetCurrentPeriodUsage') && entry.direction === 'response') {
       const billing = extractBillingInsight(obj);
       const spend = planSpend(billing?.planUsage);
-      if (spend?.total != null) {
-        billingSnapshots.push({ ts, ...spend });
-      }
+      if (spend) recordBillingSnapshot(summary, ts, spend);
     }
 
     if (rpcPath.includes('BidiAppend') && entry.direction === 'request') {
       const agent = extractAgentInsight(obj);
       if (agent?.requestId) {
-        requestIds.add(agent.requestId);
+        recordRequestId(summary, agent.requestId);
       }
     }
-
-    const agentServerType = root.lookupType('agent.v1.AgentServerMessage');
-    const counters = { turnEndedCount, tokenDetailsCount };
 
     if (
       entry.direction === 'response' &&
@@ -203,14 +136,10 @@ async function analyzeFile(filePath, root, rpcMap) {
           recordAgentInsight(
             extractAgentInnerInsight(msg),
             ts,
-            tokenPeaks,
-            turnEndedTotals,
-            counters
+            summary
           );
         }
       }
-      turnEndedCount = counters.turnEndedCount;
-      tokenDetailsCount = counters.tokenDetailsCount;
       continue;
     }
 
@@ -222,55 +151,13 @@ async function analyzeFile(filePath, root, rpcMap) {
     recordAgentInsight(
       inner ? extractAgentInnerInsight(inner) : null,
       ts,
-      tokenPeaks,
-      turnEndedTotals,
-      counters
+      summary
     );
-    turnEndedCount = counters.turnEndedCount;
-    tokenDetailsCount = counters.tokenDetailsCount;
   }
-
-  const majorTurns = groupMajorTurnPeaks(tokenPeaks);
-  const maxSinglePeak = tokenPeaks.reduce(
-    (m, p) => Math.max(m, p.tokens),
-    0
-  );
-  const sumMajorTurnPeaks = majorTurns.reduce((a, s) => a + s.max, 0);
-
-  const billingSorted = billingSnapshots.sort((a, b) =>
-    (a.ts ?? '').localeCompare(b.ts ?? '')
-  );
-  const firstBill = billingSorted[0];
-  const lastBill = billingSorted.at(-1);
-  const spendDeltaCents =
-    firstBill && lastBill
-      ? Number(lastBill.total) - Number(firstBill.total)
-      : null;
 
   const dollarsPerM =
     Number(process.env.CURSOR_ESTIMATED_DOLLARS_PER_M) || DEFAULT_DOLLARS_PER_M;
-
-  return {
-    file: path.basename(filePath),
-    window: { firstTs, lastTs },
-    agentSessions: requestIds.size,
-    requestIds: [...requestIds],
-    tokenDeltaEvents: tokenPeaks.length,
-    maxSinglePeak,
-    majorTurns,
-    sumMajorTurnPeaks,
-    naiveEstUsd: (sumMajorTurnPeaks / 1e6) * dollarsPerM,
-    turnEndedCount,
-    turnEndedTotals,
-    billing: {
-      samples: billingSnapshots.length,
-      first: firstBill,
-      last: lastBill,
-      deltaCents: spendDeltaCents,
-      deltaUsd: spendDeltaCents != null ? centsToUsd(spendDeltaCents) : null,
-    },
-    dollarsPerM,
-  };
+  return buildSessionReport(path.basename(filePath), summary, dollarsPerM);
 }
 
 function printReport(report) {
