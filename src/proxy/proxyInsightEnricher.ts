@@ -76,6 +76,29 @@ export function applyAgentSessionInsights(
   return next;
 }
 
+function applyRelationshipInsights(
+  insights: ProxyInsights,
+  relationshipIds: Partial<AgentSessionInfo>
+): ProxyInsights {
+  if (Object.keys(relationshipIds).length === 0) {
+    return insights;
+  }
+
+  const next: ProxyInsights = { ...insights };
+  next.agent = mergeAgentSessionInfo(next.agent, relationshipIds);
+  if (relationshipIds.conversationId || relationshipIds.conversationGroupId) {
+    next.context = {
+      ...next.context,
+      conversationId:
+        relationshipIds.conversationId ?? next.context?.conversationId,
+      conversationGroupId:
+        relationshipIds.conversationGroupId ??
+        next.context?.conversationGroupId,
+    };
+  }
+  return next;
+}
+
 async function enrichInsightsFromBidi(
   rpcPath: string,
   direction: 'request' | 'response',
@@ -98,26 +121,14 @@ async function enrichInsightsFromBidi(
     return insights;
   }
 
-  const next: ProxyInsights = { ...(insights ?? {}) };
+  let next: ProxyInsights = { ...(insights ?? {}) };
   const relationshipIds = extractConversationAndSubagentIds(inner);
   const runRequestInfo = extractAgentRunRequestInfo(inner);
   const mergedIds = mergeAgentSessionInfo(
     relationshipIds,
     runRequestInfo ?? undefined
   );
-  if (mergedIds && Object.keys(mergedIds).length > 0) {
-    next.agent = mergeAgentSessionInfo(next.agent, mergedIds);
-    if (mergedIds.conversationId || mergedIds.conversationGroupId) {
-      next.context = {
-        ...next.context,
-        conversationId:
-          mergedIds.conversationId ?? next.context?.conversationId,
-        conversationGroupId:
-          mergedIds.conversationGroupId ??
-          next.context?.conversationGroupId,
-      };
-    }
-  }
+  next = applyRelationshipInsights(next, mergedIds ?? {});
 
   const innerAgent = extractAgentInnerInsights(inner);
   if (!innerAgent) {
@@ -146,20 +157,7 @@ export async function enrichInsightsFromAgentStream(
   }
 
   let next: ProxyInsights = { ...(insights ?? {}) };
-
-  if (Object.keys(scan.relationshipIds).length > 0) {
-    next.agent = mergeAgentSessionInfo(next.agent, scan.relationshipIds);
-    if (scan.relationshipIds.conversationId || scan.relationshipIds.conversationGroupId) {
-      next.context = {
-        ...next.context,
-        conversationId:
-          scan.relationshipIds.conversationId ?? next.context?.conversationId,
-        conversationGroupId:
-          scan.relationshipIds.conversationGroupId ??
-          next.context?.conversationGroupId,
-      };
-    }
-  }
+  next = applyRelationshipInsights(next, scan.relationshipIds);
 
   next = applyAgentSessionInsights(next, scan.mergedAgent ?? undefined) ?? next;
   if (scan.allTokenFrames.length > 0) {
