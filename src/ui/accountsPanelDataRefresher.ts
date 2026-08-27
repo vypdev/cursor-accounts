@@ -2,10 +2,8 @@ import type {
   InstanceInfo,
   Profile,
   ProfileQuota,
-  ProfileWithWorkspaces,
   ProxyStatus,
   ToWebviewMessage,
-  WorkspaceInfo,
 } from '@cursor-accounts/types';
 import * as extensionLog from '../logging/extensionLog';
 import { getLocale, getWebviewMessages, t } from '../l10n';
@@ -15,15 +13,10 @@ import type { IProfileReader } from '../domain/ports/IProfileReader';
 import type { IProxyPanelRead } from '../domain/ports/IProxyPanelRead';
 import type { EfficiencyService } from '../modelEfficiency/efficiencyService';
 import type { AccountsPanelBackgroundRefreshCoordinator } from './accountsPanelBackgroundRefreshCoordinator';
-import {
-  getOpenProjectPathsForProfile,
-  instanceMapToRecord,
-} from '../profiles/instanceDetector';
+import { instanceMapToRecord } from '../profiles/instanceDetector';
 import type { ProfileWorkspaceService } from '../application/services/profileWorkspaceService';
-import {
-  getOpenWorkspacePaths,
-  isWorkspacePathOpen,
-} from '../services/activeWorkspaceService';
+import { getOpenWorkspacePaths } from '../services/activeWorkspaceService';
+import { buildProfileWorkspaceMap } from './presentation/profileWorkspacePresentation';
 import type { ProxySettingsService } from '../services/proxySettingsService';
 import { isProfileProxyEnabled } from '@cursor-accounts/types';
 import {
@@ -73,7 +66,7 @@ export class AccountsPanelDataRefresher {
       const profilesWithWorkspaces =
         await this.dependencies.profileWorkspaceService.getProfilesWithWorkspaces();
       const openPaths = getOpenWorkspacePaths();
-      const profileWorkspaces = this.buildProfileWorkspaces(
+      const profileWorkspaces = buildProfileWorkspaceMap(
         profilesWithWorkspaces,
         currentProfile,
         openPaths,
@@ -139,7 +132,7 @@ export class AccountsPanelDataRefresher {
       const runningInstances = instanceMapToRecord(
         this.dependencies.instanceDetector.getLastDetection()
       );
-      const profileWorkspaces = this.buildProfileWorkspaces(
+      const profileWorkspaces = buildProfileWorkspaceMap(
         profilesWithWorkspaces,
         currentProfile,
         openPaths,
@@ -276,34 +269,6 @@ export class AccountsPanelDataRefresher {
     }
 
     return result;
-  }
-
-  private buildProfileWorkspaces(
-    profilesWithWorkspaces: ProfileWithWorkspaces[],
-    currentProfile: Profile | null,
-    openPaths: string[],
-    runningInstances: Record<string, InstanceInfo>
-  ): Record<string, WorkspaceInfo[]> {
-    const profileWorkspaces: Record<string, WorkspaceInfo[]> = {};
-
-    for (const profile of profilesWithWorkspaces) {
-      const openProjectPaths = getOpenProjectPathsForProfile(
-        runningInstances,
-        profile.id
-      );
-
-      profileWorkspaces[profile.id] = profile.workspaces.map((workspace) => ({
-        ...workspace,
-        isOpenInSession:
-          (currentProfile?.id === profile.id &&
-            isWorkspacePathOpen(workspace.path, openPaths)) ||
-          openProjectPaths.some((openPath) =>
-            isWorkspacePathOpen(workspace.path, [openPath])
-          ),
-      }));
-    }
-
-    return profileWorkspaces;
   }
 
   private async buildProxyStatus(options?: {
