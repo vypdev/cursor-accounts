@@ -156,11 +156,7 @@ export class ProfileManager implements IProfileManager {
     updates: Partial<Profile>
   ): Promise<Profile> {
     const config = await this.ensureLoaded();
-
-    const index = config.profiles.findIndex((p) => p.id === id);
-    if (index === -1) {
-      throw new ProfileManagerError(`Profile with ID ${id} not found`);
-    }
+    const { index, profile } = this.findProfileEntry(config, id);
 
     if (updates.email) {
       const emailValidation = this.validateEmail(updates.email);
@@ -182,11 +178,7 @@ export class ProfileManager implements IProfileManager {
       }
     }
 
-    const profile = config.profiles[index];
-    if (!profile) {
-      throw new ProfileManagerError(`Profile with ID ${id} not found`);
-    }
-    config.profiles[index] = {
+    const updatedProfile: Profile = {
       ...profile,
       ...updates,
       id: profile.id,
@@ -194,14 +186,10 @@ export class ProfileManager implements IProfileManager {
       userDataDir: profile.userDataDir,
       created: profile.created,
     };
+    config.profiles[index] = updatedProfile;
 
     await this.storage.save(config);
-
-    const updated = config.profiles[index];
-    if (!updated) {
-      throw new ProfileManagerError(`Profile with ID ${id} not found after update`);
-    }
-    return updated;
+    return updatedProfile;
   }
 
   /**
@@ -212,19 +200,11 @@ export class ProfileManager implements IProfileManager {
     instanceDetector?: IInstanceDetector
   ): Promise<void> {
     const config = await this.ensureLoaded();
-
-    const index = config.profiles.findIndex((p) => p.id === id);
-    if (index === -1) {
-      throw new ProfileManagerError(`Profile with ID ${id} not found`);
-    }
+    const { index, profile } = this.findProfileEntry(config, id);
 
     if (instanceDetector) {
       const isRunning = await instanceDetector.isProfileRunning(id);
       if (isRunning) {
-        const profile = config.profiles[index];
-        if (!profile) {
-          throw new ProfileManagerError(`Profile with ID ${id} not found`);
-        }
         throw new ProfileManagerError(
           `Cannot delete running profile "${profile.displayName}". ` +
             `Close the Cursor window first.`
@@ -232,15 +212,11 @@ export class ProfileManager implements IProfileManager {
       }
     }
 
-    const removed = config.profiles[index];
-    if (!removed) {
-      throw new ProfileManagerError(`Profile with ID ${id} not found`);
-    }
     config.profiles.splice(index, 1);
     await this.storage.save(config);
 
     extensionLog.info(
-      `[ProfileManager] Deleted profile ${id} (${removed.email})`
+      `[ProfileManager] Deleted profile ${id} (${profile.email})`
     );
   }
 
@@ -269,6 +245,18 @@ export class ProfileManager implements IProfileManager {
    */
   async backup(): Promise<string> {
     return await this.storage.backup();
+  }
+
+  private findProfileEntry(
+    config: ProfileConfig,
+    id: string
+  ): { index: number; profile: Profile } {
+    const index = config.profiles.findIndex((profile) => profile.id === id);
+    const profile = config.profiles[index];
+    if (index === -1 || !profile) {
+      throw new ProfileManagerError(`Profile with ID ${id} not found`);
+    }
+    return { index, profile };
   }
 
   /**
