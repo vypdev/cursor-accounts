@@ -25,6 +25,7 @@ import { ProfileDetector } from '../profiles/profileDetector';
 import { ProfileLauncher } from '../profiles/profileLauncher';
 import { ProfileSettingsManager } from '../profiles/profileSettingsManager';
 import { ProfileProxyEditUseCase } from '../application/services/profileProxyEditUseCase';
+import { ProfileProxyEditLifecycleService } from '../application/services/profileProxyEditLifecycleService';
 import { WorkspaceScanner } from '../profiles/workspaceScanner';
 import { MultiProfileQuotaService } from '../services/multiProfileQuotaService';
 import { ProfileAccountFetcher } from '../services/profileAccountFetcher';
@@ -136,10 +137,13 @@ export function createExtensionRuntime(
     proxyManager,
     profileSettingsManager
   );
-  const profileProxyEditUseCase = new ProfileProxyEditUseCase({
-    profileWriter: profileManager,
+  const profileProxyEditLifecycle = new ProfileProxyEditLifecycleService({
     profileDetector,
     proxyLifecycle: proxyManager,
+  });
+  const profileProxyEditUseCase = new ProfileProxyEditUseCase({
+    profileWriter: profileManager,
+    profileProxyEditLifecycle,
   });
   const profileWorkspaceService = new ProfileWorkspaceService(
     profileManager,

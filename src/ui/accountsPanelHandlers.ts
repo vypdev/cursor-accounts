@@ -15,8 +15,8 @@ import type { IProxyLifecycle } from '../domain/ports/IProxyLifecycle';
 import type { IProxyOutput } from '../domain/ports/IProxyOutput';
 import {
   ProfileProxyEditUseCase,
-  type ProfileProxyEditUseCaseDependencies,
 } from '../application/services/profileProxyEditUseCase';
+import { ProfileProxyEditLifecycleService } from '../application/services/profileProxyEditLifecycleService';
 import { AccountsPanelProxyHandlers } from './accountsPanelProxyHandlers';
 import { AccountsPanelStorageHandlers } from './accountsPanelStorageHandlers';
 import { AccountsPanelProfileHandlers } from './accountsPanelProfileHandlers';
@@ -74,9 +74,11 @@ export class AccountsPanelHandlers {
       deps.profileProxyEditUseCase ??
       new ProfileProxyEditUseCase({
         profileWriter: deps.profileManager,
-        profileDetector: deps.profileDetector,
-        proxyLifecycle: deps.proxyManager,
-      } satisfies ProfileProxyEditUseCaseDependencies);
+        profileProxyEditLifecycle: new ProfileProxyEditLifecycleService({
+          profileDetector: deps.profileDetector,
+          proxyLifecycle: deps.proxyManager,
+        }),
+      });
     this.proxyHandlers = new AccountsPanelProxyHandlers(
       {
         profileDetector: deps.profileDetector,

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it, mock } from 'node:test';
 import type { Profile } from '../../profiles/types';
-import type { IProxyLifecycle } from '../../domain/ports/IProxyLifecycle';
+import { ProfileProxyEditLifecycleService } from '../../application/services/profileProxyEditLifecycleService';
 import { ProfileProxyEditUseCase } from '../../application/services/profileProxyEditUseCase';
 
 const PROFILE: Profile = {
@@ -33,10 +33,7 @@ function createUseCase(options: {
     success: true,
     port: 8080,
   }));
-  const proxyLifecycle: Pick<
-    IProxyLifecycle,
-    'stop' | 'ensureProfileProxy' | 'isRunning' | 'restartProfileProxy'
-  > = {
+  const proxyLifecycle = {
     stop,
     ensureProfileProxy,
     isRunning,
@@ -48,10 +45,12 @@ function createUseCase(options: {
       getProfile: async () => previousProfile,
       updateProfile,
     },
-    profileDetector: {
-      detectCurrentProfile: async () => options.currentProfile ?? null,
-    },
-    proxyLifecycle,
+    profileProxyEditLifecycle: new ProfileProxyEditLifecycleService({
+      profileDetector: {
+        detectCurrentProfile: async () => options.currentProfile ?? null,
+      },
+      proxyLifecycle,
+    }),
   });
 
   return {
