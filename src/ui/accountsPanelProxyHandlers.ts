@@ -1,12 +1,11 @@
-import * as vscode from 'vscode';
-import { isProfileProxyEnabled } from '@cursor-accounts/types';
 import type { IProfileDetector } from '../domain/ports/IProfileDetector';
 import type { ToWebviewMessage } from '../profiles/types';
 import type { IProxyCertificate } from '../domain/ports/IProxyCertificate';
 import type { IProxyLifecycle } from '../domain/ports/IProxyLifecycle';
 import type { IProxyOutput } from '../domain/ports/IProxyOutput';
-import { saveCaCertificateAs } from '../proxy/saveCaCertificate';
-import { t } from '../l10n';
+import { AccountsPanelProxyCertificateHandlers } from './accountsPanelProxyCertificateHandlers';
+import { AccountsPanelProxyOutputHandlers } from './accountsPanelProxyOutputHandlers';
+import { AccountsPanelProxyRuntimeHandlers } from './accountsPanelProxyRuntimeHandlers';
 
 export interface AccountsPanelProxyHandlerDependencies {
   profileDetector: IProfileDetector;
@@ -18,124 +17,61 @@ export interface AccountsPanelProxyHandlerCallbacks {
   refreshProxyStatus(options?: { checkCertificate?: boolean }): Promise<void>;
 }
 
-/** Handles proxy-specific webview actions behind capability-oriented ports. */
+/** Compatibility facade preserving the original Accounts panel proxy API. */
 export class AccountsPanelProxyHandlers {
+  private readonly runtimeHandlers: AccountsPanelProxyRuntimeHandlers;
+  private readonly certificateHandlers: AccountsPanelProxyCertificateHandlers;
+  private readonly outputHandlers: AccountsPanelProxyOutputHandlers;
+
   constructor(
-    private readonly dependencies: AccountsPanelProxyHandlerDependencies,
-    private readonly callbacks: AccountsPanelProxyHandlerCallbacks
-  ) {}
-
-  async start(): Promise<void> {
-    const currentProfile = await this.dependencies.profileDetector.detectCurrentProfile();
-    if (!currentProfile || !isProfileProxyEnabled(currentProfile)) {
-      await this.callbacks.postMessage({
-        type: 'error',
-        message: t('commands.proxy.requiresProfile'),
-      });
-      return;
-    }
-
-    const result = await this.dependencies.proxyManager.start(currentProfile.id);
-    if (result.success) {
-      await this.callbacks.postMessage({
-        type: 'success',
-        message: t('commands.proxy.started', {
-          port: String(result.port ?? ''),
-        }),
-      });
-    } else {
-      await this.callbacks.postMessage({
-        type: 'error',
-        message: t('commands.proxy.startFailed', {
-          error: result.error ?? t('errors.unknown'),
-        }),
-      });
-    }
-    await this.callbacks.refreshProxyStatus({ checkCertificate: true });
-  }
-
-  async stop(): Promise<void> {
-    const currentProfile = await this.dependencies.profileDetector.detectCurrentProfile();
-    if (!currentProfile || !isProfileProxyEnabled(currentProfile)) {
-      await this.callbacks.postMessage({
-        type: 'error',
-        message: t('commands.proxy.requiresProfile'),
-      });
-      return;
-    }
-
-    await this.dependencies.proxyManager.stop(currentProfile.id);
-    await this.callbacks.postMessage({
-      type: 'success',
-      message: t('commands.proxy.stopped'),
-    });
-    await this.callbacks.refreshProxyStatus();
-  }
-
-  async showLogs(): Promise<void> {
-    await vscode.commands.executeCommand(
-      'revealFileInOS',
-      vscode.Uri.file(this.dependencies.proxyManager.getLogDirectory())
+    dependencies: AccountsPanelProxyHandlerDependencies,
+    callbacks: AccountsPanelProxyHandlerCallbacks
+  ) {
+    this.runtimeHandlers = new AccountsPanelProxyRuntimeHandlers(
+      {
+        profileDetector: dependencies.profileDetector,
+        proxyLifecycle: dependencies.proxyManager,
+      },
+      callbacks
     );
-  }
-
-  async showTraffic(): Promise<void> {
-    await vscode.commands.executeCommand('cursorAccounts.proxy.showOutput');
-  }
-
-  async getInstallGuide(): Promise<void> {
-    const guide = await this.dependencies.proxyManager.getProxyInstallGuide();
-    await this.callbacks.postMessage({
-      type: 'proxyInstallGuide',
-      data: guide,
+    this.certificateHandlers = new AccountsPanelProxyCertificateHandlers(
+      { proxyCertificate: dependencies.proxyManager },
+      callbacks
+    );
+    this.outputHandlers = new AccountsPanelProxyOutputHandlers({
+      proxyOutput: dependencies.proxyManager,
     });
   }
 
-  async installCertificate(): Promise<void> {
-    const result = await this.dependencies.proxyManager.installCertificate();
-    const installed = await this.dependencies.proxyManager.checkCertificateInstalled();
-    const success = result.success || installed;
-    await this.callbacks.postMessage({
-      type: 'certificateInstallResult',
-      success,
-      error: success ? undefined : result.error,
-    });
-    await this.callbacks.refreshProxyStatus({ checkCertificate: true });
+  start(): Promise<void> {
+    return this.runtimeHandlers.start();
   }
 
-  async uninstallCertificate(): Promise<void> {
-    const result = await this.dependencies.proxyManager.uninstallCertificate();
-    const installed = await this.dependencies.proxyManager.checkCertificateInstalled();
-    const success = result.success && !installed;
-    await this.callbacks.postMessage({
-      type: 'certificateUninstallResult',
-      success,
-      error: success ? undefined : result.error,
-    });
-    await this.callbacks.refreshProxyStatus({ checkCertificate: true });
+  stop(): Promise<void> {
+    return this.runtimeHandlers.stop();
   }
 
-  async saveCertificate(): Promise<void> {
-    const result = await saveCaCertificateAs(this.dependencies.proxyManager);
-    if (result.cancelled) {
-      return;
-    }
+  showLogs(): Promise<void> {
+    return this.outputHandlers.showLogs();
+  }
 
-    if (result.saved && result.path) {
-      await this.callbacks.postMessage({
-        type: 'success',
-        message: t('commands.proxy.saveCertificate.saved', {
-          path: result.path,
-        }),
-      });
-      return;
-    }
+  showTraffic(): Promise<void> {
+    return this.outputHandlers.showTraffic();
+  }
 
-    await this.callbacks.postMessage({
-      type: 'error',
-      message: t('commands.proxy.saveCertificate.failed', {
-        error: result.error ?? t('commands.proxy.saveCertificate.notFound'),
-      }),
-    });
+  getInstallGuide(): Promise<void> {
+    return this.certificateHandlers.getInstallGuide();
+  }
+
+  installCertificate(): Promise<void> {
+    return this.certificateHandlers.install();
+  }
+
+  uninstallCertificate(): Promise<void> {
+    return this.certificateHandlers.uninstall();
+  }
+
+  saveCertificate(): Promise<void> {
+    return this.certificateHandlers.save();
   }
 }

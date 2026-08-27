@@ -1,6 +1,7 @@
 import './registerVscodeMock';
 import assert from 'node:assert/strict';
 import { beforeEach, describe, it } from 'node:test';
+import * as vscode from 'vscode';
 import type { Profile } from '@cursor-accounts/types';
 import type { ProfileDetector } from '../profiles/profileDetector';
 import type { IProxyManager } from '../domain/ports/IProxyManager';
@@ -18,6 +19,9 @@ function setup(overrides: {
   start?: IProxyManager['start'];
   stop?: IProxyManager['stop'];
   installed?: boolean;
+  certificatePath?: string | null;
+  installCertificate?: () => Promise<{ success: boolean; error?: string }>;
+  uninstallCertificate?: () => Promise<{ success: boolean; error?: string }>;
 } = {}) {
   const posted: unknown[] = [];
   const refreshes: Array<{ checkCertificate?: boolean } | undefined> = [];
@@ -32,8 +36,11 @@ function setup(overrides: {
       proxyManager: {
         start: overrides.start ?? (async () => ({ success: true, port: 8080 })),
         stop: overrides.stop ?? (async () => undefined),
-        installCertificate: async () => ({ success: true }),
-        uninstallCertificate: async () => ({ success: true }),
+        getCertificatePath: async () => overrides.certificatePath ?? null,
+        installCertificate:
+          overrides.installCertificate ?? (async () => ({ success: true })),
+        uninstallCertificate:
+          overrides.uninstallCertificate ?? (async () => ({ success: true })),
         checkCertificateInstalled: async () => overrides.installed ?? false,
         getProxyInstallGuide: async () => ({
           platform: 'darwin',
@@ -65,6 +72,8 @@ describe('AccountsPanelProxyHandlers', () => {
       'commands.proxy.stopped': 'Stopped',
       'commands.proxy.startFailed': 'Start failed: {error}',
       'errors.unknown': 'Unknown',
+      'commands.proxy.saveCertificate.failed': 'Save failed: {error}',
+      'commands.proxy.saveCertificate.notFound': 'Certificate not found',
     });
   });
 
@@ -82,6 +91,35 @@ describe('AccountsPanelProxyHandlers', () => {
 
     await handlers.start();
 
+    assert.deepEqual(posted, [{ type: 'error', message: 'Profile required' }]);
+    assert.deepEqual(refreshes, []);
+  });
+
+  it('reports a failed start and still refreshes certificate status', async () => {
+    const { handlers, posted, refreshes } = setup({
+      start: async () => ({ success: false, error: 'port busy' }),
+    });
+
+    await handlers.start();
+
+    assert.deepEqual(posted, [
+      { type: 'error', message: 'Start failed: port busy' },
+    ]);
+    assert.deepEqual(refreshes, [{ checkCertificate: true }]);
+  });
+
+  it('does not stop a profile when the proxy is disabled', async () => {
+    let stopCalled = false;
+    const { handlers, posted, refreshes } = setup({
+      currentProfile: { ...profile, proxyEnabled: false },
+      stop: async () => {
+        stopCalled = true;
+      },
+    });
+
+    await handlers.stop();
+
+    assert.equal(stopCalled, false);
     assert.deepEqual(posted, [{ type: 'error', message: 'Profile required' }]);
     assert.deepEqual(refreshes, []);
   });
@@ -114,5 +152,81 @@ describe('AccountsPanelProxyHandlers', () => {
       error: undefined,
     });
     assert.deepEqual(refreshes, [{ checkCertificate: true }]);
+  });
+
+  it('keeps a failed install successful when the certificate is already installed', async () => {
+    const { handlers, posted } = setup({
+      installed: true,
+      installCertificate: async () => ({
+        success: false,
+        error: 'installer failed',
+      }),
+    });
+
+    await handlers.installCertificate();
+
+    assert.deepEqual(posted, [
+      {
+        type: 'certificateInstallResult',
+        success: true,
+        error: undefined,
+      },
+    ]);
+  });
+
+  it('reports an uninstall failure when the certificate remains installed', async () => {
+    const { handlers, posted } = setup({
+      installed: true,
+      uninstallCertificate: async () => ({
+        success: false,
+        error: 'uninstaller failed',
+      }),
+    });
+
+    await handlers.uninstallCertificate();
+
+    assert.deepEqual(posted, [
+      {
+        type: 'certificateUninstallResult',
+        success: false,
+        error: 'uninstaller failed',
+      },
+    ]);
+  });
+
+  it('reports a missing certificate when saving is requested without a source', async () => {
+    const { handlers, posted } = setup();
+
+    await handlers.saveCertificate();
+
+    assert.deepEqual(posted, [
+      {
+        type: 'error',
+        message: 'Save failed: Certificate not found',
+      },
+    ]);
+  });
+
+  it('opens the proxy log directory and traffic output through VS Code commands', async () => {
+    const executed: unknown[][] = [];
+    const commands = vscode.commands as unknown as {
+      executeCommand: (...args: unknown[]) => Promise<unknown>;
+    };
+    const originalExecuteCommand = commands.executeCommand;
+    commands.executeCommand = async (...args) => {
+      executed.push(args);
+    };
+
+    try {
+      const { handlers } = setup();
+      await handlers.showLogs();
+      await handlers.showTraffic();
+    } finally {
+      commands.executeCommand = originalExecuteCommand;
+    }
+
+    assert.equal(executed[0]?.[0], 'revealFileInOS');
+    assert.equal((executed[0]?.[1] as { fsPath: string }).fsPath, '/tmp/logs');
+    assert.deepEqual(executed[1], ['cursorAccounts.proxy.showOutput']);
   });
 });
