@@ -53,6 +53,11 @@ const checks = [
     args: ['run', 'test:session-token-summary'],
   },
   {
+    label: 'agent text extraction contract tests',
+    command: 'pnpm',
+    args: ['run', 'test:agent-text-extract'],
+  },
+  {
     label: 'Cursor protobuf extraction contract tests',
     command: 'pnpm',
     args: ['run', 'test:cursor-proto-extraction'],
