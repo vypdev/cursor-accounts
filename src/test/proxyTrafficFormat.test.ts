@@ -126,12 +126,14 @@ describe('proxyTrafficFormat', () => {
         Authorization: 'Bearer secret',
         cookie: 'session=secret',
         'set-cookie': 'session=secret; HttpOnly',
+        'x-api-key': 'api-secret',
         'x-request-id': 'request-1',
       }),
       {
         Authorization: '[REDACTED]',
         cookie: '[REDACTED]',
         'set-cookie': '[REDACTED]',
+        'x-api-key': '[REDACTED]',
         'x-request-id': 'request-1',
       }
     );

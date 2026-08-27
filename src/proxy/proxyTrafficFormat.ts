@@ -3,11 +3,7 @@ import type { AgentSessionInfo } from '../domain/types/agentTracking';
 
 export const PROXY_TRAFFIC_TAG = '[ProxyTraffic]';
 
-const SENSITIVE_HEADER_KEYS = new Set([
-  'authorization',
-  'cookie',
-  'set-cookie',
-]);
+export { redactHeadersForLog } from './utils/proxyRequestMetadata';
 
 export function extractRequestId(
   headers: Record<string, string>
@@ -233,18 +229,4 @@ function formatAgentRequestHint(
 ): string | undefined {
   const requestId = summary.insights?.agent?.requestId;
   return requestId ? `agent=${requestId.slice(0, 8)}` : undefined;
-}
-
-export function redactHeadersForLog(
-  headers: Record<string, string>
-): Record<string, string> {
-  const result: Record<string, string> = {};
-  for (const [key, value] of Object.entries(headers)) {
-    if (SENSITIVE_HEADER_KEYS.has(key.toLowerCase())) {
-      result[key] = '[REDACTED]';
-    } else {
-      result[key] = value;
-    }
-  }
-  return result;
 }
