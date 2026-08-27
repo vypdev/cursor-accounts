@@ -55,6 +55,43 @@ interface RunSseChunkContext {
   isCursorHost: boolean;
 }
 
+interface RunSseChunkProcessingContext {
+  dependencies: MitmProxyResponseHandlerDependencies;
+  chunk: Buffer;
+  requestId: string;
+  bidiRequestId: string | undefined;
+  decoderReady: Promise<void> | undefined;
+  context: RunSseChunkContext;
+}
+
+interface RunSseFinalizationContext {
+  dependencies: MitmProxyResponseHandlerDependencies;
+  requestId: string;
+  bidiRequestId: string | undefined;
+  url: string;
+  host: string;
+  statusCode: number | undefined;
+  decoderReady: Promise<void> | undefined;
+  streamProcessing: Promise<void>;
+}
+
+interface ResponseFinalizationContext {
+  dependencies: MitmProxyResponseHandlerDependencies;
+  ctx: Parameters<OnResponseParams>[0];
+  bodyChunks: Buffer[];
+  headers: Record<string, string>;
+  contentType: string | undefined;
+  url: string;
+  host: string;
+  statusCode: number | undefined;
+  requestId: string | undefined;
+  bidiRequestId: string | undefined;
+  durationMs: number | undefined;
+  isRunSSE: boolean;
+  decoderReady: Promise<void> | undefined;
+  streamProcessing: Promise<void>;
+}
+
 /**
  * Capture response bodies and process incremental agent streams without
  * coupling the transport callback to the concrete MITM server.
@@ -101,21 +138,21 @@ export function createMitmProxyResponseHandler(
       bodyChunks.push(chunk);
       if (isRunSSE && requestId) {
         streamProcessing = streamProcessing.then(() =>
-          processRunSseChunk(
+          processRunSseChunk({
             dependencies,
             chunk,
             requestId,
             bidiRequestId,
             decoderReady,
-            streamContext
-          )
+            context: streamContext,
+          })
         );
       }
       cb(null, chunk);
     });
 
     ctx.onResponseEnd((_ctx, endCallback) => {
-      void finalizeResponse(
+      void finalizeResponse({
         dependencies,
         ctx,
         bodyChunks,
@@ -129,22 +166,22 @@ export function createMitmProxyResponseHandler(
         durationMs,
         isRunSSE,
         decoderReady,
-        streamProcessing
-      ).then(endCallback, endCallback);
+        streamProcessing,
+      }).then(endCallback, endCallback);
     });
 
     callback();
   };
 }
 
-async function processRunSseChunk(
-  dependencies: MitmProxyResponseHandlerDependencies,
-  chunk: Buffer,
-  requestId: string,
-  bidiRequestId: string | undefined,
-  decoderReady: Promise<void> | undefined,
-  context: RunSseChunkContext
-): Promise<void> {
+async function processRunSseChunk({
+  dependencies,
+  chunk,
+  requestId,
+  bidiRequestId,
+  decoderReady,
+  context,
+}: RunSseChunkProcessingContext): Promise<void> {
   try {
     await decoderReady;
     const decoder = dependencies.streamingDecoders.get(requestId);
@@ -170,51 +207,38 @@ async function processRunSseChunk(
   }
 }
 
-async function finalizeResponse(
-  dependencies: MitmProxyResponseHandlerDependencies,
-  ctx: Parameters<OnResponseParams>[0],
-  bodyChunks: Buffer[],
-  headers: Record<string, string>,
-  contentType: string | undefined,
-  url: string,
-  host: string,
-  statusCode: number | undefined,
-  requestId: string | undefined,
-  bidiRequestId: string | undefined,
-  durationMs: number | undefined,
-  isRunSSE: boolean,
-  decoderReady: Promise<void> | undefined,
-  streamProcessing: Promise<void>
-): Promise<void> {
-  const { statistics, requestLogger, streamingDecoders } = dependencies;
+async function finalizeResponse({
+  dependencies,
+  ctx,
+  bodyChunks,
+  headers,
+  contentType,
+  url,
+  host,
+  statusCode,
+  requestId,
+  bidiRequestId,
+  durationMs,
+  isRunSSE,
+  decoderReady,
+  streamProcessing,
+}: ResponseFinalizationContext): Promise<void> {
+  const { statistics, requestLogger } = dependencies;
   statistics.activeConnections = Math.max(0, statistics.activeConnections - 1);
 
-  let incrementalTurnsAlreadyPersisted = false;
-  if (isRunSSE && requestId) {
-    try {
-      await streamProcessing;
-      await decoderReady;
-      const decoder = streamingDecoders.get(requestId);
-      if (decoder) {
-        incrementalTurnsAlreadyPersisted = true;
-        const finalLive = decoder.finalize();
-        const streamContext = {
+  const incrementalTurnsAlreadyPersisted =
+    isRunSSE && requestId
+      ? await finalizeRunSseStream({
+          dependencies,
+          requestId,
+          bidiRequestId,
           url,
           host,
           statusCode,
-          bidiRequestId,
-          httpRequestId: requestId,
-          isCursorHost: isCursorHost(host),
-        };
-        if (finalLive) {
-          dependencies.runSseHandler.emitLiveTokenUpdate(finalLive, streamContext);
-        }
-        streamingDecoders.delete(requestId);
-      }
-    } catch {
-      streamingDecoders.delete(requestId);
-    }
-  }
+          decoderReady,
+          streamProcessing,
+        })
+      : false;
 
   const rawBody = Buffer.concat(bodyChunks);
   statistics.bytesTransferred += rawBody.length;
@@ -249,4 +273,42 @@ async function finalizeResponse(
     httpRequestId: requestId,
     incrementalTurnsAlreadyPersisted,
   });
+}
+
+async function finalizeRunSseStream({
+  dependencies,
+  requestId,
+  bidiRequestId,
+  url,
+  host,
+  statusCode,
+  decoderReady,
+  streamProcessing,
+}: RunSseFinalizationContext): Promise<boolean> {
+  try {
+    await streamProcessing;
+    await decoderReady;
+    const decoder = dependencies.streamingDecoders.get(requestId);
+    if (!decoder) {
+      return false;
+    }
+
+    const finalLive = decoder.finalize();
+    const streamContext = {
+      url,
+      host,
+      statusCode,
+      bidiRequestId,
+      httpRequestId: requestId,
+      isCursorHost: isCursorHost(host),
+    };
+    if (finalLive) {
+      dependencies.runSseHandler.emitLiveTokenUpdate(finalLive, streamContext);
+    }
+    dependencies.streamingDecoders.delete(requestId);
+    return true;
+  } catch {
+    dependencies.streamingDecoders.delete(requestId);
+    return false;
+  }
 }
