@@ -1,6 +1,7 @@
 import './registerVscodeMock';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import * as vscode from 'vscode';
 import type { IInstanceDetector } from '../domain/ports/IInstanceDetector';
 import type { IProfileDetector } from '../domain/ports/IProfileDetector';
 import type { IProfileManager } from '../domain/ports/IProfileManager';
@@ -64,6 +65,7 @@ function createHandlers(overrides: {
 
 describe('AccountsPanelProfileHandlers', () => {
   initL10nForTests({
+    'errors.profileNotFound': 'Profile not found',
     'panel.profileCreated': 'Created {name}',
     'panel.profileDeleted': 'Deleted {name}',
     'panel.exported': 'Exported {count}',
@@ -115,6 +117,28 @@ describe('AccountsPanelProfileHandlers', () => {
       { type: 'success', message: 'Deleted User' },
     ]);
     assert.equal(getRefreshCount(), 1);
+  });
+
+  it('reveals an existing profile user-data directory in the operating system', async () => {
+    let revealedPath: string | undefined;
+    const commands = vscode.commands as unknown as {
+      executeCommand: (...args: unknown[]) => Promise<unknown>;
+    };
+    const originalExecuteCommand = commands.executeCommand;
+    commands.executeCommand = async (...args) => {
+      if (args[0] === 'revealFileInOS') {
+        revealedPath = (args[1] as { fsPath: string }).fsPath;
+      }
+    };
+
+    try {
+      const { handlers } = createHandlers();
+      await handlers.showInExplorer('p1');
+    } finally {
+      commands.executeCommand = originalExecuteCommand;
+    }
+
+    assert.equal(revealedPath, PROFILE.userDataDir);
   });
 
   it('exports selected profiles as a downloadable webview message', async () => {

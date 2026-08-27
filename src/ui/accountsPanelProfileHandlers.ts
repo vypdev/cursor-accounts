@@ -1,3 +1,4 @@
+import * as vscode from 'vscode';
 import { isProfileProxyEnabled, isProfileProxyJsonlLoggingEnabled } from '@cursor-accounts/types';
 import * as extensionLog from '../logging/extensionLog';
 import { t } from '../l10n';
@@ -113,6 +114,18 @@ export class AccountsPanelProfileHandlers {
       message: t('panel.profileDeleted', { name: displayName }),
     });
     await this.callbacks.refresh();
+  }
+
+  async showInExplorer(profileId: string): Promise<void> {
+    const profile = await this.dependencies.profileManager.getProfile(profileId);
+    if (!profile) {
+      throw new Error(t('errors.profileNotFound'));
+    }
+
+    await vscode.commands.executeCommand(
+      'revealFileInOS',
+      vscode.Uri.file(profile.userDataDir)
+    );
   }
 
   async exportProfiles(

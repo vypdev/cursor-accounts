@@ -1,13 +1,8 @@
-import * as vscode from 'vscode';
 import type { IProfileAuthReader } from '../domain/ports/IProfileAuthReader';
 import type { IProfileDetector } from '../domain/ports/IProfileDetector';
 import type { IProfileManager } from '../domain/ports/IProfileManager';
 import type { IProfileStorageAnalyzer } from '../domain/ports/IProfileStorageAnalyzer';
 import type { IStorageCleanupService } from '../domain/ports/IStorageCleanupService';
-import * as extensionLog from '../logging/extensionLog';
-import { t } from '../l10n';
-import type { EfficiencyService } from '../modelEfficiency/efficiencyService';
-import { getEfficiencyWrongWindowMessage } from '../modelEfficiency/efficiencyService';
 import type { InstanceDetector } from '../profiles/instanceDetector';
 import type { ProfileLauncher } from '../profiles/profileLauncher';
 import type {
@@ -19,12 +14,16 @@ import type { IProfileSettingsManager } from '../domain/ports/IProfileSettingsMa
 import type { IProxyCertificate } from '../domain/ports/IProxyCertificate';
 import type { IProxyLifecycle } from '../domain/ports/IProxyLifecycle';
 import type { IProxyOutput } from '../domain/ports/IProxyOutput';
-import { buildSuggestedProfileResponse } from './suggestedProfile';
 import { AccountsPanelProxyHandlers } from './accountsPanelProxyHandlers';
 import { AccountsPanelStorageHandlers } from './accountsPanelStorageHandlers';
 import { AccountsPanelProfileHandlers } from './accountsPanelProfileHandlers';
 import { AccountsPanelGithubHandlers } from './accountsPanelGithubHandlers';
 import { AccountsPanelLaunchHandlers } from './accountsPanelLaunchHandlers';
+import {
+  AccountsPanelEfficiencyHandlers,
+  type AccountsPanelEfficiencyService,
+} from './accountsPanelEfficiencyHandlers';
+import { AccountsPanelSuggestedProfileHandlers } from './accountsPanelSuggestedProfileHandlers';
 
 /** Callbacks the panel provides for webview messaging and refresh orchestration. */
 export interface AccountsPanelHandlerCallbacks {
@@ -41,7 +40,7 @@ export interface AccountsPanelHandlerDeps {
   profileManager: IProfileManager;
   profileLauncher: ProfileLauncher;
   profileDetector: IProfileDetector;
-  efficiencyService: EfficiencyService;
+  efficiencyService: AccountsPanelEfficiencyService;
   authReader: IProfileAuthReader;
   instanceDetector: InstanceDetector;
   storageCleanupService: IStorageCleanupService;
@@ -61,9 +60,11 @@ export class AccountsPanelHandlers {
   private readonly storageHandlers: AccountsPanelStorageHandlers;
   private readonly profileHandlers: AccountsPanelProfileHandlers;
   private readonly githubHandlers: AccountsPanelGithubHandlers;
+  private readonly efficiencyHandlers: AccountsPanelEfficiencyHandlers;
+  private readonly suggestedProfileHandlers: AccountsPanelSuggestedProfileHandlers;
 
   constructor(
-    private readonly deps: AccountsPanelHandlerDeps,
+    deps: AccountsPanelHandlerDeps,
     private readonly callbacks: AccountsPanelHandlerCallbacks
   ) {
     this.proxyHandlers = new AccountsPanelProxyHandlers(
@@ -120,6 +121,27 @@ export class AccountsPanelHandlers {
         refreshInstances: () => callbacks.refreshInstances(),
       }
     );
+    this.efficiencyHandlers = new AccountsPanelEfficiencyHandlers(
+      {
+        profileDetector: deps.profileDetector,
+        efficiencyService: deps.efficiencyService,
+      },
+      {
+        postMessage: (message) => callbacks.postMessage(message),
+        refresh: () => callbacks.refresh(),
+      }
+    );
+    this.suggestedProfileHandlers = new AccountsPanelSuggestedProfileHandlers(
+      {
+        profileDetector: deps.profileDetector,
+        authReader: deps.authReader,
+        profileManager: deps.profileManager,
+      },
+      {
+        postMessage: (message) => callbacks.postMessage(message),
+        hasActiveWebview: () => callbacks.hasActiveWebview(),
+      }
+    );
   }
 
   async handle(message: FromWebviewMessage): Promise<void> {
@@ -141,7 +163,7 @@ export class AccountsPanelHandlers {
         break;
 
       case 'showInExplorer':
-        await this.handleShowInExplorer(message.profileId);
+        await this.profileHandlers.showInExplorer(message.profileId);
         break;
 
       case 'export':
@@ -156,11 +178,11 @@ export class AccountsPanelHandlers {
         break;
 
       case 'requestSuggestedProfile':
-        await this.handleRequestSuggestedProfile();
+        await this.suggestedProfileHandlers.request();
         break;
 
       case 'toggleEfficiency':
-        await this.handleToggleEfficiency(message.profileId, message.enabled);
+        await this.efficiencyHandlers.toggle(message.profileId, message.enabled);
         break;
 
       case 'requestStorageInfo':
@@ -217,72 +239,6 @@ export class AccountsPanelHandlers {
 
       default:
         break;
-    }
-  }
-
-  private async handleShowInExplorer(profileId: string): Promise<void> {
-    const profile = await this.deps.profileManager.getProfile(profileId);
-    if (!profile) {
-      throw new Error(t('errors.profileNotFound'));
-    }
-
-    const uri = vscode.Uri.file(profile.userDataDir);
-    await vscode.commands.executeCommand('revealFileInOS', uri);
-  }
-
-  private async handleToggleEfficiency(
-    profileId: string,
-    enabled: boolean
-  ): Promise<void> {
-    const current = await this.deps.profileDetector.detectCurrentProfile();
-    if (!current || current.id !== profileId) {
-      throw new Error(getEfficiencyWrongWindowMessage());
-    }
-
-    extensionLog.info(
-      `[AccountsPanel] Toggle efficiency ${enabled ? 'on' : 'off'} for ${profileId}`
-    );
-
-    const result = await this.deps.efficiencyService.setEfficiencyEnabled(
-      profileId,
-      enabled
-    );
-
-    await this.callbacks.postMessage({
-      type: 'success',
-      message: result.message,
-    });
-    await this.callbacks.refresh();
-  }
-
-  private async handleRequestSuggestedProfile(): Promise<void> {
-    if (!this.callbacks.hasActiveWebview()) {
-      return;
-    }
-
-    try {
-      const userDataDir = this.deps.profileDetector.getCurrentUserDataDir();
-      const tokens = await this.deps.authReader.readTokens(userDataDir);
-
-      const existing = tokens?.email
-        ? await this.deps.profileManager.findProfileByEmail(tokens.email)
-        : undefined;
-
-      await this.callbacks.postMessage(
-        buildSuggestedProfileResponse(tokens?.email, existing)
-      );
-    } catch (error) {
-      extensionLog.error(
-        `[AccountsPanel] Failed to detect current profile email: ${extensionLog.formatError(error)}`
-      );
-
-      if (this.callbacks.hasActiveWebview()) {
-        await this.callbacks.postMessage({
-          type: 'suggestedProfile',
-          email: undefined,
-          displayName: undefined,
-        });
-      }
     }
   }
 
