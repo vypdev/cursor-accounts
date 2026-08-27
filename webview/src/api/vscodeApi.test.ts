@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   VSCodeAPI,
+  logBridgeLifecycle,
   type VSCodeApiInstance,
 } from './vscodeApi';
 import type { FromWebviewMessage, ToWebviewMessage } from '../types';
@@ -119,6 +120,31 @@ describe('VSCodeAPI', () => {
       'saveProxyCertificate',
       'refreshProxyStatus',
     ]);
+  });
+
+  it('logs extension diagnostics through the same typed message boundary', () => {
+    const { bridge, posted } = createHostApi();
+
+    bridge.logToExtension('debug', 'startup', 'webview ready');
+    logBridgeLifecycle('render', 'panel rendered');
+
+    expect(posted).toEqual([
+      {
+        type: 'webviewLog',
+        level: 'debug',
+        phase: 'startup',
+        message: 'webview ready',
+      },
+      {
+        type: 'webviewLog',
+        level: 'info',
+        phase: 'render',
+        message: 'panel rendered',
+      },
+    ]);
+
+    window.__cursorAccountsVscodeApi = undefined;
+    expect(() => logBridgeLifecycle('early-boot', 'API unavailable')).not.toThrow();
   });
 
   it('versions persisted state and rejects incompatible state versions', () => {
