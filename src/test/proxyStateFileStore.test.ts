@@ -3,7 +3,10 @@ import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
-import { ProxyStateFileStore } from '../proxy/proxyStateFileStore';
+import {
+  ProxyStateFileStore,
+  ProxyStateFileStoreError,
+} from '../proxy/proxyStateFileStore';
 
 describe('ProxyStateFileStore', () => {
   let tempDir: string;
@@ -71,10 +74,32 @@ describe('ProxyStateFileStore', () => {
     assert.deepEqual(await fs.readdir(tempDir), ['proxy-state.json']);
   });
 
+  it('wraps an atomic rename failure and removes its temporary file', async () => {
+    const statePath = store.getStatePath(tempDir);
+    await fs.mkdir(statePath, { recursive: true });
+
+    await assert.rejects(
+      store.write(tempDir, {
+        version: 1,
+        profileId: 'profile-a',
+        running: true,
+        lastUpdatedAt: '2026-08-27T00:00:00.000Z',
+      }),
+      (error: unknown) => error instanceof ProxyStateFileStoreError
+    );
+    assert.deepEqual(await fs.readdir(tempDir), ['proxy-state.json']);
+  });
+
   it('returns null for corrupted JSON', async () => {
     const statePath = store.getStatePath(tempDir);
     await fs.mkdir(tempDir, { recursive: true });
     await fs.writeFile(statePath, '{not json', 'utf8');
+    assert.equal(await store.read(tempDir), null);
+  });
+
+  it('returns null for structurally invalid JSON', async () => {
+    const statePath = store.getStatePath(tempDir);
+    await fs.writeFile(statePath, JSON.stringify({ version: 1 }), 'utf8');
     assert.equal(await store.read(tempDir), null);
   });
 
@@ -87,5 +112,14 @@ describe('ProxyStateFileStore', () => {
     });
     await store.clear(tempDir);
     assert.equal(await store.read(tempDir), null);
+  });
+
+  it('wraps failures while clearing the state path', async () => {
+    await fs.mkdir(store.getStatePath(tempDir), { recursive: true });
+
+    await assert.rejects(
+      store.clear(tempDir),
+      (error: unknown) => error instanceof ProxyStateFileStoreError
+    );
   });
 });
