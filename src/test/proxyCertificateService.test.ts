@@ -10,12 +10,15 @@ import type {
 import type { IProxyCertificateService } from '../domain/ports/IProxyCertificateService';
 import type { IProxyStateStore } from '../domain/ports/IProxyStateStore';
 import { initL10nForTests } from '../l10n';
+import { ProxyCertificateGeneratorService } from '../services/proxyCertificateGeneratorService';
+import { ProxyCertificateInstallationService } from '../services/proxyCertificateInstallationService';
 import { ProxyCertificateMaterialService } from '../services/proxyCertificateMaterialService';
 import {
   createProxyCertificateService,
   formatProxyCertificateError,
 } from '../services/proxyCertificateService';
-import { ProxyCertificateTrustService } from '../services/proxyCertificateTrustService';
+import { ProxyCertificateStatusService } from '../services/proxyCertificateStatusService';
+import { createProxyCertificateTrust } from '../services/proxyCertificateTrustComposition';
 
 const PROFILE: Profile = {
   id: 'profile-1',
@@ -70,9 +73,17 @@ function createService(options: {
     stateStore,
     profileManager
   );
-  return createProxyCertificateService(
+  const generator = new ProxyCertificateGeneratorService(operations);
+  const status = new ProxyCertificateStatusService(operations);
+  const installer = new ProxyCertificateInstallationService(
+    operations,
     material,
-    new ProxyCertificateTrustService(operations, material)
+    status
+  );
+  return createProxyCertificateService(
+    generator,
+    material,
+    createProxyCertificateTrust(status, installer)
   );
 }
 

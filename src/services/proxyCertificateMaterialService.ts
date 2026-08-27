@@ -13,10 +13,6 @@ export class ProxyCertificateMaterialService implements IProxyCertificateMateria
     private readonly profileManager: IProfileReader
   ) {}
 
-  async ensureCaCertificate(): Promise<string> {
-    return this.certificateOperations.ensureCaCertificate();
-  }
-
   async getCertificatePath(): Promise<string | null> {
     const persistedPath = await this.findPersistedCertificatePath();
     if (persistedPath) {

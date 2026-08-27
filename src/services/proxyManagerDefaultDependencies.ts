@@ -25,7 +25,10 @@ import { getSharedProxyStorageDir } from '../proxy/sharedProxyPaths';
 import { NodeProxyProcess } from '../proxy/nodeProxyProcess';
 import { ProxyCertificateMaterialService } from './proxyCertificateMaterialService';
 import { createProxyCertificateService } from './proxyCertificateService';
-import { ProxyCertificateTrustService } from './proxyCertificateTrustService';
+import { ProxyCertificateGeneratorService } from './proxyCertificateGeneratorService';
+import { ProxyCertificateInstallationService } from './proxyCertificateInstallationService';
+import { ProxyCertificateStatusService } from './proxyCertificateStatusService';
+import { createProxyCertificateTrust } from './proxyCertificateTrustComposition';
 import * as extensionLog from '../logging/extensionLog';
 
 export interface ProxyManagerDependencies {
@@ -85,14 +88,23 @@ export function createDefaultProxyManagerDependencies(
     options.stateStore,
     options.profileManager
   );
+  const certificateGenerator = new ProxyCertificateGeneratorService(
+    certificateOperations
+  );
+  const certificateStatus = new ProxyCertificateStatusService(
+    certificateOperations
+  );
+  const certificateInstaller = new ProxyCertificateInstallationService(
+    certificateOperations,
+    certificateMaterial,
+    certificateStatus
+  );
 
   return {
     certService: createProxyCertificateService(
+      certificateGenerator,
       certificateMaterial,
-      new ProxyCertificateTrustService(
-        certificateOperations,
-        certificateMaterial
-      )
+      createProxyCertificateTrust(certificateStatus, certificateInstaller)
     ),
     trafficBus,
     trafficIngress,

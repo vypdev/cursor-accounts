@@ -1,8 +1,7 @@
-import type { ProxyInstallGuide } from '@cursor-accounts/types';
+import type { IProxyCertificateGuide } from './IProxyCertificateGuide';
+import type { IProxyCertificatePath } from './IProxyCertificatePath';
 
-/** Certificate material and user-facing installation-guide capabilities. */
-export interface IProxyCertificateMaterial {
-  ensureCaCertificate(): Promise<string>;
-  getCertificatePath(): Promise<string | null>;
-  getInstallGuide(): Promise<ProxyInstallGuide>;
-}
+/** Certificate path and user-facing installation-guide capabilities. */
+export interface IProxyCertificateMaterial
+  extends IProxyCertificatePath,
+    IProxyCertificateGuide {}
