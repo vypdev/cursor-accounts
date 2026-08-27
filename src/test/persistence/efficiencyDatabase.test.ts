@@ -198,7 +198,7 @@ describe('EfficiencyDatabase', () => {
     await fs.writeFile(`${dbPath}-shm`, 'shared memory marker');
 
     const db = new EfficiencyDatabase(dbPath, extensionPath);
-    await (db as unknown as { fallbackRecreate(): Promise<void> }).fallbackRecreate();
+    await db.initialize();
 
     const entries = await fs.readdir(tempDir);
     const backupName = entries.find((name) => /^efficiency\.db\.corrupted-\d+$/.test(name));

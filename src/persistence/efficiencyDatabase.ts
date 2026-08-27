@@ -1,9 +1,7 @@
-import * as fs from 'fs/promises';
 import * as path from 'path';
 import type { EfficiencyStats } from '@cursor-accounts/types';
-import * as extensionLog from '../logging/extensionLog';
-import { isNotFoundError } from '../utils/fileSystemErrors';
 import { DatabaseMigrator } from './databaseMigrations';
+import { EfficiencyDatabaseLifecycle } from './efficiencyDatabaseLifecycle';
 import { escapeSqlString, sqlLiteral, sqlNumber } from './sqliteExecutor';
 import type { SqliteExecutor } from './sqliteExecutor';
 import {
@@ -35,6 +33,7 @@ function normalizeEpoch(value: number): number {
 export class EfficiencyDatabase {
   private readonly migrator: DatabaseMigrator;
   private readonly executor: SqliteExecutor;
+  private readonly lifecycle: EfficiencyDatabaseLifecycle;
   private readonly eventReader: EfficiencyEventReader;
   private readonly aggregateReader: EfficiencyAggregateReader;
   private readonly quotaReader: EfficiencyQuotaReader;
@@ -45,110 +44,18 @@ export class EfficiencyDatabase {
   ) {
     this.migrator = new DatabaseMigrator(dbPath, extensionPath);
     this.executor = this.migrator.getExecutor();
+    this.lifecycle = new EfficiencyDatabaseLifecycle({
+      dbPath,
+      executor: this.executor,
+      migrator: this.migrator,
+    });
     this.eventReader = createEfficiencyEventReader(this.executor);
     this.aggregateReader = createEfficiencyAggregateReader(this.executor);
     this.quotaReader = createEfficiencyQuotaReader(this.executor);
   }
 
   async initialize(): Promise<void> {
-    const exists = await this.executor.dbExists();
-
-    if (!exists) {
-      await this.createFresh();
-      return;
-    }
-
-    try {
-      const migrations = await this.migrator.loadMigrations();
-      const currentVersion = await this.migrator.getCurrentVersion();
-      const targetVersion = this.migrator.getTargetVersion(migrations);
-
-      if (currentVersion > targetVersion) {
-        extensionLog.warn(
-          `[EfficiencyDatabase] DB version ${currentVersion} is newer than extension version ${targetVersion}. Using as-is.`
-        );
-        return;
-      }
-
-      if (currentVersion < targetVersion) {
-        const result = await this.migrator.migrate();
-        if (!result.success) {
-          throw new Error(`Migration failed: ${result.error ?? 'unknown'}`);
-        }
-        extensionLog.info(
-          `[EfficiencyDatabase] Migrated from v${result.fromVersion} to v${result.toVersion}`
-        );
-      }
-
-      const validation = await this.migrator.validate();
-      if (!validation.valid) {
-        throw new Error(`Schema validation failed: ${validation.error}`);
-      }
-    } catch (error) {
-      extensionLog.error(
-        `[EfficiencyDatabase] Initialization failed: ${extensionLog.formatError(error)}. Recreating database.`
-      );
-      await this.fallbackRecreate();
-    }
-  }
-
-  private async createFresh(): Promise<void> {
-    const migrations = await this.migrator.loadMigrations();
-    const first = migrations[0];
-    if (!first) {
-      throw new Error('No migration files found');
-    }
-    await this.migrator.applyInitialMigration(first);
-    extensionLog.info(
-      `[EfficiencyDatabase] Created fresh database v${first.version} using ${first.filename}`
-    );
-  }
-
-  private async fallbackRecreate(): Promise<void> {
-    const timestamp = Date.now();
-    const backupPath = `${this.dbPath}.corrupted-${timestamp}`;
-
-    const databasePreserved = await this.preserveCorruptedArtifact(
-      this.dbPath,
-      backupPath,
-      'corrupted efficiency database'
-    );
-    if (databasePreserved) {
-      extensionLog.info(
-        `[EfficiencyDatabase] Corrupted DB backed up to ${backupPath}`
-      );
-    }
-
-    // WAL and shared-memory sidecars belong to the same database snapshot.
-    // Moving only the main file and deleting these artifacts can discard
-    // committed WAL pages and makes the backup impossible to restore.
-    for (const suffix of ['-wal', '-shm']) {
-      await this.preserveCorruptedArtifact(
-        `${this.dbPath}${suffix}`,
-        `${backupPath}${suffix}`,
-        'corrupted efficiency database sidecar'
-      );
-    }
-
-    await this.createFresh();
-  }
-
-  private async preserveCorruptedArtifact(
-    sourcePath: string,
-    backupPath: string,
-    description: string
-  ): Promise<boolean> {
-    try {
-      await fs.rename(sourcePath, backupPath);
-      return true;
-    } catch (error) {
-      if (isNotFoundError(error)) {
-        return false;
-      }
-      throw new Error(
-        `Cannot preserve ${description} at ${backupPath}: ${extensionLog.formatError(error)}`
-      );
-    }
+    await this.lifecycle.initialize();
   }
 
   async insertEvent(event: PromptEventRecord): Promise<void> {
@@ -276,22 +183,11 @@ PRAGMA wal_checkpoint(TRUNCATE);
   }
 
   async getDatabaseSize(): Promise<number> {
-    let total = 0;
-    for (const suffix of ['', '-wal', '-shm']) {
-      try {
-        const stat = await fs.stat(`${this.dbPath}${suffix}`);
-        total += stat.size;
-      } catch {
-        // missing sidecar
-      }
-    }
-    return total;
+    return this.lifecycle.getDatabaseSize();
   }
 
   async destroyDatabase(): Promise<void> {
-    await fs.unlink(this.dbPath).catch(() => {});
-    await fs.unlink(`${this.dbPath}-wal`).catch(() => {});
-    await fs.unlink(`${this.dbPath}-shm`).catch(() => {});
+    await this.lifecycle.destroyDatabase();
   }
 
   getDbPath(): string {
