@@ -4,12 +4,16 @@ import { Proxy } from 'http-mitm-proxy';
 import { PolyglotMitmProxyServer } from '../../proxy/polyglotMitmProxyServer';
 import { NullLogger } from '../../proxy/nullLogger';
 import { CertificateManager } from '../../proxy/certificateManager';
+import { MitmCertificateDirectory } from '../../proxy/mitmCertificateDirectory';
 import { applyHttpolyglotHttpsPatch } from '../../proxy/httpolyglotHttpsPatch';
 
 describe('PolyglotMitmProxyServer', () => {
   it('createMitmProxy applies httpolyglot HTTPS patch', () => {
     const server = new PolyglotMitmProxyServer(
-      new CertificateManager('/tmp/unused'),
+      new MitmCertificateDirectory(
+        '/tmp/unused',
+        new CertificateManager('/tmp/unused')
+      ),
       new NullLogger()
     );
     const proxy = (
@@ -29,7 +33,10 @@ describe('PolyglotMitmProxyServer', () => {
 
   it('uses default listen options without forceSNI', () => {
     const server = new PolyglotMitmProxyServer(
-      new CertificateManager('/tmp/unused'),
+      new MitmCertificateDirectory(
+        '/tmp/unused',
+        new CertificateManager('/tmp/unused')
+      ),
       new NullLogger()
     );
     const opts = (

@@ -73,3 +73,4 @@ export * from './ports/IProfileProcessLauncher';
 export * from './ports/IProfileProxyLaunchCoordinator';
 export * from './ports/IInstanceDetector';
 export * from './ports/IProxyControlClient';
+export * from './ports/IMitmCertificateDirectory';

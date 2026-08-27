@@ -9,6 +9,7 @@ import {
   CA_PUBLIC_KEY_FILE,
   CertificateManager,
 } from '../proxy/certificateManager';
+import { MitmCertificateDirectory } from '../proxy/mitmCertificateDirectory';
 
 describe('CertificateManager', () => {
   let tempDir: string;
@@ -53,7 +54,8 @@ describe('CertificateManager', () => {
 
   it('prepares http-mitm-proxy sslCaDir layout under certs/ca.pem', async () => {
     const manager = new CertificateManager(tempDir);
-    const sslDir = await manager.ensureCaDirectoryForMitm();
+    const directory = new MitmCertificateDirectory(tempDir, manager);
+    const sslDir = await directory.ensureCaDirectoryForMitm();
 
     assert.equal(sslDir, tempDir);
     const caPem = await fs.readFile(path.join(tempDir, 'certs', 'ca.pem'), 'utf8');
@@ -75,6 +77,7 @@ describe('CertificateManager', () => {
   it('replaces NodeMITM CA and clears cached host certificates', async () => {
     const manager = new CertificateManager(tempDir);
     await manager.ensureCaCertificate();
+    const directory = new MitmCertificateDirectory(tempDir, manager);
 
     const mitmCertsDir = path.join(tempDir, 'certs');
     await fs.mkdir(mitmCertsDir, { recursive: true });
@@ -85,7 +88,7 @@ describe('CertificateManager', () => {
     );
     await fs.writeFile(path.join(mitmCertsDir, 'api2.cursor.sh.pem'), 'stale', 'utf8');
 
-    await manager.ensureCaDirectoryForMitm();
+    await directory.ensureCaDirectoryForMitm();
 
     const caPem = await fs.readFile(path.join(mitmCertsDir, 'ca.pem'), 'utf8');
     const canonical = await fs.readFile(path.join(tempDir, CA_CERT_FILE), 'utf8');

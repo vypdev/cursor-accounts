@@ -3,8 +3,8 @@ import type { IncomingMessage } from 'http';
 import { Proxy } from 'http-mitm-proxy';
 import type { ProxyStatistics } from '@cursor-accounts/types';
 import type { IProxyServer } from '../domain/ports/IProxyServer';
+import type { IMitmCertificateDirectory } from '../domain/ports/IMitmCertificateDirectory';
 import type { HttpProtocolVersion } from '../domain/types/httpProtocol';
-import type { CertificateManager } from './certificateManager';
 import { detectHttpProtocolVersion } from './protocolDetection';
 import type { MitmListenOptions } from './types';
 import { getProtoRegistry } from './protoRegistry';
@@ -50,7 +50,7 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
   private startPromise: Promise<void> | undefined;
 
   constructor(
-    private readonly certificateManager: CertificateManager,
+    private readonly certificateDirectory: IMitmCertificateDirectory,
     private readonly requestLogger: ProxyTrafficLogger,
     private readonly handlers?: MitmProxyHandlers,
     userIdToProfileId?: Map<string, string>
@@ -109,7 +109,7 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
     let proxy: Proxy | undefined;
     let loggerInitialized = false;
 
-    const sslCaDir = await this.certificateManager.ensureCaDirectoryForMitm();
+    const sslCaDir = await this.certificateDirectory.ensureCaDirectoryForMitm();
     await this.requestLogger.initialize();
     loggerInitialized = true;
 

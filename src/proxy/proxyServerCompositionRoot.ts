@@ -1,5 +1,6 @@
 import * as path from 'path';
 import { CertificateManager } from './certificateManager';
+import { MitmCertificateDirectory } from './mitmCertificateDirectory';
 import { PolyglotMitmProxyServer } from './polyglotMitmProxyServer';
 import { RequestLogger } from './requestLogger';
 import { NullLogger } from './nullLogger';
@@ -25,6 +26,10 @@ export function createProxyServerRuntime(
 ): ProxyServerRuntime {
   const certDir = path.join(config.storageDir, 'certs');
   const certificateManager = new CertificateManager(certDir);
+  const certificateDirectory = new MitmCertificateDirectory(
+    certDir,
+    certificateManager
+  );
   const maxBytes = config.maxLogSizeMb * 1024 * 1024;
   const requestLogger: ProxyTrafficLogger = config.developmentMode
     ? new RequestLogger(config.logDir, maxBytes, {
@@ -56,7 +61,7 @@ export function createProxyServerRuntime(
 
   const runtimeRef: { current?: ProxyServerRuntime } = {};
   const server = new PolyglotMitmProxyServer(
-    certificateManager,
+    certificateDirectory,
     requestLogger,
     {
       onTraffic: (summary) => {

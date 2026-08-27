@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { Proxy } from 'http-mitm-proxy';
-import type { CertificateManager } from '../proxy/certificateManager';
+import type { IMitmCertificateDirectory } from '../domain/ports/IMitmCertificateDirectory';
 import { MitmProxyServer } from '../proxy/mitmProxyServer';
 import { NullLogger, type ProxyTrafficLogger } from '../proxy/nullLogger';
 import type { MitmListenOptions, ProxyServerConfig } from '../proxy/types';
@@ -85,19 +85,19 @@ function createLogger(): {
   };
 }
 
-function createCertificateManager(): CertificateManager {
+function createCertificateDirectory(): IMitmCertificateDirectory {
   return {
     ensureCaDirectoryForMitm: async () => '/tmp/ca',
-  } as unknown as CertificateManager;
+  };
 }
 
 class TestableMitmProxyServer extends MitmProxyServer {
   constructor(
     private readonly fakeProxy: Proxy,
-    certificateManager: CertificateManager,
+    certificateDirectory: IMitmCertificateDirectory,
     requestLogger: ProxyTrafficLogger
   ) {
-    super(certificateManager, requestLogger);
+    super(certificateDirectory, requestLogger);
   }
 
   protected createMitmProxy(): Proxy {
@@ -111,7 +111,7 @@ describe('MitmProxyServer lifecycle', () => {
     const logger = createLogger();
     const server = new TestableMitmProxyServer(
       fake.proxy,
-      createCertificateManager(),
+      createCertificateDirectory(),
       logger.logger
     );
 
@@ -132,7 +132,7 @@ describe('MitmProxyServer lifecycle', () => {
     const logger = createLogger();
     const server = new TestableMitmProxyServer(
       fake.proxy,
-      createCertificateManager(),
+      createCertificateDirectory(),
       logger.logger
     );
 

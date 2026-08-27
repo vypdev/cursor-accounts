@@ -13,6 +13,7 @@ import type {
 } from '../../application/types/proxyServerRuntime';
 import { ProxyApiServer } from '../../proxy/api/proxyApiServer';
 import { CertificateManager } from '../../proxy/certificateManager';
+import { MitmCertificateDirectory } from '../../proxy/mitmCertificateDirectory';
 import { NullLogger } from '../../proxy/nullLogger';
 import { PolyglotMitmProxyServer } from '../../proxy/polyglotMitmProxyServer';
 import { isPortAvailable } from '../../proxy/portUtils';
@@ -161,7 +162,10 @@ describe('ProxyServerRuntime integration', () => {
       const proxyPort = await reservePort(19_240);
       const apiPort = await reservePort(19_260);
       const proxyServer = new PolyglotMitmProxyServer(
-        new CertificateManager(path.join(tempDir, 'certs')),
+        new MitmCertificateDirectory(
+          path.join(tempDir, 'certs'),
+          new CertificateManager(path.join(tempDir, 'certs'))
+        ),
         new NullLogger()
       );
       const apiServer = new ProxyApiServer();

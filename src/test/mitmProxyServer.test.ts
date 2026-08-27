@@ -5,6 +5,7 @@ import * as http from 'http';
 import * as os from 'os';
 import * as path from 'path';
 import { CertificateManager } from '../proxy/certificateManager';
+import { MitmCertificateDirectory } from '../proxy/mitmCertificateDirectory';
 import { PolyglotMitmProxyServer as MitmProxyServer } from '../proxy/polyglotMitmProxyServer';
 import { RequestLogger } from '../proxy/requestLogger';
 import { isPortAvailable } from '../proxy/portUtils';
@@ -80,7 +81,10 @@ describe('MitmProxyServer forwarding', () => {
 
     const certManager = new CertificateManager(path.join(tempDir, 'certs'));
     const requestLogger = new RequestLogger(path.join(tempDir, 'logs'), 1024 * 1024);
-    proxyServer = new MitmProxyServer(certManager, requestLogger);
+    proxyServer = new MitmProxyServer(
+      new MitmCertificateDirectory(path.join(tempDir, 'certs'), certManager),
+      requestLogger
+    );
     await proxyServer.start({
       port: proxyPort,
       apiPort: proxyPort + 10_000,
