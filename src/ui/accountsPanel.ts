@@ -45,11 +45,31 @@ import type { AccountsPanelActionMessage } from './accountsPanelMessageRouter';
 /** Webview panel view type id. */
 export const ACCOUNTS_PANEL_VIEW_ID = 'cursorAccounts.accountsPanel';
 
+interface AccountsPanelProviderDependencies {
+  profileManager: IProfileManager;
+  profileLauncher: ProfileLauncher;
+  profileDetector: IProfileDetector;
+  quotaService: MultiProfileQuotaService;
+  accountFetcher: ProfileAccountFetcher;
+  instanceDetector: InstanceDetector;
+  profileWorkspaceService: ProfileWorkspaceService;
+  efficiencyService: EfficiencyService;
+  authReader: IProfileAuthReader;
+  storageCleanupService: IStorageCleanupService;
+  storageAnalyzer: IProfileStorageAnalyzer;
+  proxyManager: IProxyPanelRead & IProxyLifecycle & IProxyCertificate & IProxyOutput;
+  proxySettingsService?: ProxySettingsService;
+  profileSettingsManager?: IProfileSettingsManager;
+}
+
 export class AccountsPanelProvider {
   public static readonly viewType = ACCOUNTS_PANEL_VIEW_ID;
 
   private panel?: vscode.WebviewPanel;
   private webviewRuntimeReady = false;
+  private readonly profileDetector: IProfileDetector;
+  private readonly quotaService: MultiProfileQuotaService;
+  private readonly instanceDetector: InstanceDetector;
   private readonly handlers: AccountsPanelHandlers;
   private readonly dataRefresher: AccountsPanelDataRefresher;
   private readonly modelPricingService: ModelPricingService;
@@ -66,21 +86,28 @@ export class AccountsPanelProvider {
 
   constructor(
     private readonly context: vscode.ExtensionContext,
-    profileManager: IProfileManager,
-    profileLauncher: ProfileLauncher,
-    private readonly profileDetector: IProfileDetector,
-    private readonly quotaService: MultiProfileQuotaService,
-    accountFetcher: ProfileAccountFetcher,
-    private readonly instanceDetector: InstanceDetector,
-    profileWorkspaceService: ProfileWorkspaceService,
-    efficiencyService: EfficiencyService,
-    authReader: IProfileAuthReader,
-    storageCleanupService: IStorageCleanupService,
-    storageAnalyzer: IProfileStorageAnalyzer,
-    proxyManager: IProxyPanelRead & IProxyLifecycle & IProxyCertificate & IProxyOutput,
-    proxySettingsService?: ProxySettingsService,
-    profileSettingsManager?: IProfileSettingsManager
+    dependencies: AccountsPanelProviderDependencies
   ) {
+    const {
+      profileManager,
+      profileLauncher,
+      profileDetector,
+      quotaService,
+      accountFetcher,
+      instanceDetector,
+      profileWorkspaceService,
+      efficiencyService,
+      authReader,
+      storageCleanupService,
+      storageAnalyzer,
+      proxyManager,
+      proxySettingsService,
+      profileSettingsManager,
+    } = dependencies;
+    this.profileDetector = profileDetector;
+    this.quotaService = quotaService;
+    this.instanceDetector = instanceDetector;
+
     const pricingProvider = new CursorModelPricingProvider();
     const catalogRepository = new StateDbModelCatalogRepository();
     this.modelPricingService = new ModelPricingService(

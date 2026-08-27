@@ -263,18 +263,20 @@ describe('AccountsPanelProvider', () => {
 
     provider = new AccountsPanelProvider(
       createMockContext(extensionPath) as never,
-      manager,
-      launcher,
-      detector,
-      quotaService,
-      accountFetcher,
-      instanceDetector,
-      createMockProfileWorkspaceService(),
-      createMockEfficiencyService(),
-      createMockAuthReader(),
-      createMockStorageCleanupService(),
-      createMockStorageAnalyzer(),
-      createMockProxyManager()
+      {
+        profileManager: manager,
+        profileLauncher: launcher,
+        profileDetector: detector,
+        quotaService,
+        accountFetcher,
+        instanceDetector,
+        profileWorkspaceService: createMockProfileWorkspaceService(),
+        efficiencyService: createMockEfficiencyService(),
+        authReader: createMockAuthReader(),
+        storageCleanupService: createMockStorageCleanupService(),
+        storageAnalyzer: createMockStorageAnalyzer(),
+        proxyManager: createMockProxyManager(),
+      }
     );
 
     mockWebview = createMockWebview();
@@ -544,18 +546,20 @@ describe('AccountsPanelProvider', () => {
 
     const failingProvider = new AccountsPanelProvider(
       createMockContext(extensionPath) as never,
-      manager,
-      failingLauncher,
-      detector,
-      quotaService,
-      accountFetcher,
-      instanceDetector,
-      createMockProfileWorkspaceService(),
-      createMockEfficiencyService(),
-      createMockAuthReader(),
-      createMockStorageCleanupService(),
-      createMockStorageAnalyzer(),
-      createMockProxyManager()
+      {
+        profileManager: manager,
+        profileLauncher: failingLauncher,
+        profileDetector: detector,
+        quotaService,
+        accountFetcher,
+        instanceDetector,
+        profileWorkspaceService: createMockProfileWorkspaceService(),
+        efficiencyService: createMockEfficiencyService(),
+        authReader: createMockAuthReader(),
+        storageCleanupService: createMockStorageCleanupService(),
+        storageAnalyzer: createMockStorageAnalyzer(),
+        proxyManager: createMockProxyManager(),
+      }
     );
 
     failingProvider.openPanel();

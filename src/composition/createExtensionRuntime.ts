@@ -152,20 +152,22 @@ export function createExtensionRuntime(
   });
   const accountsPanel = new AccountsPanelProvider(
     context,
-    profileManager,
-    profileLauncher,
-    profileDetector,
-    multiProfileQuotaService,
-    profileAccountFetcher,
-    instanceDetector,
-    profileWorkspaceService,
-    efficiencyService,
-    profileAuthReader,
-    storageBundle.storageCleanupService,
-    storageBundle.storageAnalyzer,
-    proxyManager,
-    proxySettingsService,
-    profileSettingsManager
+    {
+      profileManager,
+      profileLauncher,
+      profileDetector,
+      quotaService: multiProfileQuotaService,
+      accountFetcher: profileAccountFetcher,
+      instanceDetector,
+      profileWorkspaceService,
+      efficiencyService,
+      authReader: profileAuthReader,
+      storageCleanupService: storageBundle.storageCleanupService,
+      storageAnalyzer: storageBundle.storageAnalyzer,
+      proxyManager,
+      proxySettingsService,
+      profileSettingsManager,
+    }
   );
   const agentLiveUsageStatusBar = new AgentLiveUsageStatusBar(context);
   const workspaceStateDbPathResolver = new WorkspaceStateDbPathResolver(context);
