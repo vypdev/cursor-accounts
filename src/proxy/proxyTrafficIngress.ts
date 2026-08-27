@@ -7,10 +7,15 @@ import type {
 import type { IProxyTrafficBus } from '../domain/ports/IProxyTrafficBus';
 import type { IProxyApiClient } from '../domain/ports/IProxyApiClient';
 import type { ProxyApiEvent } from '../application/types/proxyApi';
-import { ProxyLogTailer } from './proxyLogTailer';
+import {
+  ProxyLogTailer,
+  type ProxyLogTailerHandlers,
+  type ProxyLogTailerOptions,
+} from './proxyLogTailer';
 import {
   ProxyApiClient,
   buildProxyApiBaseUrl,
+  type ProxyApiClientOptions,
 } from './api/proxyApiClient';
 
 export interface ProxyTrafficIngressCallbacks {
@@ -29,8 +34,23 @@ export interface ProxyTrafficIngressStartOptions {
   apiToken?: string;
 }
 
+export interface ProxyTrafficLogTailer {
+  isRunning(): boolean;
+  start(): Promise<void>;
+  stop(): void;
+}
+
+export interface ProxyTrafficIngressFactories {
+  createApiClient(options: ProxyApiClientOptions): IProxyApiClient;
+  createLogTailer(
+    logDir: string,
+    handlers: ProxyLogTailerHandlers,
+    options: ProxyLogTailerOptions
+  ): ProxyTrafficLogTailer;
+}
+
 export class ProxyTrafficIngress implements IProxyTrafficIngress {
-  private tailer: ProxyLogTailer | null = null;
+  private tailer: ProxyTrafficLogTailer | null = null;
   private activePort: number | null = null;
   private activeProfileId: string | null = null;
   private readonly apiClients = new Map<string, IProxyApiClient>();
@@ -40,7 +60,9 @@ export class ProxyTrafficIngress implements IProxyTrafficIngress {
     private readonly logDir: string,
     private readonly trafficBus: IProxyTrafficBus,
     private readonly getTailFromStart: () => boolean,
-    private readonly callbacks?: ProxyTrafficIngressCallbacks
+    private readonly callbacks?: ProxyTrafficIngressCallbacks,
+    private readonly factories: ProxyTrafficIngressFactories =
+      createDefaultFactories()
   ) {}
 
   async start(
@@ -85,7 +107,7 @@ export class ProxyTrafficIngress implements IProxyTrafficIngress {
 
     const tailFromStart = options?.tailFromStart ?? this.getTailFromStart();
 
-    this.tailer = new ProxyLogTailer(
+    this.tailer = this.factories.createLogTailer(
       this.logDir,
       {
         onTraffic: (summary) => {
@@ -147,7 +169,7 @@ export class ProxyTrafficIngress implements IProxyTrafficIngress {
 
     this.stopApiClient(profileId);
 
-    const client = new ProxyApiClient({
+    const client = this.factories.createApiClient({
       baseUrl: buildProxyApiBaseUrl(apiPort),
       reconnect: true,
       apiToken,
@@ -222,4 +244,12 @@ export class ProxyTrafficIngress implements IProxyTrafficIngress {
     this.activePort = null;
     this.activeProfileId = null;
   }
+}
+
+function createDefaultFactories(): ProxyTrafficIngressFactories {
+  return {
+    createApiClient: (options) => new ProxyApiClient(options),
+    createLogTailer: (logDir, handlers, options) =>
+      new ProxyLogTailer(logDir, handlers, options),
+  };
 }
