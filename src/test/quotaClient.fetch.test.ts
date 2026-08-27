@@ -48,6 +48,43 @@ describe('fetchCurrentPeriodUsage', () => {
     );
   });
 
+  it('uses the status fallback when the error response has no readable body', async () => {
+    globalThis.fetch = mock.fn(async () =>
+      new Response('', { status: 503 })
+    ) as typeof fetch;
+
+    await assert.rejects(
+      () => fetchCurrentPeriodUsage('token'),
+      (error: unknown) => {
+        assert.ok(error instanceof QuotaApiError);
+        assert.equal(error.message, 'Usage API returned 503');
+        assert.equal(error.statusCode, 503);
+        return true;
+      }
+    );
+  });
+
+  it('keeps the status fallback when the error response body cannot be read', async () => {
+    globalThis.fetch = mock.fn(async () =>
+      ({
+        ok: false,
+        status: 502,
+        text: async () => {
+          throw new Error('body unavailable');
+        },
+      }) as unknown as Response
+    ) as typeof fetch;
+
+    await assert.rejects(
+      () => fetchCurrentPeriodUsage('token'),
+      (error: unknown) => {
+        assert.ok(error instanceof QuotaApiError);
+        assert.equal(error.message, 'Usage API returned 502');
+        return true;
+      }
+    );
+  });
+
   it('parses valid usage response JSON', async () => {
     globalThis.fetch = mock.fn(async () =>
       Response.json(
@@ -117,4 +154,93 @@ describe('QuotaClient', () => {
 
     await assert.rejects(() => client.getUsage(), QuotaApiError);
   });
+
+  it('falls back to the web summary when the IDE usage source fails', async () => {
+    const accessToken = makeJwt({ sub: 'user_web_fallback' });
+    globalThis.fetch = mock.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes('GetCurrentPeriodUsage')) {
+        throw new Error('IDE source unavailable');
+      }
+      return Response.json(
+        {
+          membershipType: 'pro',
+          individualUsage: {
+            plan: { totalPercentUsed: 42 },
+          },
+        },
+        { status: 200 }
+      );
+    }) as typeof fetch;
+
+    const provider: ITokenProvider = {
+      getValidTokens: async () => ({
+        accessToken,
+        email: 'web@example.com',
+      }),
+    };
+
+    const usage = await new QuotaClient(provider).getUsage();
+
+    assert.equal(usage.totalPercentUsed, 42);
+    assert.equal(usage.dataSource, 'web');
+  });
+
+  it('returns IDE usage when the optional web summary source fails', async () => {
+    const accessToken = makeJwt({ sub: 'user_ide_preferred' });
+    globalThis.fetch = mock.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes('GetCurrentPeriodUsage')) {
+        return Response.json(
+          { planUsage: { totalPercentUsed: 17, limit: 100 } },
+          { status: 200 }
+        );
+      }
+      return Response.json({ error: 'web unavailable' }, { status: 503 });
+    }) as typeof fetch;
+
+    const provider: ITokenProvider = {
+      getValidTokens: async () => ({ accessToken }),
+    };
+
+    const usage = await new QuotaClient(provider).getUsage();
+
+    assert.equal(usage.totalPercentUsed, 17);
+    assert.equal(usage.dataSource, 'ide');
+  });
+
+  it('reports a normalized error when both usage sources fail', async () => {
+    const accessToken = makeJwt({ sub: 'user_no_usage' });
+    globalThis.fetch = mock.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes('GetCurrentPeriodUsage')) {
+        throw new Error('IDE source unavailable');
+      }
+      return Response.json({ error: 'web unavailable' }, { status: 503 });
+    }) as typeof fetch;
+
+    const provider: ITokenProvider = {
+      getValidTokens: async () => ({ accessToken }),
+    };
+
+    await assert.rejects(
+      () => new QuotaClient(provider).getUsage(),
+      (error: unknown) => {
+        assert.ok(error instanceof QuotaApiError);
+        assert.equal(
+          error.message,
+          'Failed to fetch usage from IDE and web APIs'
+        );
+        return true;
+      }
+    );
+  });
 });
+
+function makeJwt(payload: Record<string, unknown>): string {
+  const header = Buffer.from(JSON.stringify({ alg: 'none' })).toString(
+    'base64url'
+  );
+  const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  return `${header}.${body}.sig`;
+}
