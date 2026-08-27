@@ -99,4 +99,14 @@ describe('parseProxyServerConfig', () => {
 
     await runtime.shutdown();
   });
+
+  it('composes development tracking and multi-profile mapping boundaries', async () => {
+    const runtime = createProxyServerRuntime(
+      parseProxyServerConfig(JSON.stringify(validConfig())),
+      () => undefined,
+      () => '2026-08-27T00:00:00.000Z'
+    );
+
+    await runtime.shutdown();
+  });
 });
