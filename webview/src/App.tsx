@@ -5,17 +5,14 @@ import { ProfileList } from './components/ProfileList';
 import { AppDialogs } from './components/AppDialogs';
 import { ProxyStatusCard } from './components/ProxyStatusCard';
 import { L10nProvider, useL10n } from './l10n/context';
-import type {
-  ImportOptions,
-  Profile,
-  StorageCleanupAction,
-} from './types';
+import type { StorageCleanupAction } from './types';
 import { isProfileProxyEnabled } from './types';
 import {
   appMessageReducer,
   createInitialAppMessageState,
 } from './appMessageState';
 import { useAppMessageBridge } from './hooks/useAppMessageBridge';
+import { useAppProfileActions } from './hooks/useAppProfileActions';
 import './App.css';
 
 interface AppContentProps {
@@ -85,15 +82,31 @@ const AppContent: React.FC<AppContentProps> = ({
   const [storageLoading, setStorageLoading] = useState(false);
   const [cleanupInProgress, setCleanupInProgress] = useState(false);
 
-  const persistUiState = useCallback(
-    (showAdd: boolean, editingId: string | null) => {
-      vscodeApi.saveState({
-        showAddForm: showAdd,
-        editingProfileId: editingId,
-      });
-    },
-    []
-  );
+  const {
+    handleLaunch,
+    handleOpenProject,
+    handleEditOpen,
+    handleEditSubmit,
+    handleDelete,
+    handleShowInExplorer,
+    handleAddProfile,
+    openAddForm,
+    closeAddForm,
+    closeEditForm,
+    handleExport,
+    handleImport,
+    handleConfigureGithubToken,
+    handleClearGithubToken,
+  } = useAppProfileActions({
+    profiles,
+    loading,
+    showAddForm,
+    editingProfileId,
+    setShowAddForm,
+    setShowImportDialog,
+    setEditingProfileId,
+    dispatchAppMessage,
+  });
 
   useAppMessageBridge({
     dispatch: dispatchAppMessage,
@@ -142,97 +155,6 @@ const AppContent: React.FC<AppContentProps> = ({
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
   }, [showProxyUi]);
-
-  const handleLaunch = useCallback((profileId: string) => {
-    vscodeApi.launch(profileId);
-  }, []);
-
-  const handleOpenProject = useCallback(
-    (profileId: string, projectPath: string) => {
-      vscodeApi.launch(profileId, projectPath);
-    },
-    []
-  );
-
-  const handleEditOpen = useCallback(
-    (profileId: string) => {
-      setEditingProfileId(profileId);
-      persistUiState(showAddForm, profileId);
-    },
-    [showAddForm, persistUiState]
-  );
-
-  const handleEditSubmit = useCallback(
-    (profileId: string, updates: Partial<Profile>) => {
-      const profile = profiles.find((p) => p.id === profileId);
-
-      if (
-        updates.efficiencyAnalysisEnabled !== undefined &&
-        profile?.efficiencyAnalysisEnabled !== updates.efficiencyAnalysisEnabled
-      ) {
-        vscodeApi.toggleEfficiency(profileId, updates.efficiencyAnalysisEnabled);
-      }
-
-      const otherUpdates = { ...updates };
-      delete otherUpdates.efficiencyAnalysisEnabled;
-
-      if (Object.keys(otherUpdates).length > 0) {
-        vscodeApi.editProfile(profileId, otherUpdates);
-      }
-
-      setEditingProfileId(null);
-      persistUiState(showAddForm, null);
-    },
-    [profiles, showAddForm, persistUiState]
-  );
-
-  const handleDelete = useCallback((profileId: string) => {
-    vscodeApi.deleteProfile(profileId);
-  }, []);
-
-  const handleShowInExplorer = useCallback((profileId: string) => {
-    vscodeApi.showInExplorer(profileId);
-  }, []);
-
-  const handleAddProfile = useCallback(
-    (
-      email: string,
-      displayName?: string,
-      theme?: string,
-      color?: string,
-      emoji?: string
-    ) => {
-      vscodeApi.addProfile(email, displayName, theme, color, emoji);
-      setShowAddForm(false);
-      persistUiState(false, editingProfileId);
-    },
-    [editingProfileId, persistUiState]
-  );
-
-  const openAddForm = useCallback(() => {
-    setShowAddForm(true);
-
-    if (!loading) {
-      vscodeApi.requestSuggestedProfile();
-
-      setTimeout(() => {
-        dispatchAppMessage({ type: 'clearSuggestedProfile' });
-      }, 2000);
-    }
-
-    persistUiState(true, editingProfileId);
-  }, [editingProfileId, persistUiState, loading]);
-
-  const closeAddForm = useCallback(() => {
-    setShowAddForm(false);
-    dispatchAppMessage({ type: 'clearSuggestedProfile' });
-    persistUiState(false, editingProfileId);
-  }, [editingProfileId, persistUiState]);
-
-  const closeEditForm = useCallback(() => {
-    setEditingProfileId(null);
-    persistUiState(showAddForm, null);
-  }, [showAddForm, persistUiState]);
 
   const handleStartProxy = useCallback(() => {
     vscodeApi.startProxy();
@@ -288,18 +210,6 @@ const AppContent: React.FC<AppContentProps> = ({
     vscodeApi.saveProxyCertificate();
   }, []);
 
-  const handleExport = useCallback(
-    (profileIds: string[], includeSettings: boolean) => {
-      vscodeApi.exportProfiles(profileIds, includeSettings);
-    },
-    []
-  );
-
-  const handleImport = useCallback((json: string, options: ImportOptions) => {
-    vscodeApi.importProfiles(json, options);
-    setShowImportDialog(false);
-  }, []);
-
   const handleManageStorage = useCallback((profileId: string) => {
     setStorageProfileId(profileId);
     dispatchAppMessage({ type: 'resetStorageMessageState' });
@@ -327,14 +237,6 @@ const AppContent: React.FC<AppContentProps> = ({
     },
     []
   );
-
-  const handleConfigureGithubToken = useCallback((profileId: string) => {
-    vscodeApi.configureGithubToken(profileId);
-  }, []);
-
-  const handleClearGithubToken = useCallback((profileId: string) => {
-    vscodeApi.clearGithubToken(profileId);
-  }, []);
 
   const handleOpenPrices = useCallback(() => {
     dispatchAppMessage({ type: 'beginModelPricingRequest' });

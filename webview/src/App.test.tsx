@@ -436,6 +436,16 @@ describe('App host/webview integration', () => {
     });
   });
 
+  it('routes current-profile efficiency changes through the host bridge', () => {
+    renderInitialized({ profiles: [profile], currentProfile: profile });
+
+    fireEvent.click(screen.getByTestId('profile-edit'));
+    fireEvent.click(screen.getByLabelText('editProfile.efficiencyLabel'));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(bridge.api.toggleEfficiency).toHaveBeenCalledWith('profile-1', true);
+  });
+
   it('coordinates proxy actions, certificate installation, and host messages', () => {
     renderInitialized({
       profiles: [profile],
