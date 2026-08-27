@@ -52,28 +52,8 @@ export class CertificateManager {
 
     const { certificatePath: certPath, keyPath, publicKeyPath } = this.getPaths();
 
-    try {
-      const [certPem, keyPem] = await Promise.all([
-        fs.readFile(certPath, 'utf8'),
-        fs.readFile(keyPath, 'utf8'),
-      ]);
-      try {
-        await fs.access(publicKeyPath);
-      } catch (error) {
-        if (!isMissingFile(error)) {
-          throw error;
-        }
-        const cert = forge.pki.certificateFromPem(certPem);
-        await fs.writeFile(
-          publicKeyPath,
-          forge.pki.publicKeyToPem(cert.publicKey),
-          { mode: 0o600 }
-        );
-      }
-      void keyPem;
+    if (await readExistingMaterial(certPath, keyPath, publicKeyPath)) {
       return certPath;
-    } catch {
-      // generate below
     }
 
     const material = generateCertificateMaterial();
@@ -91,6 +71,47 @@ export class CertificateManager {
     }
   }
 
+}
+
+async function readExistingMaterial(
+  certPath: string,
+  keyPath: string,
+  publicKeyPath: string
+): Promise<boolean> {
+  const [certRead, keyRead] = await Promise.allSettled([
+    fs.readFile(certPath, 'utf8'),
+    fs.readFile(keyPath, 'utf8'),
+  ]);
+  const unexpectedFailure = [certRead, keyRead].find(
+    (result): result is PromiseRejectedResult =>
+      result.status === 'rejected' && !isMissingFile(result.reason)
+  );
+  if (unexpectedFailure) {
+    throw unexpectedFailure.reason;
+  }
+  if (certRead.status === 'rejected' || keyRead.status === 'rejected') {
+    return false;
+  }
+
+  try {
+    await fs.access(publicKeyPath);
+    return true;
+  } catch (error) {
+    if (!isMissingFile(error)) {
+      throw error;
+    }
+  }
+
+  let publicKeyPem: string;
+  try {
+    const cert = forge.pki.certificateFromPem(certRead.value);
+    publicKeyPem = forge.pki.publicKeyToPem(cert.publicKey);
+  } catch {
+    return false;
+  }
+
+  await fs.writeFile(publicKeyPath, publicKeyPem, { mode: 0o600 });
+  return true;
 }
 
 function isMissingFile(error: unknown): boolean {

@@ -72,6 +72,22 @@ describe('CertificateManager', () => {
     assert.ok(key.includes('BEGIN RSA PRIVATE KEY') || key.includes('BEGIN PRIVATE KEY'));
   });
 
+  it('propagates non-missing material read errors without partial regeneration', async () => {
+    const manager = new CertificateManager(tempDir);
+    await fs.mkdir(path.join(tempDir, CA_KEY_FILE));
+
+    await assert.rejects(
+      () => manager.ensureCaCertificate(),
+      (error: unknown) => {
+        assert.equal((error as NodeJS.ErrnoException).code, 'EISDIR');
+        return true;
+      }
+    );
+    await assert.rejects(() => fs.access(path.join(tempDir, CA_CERT_FILE)), {
+      code: 'ENOENT',
+    });
+  });
+
   it('prepares http-mitm-proxy sslCaDir layout under certs/ca.pem', async () => {
     const manager = new CertificateManager(tempDir);
     const directory = new MitmCertificateDirectory(tempDir, manager);
