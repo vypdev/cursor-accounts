@@ -39,6 +39,7 @@ export class RequestLogger {
   }
 
   async initialize(): Promise<void> {
+    await this.writeChain;
     await fs.mkdir(this.logDir, { recursive: true });
     await fs.mkdir(path.join(this.logDir, 'bodies'), { recursive: true });
     await this.rotateIfNeeded();
@@ -76,6 +77,10 @@ export class RequestLogger {
 
   async close(): Promise<void> {
     await this.writeChain;
+    await this.closeStream();
+  }
+
+  private async closeStream(): Promise<void> {
     if (this.writeStream) {
       await new Promise<void>((resolve) => {
         this.writeStream?.end(() => resolve());
@@ -127,7 +132,9 @@ export class RequestLogger {
 
   private async rotateIfNeeded(): Promise<void> {
     if (this.writeStream) {
-      await this.close();
+      // This method is also called from the serialized write chain. Calling
+      // close() here would await the chain currently executing and deadlock.
+      await this.closeStream();
     }
 
     const files = await this.listLogFiles();

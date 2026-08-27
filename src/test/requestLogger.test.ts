@@ -41,6 +41,35 @@ describe('RequestLogger', () => {
     assert.equal(line.host, 'api2.cursor.sh');
   });
 
+  it('rotates after a write without deadlocking the serialized queue', async () => {
+    const logger = new RequestLogger(tempDir, 1);
+    await logger.initialize();
+    logger.log({
+      timestamp: new Date().toISOString(),
+      direction: 'request',
+      url: 'https://api2.cursor.sh/rotation',
+      host: 'api2.cursor.sh',
+      headers: {},
+    });
+
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await Promise.race([
+        logger.close(),
+        new Promise<never>((_, reject) => {
+          timeout = setTimeout(
+            () => reject(new Error('RequestLogger rotation timed out')),
+            1000
+          );
+        }),
+      ]);
+    } finally {
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+    }
+  });
+
   it('spills large bodies when spill is enabled', async () => {
     const logger = new RequestLogger(tempDir, 1024 * 1024, {
       maxBodyLogBytes: 4096,
