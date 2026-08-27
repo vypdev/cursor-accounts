@@ -60,6 +60,7 @@ describe('ProxyManager facade', () => {
     assert.equal(await manager.isRunning(profile.id), true);
     assert.equal(await manager.isCurrentWindowUsingProxy(), false);
     assert.equal(await manager.getCertificatePath(), '/tmp/ca.pem');
+    assert.equal(manager.getAgentTrackingService(profile.id), undefined);
     assert.equal(await manager.checkCertificateInstalled(), true);
     assert.equal(manager.getCachedCertificateInstalled(), true);
     assert.deepEqual(await manager.installCertificate(), { success: true });
@@ -83,6 +84,31 @@ describe('ProxyManager facade', () => {
     await manager.ensureOutputTailer(profile.id, { tailFromStart: true });
     await manager.ensureTrafficTailer();
     manager.showOutputChannel();
+
+    const originalArgv = process.argv;
+    const originalCaCerts = process.env.NODE_EXTRA_CA_CERTS;
+    try {
+      process.argv = [...originalArgv, '--proxy-server=http://127.0.0.1:8080'];
+      delete process.env.NODE_EXTRA_CA_CERTS;
+      assert.equal(await manager.isCurrentWindowUsingProxy(), true);
+
+      process.argv = originalArgv;
+      process.env.NODE_EXTRA_CA_CERTS = '/tmp/ca.pem';
+      assert.equal(await manager.isCurrentWindowUsingProxy(), true);
+    } finally {
+      process.argv = originalArgv;
+      if (originalCaCerts === undefined) {
+        delete process.env.NODE_EXTRA_CA_CERTS;
+      } else {
+        process.env.NODE_EXTRA_CA_CERTS = originalCaCerts;
+      }
+    }
+
+    status = { running: false } as never;
+    assert.equal(await manager.getProxyServerUrl(profile.id), null);
+    status = { running: true } as never;
+    assert.equal(await manager.getProxyServerUrl(profile.id), null);
+    status = { running: true, port: 8080 } as never;
     assert.deepEqual(calls, [
       'shared-ensure',
       'shared-ensure',
