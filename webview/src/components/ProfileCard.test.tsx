@@ -96,6 +96,24 @@ describe('ProfileCard', () => {
     expect(callbacks.onLaunch).toHaveBeenCalledWith(profile.id);
   });
 
+  it('renders non-authentication quota failures without offering sign-in', () => {
+    renderCard({
+      quota: {
+        profileId: profile.id,
+        quota: null,
+        error: 'Quota service unavailable',
+        fetchedAt: 0,
+      },
+    });
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Quota service unavailable'
+    );
+    expect(
+      screen.queryByRole('button', { name: 'profileCard.signIn' })
+    ).not.toBeInTheDocument();
+  });
+
   it('expands personal quota details and clamps the rendered progress bars', () => {
     const { container } = renderCard({
       quota: { profileId: profile.id, quota: quotaData, fetchedAt: 0 },
@@ -156,6 +174,83 @@ describe('ProfileCard', () => {
     expect(screen.getByText('owner/cursor-accounts')).toBeInTheDocument();
   });
 
+  it('renders enterprise spend and expands the activity leaderboard', () => {
+    renderCard({
+      quota: {
+        profileId: profile.id,
+        quota: {
+          ...quotaData,
+          membershipType: 'enterprise',
+          limitType: 'team',
+          displayMode: 'monthlySpend',
+          monthlySpend: 9_000,
+          monthlyLimit: 10_000,
+          teamMonthlySpend: 5_000,
+          teamMonthlyLimit: 10_000,
+        },
+        activityLeaderboard: {
+          entries: [
+            {
+              rank: 1,
+              displayName: 'User',
+              email: profile.email,
+              composerLinesAccepted: 12_345,
+            },
+          ],
+          periodStart: '2026-08-01',
+          periodEnd: '2026-08-31',
+          fetchedAt: 0,
+        },
+        fetchedAt: 0,
+      },
+    });
+
+    expect(screen.getByText('profileCard.teamBudgetLabel')).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('button', { name: /profileCard\.leaderboardPeriod/ })
+    );
+    expect(screen.getByText('User')).toBeInTheDocument();
+  });
+
+  it('renders repository privacy states and avatar fallback after an image error', () => {
+    const privateWorkspace = {
+      ...workspace,
+      storageHash: 'private-hash',
+      name: 'Private project',
+    };
+    const rateLimitedWorkspace = {
+      ...workspace,
+      storageHash: 'rate-limited-hash',
+      name: 'Rate limited project',
+    };
+    const { container } = renderCard({
+      account: {
+        profileId: profile.id,
+        accountName: 'Account',
+        pictureUrl: 'https://example.test/avatar',
+        fetchedAt: 0,
+      },
+      workspaces: [privateWorkspace, rateLimitedWorkspace],
+      repoSummaries: {
+        [privateWorkspace.storageHash]: {
+          storageHash: privateWorkspace.storageHash,
+          fullName: 'owner/private-project',
+          visibility: 'private',
+        },
+        [rateLimitedWorkspace.storageHash]: {
+          storageHash: rateLimitedWorkspace.storageHash,
+          visibility: 'rate_limited',
+        },
+      },
+    });
+
+    expect(screen.getByText('profileCard.privateRepoHint')).toBeInTheDocument();
+    expect(screen.getByText('profileCard.rateLimited')).toBeInTheDocument();
+
+    fireEvent.error(container.querySelector('img') as HTMLImageElement);
+    expect(screen.getByText('A')).toBeInTheDocument();
+  });
+
   it('keeps menu actions explicit and confirms deletion before invoking the host', () => {
     vi.stubGlobal('confirm', vi.fn(() => true));
     renderCard();
@@ -165,6 +260,22 @@ describe('ProfileCard', () => {
     );
     fireEvent.click(screen.getByRole('menuitem', { name: 'profileCard.edit' }));
     expect(callbacks.onEdit).toHaveBeenCalledWith(profile.id);
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'profileCard.profileActions' })
+    );
+    fireEvent.click(
+      screen.getByRole('menuitem', { name: 'profileCard.showInExplorer' })
+    );
+    expect(callbacks.onShowInExplorer).toHaveBeenCalledWith(profile.id);
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'profileCard.profileActions' })
+    );
+    fireEvent.click(
+      screen.getByRole('menuitem', { name: 'profileCard.manageStorage' })
+    );
+    expect(callbacks.onManageStorage).toHaveBeenCalledWith(profile.id);
 
     fireEvent.click(
       screen.getByRole('button', { name: 'profileCard.profileActions' })

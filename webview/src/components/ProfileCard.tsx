@@ -7,31 +7,15 @@ import type {
   ProfileAccountView,
   ProfileGithubTokenStatus,
   ProfileQuota,
-  QuotaStatus,
   WorkspaceInfo,
 } from '../types';
-import {
-  getEffectiveUsagePercent,
-  getEfficiencyFillStatus,
-  getEfficiencyPercentage,
-  getPersonalModeAveragePercent,
-  getQuotaStatus,
-  formatEnterpriseUsageLabel,
-  formatMonthlySpendLabel,
-  formatTeamBudgetLabel,
-  formatCompactNumber,
-  hasDistinctTeamBudget,
-  isEnterpriseUsage,
-} from '../types';
+import { getQuotaStatus, isEnterpriseUsage } from '../types';
 import { formatMembershipType } from '../utils/formatters';
-import {
-  MAX_DISPLAY_WORKSPACES,
-  formatRemainingLabel,
-  formatResetDate,
-  getInitials,
-  getRepositoryName,
-  isAuthError,
-} from './profileCardPresentation';
+import { getInitials } from './profileCardPresentation';
+import { ProfileCardEfficiency } from './ProfileCardEfficiency';
+import { ProfileCardLeaderboard } from './ProfileCardLeaderboard';
+import { ProfileCardQuota } from './ProfileCardQuota';
+import { ProfileCardWorkspaces } from './ProfileCardWorkspaces';
 
 interface ProfileCardProps {
   profile: Profile;
@@ -53,105 +37,6 @@ interface ProfileCardProps {
   onConfigureGithubToken: (id: string) => void;
   onClearGithubToken: (id: string) => void;
   efficiencyStats?: EfficiencyStats;
-}
-
-function WorkspaceRepoMeta({
-  summary,
-  t,
-}: {
-  summary: GitHubRepoSummary;
-  t: (key: string, args?: Record<string, string | number | undefined>) => string;
-}) {
-  if (summary.visibility === 'private') {
-    return (
-      <div className="workspace-repo-meta">
-        {summary.fullName ? (
-          <span className="repo-slug">{summary.fullName}</span>
-        ) : null}
-        <span className="repo-badge repo-badge-private">
-          {t('profileCard.repoPrivate')}
-        </span>
-      </div>
-    );
-  }
-
-  if (summary.visibility === 'rate_limited') {
-    return (
-      <p className="workspace-repo-hint">{t('profileCard.rateLimited')}</p>
-    );
-  }
-
-  if (summary.visibility === 'public') {
-    const latest = summary.commits?.[0];
-    return (
-      <div className="workspace-repo-meta">
-        {summary.fullName ? (
-          <span className="repo-slug">{summary.fullName}</span>
-        ) : null}
-        <span className="repo-badge repo-badge-public">
-          {t('profileCard.repoPublic')}
-        </span>
-        {summary.branchCount != null ? (
-          <p className="workspace-repo-stats">
-            {t('profileCard.repoMeta', {
-              branches: summary.branchCount,
-              issues: summary.openIssueCount ?? 0,
-              pulls: summary.openPullRequestCount ?? 0,
-            })}
-          </p>
-        ) : null}
-        {latest ? (
-          <p className="workspace-repo-commit" title={latest.message}>
-            {t('profileCard.latestCommit', { message: latest.message })}
-          </p>
-        ) : null}
-      </div>
-    );
-  }
-
-  return null;
-}
-
-interface QuotaBarRowProps {
-  percent: number;
-  label?: string;
-  fillStatus?: QuotaStatus;
-}
-
-function QuotaBarRow({ percent, label, fillStatus = 'ok' }: QuotaBarRowProps) {
-  const clamped = Math.min(100, Math.max(0, percent));
-
-  return (
-    <div className={label ? 'quota-bar-row' : undefined}>
-      {label ? <span className="quota-bar-label">{label}</span> : null}
-      <div className="quota-bar" aria-hidden="true">
-        <div
-          className={`quota-fill ${fillStatus}`}
-          style={{ width: `${clamped}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
-function renderQuotaStatusIcons(
-  quotaStatus: QuotaStatus,
-  t: (key: string) => string
-) {
-  return (
-    <>
-      {quotaStatus === 'warning' && (
-        <span className="warning-icon" aria-label={t('profileCard.warning')}>
-          ⚠️
-        </span>
-      )}
-      {quotaStatus === 'critical' && (
-        <span className="error-icon" aria-label={t('profileCard.critical')}>
-          🔴
-        </span>
-      )}
-    </>
-  );
 }
 
 export const ProfileCard: React.FC<ProfileCardProps> = ({
@@ -180,36 +65,15 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
   const [avatarError, setAvatarError] = useState(false);
   const [leaderboardExpanded, setLeaderboardExpanded] = useState(false);
   const [quotaExpanded, setQuotaExpanded] = useState(false);
-  const [efficiencyRepoExpanded, setEfficiencyRepoExpanded] = useState(false);
-  const [expandedBranchRepos, setExpandedBranchRepos] = useState<Set<string>>(
-    () => new Set()
-  );
   const menuRef = useRef<HTMLDivElement>(null);
-
-  const quotaStatus = quota?.quota
-    ? getQuotaStatus(quota.quota)
-    : 'unavailable';
-
-  const usagePercent = quota?.quota
-    ? getEffectiveUsagePercent(quota.quota)
-    : 0;
-
-  const isMonthlySpend = quota?.quota?.displayMode === 'monthlySpend';
-  const isEnterprise = isEnterpriseUsage(quota?.quota);
-  const isPersonalPercent = Boolean(quota?.quota && !isEnterprise && !isMonthlySpend);
-  const averagePercent = quota?.quota ? getPersonalModeAveragePercent(quota.quota) : 0;
-
-  const leaderboardEntries = quota?.activityLeaderboard?.entries ?? [];
-  const isInTopActivity = leaderboardEntries.some(
-    (entry) => entry.email.toLowerCase() === profile.email.toLowerCase()
-  );
-  const leaderboardStatusMessage = isInTopActivity
-    ? t('profileCard.topActivity')
-    : t('profileCard.notTopActivity');
 
   const accountName = account?.accountName ?? profile.email;
   const showAvatar = account?.pictureUrl && !avatarError;
   const membershipLabel = formatMembershipType(quota?.quota?.membershipType);
+  const quotaStatus = quota?.quota ? getQuotaStatus(quota.quota) : 'unavailable';
+  const leaderboardEntries = isEnterpriseUsage(quota?.quota)
+    ? quota?.activityLeaderboard?.entries ?? []
+    : [];
 
   useEffect(() => {
     setAvatarError(false);
@@ -218,8 +82,6 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
   useEffect(() => {
     setLeaderboardExpanded(false);
     setQuotaExpanded(false);
-    setEfficiencyRepoExpanded(false);
-    setExpandedBranchRepos(new Set());
   }, [profile.id]);
 
   useEffect(() => {
@@ -240,24 +102,6 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
   const handleLaunch = () => {
     onLaunch(profile.id);
   };
-
-  const handleOpenProject = (projectPath: string) => {
-    onOpenProject(profile.id, projectPath);
-  };
-
-  const toggleBranchExpanded = (repoPath: string) => {
-    setExpandedBranchRepos((previous) => {
-      const next = new Set(previous);
-      if (next.has(repoPath)) {
-        next.delete(repoPath);
-      } else {
-        next.add(repoPath);
-      }
-      return next;
-    });
-  };
-
-  const displayedWorkspaces = workspaces.slice(0, MAX_DISPLAY_WORKSPACES);
 
   const handleDelete = () => {
     if (confirm(t('profileCard.deleteConfirm', { name: profile.displayName }))) {
@@ -345,381 +189,38 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
         </div>
       )}
 
-      {quota && (
-        <div className="quota-section">
-          {quota.error ? (
-            isAuthError(quota.error) ? (
-              <div className="quota-auth-required">
-                <span className="icon" aria-hidden="true">
-                  🔒
-                </span>
-                <span>{quota.error}</span>
-                <button type="button" onClick={handleLaunch}>
-                  {t('profileCard.signIn')}
-                </button>
-              </div>
-            ) : (
-              <div className="quota-error" role="alert">
-                <span className="icon" aria-hidden="true">
-                  ⚠️
-                </span>
-                <span>{quota.error}</span>
-              </div>
-            )
-          ) : quota.quota ? (
-            isPersonalPercent ? (
-              <>
-                <button
-                  type="button"
-                  className="quota-toggle"
-                  onClick={() => setQuotaExpanded((expanded) => !expanded)}
-                  aria-expanded={quotaExpanded}
-                >
-                  <div className="quota-toggle-main">
-                    <QuotaBarRow percent={averagePercent} fillStatus={quotaStatus} />
-                    <div className="quota-text">
-                      <span className="percent">{averagePercent}%</span>
-                      <span className="label">{t('profileCard.used')}</span>
-                      {renderQuotaStatusIcons(quotaStatus, t)}
-                    </div>
-                  </div>
-                  <span className="quota-chevron" aria-hidden="true">
-                    {quotaExpanded ? '▾' : '▸'}
-                  </span>
-                </button>
-                {quotaExpanded && (
-                  <div className="quota-bars-expanded">
-                    <QuotaBarRow
-                      percent={quota.quota.autoPercentUsed}
-                      label={t('profileCard.autoMode')}
-                    />
-                    <QuotaBarRow
-                      percent={quota.quota.apiPercentUsed}
-                      label={t('profileCard.apiMode')}
-                    />
-                  </div>
-                )}
-                <div className="quota-details">
-                  <span>{formatRemainingLabel(quota.quota, t)}</span>
-                  <span>
-                    {t('profileCard.resets', {
-                      date: formatResetDate(quota.quota.billingCycleEnd, t),
-                    })}
-                  </span>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="quota-bar" aria-hidden="true">
-                  <div
-                    className={`quota-fill ${quotaStatus}`}
-                    style={{
-                      width: `${Math.min(100, Math.max(0, usagePercent))}%`,
-                    }}
-                  />
-                </div>
-                <div className="quota-text">
-                  {isEnterprise && isMonthlySpend ? (
-                    <>
-                      <span className="percent">
-                        {formatEnterpriseUsageLabel(quota.quota)}
-                      </span>
-                      <span className="label">{t('profileCard.used')}</span>
-                    </>
-                  ) : isMonthlySpend ? (
-                    <>
-                      <span className="percent">
-                        {formatMonthlySpendLabel(quota.quota)}
-                      </span>
-                      <span className="label">{t('profileCard.monthly')}</span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="percent">
-                        {quota.quota.totalPercentUsed.toFixed(0)}%
-                      </span>
-                      <span className="label">{t('profileCard.used')}</span>
-                    </>
-                  )}
-                  {renderQuotaStatusIcons(quotaStatus, t)}
-                </div>
-                <div className="quota-details">
-                  {isEnterprise && isMonthlySpend ? (
-                    hasDistinctTeamBudget(quota.quota) ? (
-                      <span>
-                        {t('profileCard.teamBudgetLabel', {
-                          value: formatTeamBudgetLabel(quota.quota),
-                        })}
-                      </span>
-                    ) : null
-                  ) : isMonthlySpend ? (
-                    <span>
-                      {t('profileCard.monthlyLabel', {
-                        value: formatMonthlySpendLabel(quota.quota),
-                      })}
-                    </span>
-                  ) : (
-                    <span>{formatRemainingLabel(quota.quota, t)}</span>
-                  )}
-                  <span>
-                    {t('profileCard.resets', {
-                      date: formatResetDate(quota.quota.billingCycleEnd, t),
-                    })}
-                  </span>
-                </div>
-              </>
-            )
-          ) : (
-            <div className="quota-unavailable">{t('profileCard.quotaUnavailable')}</div>
-          )}
-        </div>
-      )}
+      <ProfileCardQuota
+        quota={quota}
+        expanded={quotaExpanded}
+        onToggleExpanded={() => setQuotaExpanded((expanded) => !expanded)}
+        onLaunch={handleLaunch}
+      />
 
-      {isEnterprise && leaderboardEntries.length ? (
-        <div className="leaderboard-section">
-          <button
-            type="button"
-            className="leaderboard-toggle"
-            onClick={() => setLeaderboardExpanded((expanded) => !expanded)}
-            aria-expanded={leaderboardExpanded}
-          >
-            <span className="leaderboard-status">{leaderboardStatusMessage}</span>
-            <span className="leaderboard-period">{t('profileCard.leaderboardPeriod')}</span>
-            <span className="leaderboard-chevron" aria-hidden="true">
-              {leaderboardExpanded ? '▾' : '▸'}
-            </span>
-          </button>
-          {leaderboardExpanded && (
-            <ol className="leaderboard-list">
-              {leaderboardEntries.map((entry) => (
-                <li
-                  key={entry.email}
-                  className={
-                    entry.email.toLowerCase() === profile.email.toLowerCase()
-                      ? 'leaderboard-item self'
-                      : 'leaderboard-item'
-                  }
-                >
-                  <span className="rank">#{entry.rank}</span>
-                  <span className="name">{entry.displayName}</span>
-                  <span className="metric">
-                    {formatCompactNumber(entry.composerLinesAccepted)} {t('profileCard.lines')}
-                  </span>
-                </li>
-              ))}
-            </ol>
-          )}
-        </div>
-      ) : null}
+      <ProfileCardLeaderboard
+        entries={leaderboardEntries}
+        profileEmail={profile.email}
+        expanded={leaderboardExpanded}
+        onToggleExpanded={() =>
+          setLeaderboardExpanded((expanded) => !expanded)
+        }
+      />
 
-      {profile.efficiencyAnalysisEnabled ? (
-        efficiencyStats && efficiencyStats.totalPrompts > 0 ? (
-          <div className="efficiency-section">
-            <div className="efficiency-header">
-              <span className="efficiency-title">
-                {t('profileCard.efficiencyTitle')}
-              </span>
-              <span className="efficiency-percentage">
-                {getEfficiencyPercentage(efficiencyStats)}%
-              </span>
-            </div>
-            <QuotaBarRow
-              percent={getEfficiencyPercentage(efficiencyStats)}
-              fillStatus={getEfficiencyFillStatus(efficiencyStats)}
-            />
-            <div className="efficiency-details">
-              <span>
-                {t('profileCard.efficientPrompts', {
-                  count: efficiencyStats.efficientPrompts,
-                })}
-              </span>
-              <span>
-                {t('profileCard.totalPrompts', {
-                  count: efficiencyStats.totalPrompts,
-                })}
-              </span>
-            </div>
+      <ProfileCardEfficiency
+        key={profile.id}
+        enabled={Boolean(profile.efficiencyAnalysisEnabled)}
+        stats={efficiencyStats}
+        workspaces={workspaces}
+      />
 
-            {Object.keys(efficiencyStats.byRepository).length > 0 ? (
-              <div className="efficiency-by-repo">
-                <button
-                  type="button"
-                  className="efficiency-repo-toggle"
-                  onClick={() => setEfficiencyRepoExpanded((expanded) => !expanded)}
-                  aria-expanded={efficiencyRepoExpanded}
-                >
-                  <span>
-                    {t('profileCard.efficiencyByRepository', {
-                      count: Object.keys(efficiencyStats.byRepository).length,
-                    })}
-                  </span>
-                  <span className="chevron" aria-hidden="true">
-                    {efficiencyRepoExpanded ? '▼' : '▶'}
-                  </span>
-                </button>
-                {efficiencyRepoExpanded ? (
-                  <ul className="efficiency-repo-list">
-                    {Object.entries(efficiencyStats.byRepository)
-                      .sort((a, b) => b[1].totalPrompts - a[1].totalPrompts)
-                      .map(([repoPath, repoStats]) => {
-                        const repoName = getRepositoryName(repoPath, workspaces);
-                        const branchEntries = Object.entries(repoStats.byBranch);
-                        const branchesExpanded = expandedBranchRepos.has(repoPath);
-
-                        return (
-                          <li key={repoPath} className="efficiency-repo-item">
-                            <div className="efficiency-repo-header">
-                              <span
-                                className="efficiency-repo-name"
-                                title={repoPath}
-                              >
-                                {repoName}
-                              </span>
-                              <span className="efficiency-repo-percent">
-                                {getEfficiencyPercentage(repoStats)}%
-                              </span>
-                            </div>
-                            <div className="efficiency-repo-stats">
-                              <span className="efficiency-repo-count">
-                                {repoStats.efficientPrompts}/{repoStats.totalPrompts}
-                              </span>
-                            </div>
-
-                            {branchEntries.length > 0 ? (
-                              <div className="efficiency-by-branch">
-                                <button
-                                  type="button"
-                                  className="efficiency-branch-toggle"
-                                  onClick={() => toggleBranchExpanded(repoPath)}
-                                  aria-expanded={branchesExpanded}
-                                >
-                                  <span className="efficiency-branch-label">
-                                    {t('profileCard.efficiencyByBranch', {
-                                      count: branchEntries.length,
-                                    })}
-                                  </span>
-                                  <span className="chevron-small" aria-hidden="true">
-                                    {branchesExpanded ? '▼' : '▶'}
-                                  </span>
-                                </button>
-                                {branchesExpanded ? (
-                                  <ul className="efficiency-branch-list">
-                                    {branchEntries
-                                      .sort(
-                                        (a, b) =>
-                                          b[1].totalPrompts - a[1].totalPrompts
-                                      )
-                                      .map(([branchName, branchStats]) => (
-                                        <li
-                                          key={branchName}
-                                          className="efficiency-branch-item"
-                                        >
-                                          <div className="efficiency-branch-header">
-                                            <span className="efficiency-branch-name">
-                                              {branchName}
-                                            </span>
-                                            <span className="efficiency-branch-percent">
-                                              {getEfficiencyPercentage(branchStats)}%
-                                            </span>
-                                          </div>
-                                          <div className="efficiency-branch-count">
-                                            {branchStats.efficientPrompts}/
-                                            {branchStats.totalPrompts}
-                                          </div>
-                                        </li>
-                                      ))}
-                                  </ul>
-                                ) : null}
-                              </div>
-                            ) : null}
-                          </li>
-                        );
-                      })}
-                  </ul>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
-        ) : (
-          <div className="efficiency-section">
-            <p className="efficiency-empty">{t('profileCard.efficiencyEmpty')}</p>
-          </div>
-        )
-      ) : null}
-
-      {displayedWorkspaces.length > 0 ? (
-        <div className="profile-workspaces">
-          <h4 className="profile-workspaces-title">
-            {t('profileCard.recentProjects')}
-          </h4>
-          <ul className="workspace-list">
-            {displayedWorkspaces.map((workspace) => {
-              const isProjectOpen = Boolean(workspace.isOpenInSession);
-              const summary = repoSummaries[workspace.storageHash];
-
-              return (
-              <li
-                key={workspace.storageHash}
-                className={`workspace-item${isProjectOpen ? ' is-open' : ''}`}
-              >
-                <div className="workspace-item-main">
-                  <span className="workspace-name" title={workspace.path}>
-                    {workspace.name}
-                  </span>
-                  {summary ? (
-                    <WorkspaceRepoMeta summary={summary} t={t} />
-                  ) : null}
-                  {summary?.visibility === 'private' &&
-                  githubTokenStatus === 'not_configured' ? (
-                    <p className="workspace-repo-hint">
-                      {t('profileCard.privateRepoHint')}
-                    </p>
-                  ) : null}
-                </div>
-                <button
-                  type="button"
-                  className={`btn-open-project${isProjectOpen ? ' is-open' : ''}`}
-                  onClick={() => handleOpenProject(workspace.path)}
-                  disabled={isProjectOpen}
-                >
-                  {isProjectOpen
-                    ? t('profileCard.projectAlreadyOpen')
-                    : t('profileCard.openProject')}
-                </button>
-              </li>
-              );
-            })}
-          </ul>
-          <div className="profile-github-token">
-            {githubTokenStatus === 'configured' ? (
-              <span className="github-token-status configured">
-                {t('profileCard.githubTokenConfigured')}
-              </span>
-            ) : null}
-            {githubTokenStatus === 'invalid' ? (
-              <span className="github-token-status invalid">
-                {t('profileCard.githubTokenInvalid')}
-              </span>
-            ) : null}
-            <button
-              type="button"
-              className="btn-github-token"
-              onClick={() => onConfigureGithubToken(profile.id)}
-            >
-              {t('profileCard.configureGithubToken')}
-            </button>
-            {profile.githubTokenPath ? (
-              <button
-                type="button"
-                className="btn-github-token-clear"
-                onClick={() => onClearGithubToken(profile.id)}
-              >
-                {t('profileCard.clearGithubToken')}
-              </button>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
+      <ProfileCardWorkspaces
+        profile={profile}
+        workspaces={workspaces}
+        repoSummaries={repoSummaries}
+        githubTokenStatus={githubTokenStatus}
+        onOpenProject={(projectPath) => onOpenProject(profile.id, projectPath)}
+        onConfigureGithubToken={() => onConfigureGithubToken(profile.id)}
+        onClearGithubToken={() => onClearGithubToken(profile.id)}
+      />
 
       <div className="profile-actions">
         <button
