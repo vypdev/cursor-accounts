@@ -1,23 +1,25 @@
-import * as fs from 'fs/promises';
 import type { ProxyInstallGuide } from '@cursor-accounts/types';
 import type { IProfileReader } from '../domain/ports/IProfileReader';
+import type { IProxyCertificateOperations } from '../domain/ports/IProxyCertificateOperations';
 import type { IProxyCertificateService } from '../domain/ports/IProxyCertificateService';
 import type { IProxyStateStore } from '../domain/ports/IProxyStateStore';
 import { buildProxyInstallGuide } from '../proxy/buildProxyInstallGuide';
-import type { CertificateManager } from '../proxy/certificateManager';
-import { verifyCaCertificateInstalled } from '../proxy/installCaCertificate';
+
+export function formatProxyCertificateError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
 
 export class ProxyCertificateService implements IProxyCertificateService {
   private cachedInstalled: boolean | undefined;
 
   constructor(
-    private readonly certManager: CertificateManager,
+    private readonly certificateOperations: IProxyCertificateOperations,
     private readonly stateStore: IProxyStateStore,
     private readonly profileManager: IProfileReader
   ) {}
 
   async ensureCaCertificate(): Promise<string> {
-    return this.certManager.ensureCaCertificate();
+    return this.certificateOperations.ensureCaCertificate();
   }
 
   async getCertificatePath(): Promise<string | null> {
@@ -26,8 +28,13 @@ export class ProxyCertificateService implements IProxyCertificateService {
       const state = await this.stateStore.read(profile.userDataDir);
       if (state?.caCertificatePath) {
         try {
-          await fs.access(state.caCertificatePath);
-          return state.caCertificatePath;
+          if (
+            await this.certificateOperations.certificatePathExists(
+              state.caCertificatePath
+            )
+          ) {
+            return state.caCertificatePath;
+          }
         } catch {
           // fall through
         }
@@ -35,14 +42,14 @@ export class ProxyCertificateService implements IProxyCertificateService {
     }
 
     try {
-      return await this.certManager.ensureCaCertificate();
+      return await this.certificateOperations.ensureCaCertificate();
     } catch {
       return null;
     }
   }
 
   async checkInstalled(): Promise<boolean> {
-    const installed = await verifyCaCertificateInstalled();
+    const installed = await this.certificateOperations.checkInstalled();
     this.cachedInstalled = installed;
     return installed;
   }
@@ -64,7 +71,7 @@ export class ProxyCertificateService implements IProxyCertificateService {
       if (alreadyInstalled) {
         return { success: true };
       }
-      const result = await this.certManager.installCertificateWithElevation();
+      const result = await this.certificateOperations.install();
       if (result.success) {
         this.cachedInstalled = true;
       } else {
@@ -75,14 +82,13 @@ export class ProxyCertificateService implements IProxyCertificateService {
       }
       return result;
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return { success: false, error: message };
+      return { success: false, error: formatProxyCertificateError(error) };
     }
   }
 
   async uninstall(): Promise<{ success: boolean; error?: string }> {
     try {
-      const result = await this.certManager.uninstallCertificate();
+      const result = await this.certificateOperations.uninstall();
       if (result.success) {
         this.cachedInstalled = false;
       } else {
@@ -93,8 +99,7 @@ export class ProxyCertificateService implements IProxyCertificateService {
       }
       return result;
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return { success: false, error: message };
+      return { success: false, error: formatProxyCertificateError(error) };
     }
   }
 

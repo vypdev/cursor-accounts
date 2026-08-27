@@ -13,6 +13,7 @@ const floors = [
   },
   { file: 'src/auth/tokenRefresh.ts', lines: 65, branches: 55 },
   { file: 'src/proxy/proxyLogCleanup.ts', lines: 90, branches: 75 },
+  { file: 'src/services/proxyCertificateService.ts', lines: 85, branches: 75 },
 ];
 
 export function checkCriticalCoverage(content) {
