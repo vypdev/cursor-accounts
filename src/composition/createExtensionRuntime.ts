@@ -39,6 +39,7 @@ import { createAccountsPanelStorageBundle } from './createStorageServices';
 import { SqliteActiveConversationRepository } from '../cursor/sqliteActiveConversationRepository';
 import { WorkspaceStateDbPathResolver } from '../cursor/workspaceStateDbPathResolver';
 import { ActiveConversationTracker } from '../services/activeConversationTracker';
+import { ActiveConversationTotalsLoader } from '../application/services/activeConversationTotalsLoader';
 
 /** Composition-root overrides used by deterministic integration tests. */
 export interface ExtensionActivationDependencies {
@@ -178,21 +179,15 @@ export function createExtensionRuntime(
     activeConversationRepository,
     workspaceStateDbPathResolver
   );
+  const activeConversationTotalsLoader = new ActiveConversationTotalsLoader({
+    profileDetector,
+    proxyTraffic: proxyManager,
+  });
   const activeConversationStatusBar = new ActiveConversationStatusBar(
     context,
     activeConversationTracker,
-    async (conversationId, profileId) => {
-      const resolvedProfileId =
-        profileId ?? (await profileDetector.detectCurrentProfile())?.id;
-      if (!resolvedProfileId) {
-        return null;
-      }
-      const tracking = proxyManager.getAgentTrackingService(resolvedProfileId);
-      if (!tracking) {
-        return null;
-      }
-      return tracking.getConversationTokens(conversationId);
-    }
+    (conversationId, profileId) =>
+      activeConversationTotalsLoader.load(conversationId, profileId)
   );
   const statusBar = new StatusBarManager(context, profileDetector);
   const tokenService = new TokenService(context, profileDetector);
