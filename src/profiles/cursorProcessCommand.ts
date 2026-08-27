@@ -1,4 +1,5 @@
 import type { CursorProcess } from './cursorProcess';
+import { tokenizeCommandLine } from './cursorCommandLineTokenizer';
 
 const KNOWN_LAUNCH_FLAGS = new Set([
   '--user-data-dir',
@@ -83,52 +84,4 @@ export function parseCursorProcess(
     processInfo.projectPath = projectPath;
   }
   return processInfo;
-}
-
-function tokenizeCommandLine(command: string): string[] {
-  const tokens: string[] = [];
-  let current = '';
-  let inQuotes = false;
-  let quoteChar = '';
-
-  for (let index = 0; index < command.length; index += 1) {
-    const char = command[index];
-    if (char === undefined) {
-      continue;
-    }
-
-    if ((char === '"' || char === "'") && (!inQuotes || quoteChar === char)) {
-      if (inQuotes && quoteChar === char) {
-        inQuotes = false;
-        quoteChar = '';
-        if (current.length > 0) {
-          tokens.push(current);
-          current = '';
-        }
-        continue;
-      }
-
-      if (!inQuotes) {
-        inQuotes = true;
-        quoteChar = char;
-        continue;
-      }
-    }
-
-    if (!inQuotes && /\s/.test(char)) {
-      if (current.length > 0) {
-        tokens.push(current);
-        current = '';
-      }
-      continue;
-    }
-
-    current += char;
-  }
-
-  if (current.length > 0) {
-    tokens.push(current);
-  }
-
-  return tokens;
 }
