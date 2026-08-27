@@ -70,3 +70,4 @@ export * from './ports/IProfileLauncher';
 export * from './ports/IProfileProcessLauncher';
 export * from './ports/IProfileProxyLaunchCoordinator';
 export * from './ports/IInstanceDetector';
+export * from './ports/IProxyControlClient';

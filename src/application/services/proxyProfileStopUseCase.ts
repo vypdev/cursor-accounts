@@ -1,13 +1,10 @@
 import type { Profile } from '@cursor-accounts/types';
 import type { IProfileReader } from '../../domain/ports/IProfileReader';
+import type { IProxyControlClient } from '../../domain/ports/IProxyControlClient';
 import type { IProxyStateStore } from '../../domain/ports/IProxyStateStore';
 import type { IProxyTrafficIngress } from '../../domain/ports/IProxyTrafficIngress';
 
 export const PROXY_STOP_GRACE_MS = 500;
-
-interface ProxyControlClient {
-  shutdown(): Promise<void>;
-}
 
 export interface ProxyRuntimeHandle {
   apiPort?: number;
@@ -20,7 +17,10 @@ export interface ProxyProfileStopUseCaseDependencies {
   trafficIngress: IProxyTrafficIngress;
   getRuntime(profileId: string): ProxyRuntimeHandle | undefined;
   isSharedProxyActive(): boolean;
-  createApiClient(apiPort: number, apiToken?: string): ProxyControlClient;
+  createApiClient(
+    apiPort: number,
+    apiToken?: string
+  ): Pick<IProxyControlClient, 'shutdown'>;
   resolveApiPort(mitmPort: number, persistedApiPort?: number): number;
   forceStopChild(profileId: string): Promise<void>;
   restoreProxySettings?(userDataDir: string): Promise<void>;

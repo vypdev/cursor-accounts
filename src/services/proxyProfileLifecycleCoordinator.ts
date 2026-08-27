@@ -4,6 +4,7 @@ import {
   ProxyProfileStopUseCase,
 } from '../application/services/proxyProfileStopUseCase';
 import type { IProfileReader } from '../domain/ports/IProfileReader';
+import type { IProxyControlClient } from '../domain/ports/IProxyControlClient';
 import type { IProxyStateStore } from '../domain/ports/IProxyStateStore';
 import type { IProxyTrafficIngress } from '../domain/ports/IProxyTrafficIngress';
 import type { SharedProxyRuntime } from './sharedProxyLifecycleCoordinator';
@@ -13,11 +14,6 @@ import * as extensionLog from '../logging/extensionLog';
 
 export { PROXY_STOP_GRACE_MS };
 
-interface ProxyControlClient {
-  getStatus(): Promise<{ running: boolean }>;
-  shutdown(): Promise<void>;
-}
-
 export interface ProxyProfileLifecycleCoordinatorDependencies {
   profileManager: IProfileReader;
   stateStore: IProxyStateStore;
@@ -25,7 +21,7 @@ export interface ProxyProfileLifecycleCoordinatorDependencies {
   trafficIngress: IProxyTrafficIngress;
   getRuntime(profileId: string): SharedProxyRuntime | undefined;
   isSharedProxyActive(): boolean;
-  createApiClient(apiPort: number, apiToken?: string): ProxyControlClient;
+  createApiClient(apiPort: number, apiToken?: string): IProxyControlClient;
   resolveApiPort(mitmPort: number, persistedApiPort?: number): number;
   ensureAgentTracking(profileId: string, userDataDir: string): Promise<void>;
   applyProxySettings(userDataDir: string, port: number): Promise<void>;

@@ -1,18 +1,18 @@
 import { isProfileProxyEnabled, type Profile, type ProxyStateFile } from '@cursor-accounts/types';
 import type { IProfileReader } from '../../domain/ports/IProfileReader';
+import type { IProxyControlClient } from '../../domain/ports/IProxyControlClient';
 import type { IProxyStateStore } from '../../domain/ports/IProxyStateStore';
 import type { ISharedProxyStateStore } from '../../domain/ports/ISharedProxyStateStore';
-
-interface ProxyControlClient {
-  getStatus(): Promise<{ running: boolean }>;
-}
 
 export interface ProxyProfileAttachUseCaseDependencies {
   profileManager: IProfileReader;
   stateStore: IProxyStateStore;
   sharedStateStore: ISharedProxyStateStore;
   sharedRuntimeId: string;
-  createApiClient(apiPort: number, apiToken?: string): ProxyControlClient;
+  createApiClient(
+    apiPort: number,
+    apiToken?: string
+  ): Pick<IProxyControlClient, 'getStatus'>;
   resolveApiPort(mitmPort: number, persistedApiPort?: number): number;
   ensureAgentTracking(profileId: string, userDataDir: string): Promise<void>;
   applyProxySettings(userDataDir: string, port: number): Promise<void>;

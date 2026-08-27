@@ -1,8 +1,6 @@
 import * as fs from 'fs/promises';
-import {
-  isProfileProxyEnabled,
-  type Profile,
-} from '@cursor-accounts/types';
+import type { Profile } from '@cursor-accounts/types';
+import type { IProxyControlClient } from '../domain/ports/IProxyControlClient';
 import type { ProxyStartResult } from '../domain/ports/IProxyManager';
 import type { IProxyCertificateService } from '../domain/ports/IProxyCertificateService';
 import type { IProxyProcess } from '../domain/ports/IProxyProcess';
@@ -12,6 +10,8 @@ import {
   SharedProxyRuntimeStartUseCase,
   type SharedProxyRuntime,
 } from '../application/services/sharedProxyRuntimeStartUseCase';
+import { SharedProxyRuntimeEnsureUseCase } from '../application/services/sharedProxyRuntimeEnsureUseCase';
+import { SharedProxyRuntimeStopUseCase } from '../application/services/sharedProxyRuntimeStopUseCase';
 import { pollProxyHealth } from '../proxy/proxyHealthPoller';
 import {
   DEFAULT_PROXY_PORT,
@@ -24,11 +24,6 @@ const PROXY_START_TIMEOUT_MS = 15_000;
 
 export type { SharedProxyRuntime } from '../application/services/sharedProxyRuntimeStartUseCase';
 
-interface ProxyControlClient {
-  getStatus(): Promise<{ running: boolean }>;
-  shutdown(): Promise<void>;
-}
-
 export interface SharedProxyLifecycleCoordinatorDependencies {
   storageDir: string;
   logDir: string;
@@ -38,7 +33,7 @@ export interface SharedProxyLifecycleCoordinatorDependencies {
   certService: IProxyCertificateService;
   createProcess(): IProxyProcess;
   isPortAvailable(port: number): Promise<boolean>;
-  createApiClient(apiPort: number, apiToken?: string): ProxyControlClient;
+  createApiClient(apiPort: number, apiToken?: string): IProxyControlClient;
   resolveApiPort(mitmPort: number, persistedApiPort?: number): number;
   buildServerConfig(
     port: number,
@@ -70,101 +65,66 @@ export interface SharedProxyLifecycleCoordinatorDependencies {
 /** Owns startup and shutdown decisions for the shared MITM child process. */
 export class SharedProxyLifecycleCoordinator {
   private readonly runtimeStarter: SharedProxyRuntimeStartUseCase;
+  private readonly runtimeEnsurer: SharedProxyRuntimeEnsureUseCase;
+  private readonly runtimeStopper: SharedProxyRuntimeStopUseCase;
 
   constructor(
-    private readonly dependencies: SharedProxyLifecycleCoordinatorDependencies
+    dependencies: SharedProxyLifecycleCoordinatorDependencies
   ) {
     this.runtimeStarter = createRuntimeStarter(dependencies);
+    this.runtimeEnsurer = createRuntimeEnsurer(
+      dependencies,
+      this.runtimeStarter
+    );
+    this.runtimeStopper = createRuntimeStopper(dependencies);
   }
 
   async ensure(profiles: Profile[]): Promise<ProxyStartResult> {
-    const enabledProfiles = profiles.filter(isProfileProxyEnabled);
-    if (enabledProfiles.length === 0) {
-      return { success: false, error: 'No profiles with proxy enabled' };
-    }
-
-    const existing = this.dependencies.getRuntime();
-    if (existing) {
-      for (const profile of enabledProfiles) {
-        await this.dependencies.prepareProfile(profile, existing.port);
-        await this.dependencies.ensureTrafficIngress(
-          existing.port,
-          existing.apiPort,
-          { forceRestart: false, apiToken: existing.apiToken }
-        );
-      }
-      return { success: true, port: existing.port };
-    }
-
-    const sharedState = await this.dependencies.stateStore.read();
-    if (sharedState?.running && sharedState.port != null) {
-      const apiPort = this.dependencies.resolveApiPort(
-        sharedState.port,
-        sharedState.apiPort
-      );
-      try {
-        const probe = this.dependencies.createApiClient(
-          apiPort,
-          sharedState.apiToken
-        );
-        const status = await probe.getStatus();
-        if (status.running) {
-          for (const profile of enabledProfiles) {
-            await this.dependencies.prepareProfile(profile, sharedState.port);
-          }
-          await this.dependencies.ensureTrafficIngress(
-            sharedState.port,
-            apiPort,
-            { forceRestart: true, apiToken: sharedState.apiToken }
-          );
-          this.dependencies.notifyStatusChange();
-          return { success: true, port: sharedState.port };
-        }
-      } catch {
-        await this.dependencies.stateStore.clear();
-      }
-    }
-
-    if (!(await this.dependencies.isPortAvailable(DEFAULT_PROXY_PORT))) {
-      return {
-        success: false,
-        error: `Shared proxy port ${DEFAULT_PROXY_PORT} is not available`,
-      };
-    }
-
-    return this.startNewRuntime(enabledProfiles);
+    return this.runtimeEnsurer.execute(profiles);
   }
 
   async stop(): Promise<void> {
-    if (!this.dependencies.getRuntime()) {
-      return;
-    }
-
-    const runtime = this.dependencies.getRuntime();
-    if (runtime?.apiPort != null) {
-      try {
-        await this.dependencies
-          .createApiClient(runtime.apiPort, runtime.apiToken)
-          .shutdown();
-        await new Promise((resolve) => setTimeout(resolve, 500));
-      } catch (error) {
-        extensionLog.debug(
-          `[Proxy:shared] API shutdown failed: ${
-            error instanceof Error ? error.message : String(error)
-          }`
-        );
-      }
-    }
-
-    await this.dependencies.stopRuntime();
-    this.dependencies.stopTrafficIngress();
-    await this.dependencies.stateStore.clear();
-    this.dependencies.notifyStatusChange();
+    return this.runtimeStopper.execute();
   }
+}
 
-  private startNewRuntime(enabledProfiles: Profile[]): Promise<ProxyStartResult> {
-    return this.runtimeStarter.execute(enabledProfiles);
-  }
+function createRuntimeEnsurer(
+  dependencies: SharedProxyLifecycleCoordinatorDependencies,
+  runtimeStarter: SharedProxyRuntimeStartUseCase
+): SharedProxyRuntimeEnsureUseCase {
+  return new SharedProxyRuntimeEnsureUseCase({
+    sharedProxyPort: DEFAULT_PROXY_PORT,
+    stateStore: dependencies.stateStore,
+    getRuntime: () => dependencies.getRuntime(),
+    resolveApiPort: (mitmPort, persistedApiPort) =>
+      dependencies.resolveApiPort(mitmPort, persistedApiPort),
+    createApiClient: (apiPort, apiToken) =>
+      dependencies.createApiClient(apiPort, apiToken),
+    isPortAvailable: (port) => dependencies.isPortAvailable(port),
+    prepareProfile: (profile, port) =>
+      dependencies.prepareProfile(profile, port),
+    ensureTrafficIngress: (port, apiPort, options) =>
+      dependencies.ensureTrafficIngress(port, apiPort, options),
+    startRuntime: (profiles) => runtimeStarter.execute(profiles),
+    notifyStatusChange: () => dependencies.notifyStatusChange(),
+  });
+}
+
+function createRuntimeStopper(
+  dependencies: SharedProxyLifecycleCoordinatorDependencies
+): SharedProxyRuntimeStopUseCase {
+  return new SharedProxyRuntimeStopUseCase({
+    stateStore: dependencies.stateStore,
+    getRuntime: () => dependencies.getRuntime(),
+    createApiClient: (apiPort, apiToken) =>
+      dependencies.createApiClient(apiPort, apiToken),
+    wait: (milliseconds) =>
+      new Promise((resolve) => setTimeout(resolve, milliseconds)),
+    stopRuntime: () => dependencies.stopRuntime(),
+    stopTrafficIngress: () => dependencies.stopTrafficIngress(),
+    notifyStatusChange: () => dependencies.notifyStatusChange(),
+    logDebug: (message) => extensionLog.debug(message),
+  });
 }
 
 function createRuntimeStarter(
