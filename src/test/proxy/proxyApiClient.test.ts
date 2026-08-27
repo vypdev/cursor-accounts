@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import http from 'node:http';
 import { describe, it } from 'node:test';
 import type { ProxyApiEvent } from '../../application/types/proxyApi';
 import { PROXY_API_PATHS } from '../../application/types/proxyApi';
@@ -54,6 +55,9 @@ describe('ProxyApiClient', () => {
 
     try {
       let unsubscribe: (() => void) | undefined;
+      client.onEvent(() => {
+        throw new Error('listener failure');
+      });
       const receivedEvent = new Promise<ProxyApiEvent>((resolve) => {
         unsubscribe = client.onEvent(resolve);
       });
@@ -131,6 +135,30 @@ describe('ProxyApiClient', () => {
     await assert.rejects(client.connect());
     assert.equal(client.isConnected(), false);
     client.disconnect();
+  });
+
+  it('bounds REST requests when the API does not respond', async () => {
+    const server = http.createServer(() => {
+      // Keep the request open until the client-side timeout aborts it.
+    });
+    await new Promise<void>((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(19_086, '127.0.0.1', () => resolve());
+    });
+
+    try {
+      const client = new ProxyApiClient({
+        baseUrl: 'http://127.0.0.1:19086',
+        requestTimeoutMs: 25,
+      });
+
+      await assert.rejects(
+        client.getStatus(),
+        /Proxy API request timed out after 25ms/
+      );
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
   });
 
   it('normalizes API URLs and resolves persisted API ports', () => {

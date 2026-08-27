@@ -8,6 +8,7 @@ import {
 } from '../../application/types/proxyApi';
 
 const DEFAULT_CONNECT_TIMEOUT_MS = 10_000;
+const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
 const RECONNECT_DELAY_MS = 2_000;
 const MAX_RECONNECT_ATTEMPTS = 5;
 
@@ -15,6 +16,7 @@ export interface ProxyApiClientOptions {
   /** Base URL, e.g. http://127.0.0.1:18080 */
   baseUrl: string;
   connectTimeoutMs?: number;
+  requestTimeoutMs?: number;
   reconnect?: boolean;
   maxReconnectAttempts?: number;
   apiToken?: string;
@@ -30,6 +32,7 @@ export class ProxyApiClient implements IProxyApiClient {
   private reconnectAttempts = 0;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private intentionalDisconnect = false;
+  private connectPromise: Promise<void> | null = null;
 
   constructor(private readonly options: ProxyApiClientOptions) {}
 
@@ -38,15 +41,25 @@ export class ProxyApiClient implements IProxyApiClient {
   }
 
   async connect(): Promise<void> {
-    this.intentionalDisconnect = false;
-    try {
-      await this.connectWebSocket();
-    } catch (error) {
-      // A failed initial connection must not leave an orphaned reconnect loop
-      // when the caller does not retain the client instance.
-      this.disconnect();
-      throw error;
+    if (this.isConnected()) {
+      return;
     }
+    if (this.connectPromise) {
+      return this.connectPromise;
+    }
+
+    this.intentionalDisconnect = false;
+    this.connectPromise = this.connectWebSocket()
+      .catch((error: unknown) => {
+        // A failed initial connection must not leave an orphaned reconnect loop
+        // when the caller does not retain the client instance.
+        this.disconnect();
+        throw error;
+      })
+      .finally(() => {
+        this.connectPromise = null;
+      });
+    return this.connectPromise;
   }
 
   disconnect(): void {
@@ -65,9 +78,7 @@ export class ProxyApiClient implements IProxyApiClient {
   }
 
   async getStatus(): Promise<ProxyApiStatusResponse> {
-    const response = await fetch(`${this.baseUrl}${PROXY_API_PATHS.status}`, {
-      headers: this.authHeaders(),
-    });
+    const response = await this.request(PROXY_API_PATHS.status);
     if (!response.ok) {
       throw new Error(`Proxy API status failed: HTTP ${response.status}`);
     }
@@ -75,9 +86,7 @@ export class ProxyApiClient implements IProxyApiClient {
   }
 
   async getStats(): Promise<ProxyStatistics> {
-    const response = await fetch(`${this.baseUrl}${PROXY_API_PATHS.stats}`, {
-      headers: this.authHeaders(),
-    });
+    const response = await this.request(PROXY_API_PATHS.stats);
     if (!response.ok) {
       throw new Error(`Proxy API stats failed: HTTP ${response.status}`);
     }
@@ -85,9 +94,8 @@ export class ProxyApiClient implements IProxyApiClient {
   }
 
   async shutdown(): Promise<void> {
-    const response = await fetch(`${this.baseUrl}${PROXY_API_PATHS.shutdown}`, {
+    const response = await this.request(PROXY_API_PATHS.shutdown, {
       method: 'POST',
-      headers: this.authHeaders(),
     });
     if (!response.ok) {
       throw new Error(`Proxy API shutdown failed: HTTP ${response.status}`);
@@ -136,7 +144,12 @@ export class ProxyApiClient implements IProxyApiClient {
               : JSON.stringify(data);
           const event = JSON.parse(payload) as ProxyApiEvent;
           for (const listener of this.listeners) {
-            listener(event);
+            try {
+              listener(event);
+            } catch {
+              // An extension listener must not prevent other listeners from
+              // receiving the same proxy event.
+            }
           }
         } catch {
           // Ignore malformed frames.
@@ -144,10 +157,39 @@ export class ProxyApiClient implements IProxyApiClient {
       });
 
       ws.on('close', () => {
-        this.ws = null;
-        this.scheduleReconnect();
+        if (this.ws === ws) {
+          this.ws = null;
+          this.scheduleReconnect();
+        }
       });
     });
+  }
+
+  private async request(pathname: string, init?: RequestInit): Promise<Response> {
+    const timeoutMs =
+      this.options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      return await fetch(`${this.baseUrl}${pathname}`, {
+        ...init,
+        headers: {
+          ...this.authHeaders(),
+          ...init?.headers,
+        },
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (controller.signal.aborted) {
+        throw new Error(`Proxy API request timed out after ${timeoutMs}ms`, {
+          cause: error,
+        });
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   private authHeaders(): Record<string, string> {
