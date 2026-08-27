@@ -41,6 +41,8 @@ interface MockWebviewPanel {
     callback: (event: { webviewPanel: { visible: boolean } }) => void
   ) => { dispose: () => void };
   onDidDispose: (callback: () => void) => { dispose: () => void };
+  emitViewState: (visible: boolean) => void;
+  emitDispose: () => void;
 }
 
 interface MockExtensionContext {
@@ -52,6 +54,20 @@ interface MockExtensionContext {
     update: () => Promise<void>;
   };
 }
+
+const vscodeWindowMock = vscode.window as unknown as {
+  createWebviewPanel: unknown;
+};
+const workspaceMock = vscode.workspace as unknown as {
+  workspaceFolders: Array<{ uri: { fsPath: string } }>;
+  workspaceFile: { fsPath: string } | undefined;
+  onDidChangeWorkspaceFolders: unknown;
+};
+const originalCreateWebviewPanel = vscodeWindowMock.createWebviewPanel;
+const originalWorkspaceFolders = workspaceMock.workspaceFolders;
+const originalWorkspaceFile = workspaceMock.workspaceFile;
+const originalWorkspaceFoldersChangeEvent =
+  workspaceMock.onDidChangeWorkspaceFolders;
 
 function createMockInstanceDetector(): InstanceDetector {
   return {
@@ -235,6 +251,11 @@ describe('AccountsPanelProvider', () => {
   let mockWebview: MockWebview;
   let mockPanel: MockWebviewPanel;
   let revealCalled: boolean;
+  let workspaceFoldersChangeHandler: (() => void) | undefined;
+  let viewStateChangeHandler:
+    | ((event: { webviewPanel: { visible: boolean } }) => void)
+    | undefined;
+  let disposeHandler: (() => void) | undefined;
 
   beforeEach(async () => {
     tempDir = await fs.mkdtemp(
@@ -261,6 +282,25 @@ describe('AccountsPanelProvider', () => {
     accountFetcher = createMockAccountFetcher();
     instanceDetector = createMockInstanceDetector();
 
+    (vscode.workspace as unknown as {
+      workspaceFolders: Array<{ uri: { fsPath: string } }>;
+      workspaceFile: { fsPath: string } | undefined;
+      onDidChangeWorkspaceFolders: (
+        callback: () => void
+      ) => { dispose: () => void };
+    }).workspaceFolders = [];
+    (vscode.workspace as unknown as {
+      workspaceFile: { fsPath: string } | undefined;
+    }).workspaceFile = undefined;
+    (vscode.workspace as unknown as {
+      onDidChangeWorkspaceFolders: (
+        callback: () => void
+      ) => { dispose: () => void };
+    }).onDidChangeWorkspaceFolders = (callback) => {
+      workspaceFoldersChangeHandler = callback;
+      return { dispose: () => undefined };
+    };
+
     provider = new AccountsPanelProvider(
       createMockContext(extensionPath) as never,
       {
@@ -286,8 +326,20 @@ describe('AccountsPanelProvider', () => {
       reveal: () => {
         revealCalled = true;
       },
-      onDidChangeViewState: () => ({ dispose: () => undefined }),
-      onDidDispose: () => ({ dispose: () => undefined }),
+      onDidChangeViewState: (callback) => {
+        viewStateChangeHandler = callback;
+        return { dispose: () => undefined };
+      },
+      onDidDispose: (callback) => {
+        disposeHandler = callback;
+        return { dispose: () => undefined };
+      },
+      emitViewState: (visible) => {
+        viewStateChangeHandler?.({ webviewPanel: { visible } });
+      },
+      emitDispose: () => {
+        disposeHandler?.();
+      },
     };
 
     (vscode.window as never as { createWebviewPanel: () => MockWebviewPanel }).createWebviewPanel =
@@ -295,6 +347,11 @@ describe('AccountsPanelProvider', () => {
   });
 
   afterEach(async () => {
+    vscodeWindowMock.createWebviewPanel = originalCreateWebviewPanel;
+    workspaceMock.workspaceFolders = originalWorkspaceFolders;
+    workspaceMock.workspaceFile = originalWorkspaceFile;
+    workspaceMock.onDidChangeWorkspaceFolders =
+      originalWorkspaceFoldersChangeEvent;
     await fs.rm(tempDir, { recursive: true, force: true });
   });
 
@@ -310,6 +367,15 @@ describe('AccountsPanelProvider', () => {
     if (result && typeof (result as PromiseLike<void>).then === 'function') {
       await result;
     }
+  }
+
+  async function emitWorkspaceFoldersChanged(): Promise<void> {
+    workspaceFoldersChangeHandler?.();
+    await new Promise<void>((resolve) => setImmediate(resolve));
+  }
+
+  async function flushAsyncWork(): Promise<void> {
+    await new Promise<void>((resolve) => setImmediate(resolve));
   }
 
   it('opens editor panel and sets html with CSP and bundle references', () => {
@@ -341,6 +407,14 @@ describe('AccountsPanelProvider', () => {
     );
   });
 
+  it('opens the panel even when the webview bundle is missing', async () => {
+    await fs.rm(path.join(extensionPath, 'webview-dist', 'bundle.js'));
+
+    openPanel();
+
+    assert.equal(provider.hasResolvedView(), true);
+  });
+
   it('reveals existing panel instead of creating a new one', () => {
     openPanel();
     revealCalled = false;
@@ -350,6 +424,17 @@ describe('AccountsPanelProvider', () => {
     assert.equal(revealCalled, true);
   });
 
+  it('refreshes an existing panel after the webview runtime is ready', async () => {
+    openPanel();
+    await emitMessage({ type: 'ready' });
+    mockWebview.postedMessages = [];
+
+    provider.openPanel();
+    await flushAsyncWork();
+
+    assert.ok(mockWebview.postedMessages.some((message) => message.type === 'init'));
+  });
+
   it('reveal brings panel to foreground', () => {
     openPanel();
     revealCalled = false;
@@ -357,6 +442,66 @@ describe('AccountsPanelProvider', () => {
     provider.reveal();
 
     assert.equal(revealCalled, true);
+  });
+
+  it('reveal is a no-op when the panel is not open', () => {
+    provider.reveal();
+
+    assert.equal(revealCalled, false);
+  });
+
+  it('clears the panel reference when the webview is disposed', () => {
+    openPanel();
+
+    mockPanel.emitDispose();
+
+    assert.equal(provider.hasResolvedView(), false);
+  });
+
+  it('refreshes proxy status when an existing panel becomes visible', async () => {
+    openPanel();
+    mockWebview.postedMessages = [];
+
+    mockPanel.emitViewState(true);
+    await flushAsyncWork();
+
+    assert.deepEqual(
+      mockWebview.postedMessages.map((message) => message.type),
+      ['proxyStatus', 'currentWindowProxyUsage']
+    );
+  });
+
+  it('does not refresh proxy status when an existing panel is hidden', async () => {
+    openPanel();
+    mockWebview.postedMessages = [];
+
+    mockPanel.emitViewState(false);
+    await flushAsyncWork();
+
+    assert.deepEqual(mockWebview.postedMessages, []);
+  });
+
+  it('refreshes open workspace state when workspace folders change', async () => {
+    openPanel();
+    mockWebview.postedMessages = [];
+
+    await emitWorkspaceFoldersChanged();
+
+    const message = mockWebview.postedMessages.find(
+      (item) => item.type === 'openWorkspaces'
+    );
+    assert.ok(message);
+    if (message?.type === 'openWorkspaces') {
+      assert.deepEqual(message.data.paths, []);
+    }
+  });
+
+  it('opens the panel automatically when the workspace becomes empty', async () => {
+    assert.equal(provider.hasResolvedView(), false);
+
+    await emitWorkspaceFoldersChanged();
+
+    assert.equal(provider.hasResolvedView(), true);
   });
 
   it('handles webviewLog messages from the webview', async () => {
