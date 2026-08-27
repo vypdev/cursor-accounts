@@ -109,6 +109,17 @@ describe('ProfileProxyEditUseCase', () => {
     assert.equal(fixture.ensureProfileProxy.mock.callCount(), 0);
   });
 
+  it('does not start a proxy when the edited profile remains disabled', async () => {
+    const fixture = createUseCase({
+      updatedProfile: { ...PROFILE, proxyEnabled: false },
+      currentProfile: PROFILE,
+    });
+
+    await fixture.useCase.execute('p1', { proxyEnabled: true });
+
+    assert.equal(fixture.ensureProfileProxy.mock.callCount(), 0);
+  });
+
   it('restarts a running proxy when JSONL logging changes', async () => {
     const fixture = createUseCase({
       previousProfile: { ...PROFILE, proxyJsonlLoggingEnabled: false },
@@ -138,6 +149,21 @@ describe('ProfileProxyEditUseCase', () => {
     });
 
     assert.equal(fixture.isRunning.mock.callCount(), 0);
+    assert.equal(fixture.restartProfileProxy.mock.callCount(), 0);
+  });
+
+  it('does not restart a stopped proxy when JSONL logging changes', async () => {
+    const fixture = createUseCase({
+      previousProfile: { ...PROFILE, proxyJsonlLoggingEnabled: false },
+      updatedProfile: { ...PROFILE, proxyJsonlLoggingEnabled: true },
+      running: false,
+    });
+
+    await fixture.useCase.execute('p1', {
+      proxyJsonlLoggingEnabled: true,
+    });
+
+    assert.equal(fixture.isRunning.mock.callCount(), 1);
     assert.equal(fixture.restartProfileProxy.mock.callCount(), 0);
   });
 });

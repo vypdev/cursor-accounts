@@ -36,33 +36,74 @@ export class ProfileProxyEditUseCase {
       updates
     );
 
-    const jsonlLoggingChanged =
+    await this.applyProxyEffects(profileId, updates, previousProfile, profile);
+
+    return profile;
+  }
+
+  private async applyProxyEffects(
+    profileId: string,
+    updates: Partial<Profile>,
+    previousProfile: Profile | undefined,
+    profile: Profile
+  ): Promise<void> {
+    if (updates.proxyEnabled === false) {
+      await this.stopDisabledProfile(profileId);
+      return;
+    }
+
+    if (updates.proxyEnabled === true) {
+      await this.ensureCurrentProfile(profileId, profile);
+      return;
+    }
+
+    if (this.hasJsonlLoggingChanged(updates, previousProfile, profile)) {
+      await this.restartRunningProfile(profileId, profile);
+    }
+  }
+
+  private async stopDisabledProfile(profileId: string): Promise<void> {
+    await this.dependencies.proxyLifecycle.stop(profileId, {
+      restoreSettings: true,
+    });
+  }
+
+  private async ensureCurrentProfile(
+    profileId: string,
+    profile: Profile
+  ): Promise<void> {
+    const currentProfile =
+      await this.dependencies.profileDetector.detectCurrentProfile();
+    if (currentProfile?.id !== profileId || !isProfileProxyEnabled(profile)) {
+      return;
+    }
+
+    await this.dependencies.proxyLifecycle.ensureProfileProxy(profileId);
+  }
+
+  private hasJsonlLoggingChanged(
+    updates: Partial<Profile>,
+    previousProfile: Profile | undefined,
+    profile: Profile
+  ): boolean {
+    return (
       'proxyJsonlLoggingEnabled' in updates &&
       previousProfile != null &&
       isProfileProxyJsonlLoggingEnabled(previousProfile) !==
-        isProfileProxyJsonlLoggingEnabled(profile);
+        isProfileProxyJsonlLoggingEnabled(profile)
+    );
+  }
 
-    if (updates.proxyEnabled === false) {
-      await this.dependencies.proxyLifecycle.stop(profileId, {
-        restoreSettings: true,
-      });
-    } else if (updates.proxyEnabled === true) {
-      const currentProfile =
-        await this.dependencies.profileDetector.detectCurrentProfile();
-      if (
-        currentProfile?.id === profileId &&
-        isProfileProxyEnabled(profile)
-      ) {
-        await this.dependencies.proxyLifecycle.ensureProfileProxy(profileId);
-      }
-    } else if (
-      jsonlLoggingChanged &&
-      isProfileProxyEnabled(profile) &&
-      (await this.dependencies.proxyLifecycle.isRunning(profileId))
-    ) {
-      await this.dependencies.proxyLifecycle.restartProfileProxy(profileId);
+  private async restartRunningProfile(
+    profileId: string,
+    profile: Profile
+  ): Promise<void> {
+    if (!isProfileProxyEnabled(profile)) {
+      return;
     }
 
-    return profile;
+    if (await this.dependencies.proxyLifecycle.isRunning(profileId)) {
+      await this.dependencies.proxyLifecycle.restartProfileProxy(profileId);
+    }
   }
 }
