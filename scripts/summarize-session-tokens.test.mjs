@@ -17,8 +17,131 @@ import {
   recordSessionTimestamp,
 } from './lib/session-token-summary.mjs';
 import { renderSessionReport } from './lib/session-token-report.mjs';
+import {
+  analyzeSessionCaptureFile,
+  isAgentStreamResponse,
+  isDirectionalSessionEntry,
+  parseSessionCaptureLine,
+} from './lib/session-token-capture-analysis.mjs';
 
 const SCRIPT_DIRECTORY = path.dirname(fileURLToPath(import.meta.url));
+
+test('session capture entry helpers reject malformed input and classify streams', () => {
+  assert.equal(parseSessionCaptureLine('not json'), null);
+  assert.equal(parseSessionCaptureLine('[]'), null);
+  assert.deepEqual(
+    parseSessionCaptureLine('{"direction":"response","timestamp":"t"}'),
+    { direction: 'response', timestamp: 't' }
+  );
+  assert.equal(isDirectionalSessionEntry({ direction: 'request' }), true);
+  assert.equal(isDirectionalSessionEntry({ direction: 'event' }), false);
+  assert.equal(
+    isAgentStreamResponse('/agent.v1.AgentService/RunSSE', 'response'),
+    true
+  );
+  assert.equal(
+    isAgentStreamResponse('/agent.v1.AgentService/StreamBidiPoll', 'response'),
+    false
+  );
+  assert.equal(
+    isAgentStreamResponse('/agent.v1.AgentService/RunSSE', 'request'),
+    false
+  );
+});
+
+test('session capture analysis composes billing, bidi, poll, and stream policies', async () => {
+  const type = {};
+  const root = {
+    lookupType: () => type,
+  };
+  const rpcMap = new Map([
+    [
+      '/aiserver.v1.AiserverService/GetCurrentPeriodUsage',
+      { requestType: type, responseType: type },
+    ],
+    [
+      '/agent.v1.AgentService/BidiAppend',
+      { requestType: type, responseType: type },
+    ],
+    [
+      '/agent.v1.AgentService/RunPoll',
+      { requestType: type, responseType: type },
+    ],
+    [
+      '/agent.v1.AgentService/RunSSE',
+      { requestType: type, responseType: type },
+    ],
+  ]);
+  const lines = [
+    JSON.stringify({
+      direction: 'event',
+      timestamp: '2026-08-27T10:00:00.000Z',
+    }),
+    'malformed',
+    JSON.stringify({
+      direction: 'response',
+      timestamp: '2026-08-27T10:01:00.000Z',
+      url: 'https://api/aiserver.v1.AiserverService/GetCurrentPeriodUsage',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ planUsage: { totalSpend: 100 } }),
+    }),
+    JSON.stringify({
+      direction: 'request',
+      timestamp: '2026-08-27T10:02:00.000Z',
+      url: 'https://api/agent.v1.AgentService/BidiAppend',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ requestId: 'agent-1' }),
+    }),
+    JSON.stringify({
+      direction: 'response',
+      timestamp: '2026-08-27T10:03:00.000Z',
+      url: 'https://api/agent.v1.AgentService/RunPoll',
+      headers: { 'content-type': 'application/json' },
+      body: '{}',
+    }),
+    JSON.stringify({
+      direction: 'response',
+      timestamp: '2026-08-27T10:04:00.000Z',
+      url: 'https://api/agent.v1.AgentService/RunSSE',
+      headers: { 'content-type': 'application/json' },
+      body: '{}',
+    }),
+  ].join('\n');
+
+  const report = await analyzeSessionCaptureFile(
+    path.join(os.tmpdir(), 'capture.jsonl'),
+    root,
+    rpcMap,
+    {
+      readFile: () => lines,
+      decodeInner: async () => ({
+        interactionUpdate: {
+          turnEnded: {
+            inputTokens: 10,
+            outputTokens: 20,
+          },
+        },
+      }),
+      scanStream: () => [
+        { interactionUpdate: { tokenDelta: { tokens: 500 } } },
+      ],
+      dollarsPerM: 5,
+    }
+  );
+
+  assert.deepEqual(report.window, {
+    firstTs: '2026-08-27T10:01:00.000Z',
+    lastTs: '2026-08-27T10:04:00.000Z',
+  });
+  assert.equal(report.agentSessions, 1);
+  assert.equal(report.tokenDeltaEvents, 1);
+  assert.equal(report.maxSinglePeak, 500);
+  assert.equal(report.turnEndedCount, 1);
+  assert.equal(report.turnEndedTotals.input, 10);
+  assert.equal(report.turnEndedTotals.output, 20);
+  assert.equal(report.billing.deltaCents, 0);
+  assert.equal(report.dollarsPerM, 5);
+});
 
 test('session summary helpers normalize spend and group reset peaks', () => {
   assert.deepEqual(planSpend({
