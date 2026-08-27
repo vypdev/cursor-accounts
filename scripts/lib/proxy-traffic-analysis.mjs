@@ -8,23 +8,17 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { bodyBufferFromEntry } from './proxy-log-body.mjs';
-import {
-  extractAgentInsight,
-  extractBillingInsight,
-  extractContextInsight,
-  extractTokenInsight,
-} from './proxy-insights.mjs';
-import {
-  decodeBidiAgentInner,
-  extractAgentInnerInsight,
-} from './bidi-agent-decode.mjs';
+import { decodeBidiAgentInner } from './bidi-agent-decode.mjs';
 import {
   isInteractiveRpcPath,
   parseConnectRpcPath,
   resolveRpcMessageType,
 } from './proxy-rpc.mjs';
-import { tryDecodeProto } from './proto-jsonl-verifier.mjs';
+import { decodeProxyEntry } from './proxy-entry-decoder.mjs';
+import {
+  collectEntryInsights,
+  hasEntryInsights,
+} from './proxy-entry-insights.mjs';
 
 export const MAX_INSIGHT_SAMPLES = 20;
 
@@ -61,79 +55,7 @@ export function resolveProxyLogFiles(target) {
   return { files, logDir: target };
 }
 
-/**
- * Decode one capture entry using either its JSON representation or the
- * protobuf type resolved for its Connect RPC path.
- *
- * @param {Record<string, any>} entry
- * @param {import('protobufjs').Type} Type
- * @param {string} logDir
- * @returns {Record<string, any> | null}
- */
-export function decodeProxyEntry(entry, Type, logDir) {
-  const contentType = String(entry.headers?.['content-type'] ?? '').toLowerCase();
-  if (contentType.includes('json')) {
-    const body =
-      entry.body ?? bodyBufferFromEntry(entry, logDir)?.toString('utf8');
-    if (!body) {
-      return null;
-    }
-    try {
-      const parsed = JSON.parse(body);
-      return parsed && typeof parsed === 'object' ? parsed : null;
-    } catch {
-      return null;
-    }
-  }
-
-  const raw = bodyBufferFromEntry(entry, logDir);
-  if (!raw?.length) {
-    return null;
-  }
-  const contentEncoding = String(
-    entry.headers?.['content-encoding'] ?? ''
-  ).toLowerCase();
-  const result = tryDecodeProto(
-    Type,
-    raw,
-    entry.bodyDecompressed ? '' : contentEncoding
-  );
-  return result.ok ? result.object : null;
-}
-
-/**
- * @param {Record<string, any>} obj
- * @param {string} rpcPath
- * @param {'request' | 'response'} direction
- * @param {(obj: Record<string, any>, rpcPath: string, direction: 'request' | 'response') => Promise<Record<string, any> | null>} decodeInner
- */
-async function collectEntryInsights(obj, rpcPath, direction, decodeInner) {
-  const billing = extractBillingInsight(obj);
-  let tokens = extractTokenInsight(obj);
-  const context = extractContextInsight(obj);
-  let agent = extractAgentInsight(obj);
-  let agentTokenEvent = false;
-
-  const inner = await decodeInner(obj, rpcPath, direction);
-  const innerAgent = inner ? extractAgentInnerInsight(inner) : null;
-  if (innerAgent) {
-    agent = agent ? { ...agent, ...innerAgent } : innerAgent;
-    agentTokenEvent =
-      innerAgent.streamingTokens != null || innerAgent.inputTokens != null;
-    if (innerAgent.inputTokens != null || innerAgent.outputTokens != null) {
-      tokens = {
-        inputTokens: innerAgent.inputTokens,
-        outputTokens: innerAgent.outputTokens,
-        cacheReadTokens: innerAgent.cacheReadTokens,
-        cacheWriteTokens: innerAgent.cacheWriteTokens,
-      };
-    } else if (innerAgent.streamingTokens != null) {
-      tokens = { totalTokens: innerAgent.streamingTokens };
-    }
-  }
-
-  return { billing, tokens, context, agent, agentTokenEvent };
-}
+export { decodeProxyEntry } from './proxy-entry-decoder.mjs';
 
 /**
  * Analyze one decoded capture entry.
@@ -143,59 +65,72 @@ async function collectEntryInsights(obj, rpcPath, direction, decodeInner) {
  * @returns {Promise<void>}
  */
 export async function analyzeProxyEntry(entry, options) {
-  if (entry.direction !== 'request' && entry.direction !== 'response') {
+  const decoded = resolveAnalyzableEntry(entry, options);
+  if (!decoded) {
     return;
   }
 
+  recordDecodedEntry(options.report, decoded.rpcPath, decoded.key);
+
+  const insights = await collectEntryInsights(
+    decoded.object,
+    decoded.rpcPath,
+    decoded.direction,
+    options.decodeInner ?? decodeBidiAgentInner
+  );
+  if (insights.agentTokenEvent) {
+    options.report.agentTokenEvents += 1;
+  }
+  if (!hasEntryInsights(insights)) {
+    return;
+  }
+
+  recordEntryInsights(options.report, options.file, decoded.key, insights);
+}
+
+function resolveAnalyzableEntry(entry, options) {
+  if (entry.direction !== 'request' && entry.direction !== 'response') {
+    return null;
+  }
   const rpcPath = parseConnectRpcPath(String(entry.url ?? ''));
   if (!rpcPath) {
-    return;
+    return null;
   }
 
-  const { file, logDir, rpcMap, report } = options;
-  report.total += 1;
-  const Type = resolveRpcMessageType(rpcPath, entry.direction, rpcMap);
+  options.report.total += 1;
+  const Type = resolveRpcMessageType(rpcPath, entry.direction, options.rpcMap);
   if (!Type) {
-    return;
+    return null;
   }
-
-  const obj = decodeProxyEntry(entry, Type, logDir);
-  if (!obj) {
-    return;
+  const object = decodeProxyEntry(entry, Type, options.logDir);
+  if (!object) {
+    return null;
   }
+  const key = `${rpcPath.replace(/^\//, '')}:${entry.direction}`;
+  return { object, rpcPath, direction: entry.direction, key };
+}
 
+function recordDecodedEntry(report, rpcPath, key) {
   report.decoded += 1;
-  const methodKey = rpcPath.replace(/^\//, '');
-  const key = `${methodKey}:${entry.direction}`;
   report.byMethod.set(key, (report.byMethod.get(key) ?? 0) + 1);
   if (isInteractiveRpcPath(rpcPath)) {
     report.interactiveDecoded += 1;
   }
+}
 
-  const insights = await collectEntryInsights(
-    obj,
-    rpcPath,
-    entry.direction,
-    options.decodeInner ?? decodeBidiAgentInner
-  );
-  if (insights.agentTokenEvent) {
-    report.agentTokenEvents += 1;
-  }
-  if (!insights.billing && !insights.tokens && !insights.context && !insights.agent) {
+function recordEntryInsights(report, file, key, insights) {
+  report.insights += 1;
+  if (report.insightSamples.length >= MAX_INSIGHT_SAMPLES) {
     return;
   }
-
-  report.insights += 1;
-  if (report.insightSamples.length < MAX_INSIGHT_SAMPLES) {
-    report.insightSamples.push({
-      key,
-      file: path.basename(file),
-      billing: insights.billing,
-      tokens: insights.tokens,
-      context: insights.context,
-      agent: insights.agent,
-    });
-  }
+  report.insightSamples.push({
+    key,
+    file: path.basename(file),
+    billing: insights.billing,
+    tokens: insights.tokens,
+    context: insights.context,
+    agent: insights.agent,
+  });
 }
 
 /**
@@ -211,28 +146,36 @@ export async function analyzeProxyFiles(files, logDir, rpcMap, options = {}) {
   const report = createTrafficAnalysisReport();
   const readFile = options.readFile ?? fs.readFileSync;
   for (const file of files) {
-    const content = readFile(file, 'utf8');
-    for (const line of content.split('\n')) {
-      if (!line.trim()) {
-        continue;
-      }
-      let entry;
-      try {
-        entry = JSON.parse(line);
-      } catch {
-        continue;
-      }
-      if (!entry || typeof entry !== 'object') {
-        continue;
-      }
-      await analyzeProxyEntry(entry, {
-        file,
-        logDir,
-        rpcMap,
-        report,
-        decodeInner: options.decodeInner,
-      });
-    }
+    await analyzeProxyFile(file, {
+      logDir,
+      rpcMap,
+      report,
+      readFile,
+      decodeInner: options.decodeInner,
+    });
   }
   return report;
+}
+
+async function analyzeProxyFile(file, options) {
+  const content = options.readFile(file, 'utf8');
+  for (const line of content.split('\n')) {
+    const entry = parseCaptureLine(line);
+    if (!entry) {
+      continue;
+    }
+    await analyzeProxyEntry(entry, { ...options, file });
+  }
+}
+
+function parseCaptureLine(line) {
+  if (!line.trim()) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(line);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
 }
