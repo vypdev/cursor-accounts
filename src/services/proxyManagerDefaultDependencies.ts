@@ -24,7 +24,7 @@ import { ProxyTrafficIngress } from '../proxy/proxyTrafficIngress';
 import { getSharedProxyStorageDir } from '../proxy/sharedProxyPaths';
 import { NodeProxyProcess } from '../proxy/nodeProxyProcess';
 import { ProxyCertificateMaterialService } from './proxyCertificateMaterialService';
-import { ProxyCertificateService } from './proxyCertificateService';
+import { createProxyCertificateService } from './proxyCertificateService';
 import { ProxyCertificateTrustService } from './proxyCertificateTrustService';
 import * as extensionLog from '../logging/extensionLog';
 
@@ -87,7 +87,7 @@ export function createDefaultProxyManagerDependencies(
   );
 
   return {
-    certService: new ProxyCertificateService(
+    certService: createProxyCertificateService(
       certificateMaterial,
       new ProxyCertificateTrustService(
         certificateOperations,

@@ -4,38 +4,18 @@ import type { IProxyCertificateTrust } from '../domain/ports/IProxyCertificateTr
 
 export { formatProxyCertificateError } from './proxyCertificateTrustService';
 
-/** Compatibility facade combining material and trust-store certificate capabilities. */
-export class ProxyCertificateService implements IProxyCertificateService {
-  constructor(
-    private readonly certificateMaterial: IProxyCertificateMaterial,
-    private readonly certificateTrust: IProxyCertificateTrust
-  ) {}
-
-  ensureCaCertificate(): Promise<string> {
-    return this.certificateMaterial.ensureCaCertificate();
-  }
-
-  getCertificatePath(): Promise<string | null> {
-    return this.certificateMaterial.getCertificatePath();
-  }
-
-  checkInstalled(): Promise<boolean> {
-    return this.certificateTrust.checkInstalled();
-  }
-
-  getCachedInstalled(): boolean | undefined {
-    return this.certificateTrust.getCachedInstalled();
-  }
-
-  install() {
-    return this.certificateTrust.install();
-  }
-
-  uninstall() {
-    return this.certificateTrust.uninstall();
-  }
-
-  getInstallGuide() {
-    return this.certificateMaterial.getInstallGuide();
-  }
+/** Compose the certificate capabilities required by existing proxy boundaries. */
+export function createProxyCertificateService(
+  certificateMaterial: IProxyCertificateMaterial,
+  certificateTrust: IProxyCertificateTrust
+): IProxyCertificateService {
+  return {
+    ensureCaCertificate: () => certificateMaterial.ensureCaCertificate(),
+    getCertificatePath: () => certificateMaterial.getCertificatePath(),
+    getInstallGuide: () => certificateMaterial.getInstallGuide(),
+    checkInstalled: () => certificateTrust.checkInstalled(),
+    getCachedInstalled: () => certificateTrust.getCachedInstalled(),
+    install: () => certificateTrust.install(),
+    uninstall: () => certificateTrust.uninstall(),
+  };
 }

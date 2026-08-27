@@ -7,12 +7,13 @@ import type {
   IProxyCertificateOperations,
   ProxyCertificateOperationResult,
 } from '../domain/ports/IProxyCertificateOperations';
+import type { IProxyCertificateService } from '../domain/ports/IProxyCertificateService';
 import type { IProxyStateStore } from '../domain/ports/IProxyStateStore';
 import { initL10nForTests } from '../l10n';
 import { ProxyCertificateMaterialService } from '../services/proxyCertificateMaterialService';
 import {
+  createProxyCertificateService,
   formatProxyCertificateError,
-  ProxyCertificateService,
 } from '../services/proxyCertificateService';
 import { ProxyCertificateTrustService } from '../services/proxyCertificateTrustService';
 
@@ -49,7 +50,7 @@ function createService(options: {
   operations?: IProxyCertificateOperations;
   profiles?: Profile[];
   states?: Record<string, ProxyStateFile | null>;
-} = {}): ProxyCertificateService {
+} = {}): IProxyCertificateService {
   const states = options.states ?? {};
   const stateStore: IProxyStateStore = {
     read: async (userDataDir) => states[userDataDir] ?? null,
@@ -69,7 +70,7 @@ function createService(options: {
     stateStore,
     profileManager
   );
-  return new ProxyCertificateService(
+  return createProxyCertificateService(
     material,
     new ProxyCertificateTrustService(operations, material)
   );
