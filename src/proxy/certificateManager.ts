@@ -1,15 +1,13 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as forge from 'node-forge';
-import { CA_COMMON_NAME } from './certificateConstants';
+import { generateCertificateMaterial } from './certificateMaterialGenerator';
 
 export { CA_COMMON_NAME } from './certificateConstants';
 
 export const CA_CERT_FILE = 'ca-cert.pem';
 export const CA_KEY_FILE = 'ca-key.pem';
 export const CA_PUBLIC_KEY_FILE = 'ca-public.key';
-
-const CA_VALIDITY_YEARS = 10;
 
 export interface CertificateMaterialPaths {
   certificatePath: string;
@@ -22,6 +20,8 @@ export interface CertificateMaterialPaths {
  * Certificate files live under the given storage directory.
  */
 export class CertificateManager {
+  private pendingEnsure: Promise<string> | undefined;
+
   constructor(private readonly storageDir: string) {}
 
   getPaths(): CertificateMaterialPaths {
@@ -36,6 +36,18 @@ export class CertificateManager {
    * Ensure CA certificate and private key exist on disk.
    */
   async ensureCaCertificate(): Promise<string> {
+    if (!this.pendingEnsure) {
+      const pending = this.ensureCaCertificateInternal();
+      this.pendingEnsure = pending;
+      void pending.then(
+        () => this.clearPendingEnsure(pending),
+        () => this.clearPendingEnsure(pending)
+      );
+    }
+    return this.pendingEnsure;
+  }
+
+  private async ensureCaCertificateInternal(): Promise<string> {
     await fs.mkdir(this.storageDir, { recursive: true });
 
     const { certificatePath: certPath, keyPath, publicKeyPath } = this.getPaths();
@@ -64,37 +76,19 @@ export class CertificateManager {
       // generate below
     }
 
-    const keys = forge.pki.rsa.generateKeyPair(2048);
-    const cert = forge.pki.createCertificate();
-    cert.publicKey = keys.publicKey;
-    cert.serialNumber = '01';
-    cert.validity.notBefore = new Date();
-    cert.validity.notAfter = new Date();
-    cert.validity.notAfter.setFullYear(
-      cert.validity.notBefore.getFullYear() + CA_VALIDITY_YEARS
-    );
+    const material = generateCertificateMaterial();
 
-    const attrs = [
-      { name: 'commonName', value: CA_COMMON_NAME },
-      { name: 'organizationName', value: 'Cursor Accounts' },
-    ];
-    cert.setSubject(attrs);
-    cert.setIssuer(attrs);
-    cert.setExtensions([
-      { name: 'basicConstraints', cA: true },
-      { name: 'keyUsage', keyCertSign: true, digitalSignature: true },
-    ]);
-    cert.sign(keys.privateKey, forge.md.sha256.create());
-
-    const certPem = forge.pki.certificateToPem(cert);
-    const keyPem = forge.pki.privateKeyToPem(keys.privateKey);
-    const publicKeyPem = forge.pki.publicKeyToPem(keys.publicKey);
-
-    await fs.writeFile(certPath, certPem, { mode: 0o600 });
-    await fs.writeFile(keyPath, keyPem, { mode: 0o600 });
-    await fs.writeFile(publicKeyPath, publicKeyPem, { mode: 0o600 });
+    await fs.writeFile(certPath, material.certificatePem, { mode: 0o600 });
+    await fs.writeFile(keyPath, material.keyPem, { mode: 0o600 });
+    await fs.writeFile(publicKeyPath, material.publicKeyPem, { mode: 0o600 });
 
     return certPath;
+  }
+
+  private clearPendingEnsure(pending: Promise<string>): void {
+    if (this.pendingEnsure === pending) {
+      this.pendingEnsure = undefined;
+    }
   }
 
 }

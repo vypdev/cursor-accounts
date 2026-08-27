@@ -52,6 +52,26 @@ describe('CertificateManager', () => {
     assert.equal(mtimeBefore, mtimeAfter);
   });
 
+  it('shares concurrent generation so all callers use one certificate path', async () => {
+    const manager = new CertificateManager(tempDir);
+
+    const paths = await Promise.all([
+      manager.ensureCaCertificate(),
+      manager.ensureCaCertificate(),
+      manager.ensureCaCertificate(),
+    ]);
+
+    assert.deepEqual(paths, [
+      path.join(tempDir, CA_CERT_FILE),
+      path.join(tempDir, CA_CERT_FILE),
+      path.join(tempDir, CA_CERT_FILE),
+    ]);
+    const certificate = await fs.readFile(paths[0]!, 'utf8');
+    const key = await fs.readFile(path.join(tempDir, CA_KEY_FILE), 'utf8');
+    assert.ok(certificate.includes('BEGIN CERTIFICATE'));
+    assert.ok(key.includes('BEGIN RSA PRIVATE KEY') || key.includes('BEGIN PRIVATE KEY'));
+  });
+
   it('prepares http-mitm-proxy sslCaDir layout under certs/ca.pem', async () => {
     const manager = new CertificateManager(tempDir);
     const directory = new MitmCertificateDirectory(tempDir, manager);
