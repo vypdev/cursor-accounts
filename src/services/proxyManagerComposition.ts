@@ -15,6 +15,7 @@ import type {
   ProxyStateFile,
 } from '@cursor-accounts/types';
 import type { ProxyServerConfig } from '../application/types/proxyConfig';
+import type { ProxySettingsApplicationService } from '../application/services/proxySettingsApplicationService';
 import * as extensionLog from '../logging/extensionLog';
 import { getSharedProxyStorageDir } from '../proxy/sharedProxyPaths';
 import { NodeProxyProcess } from '../proxy/nodeProxyProcess';
@@ -60,6 +61,10 @@ export interface ProxyManagerCompositionOptions {
   context: vscode.ExtensionContext;
   storageDir?: string;
   profileSettingsManager?: IProfileSettingsManager;
+  proxySettingsApplicationService?: Pick<
+    ProxySettingsApplicationService,
+    'applyProxySettings'
+  >;
   outputPresenter?: IProxyOutputPresenter;
   tokenDetectorPresenter?: ITokenDetectorOutputPresenter;
   dependencies: ProxyManagerDependencies;
@@ -329,14 +334,22 @@ function createProxySettingsApplier(
   options: ProxyManagerCompositionOptions
 ): CompositionFoundations['applyProxySettings'] {
   return async (userDataDir, port) => {
-    if (!options.profileSettingsManager) {
+    if (!options.proxySettingsApplicationService && !options.profileSettingsManager) {
       return;
     }
     try {
-      await options.profileSettingsManager.applyProxySettings(
-        userDataDir,
-        `http://127.0.0.1:${port}`
-      );
+      const proxyUrl = `http://127.0.0.1:${port}`;
+      if (options.proxySettingsApplicationService) {
+        await options.proxySettingsApplicationService.applyProxySettings(
+          userDataDir,
+          proxyUrl
+        );
+      } else {
+        await options.profileSettingsManager!.applyProxySettings(
+          userDataDir,
+          proxyUrl
+        );
+      }
     } catch (error) {
       extensionLog.warn(
         `[Proxy] Failed to apply proxy settings: ${

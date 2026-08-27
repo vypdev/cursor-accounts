@@ -38,6 +38,7 @@ import {
   type ProxyTrafficTailerOptions,
 } from './proxyTrafficTailerCoordinator';
 import type { IProxySettingsRestorer } from '../domain/ports/IProxySettingsRestorer';
+import type { ProxySettingsApplicationService } from '../application/services/proxySettingsApplicationService';
 import {
   ProxyManagerDiagnosticsCoordinator,
 } from './proxyManagerDiagnosticsCoordinator';
@@ -77,7 +78,11 @@ export class ProxyManager implements IProxyManager {
     deps?: ProxyManagerDependencies,
     getOutputConfig?: () => ProxyOutputSettings,
     compositionFactory: typeof createProxyManagerComposition =
-      createProxyManagerComposition
+      createProxyManagerComposition,
+    proxySettingsApplicationService?: Pick<
+      ProxySettingsApplicationService,
+      'applyProxySettings'
+    >
   ) {
     const logDir = path.join(storageDir, 'logs');
     const diagnosticsCoordinator = new ProxyManagerDiagnosticsCoordinator({
@@ -131,6 +136,7 @@ export class ProxyManager implements IProxyManager {
       context,
       storageDir,
       profileSettingsManager,
+      proxySettingsApplicationService,
       outputPresenter,
       tokenDetectorPresenter,
       dependencies: this.deps,

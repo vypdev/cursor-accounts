@@ -29,7 +29,6 @@ import { MultiProfileQuotaService } from '../services/multiProfileQuotaService';
 import { ProfileAccountFetcher } from '../services/profileAccountFetcher';
 import { ProfileWorkspaceService } from '../application/services/profileWorkspaceService';
 import { ProxyManager } from '../services/proxyManager';
-import { ProxySettingsService } from '../services/proxySettingsService';
 import { RefreshService } from '../services/refreshService';
 import { AccountsPanelProvider } from '../ui/accountsPanel';
 import { AgentLiveUsageStatusBar } from '../ui/agentLiveUsageStatusBar';
@@ -45,6 +44,7 @@ import { ProxySettingsBackupReader } from '../application/services/proxySettings
 import { ProxySettingsRestorationService } from '../application/services/proxySettingsRestorationService';
 import { VscodeProxyWindowConfiguration } from '../proxy/vscodeProxyWindowConfiguration';
 import * as extensionLog from '../logging/extensionLog';
+import { createProxyManagerComposition } from '../services/proxyManagerComposition';
 
 /** Composition-root overrides used by deterministic integration tests. */
 export interface ExtensionActivationDependencies {
@@ -112,11 +112,6 @@ export function createExtensionRuntime(
     profileSettingsManager,
     debug: extensionLog.debug,
   });
-  const proxySettingsService = new ProxySettingsService(
-    proxySettingsApplicationService,
-    proxySettingsRestorationService,
-    proxySettingsBackupReader
-  );
   const proxyOutputPresenter = new ProxyOutputPresenter();
   const tokenDetectorPresenter = new TokenDetectorOutputPresenter();
   const proxyManager = new ProxyManager(
@@ -124,12 +119,14 @@ export function createExtensionRuntime(
     profileManager,
     context,
     sharedProxyDir,
-    proxySettingsService,
+    proxySettingsRestorationService,
     profileSettingsManager,
     proxyOutputPresenter,
     tokenDetectorPresenter,
     undefined,
-    getProxyOutputConfig
+    getProxyOutputConfig,
+    createProxyManagerComposition,
+    proxySettingsApplicationService
   );
 
   const profileLauncher = new ProfileLauncher(

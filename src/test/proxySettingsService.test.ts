@@ -130,6 +130,39 @@ describe('Proxy settings application and restoration boundaries', () => {
   });
 
   describe('ProxySettingsApplicationService', () => {
+    it('applies a proxy to one profile without changing window state', async () => {
+      const applied: Array<{ dir: string; url: string }> = [];
+      let syncCount = 0;
+      const profileSettingsManager = createProfileSettingsManager({
+        applyProxySettings: async (dir, url) => {
+          applied.push({ dir, url });
+        },
+      });
+      const service = new ProxySettingsApplicationService({
+        profileReader: createProfileReader([]),
+        profileSettingsManager,
+        windowConfiguration: createWindowConfiguration({
+          syncProxy: async () => {
+            syncCount += 1;
+          },
+        }),
+        warn: () => undefined,
+      });
+
+      await service.applyProxySettings(
+        '/tmp/cursor-accounts-test-single-profile',
+        'http://127.0.0.1:8083'
+      );
+
+      assert.deepEqual(applied, [
+        {
+          dir: '/tmp/cursor-accounts-test-single-profile',
+          url: 'http://127.0.0.1:8083',
+        },
+      ]);
+      assert.equal(syncCount, 0);
+    });
+
     it('applies proxy URL to every profile and syncs the active window', async () => {
       const applied: Array<{ dir: string; url: string }> = [];
       let syncedUrl: string | undefined;

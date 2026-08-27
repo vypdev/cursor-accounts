@@ -40,6 +40,17 @@ export class ProxySettingsApplicationService {
     await this.syncProxyConfiguration(proxyUrl);
   }
 
+  /** Applies a temporary proxy to one profile without touching window state. */
+  async applyProxySettings(
+    userDataDir: string,
+    proxyUrl: string
+  ): Promise<void> {
+    await this.dependencies.profileSettingsManager.applyProxySettings(
+      userDataDir,
+      proxyUrl
+    );
+  }
+
   private async applyProxyToProfiles(
     profiles: readonly Profile[],
     proxyUrl: string,
@@ -47,10 +58,7 @@ export class ProxySettingsApplicationService {
   ): Promise<void> {
     for (const profile of profiles) {
       try {
-        await this.dependencies.profileSettingsManager.applyProxySettings(
-          profile.userDataDir,
-          proxyUrl
-        );
+        await this.applyProxySettings(profile.userDataDir, proxyUrl);
       } catch (error) {
         this.dependencies.warn(
           `[ProxySettings] Failed to apply proxy for ${profilePrefix}${profile.displayName}: ${formatError(error)}`
