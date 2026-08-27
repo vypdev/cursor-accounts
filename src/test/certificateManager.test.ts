@@ -88,6 +88,38 @@ describe('CertificateManager', () => {
     });
   });
 
+  it('rebuilds a missing public key from the existing certificate', async () => {
+    const manager = new CertificateManager(tempDir);
+    await manager.ensureCaCertificate();
+    await new Promise<void>((resolve) => setImmediate(resolve));
+
+    const publicKeyPath = path.join(tempDir, CA_PUBLIC_KEY_FILE);
+    await fs.rm(publicKeyPath);
+
+    await manager.ensureCaCertificate();
+
+    const publicKey = await fs.readFile(publicKeyPath, 'utf8');
+    assert.ok(publicKey.includes('BEGIN PUBLIC KEY'));
+  });
+
+  it('regenerates material when an existing certificate cannot be parsed', async () => {
+    const manager = new CertificateManager(tempDir);
+    await fs.writeFile(path.join(tempDir, CA_CERT_FILE), 'invalid certificate');
+    await fs.writeFile(path.join(tempDir, CA_KEY_FILE), 'invalid key');
+
+    await manager.ensureCaCertificate();
+
+    const certificate = await fs.readFile(
+      path.join(tempDir, CA_CERT_FILE),
+      'utf8'
+    );
+    const key = await fs.readFile(path.join(tempDir, CA_KEY_FILE), 'utf8');
+    assert.ok(certificate.includes('BEGIN CERTIFICATE'));
+    assert.ok(
+      key.includes('BEGIN RSA PRIVATE KEY') || key.includes('BEGIN PRIVATE KEY')
+    );
+  });
+
   it('prepares http-mitm-proxy sslCaDir layout under certs/ca.pem', async () => {
     const manager = new CertificateManager(tempDir);
     const directory = new MitmCertificateDirectory(tempDir, manager);
