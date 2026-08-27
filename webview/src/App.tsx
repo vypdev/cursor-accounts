@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useReducer, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useReducer, useState } from 'react';
 import { vscodeApi } from './api/vscodeApi';
 import { AddProfileForm } from './components/AddProfileForm';
 import { EditProfileForm } from './components/EditProfileForm';
@@ -15,7 +15,6 @@ import type {
   ImportOptions,
   Profile,
   StorageCleanupAction,
-  ToWebviewMessage,
 } from './types';
 import { isProfileProxyEnabled } from './types';
 import { isProfileRunning } from './utils/runningInstances';
@@ -23,6 +22,7 @@ import {
   appMessageReducer,
   createInitialAppMessageState,
 } from './appMessageState';
+import { useAppMessageBridge } from './hooks/useAppMessageBridge';
 import './App.css';
 
 interface AppContentProps {
@@ -91,7 +91,6 @@ const AppContent: React.FC<AppContentProps> = ({
   const [storageProfileId, setStorageProfileId] = useState<string | null>(null);
   const [storageLoading, setStorageLoading] = useState(false);
   const [cleanupInProgress, setCleanupInProgress] = useState(false);
-  const initReceivedRef = useRef(false);
 
   const persistUiState = useCallback(
     (showAdd: boolean, editingId: string | null) => {
@@ -103,77 +102,19 @@ const AppContent: React.FC<AppContentProps> = ({
     []
   );
 
-  useEffect(() => {
-    const unsubscribe = vscodeApi.onMessage((message: ToWebviewMessage) => {
-      if (message.type === 'init') {
-        initReceivedRef.current = true;
-        vscodeApi.logToExtension(
-          'info',
-          'react.init-received',
-          `profiles=${message.data.profiles.length}`
-        );
-        setLocale(message.data.locale);
-        setMessages(message.data.messages);
-      }
-
-      if (message.type === 'exportData') {
-        const blob = new Blob([message.data], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const anchor = document.createElement('a');
-        anchor.href = url;
-        anchor.download = message.filename;
-        anchor.click();
-        URL.revokeObjectURL(url);
-      }
-
-      if (message.type === 'proxyInstallGuide') {
-        setInstallGuideLoading(false);
-      }
-
-      if (message.type === 'certificateInstallResult') {
-        setInstallInProgress(false);
-      }
-
-      if (message.type === 'certificateUninstallResult') {
-        setUninstallInProgress(false);
-        setShowUninstallConfirm(false);
-      }
-
-      if (
-        message.type === 'storageInfo' &&
-        message.data.profileId === storageProfileId
-      ) {
-        setStorageLoading(false);
-      }
-
-      if (message.type === 'storageCleanupResult' && storageProfileId) {
-        setCleanupInProgress(false);
-      }
-
-      dispatchAppMessage({
-        type: 'message',
-        message,
-        storageProfileId,
-        translate: t,
-      });
-    });
-
-    const fallbackTimer = window.setTimeout(() => {
-      if (!initReceivedRef.current) {
-        vscodeApi.logToExtension(
-          'info',
-          'react.requestInit-fallback',
-          'init not received after 1s'
-        );
-        vscodeApi.requestInit();
-      }
-    }, 1000);
-
-    return () => {
-      window.clearTimeout(fallbackTimer);
-      unsubscribe();
-    };
-  }, [setLocale, setMessages, storageProfileId, t]);
+  useAppMessageBridge({
+    dispatch: dispatchAppMessage,
+    setInstallGuideLoading,
+    setInstallInProgress,
+    setUninstallInProgress,
+    setLocale,
+    setMessages,
+    setShowUninstallConfirm,
+    setStorageLoading,
+    setCleanupInProgress,
+    storageProfileId,
+    translate: t,
+  });
 
   useEffect(() => {
     if (!error) {
