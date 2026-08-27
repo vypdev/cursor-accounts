@@ -10,6 +10,31 @@ export type ProcessLineParser = (
   line: string
 ) => ParsedProcessEntry | undefined;
 
+/** Parse a PID and command capture from a platform-specific process line. */
+export function parsePidCommandLine(
+  line: string,
+  pattern: RegExp,
+  commandGroup: number
+): ParsedProcessEntry | undefined {
+  const match = line.match(pattern);
+  if (!match) {
+    return undefined;
+  }
+
+  const pidStr = match[1];
+  const command = match[commandGroup];
+  if (!pidStr || !command) {
+    return undefined;
+  }
+
+  const pid = parseInt(pidStr, 10);
+  if (isNaN(pid)) {
+    return undefined;
+  }
+
+  return { pid, command };
+}
+
 /** Parse line-oriented process output with a platform-specific line parser. */
 export function parseProcessOutput(
   stdout: string,
