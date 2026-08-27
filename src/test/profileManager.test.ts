@@ -11,6 +11,7 @@ import {
   ProfileManagerError,
 } from '../profiles/profileManager';
 import { ProfileStorage } from '../profiles/profileStorage';
+import { generateUniqueSlug } from '../utils/emailToSlug';
 
 describe('ProfileManager', () => {
   let tempDir: string;
@@ -86,10 +87,10 @@ describe('ProfileManager', () => {
 
     it('handles slug collision by appending hash', async () => {
       const profile1 = await manager.createProfile({
-        email: 'test@example.com',
+        email: 'test.foo@example.com',
       });
-      assert.equal(profile1.slug, 'test_example_com');
-      assert.ok(profile1.userDataDir.includes('.cursor-test_example_com'));
+      assert.equal(profile1.slug, 'test_foo_example_com');
+      assert.ok(profile1.userDataDir.includes('.cursor-test_foo_example_com'));
       assert.ok(!profile1.slug.match(/_[a-f0-9]{8}$/));
 
       const storage = new ProfileStorage(tempDir);
@@ -98,7 +99,7 @@ describe('ProfileManager', () => {
       config.profiles.push({
         id: 'fake-collision-id',
         email: 'collision@test.com',
-        slug: 'test_example_com',
+        slug: 'test_foo_example_com',
         displayName: 'Collision Test',
         userDataDir: profile1.userDataDir,
         created: new Date().toISOString(),
@@ -109,12 +110,40 @@ describe('ProfileManager', () => {
       await manager2.initialize();
 
       const profile3 = await manager2.createProfile({
-        email: 'another@test.com',
+        email: 'test-foo@example.com',
       });
 
       assert.ok(profile3.id);
       assert.ok(profile3.userDataDir);
       assert.notEqual(profile3.userDataDir, profile1.userDataDir);
+    });
+
+    it('rejects a collision when both the base and hashed paths are occupied', async () => {
+      const profile = await manager.createProfile({
+        email: 'test.foo@example.com',
+      });
+      const storage = new ProfileStorage(tempDir);
+      const config = await storage.load();
+      config.profiles.push({
+        id: 'fake-hash-collision-id',
+        email: 'test_foo@example.com',
+        slug: profile.slug,
+        displayName: 'Hashed Collision',
+        userDataDir: path.join(
+          os.homedir(),
+          `.cursor-${generateUniqueSlug('test-foo@example.com', true)}`
+        ),
+        created: new Date().toISOString(),
+      });
+      await storage.save(config);
+
+      const manager2 = new ProfileManager(storage);
+      await manager2.initialize();
+
+      await assert.rejects(
+        () => manager2.createProfile({ email: 'test-foo@example.com' }),
+        /Unable to generate unique path/
+      );
     });
   });
 
@@ -214,6 +243,20 @@ describe('ProfileManager', () => {
         ProfileManagerError
       );
     });
+
+    it('validates a changed email and rejects duplicates', async () => {
+      const first = await manager.createProfile({ email: 'first@example.com' });
+      const second = await manager.createProfile({ email: 'second@example.com' });
+
+      await assert.rejects(
+        () => manager.updateProfile(first.id, { email: 'invalid' }),
+        /Invalid email/
+      );
+      await assert.rejects(
+        () => manager.updateProfile(first.id, { email: second.email }),
+        /already exists/
+      );
+    });
   });
 
   describe('deleteProfile', () => {
@@ -302,6 +345,19 @@ describe('ProfileManager', () => {
         email: 'test@example.com',
       });
       assert.equal(await manager.isProfilePathValid(profile.userDataDir), false);
+    });
+
+    it('rejects a path outside the user home directory', async () => {
+      assert.equal(await manager.isProfilePathValid('/tmp/profile-outside-home'), false);
+    });
+  });
+
+  describe('backup', () => {
+    it('creates a configuration backup through the storage port', async () => {
+      const backupPath = await manager.backup();
+
+      await fs.access(backupPath);
+      assert.match(backupPath, /\.json\.backup\./);
     });
   });
 });
