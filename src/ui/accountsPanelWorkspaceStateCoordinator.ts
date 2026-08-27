@@ -7,13 +7,13 @@ import { instanceMapToRecord } from '../profiles/instanceDetector';
 import { getOpenWorkspacePaths } from '../services/activeWorkspaceService';
 import { buildProfileWorkspaceMap } from './presentation/profileWorkspacePresentation';
 
-export interface AccountsPanelWorkspaceStateCoordinatorDependencies {
+interface AccountsPanelWorkspaceStateCoordinatorDependencies {
   profileDetector: IProfileDetector;
   instanceDetector: IInstanceDetector;
   profileWorkspaceService: ProfileWorkspaceService;
 }
 
-export interface AccountsPanelWorkspaceStateCoordinatorCallbacks {
+interface AccountsPanelWorkspaceStateCoordinatorCallbacks {
   postMessage(message: ToWebviewMessage): Promise<void>;
   hasActiveWebview(): boolean;
 }
