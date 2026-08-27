@@ -1,17 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { ProxyCertificateOperationResult } from '../../domain/ports/IProxyCertificateOperations';
 import { createProxyCertificateOperations } from '../../proxy/proxyCertificateOperations';
 
 function createCertificateManager(overrides: {
   ensureCaCertificate?: () => Promise<string>;
-  installCertificateWithElevation?: () => Promise<ProxyCertificateOperationResult>;
-  uninstallCertificate?: () => Promise<ProxyCertificateOperationResult>;
 } = {}) {
   return {
     ensureCaCertificate: async () => '/tmp/ca.pem',
-    installCertificateWithElevation: async () => ({ success: true }),
-    uninstallCertificate: async () => ({ success: true }),
     ...overrides,
   };
 }
@@ -21,16 +16,19 @@ describe('createProxyCertificateOperations', () => {
     const operations = createProxyCertificateOperations(
       createCertificateManager({
         ensureCaCertificate: async () => '/tmp/generated.pem',
-        installCertificateWithElevation: async () => ({
+      }),
+      {
+        access: async () => undefined,
+        checkInstalled: async () => true,
+        install: async () => ({
           success: false,
           error: 'install failed',
         }),
-        uninstallCertificate: async () => ({
+        uninstall: async () => ({
           success: false,
           error: 'uninstall failed',
         }),
-      }),
-      { access: async () => undefined, checkInstalled: async () => true }
+      }
     );
 
     assert.equal(await operations.ensureCaCertificate(), '/tmp/generated.pem');

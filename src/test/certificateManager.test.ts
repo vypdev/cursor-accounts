@@ -51,11 +51,6 @@ describe('CertificateManager', () => {
     assert.equal(mtimeBefore, mtimeAfter);
   });
 
-  it('exposes ALPN protocols for HTTP/2 MITM', () => {
-    const manager = new CertificateManager(tempDir);
-    assert.deepEqual(manager.getAlpnProtocols(), ['h2', 'http/1.1', 'http/1.0']);
-  });
-
   it('prepares http-mitm-proxy sslCaDir layout under certs/ca.pem', async () => {
     const manager = new CertificateManager(tempDir);
     const sslDir = await manager.ensureCaDirectoryForMitm();

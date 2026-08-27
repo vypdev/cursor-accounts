@@ -1,7 +1,6 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as forge from 'node-forge';
-import { DEFAULT_ALPN_PROTOCOLS } from '../domain/types/httpProtocol';
 import { CA_COMMON_NAME } from './certificateConstants';
 
 export { CA_COMMON_NAME } from './certificateConstants';
@@ -29,14 +28,6 @@ export class CertificateManager {
 
   getPublicKeyPath(): string {
     return path.join(this.storageDir, CA_PUBLIC_KEY_FILE);
-  }
-
-  /**
-   * ALPN identifiers negotiated on MITM TLS (HTTP/2 + HTTP/1.x).
-   * Applied by {@link applyHttpolyglotHttpsPatch} on each HTTPS server.
-   */
-  getAlpnProtocols(): readonly string[] {
-    return DEFAULT_ALPN_PROTOCOLS;
   }
 
   /**
@@ -174,26 +165,4 @@ export class CertificateManager {
     return certPath;
   }
 
-  /**
-   * Install the CA into the system trust store using native OS elevation prompts.
-   */
-  async installCertificateWithElevation(): Promise<{
-    success: boolean;
-    error?: string;
-  }> {
-    const certPath = await this.ensureCaCertificate();
-    const { installCaCertificateElevated } = await import('./installCaCertificate');
-    return installCaCertificateElevated(certPath);
-  }
-
-  /**
-   * Remove the CA from the system trust store using native OS elevation prompts.
-   */
-  async uninstallCertificate(): Promise<{
-    success: boolean;
-    error?: string;
-  }> {
-    const { uninstallCaCertificate } = await import('./installCaCertificate');
-    return uninstallCaCertificate();
-  }
 }

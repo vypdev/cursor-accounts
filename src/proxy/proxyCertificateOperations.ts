@@ -1,38 +1,45 @@
 import * as fs from 'fs/promises';
 import type { IProxyCertificateOperations } from '../domain/ports/IProxyCertificateOperations';
-import { verifyCaCertificateInstalled } from './installCaCertificate';
+import {
+  installCaCertificateElevated,
+  uninstallCaCertificate,
+  verifyCaCertificateInstalled,
+} from './installCaCertificate';
 
-interface CertificateManagerOperations {
+interface CertificateMaterialOperations {
   ensureCaCertificate(): Promise<string>;
-  installCertificateWithElevation(): Promise<{ success: boolean; error?: string }>;
-  uninstallCertificate(): Promise<{ success: boolean; error?: string }>;
 }
 
 export interface ProxyCertificateOperationAdapterDependencies {
-  access: (certificatePath: string) => Promise<void>;
-  checkInstalled: () => Promise<boolean>;
+  access?: (certificatePath: string) => Promise<void>;
+  checkInstalled?: () => Promise<boolean>;
+  install?: (certificatePath: string) => Promise<{ success: boolean; error?: string }>;
+  uninstall?: () => Promise<{ success: boolean; error?: string }>;
 }
 
-/** Adapts certificate-manager and host trust-store operations to the domain port. */
+/** Adapts certificate material and host trust-store operations to the domain port. */
 export function createProxyCertificateOperations(
-  certificateManager: CertificateManagerOperations,
-  dependencies: ProxyCertificateOperationAdapterDependencies = {
-    access: fs.access,
-    checkInstalled: verifyCaCertificateInstalled,
-  }
+  certificateManager: CertificateMaterialOperations,
+  dependencies: ProxyCertificateOperationAdapterDependencies = {}
 ): IProxyCertificateOperations {
+  const access = dependencies.access ?? fs.access;
+  const checkInstalled =
+    dependencies.checkInstalled ?? verifyCaCertificateInstalled;
+  const install = dependencies.install ?? installCaCertificateElevated;
+  const uninstall = dependencies.uninstall ?? uninstallCaCertificate;
+
   return {
     ensureCaCertificate: () => certificateManager.ensureCaCertificate(),
     certificatePathExists: async (certificatePath) => {
       try {
-        await dependencies.access(certificatePath);
+        await access(certificatePath);
         return true;
       } catch {
         return false;
       }
     },
-    checkInstalled: () => dependencies.checkInstalled(),
-    install: () => certificateManager.installCertificateWithElevation(),
-    uninstall: () => certificateManager.uninstallCertificate(),
+    checkInstalled: () => checkInstalled(),
+    install: async () => install(await certificateManager.ensureCaCertificate()),
+    uninstall: () => uninstall(),
   };
 }
