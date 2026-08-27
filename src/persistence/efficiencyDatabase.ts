@@ -9,6 +9,7 @@ import {
   EFFICIENCY_SCORE_THRESHOLD,
 } from '@cursor-accounts/types';
 import * as extensionLog from '../logging/extensionLog';
+import { isNotFoundError } from '../utils/fileSystemErrors';
 import { DatabaseMigrator } from './databaseMigrations';
 import type {
   SqliteExecutor} from './sqliteExecutor';
@@ -186,39 +187,47 @@ export class EfficiencyDatabase {
     const timestamp = Date.now();
     const backupPath = `${this.dbPath}.corrupted-${timestamp}`;
 
-    try {
-      await fs.rename(this.dbPath, backupPath);
+    const databasePreserved = await this.preserveCorruptedArtifact(
+      this.dbPath,
+      backupPath,
+      'corrupted efficiency database'
+    );
+    if (databasePreserved) {
       extensionLog.info(
         `[EfficiencyDatabase] Corrupted DB backed up to ${backupPath}`
       );
-    } catch (error) {
-      const code = (error as NodeJS.ErrnoException).code;
-      if (code !== 'ENOENT') {
-        throw new Error(
-          `Cannot preserve corrupted efficiency database at ${backupPath}: ${extensionLog.formatError(error)}`
-        );
-      }
     }
 
     // WAL and shared-memory sidecars belong to the same database snapshot.
     // Moving only the main file and deleting these artifacts can discard
     // committed WAL pages and makes the backup impossible to restore.
     for (const suffix of ['-wal', '-shm']) {
-      const sourcePath = `${this.dbPath}${suffix}`;
-      const sidecarBackupPath = `${backupPath}${suffix}`;
-      try {
-        await fs.rename(sourcePath, sidecarBackupPath);
-      } catch (error) {
-        const code = (error as NodeJS.ErrnoException).code;
-        if (code !== 'ENOENT') {
-          throw new Error(
-            `Cannot preserve corrupted efficiency database sidecar at ${sidecarBackupPath}: ${extensionLog.formatError(error)}`
-          );
-        }
-      }
+      await this.preserveCorruptedArtifact(
+        `${this.dbPath}${suffix}`,
+        `${backupPath}${suffix}`,
+        'corrupted efficiency database sidecar'
+      );
     }
 
     await this.createFresh();
+  }
+
+  private async preserveCorruptedArtifact(
+    sourcePath: string,
+    backupPath: string,
+    description: string
+  ): Promise<boolean> {
+    try {
+      await fs.rename(sourcePath, backupPath);
+      return true;
+    } catch (error) {
+      if (isNotFoundError(error)) {
+        return false;
+      }
+      throw new Error(
+        `Cannot preserve ${description} at ${backupPath}: ${extensionLog.formatError(error)}`
+      );
+    }
   }
 
   async insertEvent(event: PromptEventRecord): Promise<void> {
