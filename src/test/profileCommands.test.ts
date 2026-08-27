@@ -109,7 +109,9 @@ describe('registerProfileCommands', () => {
 
     try {
       const context = { subscriptions: [] as { dispose: () => void }[] };
-      const profile = createMockProfile();
+      const profile = createMockProfile({
+        lastLaunched: '2026-08-26T12:00:00.000Z',
+      });
 
       registerProfileCommands(
         context as never,
@@ -128,10 +130,225 @@ describe('registerProfileCommands', () => {
 
       assert.ok(lines.some((line) => line.includes('Work')));
       assert.ok(lines.some((line) => line.includes('work@example.com')));
+      assert.ok(lines.some((line) => line.includes('Last launched')));
     } finally {
       extensionLog.appendLine = originalAppend;
       extensionLog.clear = originalClear;
       extensionLog.show = originalShow;
+    }
+  });
+
+  it('creates and launches a profile when requested', async () => {
+    const inputs = ['new@example.com', 'Client'];
+    const messages: string[] = [];
+    const launches: string[] = [];
+    const created = createMockProfile({
+      id: 'created-profile',
+      email: 'new@example.com',
+      displayName: 'Client',
+    });
+    let createOptions: unknown;
+    const windowApi = vscode.window as unknown as {
+      showInputBox: (options: unknown) => Promise<string | undefined>;
+      showInformationMessage: (
+        message: string,
+        ...items: string[]
+      ) => Promise<string | undefined>;
+    };
+    const originalInputBox = windowApi.showInputBox;
+    const originalInformationMessage = windowApi.showInformationMessage;
+    windowApi.showInputBox = async () => inputs.shift();
+    windowApi.showInformationMessage = async (message, ...items) => {
+      messages.push(message);
+      return items[0];
+    };
+
+    try {
+      registerProfileCommands(
+        { subscriptions: [] } as never,
+        {
+          validateEmail: () => ({ valid: true, errors: [] }),
+          findProfileByEmail: async () => undefined,
+          createProfile: async (options: unknown) => {
+            createOptions = options;
+            return created;
+          },
+        } as never,
+        {
+          launch: async (profileId: string) => {
+            launches.push(profileId);
+            return { success: true };
+          },
+        } as never,
+        { detectCurrentProfile: async () => null } as never
+      );
+
+      await registeredHandlers.get('cursorAccounts.addProfile')!();
+
+      assert.deepEqual(createOptions, {
+        email: 'new@example.com',
+        displayName: 'Client',
+      });
+      assert.deepEqual(launches, ['created-profile']);
+      assert.equal(messages.length, 2);
+    } finally {
+      windowApi.showInputBox = originalInputBox;
+      windowApi.showInformationMessage = originalInformationMessage;
+    }
+  });
+
+  it('rejects a duplicate profile before creating it', async () => {
+    const errors: string[] = [];
+    let createCalled = false;
+    const windowApi = vscode.window as unknown as {
+      showInputBox: (options: unknown) => Promise<string | undefined>;
+      showErrorMessage: (message: string) => void;
+    };
+    const originalInputBox = windowApi.showInputBox;
+    const originalErrorMessage = windowApi.showErrorMessage;
+    windowApi.showInputBox = async () => 'work@example.com';
+    windowApi.showErrorMessage = (message) => {
+      errors.push(message);
+    };
+
+    try {
+      registerProfileCommands(
+        { subscriptions: [] } as never,
+        {
+          validateEmail: () => ({ valid: true, errors: [] }),
+          findProfileByEmail: async () => createMockProfile(),
+          createProfile: async () => {
+            createCalled = true;
+            return createMockProfile();
+          },
+        } as never,
+        {} as never,
+        { detectCurrentProfile: async () => null } as never
+      );
+
+      await registeredHandlers.get('cursorAccounts.addProfile')!();
+
+      assert.equal(createCalled, false);
+      assert.equal(errors.length, 1);
+      assert.match(errors[0] ?? '', /already exists/);
+    } finally {
+      windowApi.showInputBox = originalInputBox;
+      windowApi.showErrorMessage = originalErrorMessage;
+    }
+  });
+
+  it('deletes the selected profile after confirmation and forwards the instance detector', async () => {
+    const deleted: Array<{ id: string; detector: unknown }> = [];
+    const messages: string[] = [];
+    const profile = createMockProfile();
+    const instanceDetector = { isProfileRunning: async () => false };
+    const windowApi = vscode.window as unknown as {
+      showQuickPick: (items: unknown[]) => Promise<unknown>;
+      showWarningMessage: (
+        message: string,
+        options: unknown,
+        action: string
+      ) => Promise<string | undefined>;
+      showInformationMessage: (message: string) => void;
+    };
+    const originalQuickPick = windowApi.showQuickPick;
+    const originalWarningMessage = windowApi.showWarningMessage;
+    const originalInformationMessage = windowApi.showInformationMessage;
+    windowApi.showQuickPick = async (items) => items[0];
+    windowApi.showWarningMessage = async (_message, _options, action) => action;
+    windowApi.showInformationMessage = (message) => {
+      messages.push(message);
+    };
+
+    try {
+      registerProfileCommands(
+        { subscriptions: [] } as never,
+        {
+          getProfiles: async () => [profile],
+          deleteProfile: async (id: string, detector: unknown) => {
+            deleted.push({ id, detector });
+          },
+        } as never,
+        {} as never,
+        { detectCurrentProfile: async () => null } as never,
+        instanceDetector as never
+      );
+
+      await registeredHandlers.get('cursorAccounts.deleteProfile')!();
+
+      assert.deepEqual(deleted, [{ id: profile.id, detector: instanceDetector }]);
+      assert.equal(messages.length, 1);
+    } finally {
+      windowApi.showQuickPick = originalQuickPick;
+      windowApi.showWarningMessage = originalWarningMessage;
+      windowApi.showInformationMessage = originalInformationMessage;
+    }
+  });
+
+  it('does not delete a profile when confirmation is cancelled', async () => {
+    let deleteCalled = false;
+    const profile = createMockProfile();
+    const windowApi = vscode.window as unknown as {
+      showQuickPick: (items: unknown[]) => Promise<unknown>;
+      showWarningMessage: (
+        message: string,
+        options: unknown,
+        action: string
+      ) => Promise<string | undefined>;
+    };
+    const originalQuickPick = windowApi.showQuickPick;
+    const originalWarningMessage = windowApi.showWarningMessage;
+    windowApi.showQuickPick = async (items) => items[0];
+    windowApi.showWarningMessage = async () => undefined;
+
+    try {
+      registerProfileCommands(
+        { subscriptions: [] } as never,
+        {
+          getProfiles: async () => [profile],
+          deleteProfile: async () => {
+            deleteCalled = true;
+          },
+        } as never,
+        {} as never,
+        { detectCurrentProfile: async () => null } as never
+      );
+
+      await registeredHandlers.get('cursorAccounts.deleteProfile')!();
+
+      assert.equal(deleteCalled, false);
+    } finally {
+      windowApi.showQuickPick = originalQuickPick;
+      windowApi.showWarningMessage = originalWarningMessage;
+    }
+  });
+
+  it('reports the detected current profile', async () => {
+    const messages: string[] = [];
+    const profile = createMockProfile();
+    const windowApi = vscode.window as unknown as {
+      showInformationMessage: (message: string) => void;
+    };
+    const originalInformationMessage = windowApi.showInformationMessage;
+    windowApi.showInformationMessage = (message) => {
+      messages.push(message);
+    };
+
+    try {
+      registerProfileCommands(
+        { subscriptions: [] } as never,
+        { getProfiles: async () => [] } as never,
+        {} as never,
+        { detectCurrentProfile: async () => profile } as never
+      );
+
+      await registeredHandlers.get('cursorAccounts.showCurrentProfile')!();
+
+      assert.equal(messages.length, 1);
+      assert.match(messages[0] ?? '', /Work/);
+      assert.match(messages[0] ?? '', /work@example.com/);
+    } finally {
+      windowApi.showInformationMessage = originalInformationMessage;
     }
   });
 
