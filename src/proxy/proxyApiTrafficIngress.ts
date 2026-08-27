@@ -41,10 +41,16 @@ export class ProxyApiTrafficIngress {
       apiToken,
     });
     const unsubscribe = client.onEvent((event) => {
-      this.handleEvent(event, profileId);
+      publishApiEvent(this.dependencies, event, profileId);
     });
 
-    await client.connect();
+    try {
+      await client.connect();
+    } catch (error) {
+      unsubscribe();
+      client.disconnect();
+      throw error;
+    }
     this.apiClients.set(profileId, client);
     this.apiUnsubscribers.set(profileId, unsubscribe);
   }
@@ -70,42 +76,47 @@ export class ProxyApiTrafficIngress {
     return this.apiClients.get(profileId);
   }
 
-  private handleEvent(event: ProxyApiEvent, profileId: string): void {
-    switch (event.type) {
-      case 'traffic':
-        this.dependencies.publishTraffic(
-          event.data as ProxyTrafficSummary,
-          (event.data as ProxyTrafficSummary).profileId ?? profileId
-        );
-        break;
-      case 'stats':
-        this.dependencies.onStats?.(profileId, event.data as ProxyStatistics);
-        break;
-      case 'diagnostics': {
-        const payload = event.data as { lines?: string[] };
-        if (payload.lines?.length) {
-          this.dependencies.onDiagnostics?.(profileId, payload.lines);
-        }
-        break;
+}
+
+function publishApiEvent(
+  dependencies: ProxyApiTrafficIngressDependencies,
+  event: ProxyApiEvent,
+  profileId: string
+): void {
+  switch (event.type) {
+    case 'traffic':
+      dependencies.publishTraffic(
+        event.data as ProxyTrafficSummary,
+        (event.data as ProxyTrafficSummary).profileId ?? profileId
+      );
+      break;
+    case 'stats':
+      dependencies.onStats?.(profileId, event.data as ProxyStatistics);
+      break;
+    case 'diagnostics': {
+      const payload = event.data as { lines?: string[] };
+      if (payload.lines?.length) {
+        dependencies.onDiagnostics?.(profileId, payload.lines);
       }
-      case 'error': {
-        const payload = event.data as { message?: string; kind?: string };
-        this.dependencies.publishTraffic(
-          {
-            timestamp: event.timestamp,
-            kind: 'error',
-            url: '',
-            host: '',
-            endpoint: '',
-            errorKind: payload.kind ?? 'PROXY_ERROR',
-            errorMessage: payload.message ?? 'unknown error',
-          },
-          profileId
-        );
-        break;
-      }
-      default:
-        break;
+      break;
     }
+    case 'error': {
+      const payload = event.data as { message?: string; kind?: string };
+      dependencies.publishTraffic(
+        {
+          timestamp: event.timestamp,
+          kind: 'error',
+          url: '',
+          host: '',
+          endpoint: '',
+          errorKind: payload.kind ?? 'PROXY_ERROR',
+          errorMessage: payload.message ?? 'unknown error',
+        },
+        profileId
+      );
+      break;
+    }
+    default:
+      break;
   }
 }

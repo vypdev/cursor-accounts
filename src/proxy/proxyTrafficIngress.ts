@@ -133,7 +133,12 @@ export class ProxyTrafficIngress implements IProxyTrafficIngress {
 
     this.activePort = port;
     this.activeProfileId = profileId;
-    await this.tailer.start();
+    try {
+      await this.tailer.start();
+    } catch (error) {
+      this.stopJsonlTailer();
+      throw error;
+    }
   }
 
   stop(profileId: string): void {

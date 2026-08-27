@@ -57,6 +57,7 @@ class FakeLogTailer implements ProxyTrafficLogTailer {
   running = false;
   startCount = 0;
   stopCount = 0;
+  shouldFailStart = false;
   readonly handlers: {
     onTraffic(summary: ProxyTrafficSummary): void;
     onError?(summary: ProxyTrafficSummary): void;
@@ -78,6 +79,9 @@ class FakeLogTailer implements ProxyTrafficLogTailer {
   }
 
   async start(): Promise<void> {
+    if (this.shouldFailStart) {
+      throw new Error('tailer start failed');
+    }
     this.running = true;
     this.startCount += 1;
   }
@@ -98,7 +102,7 @@ function summary(kind: ProxyTrafficSummary['kind'] = 'response'): ProxyTrafficSu
   };
 }
 
-function setup() {
+function setup(options: { failTailerStart?: boolean } = {}) {
   const apiClients: FakeApiClient[] = [];
   const tailers: FakeLogTailer[] = [];
   const apiOptions: ProxyApiClientOptions[] = [];
@@ -111,6 +115,7 @@ function setup() {
     },
     createLogTailer: (_logDir, handlers) => {
       const tailer = new FakeLogTailer(handlers);
+      tailer.shouldFailStart = options.failTailerStart === true;
       tailers.push(tailer);
       return tailer;
     },
@@ -297,5 +302,21 @@ describe('ProxyTrafficIngress', () => {
     );
     assert.equal(setupState.ingress.isRunning('profile-1'), false);
     assert.equal(setupState.ingress.isRunning('profile-2'), false);
+  });
+
+  it('clears JSONL ownership when the tailer fails to start', async () => {
+    const setupState = setup({ failTailerStart: true });
+
+    await assert.rejects(
+      setupState.ingress.start('profile-1', 8080, {
+        api: false,
+        jsonlTail: true,
+      }),
+      /tailer start failed/
+    );
+
+    assert.equal(setupState.tailers[0]?.stopCount, 1);
+    assert.equal(setupState.ingress.getActivePort(), null);
+    assert.equal(setupState.ingress.isRunning('profile-1'), false);
   });
 });
