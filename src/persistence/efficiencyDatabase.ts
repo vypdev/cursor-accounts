@@ -269,10 +269,27 @@ INSERT INTO prompt_events (
 
   async getAggregatedStats(profileId: string): Promise<EfficiencyStats> {
     await Promise.resolve();
-    const pid = escapeSqlString(profileId);
     const threshold = EFFICIENCY_SCORE_THRESHOLD;
 
-    const totals = this.executor.queryRows<CountRow>(`
+    const totalRow = this.queryProfileTotals(profileId, threshold);
+    if (!totalRow || totalRow.total === 0) {
+      return createEmptyEfficiencyStats(profileId);
+    }
+
+    return buildEfficiencyStats(
+      profileId,
+      totalRow,
+      this.queryRepositoryAggregates(profileId, threshold),
+      this.queryBranchAggregates(profileId, threshold)
+    );
+  }
+
+  private queryProfileTotals(
+    profileId: string,
+    threshold: number
+  ): CountRow | undefined {
+    const pid = escapeSqlString(profileId);
+    return this.executor.queryRows<CountRow>(`
 SELECT
   COUNT(*) AS total,
   SUM(CASE WHEN efficiency_score >= ${threshold} THEN 1 ELSE 0 END) AS efficient,
@@ -280,14 +297,15 @@ SELECT
   MAX(timestamp) AS last_ts
 FROM prompt_events
 WHERE profile_id = '${pid}';
-`);
+`)[0];
+  }
 
-    const totalRow = totals[0];
-    if (!totalRow || totalRow.total === 0) {
-      return createEmptyEfficiencyStats(profileId);
-    }
-
-    const repoRows = this.executor.queryRows<RepoAggRow>(`
+  private queryRepositoryAggregates(
+    profileId: string,
+    threshold: number
+  ): RepoAggRow[] {
+    const pid = escapeSqlString(profileId);
+    return this.executor.queryRows<RepoAggRow>(`
 SELECT
   repository_path,
   COUNT(*) AS total,
@@ -298,8 +316,14 @@ FROM prompt_events
 WHERE profile_id = '${pid}' AND repository_path IS NOT NULL
 GROUP BY repository_path;
 `);
+  }
 
-    const branchRows = this.executor.queryRows<BranchAggRow>(`
+  private queryBranchAggregates(
+    profileId: string,
+    threshold: number
+  ): BranchAggRow[] {
+    const pid = escapeSqlString(profileId);
+    return this.executor.queryRows<BranchAggRow>(`
 SELECT
   repository_path,
   branch_name,
@@ -313,50 +337,6 @@ WHERE profile_id = '${pid}'
   AND branch_name IS NOT NULL
 GROUP BY repository_path, branch_name;
 `);
-
-    const byRepository: Record<string, RepositoryEfficiencyStats> = {};
-
-    for (const repo of repoRows) {
-      byRepository[repo.repository_path] = {
-        repositoryPath: repo.repository_path,
-        totalPrompts: repo.total,
-        efficientPrompts: repo.efficient,
-        inefficientPrompts: repo.inefficient,
-        lastAnalyzed: isoFromStoredTimestamp(repo.last_ts),
-        byBranch: {},
-      };
-    }
-
-    for (const branch of branchRows) {
-      const repo =
-        byRepository[branch.repository_path] ??
-        ({
-          repositoryPath: branch.repository_path,
-          totalPrompts: 0,
-          efficientPrompts: 0,
-          inefficientPrompts: 0,
-          lastAnalyzed: isoFromStoredTimestamp(branch.last_ts),
-          byBranch: {},
-        } satisfies RepositoryEfficiencyStats);
-
-      repo.byBranch[branch.branch_name] = {
-        branchName: branch.branch_name,
-        totalPrompts: branch.total,
-        efficientPrompts: branch.efficient,
-        inefficientPrompts: branch.inefficient,
-        lastAnalyzed: isoFromStoredTimestamp(branch.last_ts),
-      };
-      byRepository[branch.repository_path] = repo;
-    }
-
-    return {
-      profileId,
-      totalPrompts: totalRow.total,
-      efficientPrompts: totalRow.efficient,
-      inefficientPrompts: totalRow.inefficient,
-      lastUpdated: isoFromStoredTimestamp(totalRow.last_ts),
-      byRepository,
-    };
   }
 
   async getEventsByRepository(
@@ -558,6 +538,76 @@ PRAGMA wal_checkpoint(TRUNCATE);
   getDbPath(): string {
     return this.dbPath;
   }
+}
+
+function buildEfficiencyStats(
+  profileId: string,
+  total: CountRow,
+  repositoryRows: readonly RepoAggRow[],
+  branchRows: readonly BranchAggRow[]
+): EfficiencyStats {
+  const byRepository = buildRepositoryStats(repositoryRows);
+  addBranchStats(byRepository, branchRows);
+
+  return {
+    profileId,
+    totalPrompts: total.total,
+    efficientPrompts: total.efficient,
+    inefficientPrompts: total.inefficient,
+    lastUpdated: isoFromStoredTimestamp(total.last_ts),
+    byRepository,
+  };
+}
+
+function buildRepositoryStats(
+  rows: readonly RepoAggRow[]
+): Record<string, RepositoryEfficiencyStats> {
+  const byRepository: Record<string, RepositoryEfficiencyStats> = {};
+  for (const row of rows) {
+    byRepository[row.repository_path] = {
+      repositoryPath: row.repository_path,
+      totalPrompts: row.total,
+      efficientPrompts: row.efficient,
+      inefficientPrompts: row.inefficient,
+      lastAnalyzed: isoFromStoredTimestamp(row.last_ts),
+      byBranch: {},
+    };
+  }
+  return byRepository;
+}
+
+function addBranchStats(
+  byRepository: Record<string, RepositoryEfficiencyStats>,
+  rows: readonly BranchAggRow[]
+): void {
+  for (const row of rows) {
+    const repository =
+      byRepository[row.repository_path] ??
+      createEmptyRepositoryStats(row.repository_path, row.last_ts);
+
+    repository.byBranch[row.branch_name] = {
+      branchName: row.branch_name,
+      totalPrompts: row.total,
+      efficientPrompts: row.efficient,
+      inefficientPrompts: row.inefficient,
+      lastAnalyzed: isoFromStoredTimestamp(row.last_ts),
+    };
+    byRepository[row.repository_path] = repository;
+  }
+}
+
+function createEmptyRepositoryStats(
+  repositoryPath: string,
+  lastTimestamp: number | null
+): RepositoryEfficiencyStats {
+  return {
+    repositoryPath,
+    totalPrompts: 0,
+    efficientPrompts: 0,
+    inefficientPrompts: 0,
+    lastAnalyzed: isoFromStoredTimestamp(lastTimestamp),
+    byBranch: {},
+  };
 }
 
 export function getEfficiencyDbPath(userDataDir: string): string {
