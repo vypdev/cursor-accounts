@@ -5,7 +5,7 @@ import type { ProxyTrafficDiagnosticsCollector } from './proxyTrafficDiagnostics
 import type { ProxyTrafficSummary } from '../domain/types/proxyTraffic';
 import { shouldLogMitmClientError } from './mitmClientErrorFilter';
 import { isCursorHost } from './utils/proxyRequestMetadata';
-import { toTrafficSummary } from './proxyTrafficFormat';
+import { toTrafficSummary } from './proxyTrafficSummary';
 
 type OnErrorParams = Parameters<Proxy['onError']>[0];
 type ErrorContext = NonNullable<Parameters<OnErrorParams>[0]>;

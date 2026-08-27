@@ -1,4 +1,4 @@
-import { toTrafficSummary } from './proxyTrafficFormat';
+import { toTrafficSummary } from './proxyTrafficSummary';
 import { buildTrafficSummary } from './trafficSummaryBuilder';
 import type { ProxyLogEntry, ProxyTrafficSummary } from './types';
 

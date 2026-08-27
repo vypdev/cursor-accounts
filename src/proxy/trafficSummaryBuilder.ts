@@ -1,5 +1,5 @@
 import { decodeProtoEntry, parseRpcPath } from './proxyDecode';
-import { toTrafficSummary } from './proxyTrafficFormat';
+import { toTrafficSummary } from './proxyTrafficSummary';
 import type { ProxyLogEntry, ProxyTrafficSummary } from './types';
 import {
   shouldDecodeTrafficEntry,

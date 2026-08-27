@@ -16,7 +16,7 @@ import type {
 } from './proxyTrafficDiagnostics';
 import { parseConnectTunnelHost } from './proxyTrafficDiagnostics';
 import { decompressBodyBuffer } from './bodyFormat';
-import { extractRequestId } from './proxyTrafficFormat';
+import { extractRequestId } from './proxyTrafficSummary';
 
 type OnRequestParams = Parameters<Proxy['onRequest']>[0];
 

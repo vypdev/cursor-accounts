@@ -1,5 +1,5 @@
 import { buildTrafficSummary } from './trafficSummaryBuilder';
-import { toTrafficSummary } from './proxyTrafficFormat';
+import { toTrafficSummary } from './proxyTrafficSummary';
 import type {
   ProxyTrafficCorrelationEvent,
   ProxyTrafficSummary,

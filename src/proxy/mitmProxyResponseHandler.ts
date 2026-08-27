@@ -14,7 +14,7 @@ import { decompressBodyBuffer } from './bodyFormat';
 import type { ProtoRegistry } from './protoRegistry';
 import { isAgentIncrementalStreamUrl } from './agentStreamUrls';
 import { bidiRequestIdFromRunSseHeaders } from './runSseCorrelation';
-import { extractRequestId } from './proxyTrafficFormat';
+import { extractRequestId } from './proxyTrafficSummary';
 import { StreamingAgentDecoder } from './streamingAgentDecoder';
 import type { RunSseStreamHandler } from './capture/runSseStreamHandler';
 import type {

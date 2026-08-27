@@ -3,7 +3,7 @@ import { t } from '../../l10n';
 import {
   formatTrafficLine,
   PROXY_TRAFFIC_TAG,
-} from '../../proxy/proxyTrafficFormat';
+} from './proxyTrafficLineFormatter';
 import type { ProxyTrafficSummary } from '../../domain/types/proxyTraffic';
 import type {
   IProxyOutputPresenter,

@@ -3,13 +3,13 @@ import { describe, it } from 'node:test';
 import {
   abbreviateUserAgent,
   classifyBodyKind,
-  formatTrafficLine,
-  redactHeadersForLog,
   toTrafficSummary,
-} from '../proxy/proxyTrafficFormat';
+} from '../proxy/proxyTrafficSummary';
+import { redactHeadersForLog } from '../proxy/utils/proxyRequestMetadata';
+import { formatTrafficLine } from '../ui/presentation/proxyTrafficLineFormatter';
 import type { ProxyLogEntry, ProxyTrafficSummary } from '../proxy/types';
 
-describe('proxyTrafficFormat', () => {
+describe('proxy traffic summary and presentation boundaries', () => {
   const baseEntry = (
     overrides: Partial<ProxyLogEntry> = {}
   ): ProxyLogEntry => ({
