@@ -107,20 +107,21 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
 
   private async startInternal(config: ProxyServerConfig): Promise<void> {
     let proxy: Proxy | undefined;
-    let loggerInitialized = false;
-
-    const sslCaDir = await this.certificateDirectory.ensureCaDirectoryForMitm();
-    await this.requestLogger.initialize();
-    loggerInitialized = true;
+    let loggerInitializationAttempted = false;
+    let sslCaDir: string;
 
     try {
-      await getProtoRegistry();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      process.stderr.write(`[proxy] proto registry init failed: ${message}\n`);
-    }
+      sslCaDir = await this.certificateDirectory.ensureCaDirectoryForMitm();
+      loggerInitializationAttempted = true;
+      await this.requestLogger.initialize();
 
-    try {
+      try {
+        await getProtoRegistry();
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        process.stderr.write(`[proxy] proto registry init failed: ${message}\n`);
+      }
+
       proxy = this.createMitmProxy();
       if (config.userIdToProfileId) {
         this.sessionCoordinator.setUserIdToProfileId(
@@ -168,7 +169,7 @@ export class MitmProxyServer extends EventEmitter implements IProxyServer {
       await listenToMitmProxy(proxy, listenOptions);
       this.proxy = proxy;
     } catch (error) {
-      await this.cleanupFailedStart(proxy, loggerInitialized);
+      await this.cleanupFailedStart(proxy, loggerInitializationAttempted);
       throw error;
     }
   }

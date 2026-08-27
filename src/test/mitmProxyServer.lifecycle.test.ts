@@ -61,7 +61,7 @@ function createFakeProxy(
   return { proxy, state };
 }
 
-function createLogger(): {
+function createLogger(initializeError?: Error): {
   logger: ProxyTrafficLogger;
   initialized: number;
   closed: number;
@@ -70,6 +70,9 @@ function createLogger(): {
   const logger = new NullLogger() as ProxyTrafficLogger;
   logger.initialize = async () => {
     state.initialized += 1;
+    if (initializeError) {
+      throw initializeError;
+    }
   };
   logger.close = async () => {
     state.closed += 1;
@@ -150,5 +153,48 @@ describe('MitmProxyServer lifecycle', () => {
     assert.equal(fake.state.closeCalls, 2);
     assert.equal(logger.initialized, 2);
     assert.equal(logger.closed, 2);
+  });
+
+  it('closes an attempted logger initialization when logger setup fails', async () => {
+    const fake = createFakeProxy([undefined]);
+    const logger = createLogger(new Error('logger initialization failed'));
+    const server = new TestableMitmProxyServer(
+      fake.proxy,
+      createCertificateDirectory(),
+      logger.logger
+    );
+
+    await assert.rejects(
+      server.start(config()),
+      /logger initialization failed/
+    );
+
+    assert.equal(fake.state.listenCalls, 0);
+    assert.equal(fake.state.closeCalls, 0);
+    assert.equal(logger.initialized, 1);
+    assert.equal(logger.closed, 1);
+  });
+
+  it('does not initialize the logger when certificate setup fails', async () => {
+    const fake = createFakeProxy([undefined]);
+    const logger = createLogger();
+    const server = new TestableMitmProxyServer(
+      fake.proxy,
+      {
+        ensureCaDirectoryForMitm: async () => {
+          throw new Error('certificate setup failed');
+        },
+      },
+      logger.logger
+    );
+
+    await assert.rejects(
+      server.start(config()),
+      /certificate setup failed/
+    );
+
+    assert.equal(fake.state.listenCalls, 0);
+    assert.equal(logger.initialized, 0);
+    assert.equal(logger.closed, 0);
   });
 });
