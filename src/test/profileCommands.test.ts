@@ -237,6 +237,80 @@ describe('registerProfileCommands', () => {
     }
   });
 
+  it('does nothing when profile creation is cancelled at the email prompt', async () => {
+    let findCalled = false;
+    const windowApi = vscode.window as unknown as {
+      showInputBox: (options: unknown) => Promise<string | undefined>;
+    };
+    const originalInputBox = windowApi.showInputBox;
+    windowApi.showInputBox = async () => undefined;
+
+    try {
+      registerProfileCommands(
+        { subscriptions: [] } as never,
+        {
+          findProfileByEmail: async () => {
+            findCalled = true;
+            return undefined;
+          },
+        } as never,
+        {} as never,
+        { detectCurrentProfile: async () => null } as never
+      );
+
+      await registeredHandlers.get('cursorAccounts.addProfile')!();
+
+      assert.equal(findCalled, false);
+    } finally {
+      windowApi.showInputBox = originalInputBox;
+    }
+  });
+
+  it('reports a failed launch after creating a profile', async () => {
+    const inputs = ['new@example.com', 'Client'];
+    const errors: string[] = [];
+    const windowApi = vscode.window as unknown as {
+      showInputBox: (options: unknown) => Promise<string | undefined>;
+      showInformationMessage: (
+        message: string,
+        ...items: string[]
+      ) => Promise<string | undefined>;
+      showErrorMessage: (message: string) => void;
+    };
+    const originalInputBox = windowApi.showInputBox;
+    const originalInformationMessage = windowApi.showInformationMessage;
+    const originalErrorMessage = windowApi.showErrorMessage;
+    windowApi.showInputBox = async () => inputs.shift();
+    windowApi.showInformationMessage = async (_message, ...items) => items[0];
+    windowApi.showErrorMessage = (message) => {
+      errors.push(message);
+    };
+
+    try {
+      registerProfileCommands(
+        { subscriptions: [] } as never,
+        {
+          validateEmail: () => ({ valid: true, errors: [] }),
+          findProfileByEmail: async () => undefined,
+          createProfile: async () => createMockProfile({ displayName: 'Client' }),
+        } as never,
+        {
+          launch: async () => ({ success: false, error: 'Executable unavailable' }),
+        } as never,
+        { detectCurrentProfile: async () => null } as never
+      );
+
+      await registeredHandlers.get('cursorAccounts.addProfile')!();
+
+      assert.equal(errors.length, 1);
+      assert.match(errors[0] ?? '', /Executable unavailable/);
+    } finally {
+      windowApi.showInputBox = originalInputBox;
+      windowApi.showInformationMessage = originalInformationMessage;
+      windowApi.showErrorMessage = originalErrorMessage;
+    }
+  });
+
   it('deletes the selected profile after confirmation and forwards the instance detector', async () => {
     const deleted: Array<{ id: string; detector: unknown }> = [];
     const messages: string[] = [];
@@ -323,6 +397,33 @@ describe('registerProfileCommands', () => {
     }
   });
 
+  it('reports an empty profile list for deletion', async () => {
+    const messages: string[] = [];
+    const windowApi = vscode.window as unknown as {
+      showInformationMessage: (message: string) => void;
+    };
+    const originalInformationMessage = windowApi.showInformationMessage;
+    windowApi.showInformationMessage = (message) => {
+      messages.push(message);
+    };
+
+    try {
+      registerProfileCommands(
+        { subscriptions: [] } as never,
+        { getProfiles: async () => [] } as never,
+        {} as never,
+        { detectCurrentProfile: async () => null } as never
+      );
+
+      await registeredHandlers.get('cursorAccounts.deleteProfile')!();
+
+      assert.equal(messages.length, 1);
+      assert.match(messages[0] ?? '', /No profiles to delete/);
+    } finally {
+      windowApi.showInformationMessage = originalInformationMessage;
+    }
+  });
+
   it('reports the detected current profile', async () => {
     const messages: string[] = [];
     const profile = createMockProfile();
@@ -349,6 +450,37 @@ describe('registerProfileCommands', () => {
       assert.match(messages[0] ?? '', /work@example.com/);
     } finally {
       windowApi.showInformationMessage = originalInformationMessage;
+    }
+  });
+
+  it('reports a current-profile detection failure', async () => {
+    const errors: string[] = [];
+    const windowApi = vscode.window as unknown as {
+      showErrorMessage: (message: string) => void;
+    };
+    const originalErrorMessage = windowApi.showErrorMessage;
+    windowApi.showErrorMessage = (message) => {
+      errors.push(message);
+    };
+
+    try {
+      registerProfileCommands(
+        { subscriptions: [] } as never,
+        { getProfiles: async () => [] } as never,
+        {} as never,
+        {
+          detectCurrentProfile: async () => {
+            throw new Error('profile detector unavailable');
+          },
+        } as never
+      );
+
+      await registeredHandlers.get('cursorAccounts.showCurrentProfile')!();
+
+      assert.equal(errors.length, 1);
+      assert.match(errors[0] ?? '', /profile detector unavailable/);
+    } finally {
+      windowApi.showErrorMessage = originalErrorMessage;
     }
   });
 
