@@ -92,6 +92,18 @@ export function jsonKeysMatchProto(obj, Type) {
 /** @typedef {{ ok: number, fail: number }} DashboardStats */
 
 /**
+ * @typedef EntryVerificationContext
+ * @property {Record<string, unknown>} entry
+ * @property {import('protobufjs').Type} Type
+ * @property {MethodStats} stats
+ * @property {DashboardStats} dashboard
+ * @property {VerificationReport} report
+ * @property {string} file
+ * @property {Buffer | null} body
+ * @property {string} [contentEncoding]
+ */
+
+/**
  * @typedef VerificationReport
  * @property {string[]} files
  * @property {Map<string, MethodStats>} byMethod
@@ -104,6 +116,13 @@ export function jsonKeysMatchProto(obj, Type) {
  * @property {number} insightContext
  * @property {number} insightAgent
  * @property {number} base64Bodies
+ */
+
+/**
+ * @typedef VerificationRuntime
+ * @property {string} logDir
+ * @property {Map<string, { requestType: import('protobufjs').Type, responseType: import('protobufjs').Type }>} rpcMap
+ * @property {VerificationReport} report
  */
 
 /** @returns {VerificationReport} */
@@ -186,16 +205,8 @@ function recordInsights(report, obj) {
   if (extractAgentInsight(obj)) report.insightAgent++;
 }
 
-/**
- * @param {Record<string, unknown>} entry
- * @param {import('protobufjs').Type} Type
- * @param {MethodStats} stats
- * @param {DashboardStats} dashboard
- * @param {VerificationReport} report
- * @param {string} file
- * @param {Buffer | null} body
- */
-function verifyJsonEntry(entry, Type, stats, dashboard, report, file, body) {
+/** @param {EntryVerificationContext} context */
+function verifyJsonEntry({ entry, Type, stats, dashboard, report, file, body }) {
   stats.json++;
   try {
     const json = JSON.parse(entry.body ?? body?.toString('utf8') ?? '{}');
@@ -217,16 +228,64 @@ function verifyJsonEntry(entry, Type, stats, dashboard, report, file, body) {
 }
 
 /**
+ * @typedef ProtoEntryEvaluation
+ * @property {boolean} ok
+ * @property {boolean} gzip
+ * @property {string} sample
+ * @property {Record<string, unknown>} [object]
+ * @property {number} [payloadLen]
+ */
+
+/**
+ * Evaluate one protobuf body without mutating the verification report.
+ *
  * @param {Record<string, unknown>} entry
  * @param {import('protobufjs').Type} Type
- * @param {MethodStats} stats
- * @param {DashboardStats} dashboard
- * @param {VerificationReport} report
  * @param {string} file
- * @param {Buffer} body
+ * @param {Buffer | null} body
  * @param {string} contentEncoding
+ * @returns {ProtoEntryEvaluation}
  */
-function verifyProtoEntry(
+export function evaluateProtoEntry(entry, Type, file, body, contentEncoding) {
+  const gzip = contentEncoding.includes('gzip');
+  if (entry.bodyTruncated) {
+    return {
+      ok: false,
+      gzip,
+      sample: `body truncated at ${entry.bodyRawBytes ?? '?'}b — recapture with proxy (${file})`,
+    };
+  }
+
+  const raw = body ?? Buffer.from(String(entry.body ?? ''), 'latin1');
+  const result = tryDecodeProto(Type, raw, contentEncoding);
+  if (result.ok) {
+    const keys = Object.keys(result.object).slice(0, 6).join(', ');
+    const encodingNote = entry.bodyDecompressed
+      ? ' decompressed'
+      : contentEncoding
+        ? ' gzip'
+        : '';
+    return {
+      ok: true,
+      gzip,
+      object: result.object,
+      payloadLen: result.payloadLen,
+      sample: `proto decode OK ${result.payloadLen}b fields: ${keys}${encodingNote} (${file})`,
+    };
+  }
+
+  const hint = contentEncoding.includes('gzip')
+    ? ' [gzip body may be UTF-8 corrupted in JSONL]'
+    : '';
+  return {
+    ok: false,
+    gzip,
+    sample: `${result.error} (${raw.length}b, ${file})${hint}`,
+  };
+}
+
+/** @param {EntryVerificationContext} context */
+function verifyProtoEntry({
   entry,
   Type,
   stats,
@@ -234,60 +293,30 @@ function verifyProtoEntry(
   report,
   file,
   body,
-  contentEncoding
-) {
-  if (contentEncoding.includes('gzip')) {
-    stats.gzip++;
-  }
-  if (entry.bodyTruncated) {
-    recordResult(stats, dashboard, false);
-    addSample(
-      stats.samples,
-      `body truncated at ${entry.bodyRawBytes ?? '?'}b — recapture with proxy (${file})`
-    );
-    return;
-  }
-
-  const raw = body ?? Buffer.from(String(entry.body ?? ''), 'latin1');
-  const result = tryDecodeProto(
+  contentEncoding = '',
+}) {
+  const evaluation = evaluateProtoEntry(
+    entry,
     Type,
-    raw,
-    entry.bodyDecompressed ? '' : contentEncoding
+    file,
+    body,
+    contentEncoding
   );
-  if (result.ok) {
-    recordResult(stats, dashboard, true);
-    recordInsights(report, result.object);
-    if (stats.samples.length < 1) {
-      const keys = Object.keys(result.object).slice(0, 6).join(', ');
-      const encodingNote = entry.bodyDecompressed
-        ? ' decompressed'
-        : contentEncoding
-          ? ' gzip'
-          : '';
-      addSample(
-        stats.samples,
-        `proto decode OK ${result.payloadLen}b fields: ${keys}${encodingNote} (${file})`,
-        1
-      );
-    }
+  if (evaluation.gzip) stats.gzip++;
+  recordResult(stats, dashboard, evaluation.ok);
+  if (!evaluation.ok) {
+    addSample(stats.samples, evaluation.sample);
     return;
   }
 
-  recordResult(stats, dashboard, false);
-  const hint = contentEncoding.includes('gzip')
-    ? ' [gzip body may be UTF-8 corrupted in JSONL]'
-    : '';
-  addSample(stats.samples, `${result.error} (${raw.length}b, ${file})${hint}`);
+  recordInsights(report, evaluation.object);
+  if (stats.samples.length < 1) {
+    addSample(stats.samples, evaluation.sample, 1);
+  }
 }
 
-/**
- * @param {Record<string, unknown>} entry
- * @param {string} file
- * @param {string} logDir
- * @param {Map<string, { requestType: import('protobufjs').Type, responseType: import('protobufjs').Type }>} rpcMap
- * @param {VerificationReport} report
- */
-function verifyEntry(entry, file, logDir, rpcMap, report) {
+/** @param {{ entry: Record<string, unknown>, file: string, runtime: VerificationRuntime }} context */
+function verifyEntry({ entry, file, runtime: { logDir, rpcMap, report } }) {
   if (entry.direction !== 'request' && entry.direction !== 'response') {
     return;
   }
@@ -322,7 +351,7 @@ function verifyEntry(entry, file, logDir, rpcMap, report) {
     entry.headers?.['content-encoding'] ?? ''
   ).toLowerCase();
   if (contentType.includes('json')) {
-    verifyJsonEntry(entry, Type, stats, dashboard, report, file, body);
+    verifyJsonEntry({ entry, Type, stats, dashboard, report, file, body });
     return;
   }
   if (!contentType.includes('proto')) {
@@ -334,7 +363,7 @@ function verifyEntry(entry, file, logDir, rpcMap, report) {
     return;
   }
 
-  verifyProtoEntry(
+  verifyProtoEntry({
     entry,
     Type,
     stats,
@@ -342,8 +371,8 @@ function verifyEntry(entry, file, logDir, rpcMap, report) {
     report,
     file,
     body,
-    contentEncoding
-  );
+    contentEncoding,
+  });
 }
 
 /** @param {string} logDir @returns {string[]} */
@@ -354,14 +383,8 @@ function listLogFiles(logDir) {
     .sort();
 }
 
-/**
- * @param {string} filePath
- * @param {string} file
- * @param {string} logDir
- * @param {Map<string, { requestType: import('protobufjs').Type, responseType: import('protobufjs').Type }>} rpcMap
- * @param {VerificationReport} report
- */
-function verifyFile(filePath, file, logDir, rpcMap, report) {
+/** @param {string} filePath @param {{ file: string, runtime: VerificationRuntime }} context */
+function verifyFile(filePath, { file, runtime }) {
   if (fs.statSync(filePath).size === 0) return;
   for (const line of fs.readFileSync(filePath, 'utf8').split('\n')) {
     if (!line.trim()) continue;
@@ -372,7 +395,7 @@ function verifyFile(filePath, file, logDir, rpcMap, report) {
       continue;
     }
     if (!entry || typeof entry !== 'object') continue;
-    verifyEntry(entry, file, logDir, rpcMap, report);
+    verifyEntry({ entry, file, runtime });
   }
 }
 
@@ -385,8 +408,9 @@ function verifyFile(filePath, file, logDir, rpcMap, report) {
 export function verifyLogs(logDir, rpcMap) {
   const files = listLogFiles(logDir);
   const report = createReport(files);
+  const runtime = { logDir, rpcMap, report };
   for (const file of files) {
-    verifyFile(path.join(logDir, file), file, logDir, rpcMap, report);
+    verifyFile(path.join(logDir, file), { file, runtime });
   }
   return report;
 }

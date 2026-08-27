@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import zlib from 'node:zlib';
 import {
   connectPayloadCandidates,
+  evaluateProtoEntry,
   jsonKeysMatchProto,
   prepareBody,
   tryDecodeProto,
@@ -78,6 +79,42 @@ test('tryDecodeProto retries Connect framing and reports decode failures', () =>
   assert.deepEqual(tryDecodeProto(Type, Buffer.from([1, 2, 3])), {
     ok: false,
     error: 'invalid test payload',
+  });
+});
+
+test('evaluateProtoEntry returns pure success and recovery outcomes', () => {
+  const Type = createFakeType();
+  const payload = Buffer.from([8, 1]);
+  const file = 'capture.jsonl';
+
+  assert.deepEqual(
+    evaluateProtoEntry(
+      { bodyTruncated: true, bodyRawBytes: 12 },
+      Type,
+      file,
+      null,
+      ''
+    ),
+    {
+      ok: false,
+      gzip: false,
+      sample: 'body truncated at 12b — recapture with proxy (capture.jsonl)',
+    }
+  );
+
+  const decoded = evaluateProtoEntry(
+    { bodyDecompressed: true },
+    Type,
+    file,
+    framedPayload(payload),
+    ''
+  );
+  assert.deepEqual(decoded, {
+    ok: true,
+    gzip: false,
+    object: { known: true },
+    payloadLen: 2,
+    sample: 'proto decode OK 2b fields: known decompressed (capture.jsonl)',
   });
 });
 
