@@ -46,6 +46,12 @@ export default defineConfig({
           functions: 90,
           branches: 80,
         },
+        'src/components/AppDialogs.tsx': {
+          statements: 90,
+          lines: 90,
+          functions: 100,
+          branches: 90,
+        },
         'src/components/ProfileCardEfficiency.tsx': {
           statements: 90,
           lines: 90,

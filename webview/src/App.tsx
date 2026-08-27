@@ -1,15 +1,9 @@
 import React, { useCallback, useEffect, useReducer, useState } from 'react';
 import { vscodeApi } from './api/vscodeApi';
-import { AddProfileForm } from './components/AddProfileForm';
-import { EditProfileForm } from './components/EditProfileForm';
 import { EmptyState } from './components/EmptyState';
-import { ImportDialog } from './components/ImportDialog';
 import { ProfileList } from './components/ProfileList';
-import { CaCertificateInstallModal } from './components/CaCertificateInstallModal';
-import { CaCertificateUninstallModal } from './components/CaCertificateUninstallModal';
+import { AppDialogs } from './components/AppDialogs';
 import { ProxyStatusCard } from './components/ProxyStatusCard';
-import { StorageManagementModal } from './components/StorageManagementModal';
-import { PricesModal } from './components/PricesModal';
 import { L10nProvider, useL10n } from './l10n/context';
 import type {
   ImportOptions,
@@ -17,7 +11,6 @@ import type {
   StorageCleanupAction,
 } from './types';
 import { isProfileProxyEnabled } from './types';
-import { isProfileRunning } from './utils/runningInstances';
 import {
   appMessageReducer,
   createInitialAppMessageState,
@@ -500,74 +493,47 @@ const AppContent: React.FC<AppContentProps> = ({
         </button>
       )}
 
-      {showImportDialog && (
-        <ImportDialog
-          onImport={handleImport}
-          onCancel={() => setShowImportDialog(false)}
-        />
-      )}
-
-      {showAddForm && (
-        <AddProfileForm
-          onSubmit={handleAddProfile}
-          onCancel={closeAddForm}
-          suggestedEmail={suggestedEmail}
-          suggestedDisplayName={suggestedDisplayName}
-          notice={suggestedNotice}
-        />
-      )}
-
-      {editingProfile && (
-        <EditProfileForm
-          profile={editingProfile}
-          isCurrent={editingProfile.id === currentProfile?.id}
-          onSubmit={(updates) => handleEditSubmit(editingProfile.id, updates)}
-          onCancel={closeEditForm}
-        />
-      )}
-
-      {showUninstallConfirm && (
-        <CaCertificateUninstallModal
-          inProgress={uninstallInProgress}
-          onConfirm={handleConfirmUninstallProxyCertificate}
-          onCancel={handleCloseUninstallConfirm}
-        />
-      )}
-
-      {showCertInstallModal && (
-        <CaCertificateInstallModal
-          guide={installGuide}
-          loading={installGuideLoading}
-          installInProgress={installInProgress}
-          onClose={handleCloseCertInstallModal}
-          onSaveCertificate={handleSaveProxyCertificate}
-          onInstallCertificate={handleInstallProxyCertificate}
-        />
-      )}
-
-      {storageProfile && (
-        <StorageManagementModal
-          profile={storageProfile}
-          isCurrent={storageProfile.id === currentProfile?.id}
-          isRunning={isProfileRunning(runningInstances, storageProfile.id)}
-          storageInfo={storageInfo}
-          storageLoading={storageLoading}
-          cleanupInProgress={cleanupInProgress}
-          lastCleanupResult={lastCleanupResult}
-          onRequestStorageInfo={handleRequestStorageInfo}
-          onCleanStorage={handleCleanStorage}
-          onClose={handleCloseStorageModal}
-        />
-      )}
-
-      {showPricesModal && (
-        <PricesModal
-          models={modelPricingData}
-          enabledModels={enabledModelPricingData}
-          loading={pricingLoading}
-          onClose={handleClosePricesModal}
-        />
-      )}
+      <AppDialogs
+        showImportDialog={showImportDialog}
+        onImport={handleImport}
+        onCloseImport={() => setShowImportDialog(false)}
+        showAddForm={showAddForm}
+        onAddProfile={handleAddProfile}
+        onCloseAddForm={closeAddForm}
+        suggestedEmail={suggestedEmail}
+        suggestedDisplayName={suggestedDisplayName}
+        suggestedNotice={suggestedNotice}
+        editingProfile={editingProfile}
+        currentProfileId={currentProfile?.id}
+        onEditSubmit={handleEditSubmit}
+        onCloseEditForm={closeEditForm}
+        showUninstallConfirm={showUninstallConfirm}
+        uninstallInProgress={uninstallInProgress}
+        onConfirmUninstall={handleConfirmUninstallProxyCertificate}
+        onCloseUninstallConfirm={handleCloseUninstallConfirm}
+        showCertInstallModal={showCertInstallModal}
+        installGuide={installGuide}
+        installGuideLoading={installGuideLoading}
+        installInProgress={installInProgress}
+        onCloseCertInstallModal={handleCloseCertInstallModal}
+        onSaveProxyCertificate={handleSaveProxyCertificate}
+        onInstallProxyCertificate={handleInstallProxyCertificate}
+        storageProfile={storageProfile}
+        runningInstances={runningInstances}
+        storageProfileIsCurrent={storageProfile?.id === currentProfile?.id}
+        storageInfo={storageInfo}
+        storageLoading={storageLoading}
+        cleanupInProgress={cleanupInProgress}
+        lastCleanupResult={lastCleanupResult}
+        onRequestStorageInfo={handleRequestStorageInfo}
+        onCleanStorage={handleCleanStorage}
+        onCloseStorageModal={handleCloseStorageModal}
+        showPricesModal={showPricesModal}
+        modelPricingData={modelPricingData}
+        enabledModelPricingData={enabledModelPricingData}
+        pricingLoading={pricingLoading}
+        onClosePricesModal={handleClosePricesModal}
+      />
     </div>
   );
 };
