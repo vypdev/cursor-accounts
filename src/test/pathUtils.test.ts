@@ -89,6 +89,14 @@ describe('pathUtils', () => {
       assert.ok(result.error?.includes('home directory'));
     });
 
+    it('rejects sibling paths that only share the home directory prefix', () => {
+      const siblingPath = `${os.homedir()}-other/.cursor-profile`;
+      const result = validateUserDataPath(siblingPath);
+
+      assert.equal(result.valid, false);
+      assert.ok(result.error?.includes('home directory'));
+    });
+
     it('rejects home directory itself', () => {
       const result = validateUserDataPath(os.homedir());
       assert.equal(result.valid, false);
@@ -119,6 +127,15 @@ describe('pathUtils', () => {
     it('rejects paths outside home directory', () => {
       assert.throws(
         () => validateStateDbPath('/etc/passwd'),
+        /within user home directory/
+      );
+    });
+
+    it('rejects sibling paths that only share the home directory prefix', () => {
+      const siblingPath = `${os.homedir()}-other/.cursor-profile/User/state.vscdb`;
+
+      assert.throws(
+        () => validateStateDbPath(siblingPath),
         /within user home directory/
       );
     });

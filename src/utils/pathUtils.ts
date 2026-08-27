@@ -57,7 +57,7 @@ export function validateUserDataPath(userDataDir: string): {
   const normalized = path.normalize(path.resolve(userDataDir));
   const home = path.normalize(os.homedir());
 
-  if (!normalized.startsWith(home)) {
+  if (!isSameOrChildPath(normalized, home)) {
     return {
       valid: false,
       error: 'Path must be within user home directory',
@@ -90,7 +90,7 @@ export function validateUserDataPath(userDataDir: string): {
 
   for (const sysDir of systemDirs) {
     const normalizedSysDir = path.normalize(sysDir);
-    if (normalized.startsWith(normalizedSysDir)) {
+    if (isSameOrChildPath(normalized, normalizedSysDir)) {
       return {
         valid: false,
         error: `Path cannot be within system directory: ${sysDir}`,
@@ -109,7 +109,7 @@ export function validateStateDbPath(dbPath: string): void {
   const normalized = path.normalize(path.resolve(dbPath));
   const home = path.normalize(os.homedir());
 
-  if (!normalized.startsWith(home)) {
+  if (!isSameOrChildPath(normalized, home)) {
     throw new Error('Database path must be within user home directory');
   }
 
@@ -126,10 +126,20 @@ export function validateStateDbPath(dbPath: string): void {
       }
       continue;
     }
-    if (normalized.startsWith(normalizedSysDir)) {
+    if (isSameOrChildPath(normalized, normalizedSysDir)) {
       throw new Error('Cannot read from system directory');
     }
   }
+}
+
+function isSameOrChildPath(candidate: string, parent: string): boolean {
+  const relative = path.relative(parent, candidate);
+  return (
+    relative === '' ||
+    (!relative.startsWith(`..${path.sep}`) &&
+      relative !== '..' &&
+      !path.isAbsolute(relative))
+  );
 }
 
 /**
