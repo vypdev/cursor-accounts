@@ -22,6 +22,12 @@ export default defineConfig({
           functions: 100,
           branches: 45,
         },
+        'src/hooks/useAppMessageBridge.ts': {
+          statements: 90,
+          lines: 90,
+          functions: 100,
+          branches: 90,
+        },
         'src/api/vscodeApi.ts': {
           statements: 90,
           lines: 90,
