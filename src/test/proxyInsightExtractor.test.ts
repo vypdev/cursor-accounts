@@ -7,6 +7,7 @@ import {
   extractConversationAndSubagentIds,
   extractConversationContext,
   definedAgentFields,
+  estimateTokenCostUsd,
   extractInsightsForRpc,
   extractTokenUsage,
   mergeAgentSessionInfo,
@@ -310,5 +311,27 @@ describe('proxyInsightExtractor', () => {
 
     assert.equal(info?.requestedModelId, 'composer-2.5');
     assert.equal('requestId' in (info ?? {}), false);
+  });
+
+  it('calculates token cost from billed tokens before streaming estimates', () => {
+    assert.equal(
+      estimateTokenCostUsd(
+        {
+          inputTokens: 1_000_000,
+          outputTokens: 500_000,
+          streamingTokens: 9_000_000,
+        },
+        2
+      ),
+      3
+    );
+  });
+
+  it('uses streaming tokens only when billed token fields are absent', () => {
+    assert.equal(
+      estimateTokenCostUsd({ streamingTokens: 2_000_000 }, 1.5),
+      3
+    );
+    assert.equal(estimateTokenCostUsd({ streamingTokens: 2 }, 0), undefined);
   });
 });
