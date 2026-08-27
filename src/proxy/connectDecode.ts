@@ -40,6 +40,23 @@ export function stripConnectEnvelope(body: Buffer): Buffer[] {
   return payloads.length > 0 ? payloads : [body];
 }
 
+function appendLengthPrefixedCandidate(
+  body: Buffer,
+  headerLength: number,
+  readLength: (body: Buffer) => number,
+  add: (payload: Buffer) => void
+): void {
+  if (body.length < headerLength || body[0] !== 0) {
+    return;
+  }
+
+  const payloadLength = readLength(body);
+  const payloadEnd = headerLength + payloadLength;
+  if (body.length >= payloadEnd) {
+    add(body.subarray(headerLength, payloadEnd));
+  }
+}
+
 /**
  * Additional candidates used when logging may have stripped partial envelopes.
  */
@@ -60,19 +77,8 @@ export function connectPayloadCandidates(body: Buffer): Buffer[] {
     add(payload);
   }
 
-  if (body.length >= 5 && body[0] === 0) {
-    const len = body.readUInt32BE(1);
-    if (body.length >= 5 + len) {
-      add(body.subarray(5, 5 + len));
-    }
-  }
-
-  if (body.length >= 3 && body[0] === 0) {
-    const len = body.readUInt16BE(1);
-    if (body.length >= 3 + len) {
-      add(body.subarray(3, 3 + len));
-    }
-  }
+  appendLengthPrefixedCandidate(body, 5, (value) => value.readUInt32BE(1), add);
+  appendLengthPrefixedCandidate(body, 3, (value) => value.readUInt16BE(1), add);
 
   return result;
 }
