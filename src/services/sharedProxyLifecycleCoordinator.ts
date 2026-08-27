@@ -2,31 +2,27 @@ import * as fs from 'fs/promises';
 import {
   isProfileProxyEnabled,
   type Profile,
-  type ProxyStateFile,
 } from '@cursor-accounts/types';
 import type { ProxyStartResult } from '../domain/ports/IProxyManager';
 import type { IProxyCertificateService } from '../domain/ports/IProxyCertificateService';
 import type { IProxyProcess } from '../domain/ports/IProxyProcess';
 import type { ISharedProxyStateStore } from '../domain/ports/ISharedProxyStateStore';
 import type { ProxyServerConfig } from '../application/types/proxyConfig';
+import {
+  SharedProxyRuntimeStartUseCase,
+  type SharedProxyRuntime,
+} from '../application/services/sharedProxyRuntimeStartUseCase';
 import { pollProxyHealth } from '../proxy/proxyHealthPoller';
 import {
   DEFAULT_PROXY_PORT,
   PROXY_STATE_SCHEMA_VERSION,
   SHARED_PROXY_RUNTIME_KEY,
 } from '../proxy/types';
-import { NodeProxyProcess } from '../proxy/nodeProxyProcess';
 import * as extensionLog from '../logging/extensionLog';
 
 const PROXY_START_TIMEOUT_MS = 15_000;
 
-export interface SharedProxyRuntime {
-  process: IProxyProcess;
-  port: number;
-  apiPort: number;
-  userDataDir: string;
-  apiToken?: string;
-}
+export type { SharedProxyRuntime } from '../application/services/sharedProxyRuntimeStartUseCase';
 
 interface ProxyControlClient {
   getStatus(): Promise<{ running: boolean }>;
@@ -36,6 +32,8 @@ interface ProxyControlClient {
 export interface SharedProxyLifecycleCoordinatorDependencies {
   storageDir: string;
   logDir: string;
+  ensureStorageDirectories?(): Promise<void>;
+  detachProcess?(process: IProxyProcess): void;
   stateStore: ISharedProxyStateStore;
   certService: IProxyCertificateService;
   createProcess(): IProxyProcess;
@@ -71,9 +69,13 @@ export interface SharedProxyLifecycleCoordinatorDependencies {
 
 /** Owns startup and shutdown decisions for the shared MITM child process. */
 export class SharedProxyLifecycleCoordinator {
+  private readonly runtimeStarter: SharedProxyRuntimeStartUseCase;
+
   constructor(
     private readonly dependencies: SharedProxyLifecycleCoordinatorDependencies
-  ) {}
+  ) {
+    this.runtimeStarter = createRuntimeStarter(dependencies);
+  }
 
   async ensure(profiles: Profile[]): Promise<ProxyStartResult> {
     const enabledProfiles = profiles.filter(isProfileProxyEnabled);
@@ -160,111 +162,72 @@ export class SharedProxyLifecycleCoordinator {
     this.dependencies.notifyStatusChange();
   }
 
-  private async startNewRuntime(
-    enabledProfiles: Profile[]
-  ): Promise<ProxyStartResult> {
-    const port = DEFAULT_PROXY_PORT;
-    await fs.mkdir(this.dependencies.storageDir, { recursive: true });
-    await fs.mkdir(this.dependencies.logDir, { recursive: true });
-    const caPath = await this.dependencies.certService.ensureCaCertificate();
-    const anchorProfile = enabledProfiles[0]!;
-    const userIdToProfileId = await this.dependencies.buildUserIdMapping(
-      enabledProfiles
-    );
-    const profileDbPaths = this.dependencies.buildProfileDbPaths(enabledProfiles);
-    const serverConfig = this.dependencies.buildServerConfig(
-      port,
-      anchorProfile,
-      {
-        profileId: SHARED_PROXY_RUNTIME_KEY,
-        userIdToProfileId: Object.fromEntries(userIdToProfileId),
-        profileDbPaths,
-      }
-    );
+  private startNewRuntime(enabledProfiles: Profile[]): Promise<ProxyStartResult> {
+    return this.runtimeStarter.execute(enabledProfiles);
+  }
+}
 
-    const proxyProcess = this.dependencies.createProcess();
-    const stderrLines: string[] = [];
-    proxyProcess.onStderr((line) => {
-      stderrLines.push(line);
+function createRuntimeStarter(
+  dependencies: SharedProxyLifecycleCoordinatorDependencies
+): SharedProxyRuntimeStartUseCase {
+  return new SharedProxyRuntimeStartUseCase({
+    runtimeKey: SHARED_PROXY_RUNTIME_KEY,
+    stateSchemaVersion: PROXY_STATE_SCHEMA_VERSION,
+    port: DEFAULT_PROXY_PORT,
+    userDataDir: dependencies.storageDir,
+    stateStore: dependencies.stateStore,
+    ensureStorageDirectories: () => ensureStorageDirectories(dependencies),
+    ensureCaCertificate: () => dependencies.certService.ensureCaCertificate(),
+    createProcess: () => dependencies.createProcess(),
+    buildServerConfig: (port, profile, overrides) =>
+      dependencies.buildServerConfig(port, profile, overrides),
+    buildUserIdMapping: (profiles) => dependencies.buildUserIdMapping(profiles),
+    buildProfileDbPaths: (profiles) =>
+      dependencies.buildProfileDbPaths(profiles),
+    waitForReady: (apiPort, apiToken, options) =>
+      pollProxyHealth(apiPort, PROXY_START_TIMEOUT_MS, options, apiToken),
+    stopFailedProcess: async (proxyProcess, runtime) => {
+      await proxyProcess.stop(runtime.pid, 'SIGKILL');
+      dependencies.detachProcess?.(proxyProcess);
+    },
+    setRuntime: (runtime) => dependencies.setRuntime(runtime),
+    prepareProfile: (profile, port) =>
+      dependencies.prepareProfile(profile, port),
+    ensureTrafficIngress: (port, apiPort, options) =>
+      dependencies.ensureTrafficIngress(port, apiPort, options),
+    shouldAutoShowOutput: () => dependencies.shouldAutoShowOutput(),
+    showOutput: () => dependencies.showOutput(),
+    appendStarted: (port) => dependencies.appendStarted(port),
+    notifyStatusChange: () => dependencies.notifyStatusChange(),
+    onStderrLine: (line) => {
       if (line.includes('[AgentTracking]') || line.includes('[DbPool]')) {
         extensionLog.info(`[Proxy:shared] ${line}`);
       } else {
         extensionLog.debug(`[Proxy:shared] ${line}`);
       }
-    });
-
-    proxyProcess.onExit((code) => {
+    },
+    onProcessExit: (code) => {
       extensionLog.warn(
         `[Proxy:shared] Child process exited with code ${code ?? 'unknown'}`
       );
-      this.dependencies.deleteRuntime();
-      void this.dependencies.stateStore.clear();
-      this.dependencies.stopTrafficIngress();
-      this.dependencies.notifyStatusChange();
-    });
+      dependencies.deleteRuntime();
+      void dependencies.stateStore.clear();
+      dependencies.stopTrafficIngress();
+      dependencies.notifyStatusChange();
+    },
+    now: () => new Date().toISOString(),
+    logStarted: (message) => extensionLog.info(message),
+  });
+}
 
-    const runtime = await proxyProcess.start(serverConfig);
-    const ready = await pollProxyHealth(
-      serverConfig.apiPort,
-      PROXY_START_TIMEOUT_MS,
-      {
-        getStderr: () => stderrLines.join('\n'),
-        isProcessAlive: () =>
-          runtime.pid != null && proxyProcess.isAlive(runtime.pid),
-      },
-      serverConfig.apiToken
-    );
-    if (!ready.success) {
-      await proxyProcess.stop(runtime.pid, 'SIGKILL');
-      if (proxyProcess instanceof NodeProxyProcess) {
-        proxyProcess.detach();
-      }
-      return { success: false, error: ready.error };
-    }
-
-    this.dependencies.setRuntime({
-      process: proxyProcess,
-      port,
-      apiPort: serverConfig.apiPort,
-      userDataDir: this.dependencies.storageDir,
-      apiToken: serverConfig.apiToken,
-    });
-
-    const now = new Date().toISOString();
-    const state: ProxyStateFile = {
-      version: PROXY_STATE_SCHEMA_VERSION,
-      profileId: SHARED_PROXY_RUNTIME_KEY,
-      running: true,
-      port,
-      apiPort: serverConfig.apiPort,
-      apiToken: serverConfig.apiToken,
-      pid: runtime.pid,
-      startedAt: now,
-      caCertificatePath: caPath,
-      lastUpdatedAt: now,
-    };
-    await this.dependencies.stateStore.write(state);
-
-    extensionLog.info(
-      `[Proxy:shared] Started MITM on 127.0.0.1:${port}, API on 127.0.0.1:${serverConfig.apiPort} (pid ${runtime.pid})`
-    );
-    this.dependencies.appendStarted(port);
-
-    for (const profile of enabledProfiles) {
-      await this.dependencies.prepareProfile(profile, port);
-    }
-
-    await this.dependencies.ensureTrafficIngress(
-      port,
-      serverConfig.apiPort,
-      { forceRestart: true, apiToken: serverConfig.apiToken }
-    );
-
-    if (this.dependencies.shouldAutoShowOutput()) {
-      this.dependencies.showOutput();
-    }
-
-    this.dependencies.notifyStatusChange();
-    return { success: true, port };
+async function ensureStorageDirectories(
+  dependencies: SharedProxyLifecycleCoordinatorDependencies
+): Promise<void> {
+  if (dependencies.ensureStorageDirectories) {
+    await dependencies.ensureStorageDirectories();
+    return;
   }
+
+  await fs.mkdir(dependencies.storageDir, { recursive: true });
+  await fs.mkdir(dependencies.logDir, { recursive: true });
 }

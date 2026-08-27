@@ -383,6 +383,11 @@ function createLifecycleCoordinators(
       stateStore: foundations.sharedProxyStateStore,
       certService: options.dependencies.certService,
       createProcess: options.dependencies.createProcess,
+      detachProcess: (process) => {
+        if (process instanceof NodeProxyProcess) {
+          process.detach();
+        }
+      },
       isPortAvailable: (port) => isPortAvailable(port),
       createApiClient: foundations.createApiClient,
       resolveApiPort: foundations.resolveApiPort,
