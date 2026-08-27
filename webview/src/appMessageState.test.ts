@@ -80,6 +80,34 @@ describe('appMessageReducer', () => {
     expect(state.currentWindowUsesProxy).toBe(false);
   });
 
+  it('uses safe defaults when optional init projections are absent', () => {
+    const state = applyMessage(createInitialAppMessageState(), {
+      type: 'init',
+      data: {
+        ...initData,
+        quotas: undefined,
+        profileAccounts: undefined,
+        activeAccount: undefined,
+        runningInstances: undefined,
+        profileWorkspaces: undefined,
+        openWorkspacePaths: undefined,
+        profileGithubSummaries: undefined,
+        profileGithubTokenStatus: undefined,
+        efficiencyStats: undefined,
+        proxyStatus: undefined,
+        profileProxyTemporary: undefined,
+        currentWindowUsesProxy: undefined,
+      } as unknown as InitData,
+    });
+
+    expect(state.quotas).toEqual({});
+    expect(state.activeAccount).toBeNull();
+    expect(state.runningInstances).toEqual({});
+    expect(state.openWorkspacePaths).toEqual([]);
+    expect(state.proxyStatus).toBeNull();
+    expect(state.currentWindowUsesProxy).toBe(false);
+  });
+
   it('applies incremental profile, account, workspace, proxy, and efficiency updates', () => {
     let state = createInitialAppMessageState();
     state = applyMessage(state, { type: 'profiles', data: [profile] });
@@ -125,6 +153,92 @@ describe('appMessageReducer', () => {
     expect(state.error).toBe('proxy.uninstall.linuxManual:');
   });
 
+  it('handles proxy status, install-guide, and non-Linux certificate transitions', () => {
+    let state = applyMessage(createInitialAppMessageState(), {
+      type: 'error',
+      message: 'Certificate is missing',
+    });
+    state = applyMessage(state, {
+      type: 'currentWindowProxyUsage',
+      usesProxy: true,
+    });
+    state = applyMessage(state, {
+      type: 'proxyInstallGuide',
+      data: {
+        platform: 'darwin',
+        certAvailable: true,
+        certPath: '/tmp/ca.pem',
+        title: 'Install certificate',
+        intro: 'Install the local certificate.',
+        steps: [],
+      },
+    });
+    state = applyMessage(state, {
+      type: 'proxyStatus',
+      data: { running: false, caCertificateInstalled: false },
+    });
+    expect(state.currentWindowUsesProxy).toBe(true);
+    expect(state.installGuide?.certPath).toBe('/tmp/ca.pem');
+    expect(state.error).toBe('Certificate is missing');
+
+    state = applyMessage(state, {
+      type: 'certificateUninstallResult',
+      success: false,
+      error: 'permission denied',
+    });
+    expect(state.error).toBe('proxy.uninstall.failed:permission denied');
+    state = applyMessage(state, {
+      type: 'certificateUninstallResult',
+      success: true,
+    });
+    expect(state.success).toBe('proxy.uninstall.success:');
+
+    const uninstallUnchanged = applyMessage(state, {
+      type: 'certificateUninstallResult',
+      success: false,
+    });
+    expect(uninstallUnchanged).toBe(state);
+
+    const unchanged = applyMessage(state, {
+      type: 'certificateInstallResult',
+      success: false,
+    });
+    expect(unchanged).toBe(state);
+
+    state = applyMessage(state, {
+      type: 'proxyStatus',
+      data: { running: false, caCertificateInstalled: true },
+    });
+    expect(state.error).toBeNull();
+  });
+
+  it('applies remaining host projections and suggested notices', () => {
+    let state = createInitialAppMessageState();
+    state = applyMessage(state, { type: 'quotas', data: {} });
+    state = applyMessage(state, { type: 'profileAccounts', data: {} });
+    state = applyMessage(state, { type: 'activeAccount', data: null });
+    state = applyMessage(state, { type: 'runningInstances', data: {} });
+    state = applyMessage(state, { type: 'currentProfile', data: null });
+    state = applyMessage(state, {
+      type: 'githubSummaries',
+      data: { summaries: {}, tokenStatus: {} },
+    });
+    state = applyMessage(state, {
+      type: 'suggestedProfile',
+      notice: 'Already configured',
+    });
+    state = applyMessage(state, {
+      type: 'exportData',
+      data: '{}',
+      filename: 'profiles.json',
+    });
+
+    expect(state.profileAccounts).toEqual({});
+    expect(state.activeAccount).toBeNull();
+    expect(state.suggestedNotice).toBe('Already configured');
+    expect(state.suggestedEmail).toBeUndefined();
+  });
+
   it('ignores storage responses for another profile and accepts the active profile', () => {
     const storageInfo = {
       profileId: 'profile-1',
@@ -167,6 +281,15 @@ describe('appMessageReducer', () => {
     );
     expect(state.success).toBeNull();
     expect(state.error).toBe('Cleanup failed');
+
+    const withoutStorageProfile = applyMessage(
+      state,
+      {
+        type: 'storageCleanupResult',
+        data: cleanupResult,
+      }
+    );
+    expect(withoutStorageProfile).toBe(state);
   });
 
   it('handles suggestions, pricing transitions, notifications, and reset actions', () => {
@@ -186,16 +309,25 @@ describe('appMessageReducer', () => {
     state = applyMessage(state, {
       type: 'modelPricing',
       data: [],
-      enabledModels: [],
     });
     expect(state.showPricesModal).toBe(true);
     expect(state.pricingLoading).toBe(false);
 
     state = applyMessage(state, { type: 'error', message: 'Failure' });
     state = appMessageReducer(state, { type: 'clearError' });
+    state = appMessageReducer(state, { type: 'clearSuccess' });
+    state = appMessageReducer(state, { type: 'clearInstallGuide' });
+    state = appMessageReducer(state, { type: 'resetStorageMessageState' });
+    state = applyMessage(state, {
+      type: 'modelPricingError',
+      error: 'Pricing unavailable',
+    });
+    state = appMessageReducer(state, { type: 'clearError' });
     state = appMessageReducer(state, { type: 'closeModelPricing' });
     expect(state.error).toBeNull();
     expect(state.showPricesModal).toBe(false);
+    expect(state.installGuide).toBeNull();
+    expect(state.storageInfo).toBeUndefined();
   });
 
   it('clears an existing error when certificate installation is confirmed by proxy status', () => {
