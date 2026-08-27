@@ -1,7 +1,5 @@
-import * as fs from 'fs/promises';
 import * as path from 'path';
 import type { IProxyCertificateService } from '../domain/ports/IProxyCertificateService';
-import type { IProxyCertificateOperations } from '../domain/ports/IProxyCertificateOperations';
 import type { IProxyProcess } from '../domain/ports/IProxyProcess';
 import type { IProxyTrafficBus } from '../domain/ports/IProxyTrafficBus';
 import type { IProxyTrafficIngress } from '../domain/ports/IProxyTrafficIngress';
@@ -17,7 +15,7 @@ import type {
 import type * as vscode from 'vscode';
 import { ProfileAuthReader } from '../auth/profileAuthReader';
 import { CertificateManager } from '../proxy/certificateManager';
-import { verifyCaCertificateInstalled } from '../proxy/installCaCertificate';
+import { createProxyCertificateOperations } from '../proxy/proxyCertificateOperations';
 import { createProxyCostEnricher } from '../proxy/proxyCostEnricher';
 import { ProxyTrafficBus } from '../proxy/proxyTrafficBus';
 import { ProxyTrafficIngress } from '../proxy/proxyTrafficIngress';
@@ -59,20 +57,7 @@ export function createDefaultProxyManagerDependencies(
 ): ProxyManagerDependencies {
   const storageDir = options.storageDir ?? getSharedProxyStorageDir();
   const certManager = new CertificateManager(path.join(storageDir, 'certs'));
-  const certificateOperations: IProxyCertificateOperations = {
-    ensureCaCertificate: () => certManager.ensureCaCertificate(),
-    certificatePathExists: async (certificatePath) => {
-      try {
-        await fs.access(certificatePath);
-        return true;
-      } catch {
-        return false;
-      }
-    },
-    checkInstalled: () => verifyCaCertificateInstalled(),
-    install: () => certManager.installCertificateWithElevation(),
-    uninstall: () => certManager.uninstallCertificate(),
-  };
+  const certificateOperations = createProxyCertificateOperations(certManager);
   const trafficBus = new ProxyTrafficBus(
     createProxyCostEnricher(options.getEstimatedDollarsPerMillionTokens)
   );
