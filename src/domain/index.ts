@@ -60,6 +60,8 @@ export * from './ports/IProfileStorageAnalyzer';
 export * from './ports/IProfileManager';
 export * from './ports/IProfileReader';
 export * from './ports/IProfileWriter';
+export * from './policies/profileCreation';
+export * from './policies/profileEmail';
 export type {
   ProxyLiveTokenData,
   ProxyTrafficCorrelationEvent,

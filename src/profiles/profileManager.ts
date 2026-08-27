@@ -1,25 +1,23 @@
 import { randomUUID } from 'crypto';
 import * as os from 'os';
-import * as path from 'path';
 import * as extensionLog from '../logging/extensionLog';
-import {
-  emailToSlug,
-  generateUniqueSlug,
-  validateSlug,
-} from '../utils/emailToSlug';
 import { pathsEqual, validateUserDataPath } from '../utils/pathUtils';
 import type { IProfileManager } from '../domain/ports/IProfileManager';
 import type { IProfileStorage } from '../domain/ports/IProfileStorage';
 import type { IInstanceDetector } from '../domain/ports/IInstanceDetector';
+import { buildProfileRecord } from '../domain/policies/profileCreation';
 import { generateProfileDisplayName } from '../domain/policies/profileDisplayName';
+import { validateProfileEmail } from '../domain/policies/profileEmail';
 import type {
   CreateProfileOptions,
   Profile,
   ProfileConfig,
-  ValidationResult} from './types';
-import {
-  PROFILE_DIR_PREFIX
+  ValidationResult,
 } from './types';
+import {
+  ProfilePathResolutionError,
+  resolveProfilePath,
+} from './profilePathResolver';
 
 export class ProfileManagerError extends Error {
   constructor(
@@ -113,55 +111,32 @@ export class ProfileManager implements IProfileManager {
       );
     }
 
-    const slug = emailToSlug(options.email);
-    if (!validateSlug(slug)) {
-      throw new ProfileManagerError(`Generated slug "${slug}" is invalid`);
-    }
-
-    let userDataDir = path.join(
-      this.profileRootDir,
-      `${PROFILE_DIR_PREFIX}${slug}`
-    );
-
-    const existingPath = await this.findProfileByPath(userDataDir);
-    if (existingPath) {
-      const uniqueSlug = generateUniqueSlug(options.email, true);
-      userDataDir = path.join(
+    let pathResolution: Awaited<ReturnType<typeof resolveProfilePath>>;
+    try {
+      pathResolution = await resolveProfilePath(
+        options.email,
         this.profileRootDir,
-        `${PROFILE_DIR_PREFIX}${uniqueSlug}`
+        this
       );
-
-      const stillExists = await this.findProfileByPath(userDataDir);
-      if (stillExists) {
-        throw new ProfileManagerError(
-          `Unable to generate unique path for email ${options.email}. ` +
-            `Both ${slug} and ${uniqueSlug} already exist.`
-        );
+    } catch (error) {
+      if (error instanceof ProfilePathResolutionError) {
+        throw new ProfileManagerError(error.message, error);
       }
-
-      extensionLog.info(
-        `[ProfileManager] Path collision resolved: ${slug} → ${uniqueSlug}`
-      );
+      throw error;
     }
 
-    const profile: Profile = {
-      id: randomUUID(),
-      email: options.email,
-      slug,
-      displayName:
-        options.displayName ?? generateProfileDisplayName(options.email),
-      userDataDir,
-      created: new Date().toISOString(),
-      theme: options.theme,
-      color: options.color ?? this.generateRandomColor(),
-      emoji: options.emoji,
-      proxyEnabled: true,
-      metadata: {
-        source: 'manual',
-        notes: options.notes,
-        tags: options.tags,
-      },
-    };
+    const profile: Profile = buildProfileRecord(
+      options,
+      pathResolution.userDataDir,
+      {
+        id: randomUUID(),
+        created: new Date().toISOString(),
+        color: this.generateRandomColor(),
+        slug: pathResolution.slug,
+        displayName:
+          options.displayName ?? generateProfileDisplayName(options.email),
+      }
+    );
 
     config.profiles.push(profile);
     await this.storage.save(config);
@@ -273,26 +248,7 @@ export class ProfileManager implements IProfileManager {
    * Validate an email address.
    */
   validateEmail(email: string): ValidationResult {
-    const errors: string[] = [];
-
-    if (!email || typeof email !== 'string') {
-      errors.push('Email must be a non-empty string');
-      return { valid: false, errors };
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      errors.push('Email format is invalid');
-    }
-
-    if (email.length > 254) {
-      errors.push('Email is too long (max 254 characters)');
-    }
-
-    return {
-      valid: errors.length === 0,
-      errors,
-    };
+    return validateProfileEmail(email);
   }
 
   /**
