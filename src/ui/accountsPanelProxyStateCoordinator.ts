@@ -3,7 +3,7 @@ import type { IProfileDetector } from '../domain/ports/IProfileDetector';
 import type { IProxyPanelRead } from '../domain/ports/IProxyPanelRead';
 import type { IProxySettingsBackupReader } from '../domain/ports/IProxySettingsBackupReader';
 
-export interface AccountsPanelProxyState {
+interface AccountsPanelProxyState {
   proxyStatus: ProxyStatus | null;
   currentWindowUsesProxy: boolean;
   profileProxyTemporary: Record<string, boolean>;
