@@ -6,6 +6,7 @@ import type { IProfileManager } from '../domain/ports/IProfileManager';
 import type { ProfileProxyEditUseCase } from '../application/services/profileProxyEditUseCase';
 import { ProfileExporter } from '../profiles/profileExporter';
 import { ProfileImporter } from '../profiles/profileImporter';
+import { buildProfileImportFeedback } from './profileImportFeedback';
 import type {
   CreateProfileOptions,
   FromWebviewMessage,
@@ -124,33 +125,11 @@ export class AccountsPanelProfileHandlers {
     extensionLog.info('[AccountsPanel] Import requested');
     const importer = new ProfileImporter(this.dependencies.profileManager);
     const result = await importer.importFromString(json, options);
+    const feedback = buildProfileImportFeedback(result, t);
 
-    const messages: string[] = [];
-    if (result.imported.length > 0) {
-      messages.push(t('panel.imported', { count: result.imported.length }));
-    }
-    if (result.skipped.length > 0) {
-      messages.push(t('panel.importSkipped', { count: result.skipped.length }));
-    }
-    if (result.errors.length > 0) {
-      messages.push(t('panel.importErrors', { count: result.errors.length }));
-    }
-
-    if (result.imported.length > 0 || result.skipped.length > 0) {
+    if (feedback.shouldRefresh) {
       await this.callbacks.refresh();
     }
-
-    if (result.success) {
-      await this.callbacks.postMessage({
-        type: 'success',
-        message: messages.join(', ') || t('panel.importCompleted'),
-      });
-    } else {
-      await this.callbacks.postMessage({
-        type: 'error',
-        message:
-          messages.join(', ') || t('panel.importCompletedWithErrors'),
-      });
-    }
+    await this.callbacks.postMessage(feedback.message);
   }
 }
