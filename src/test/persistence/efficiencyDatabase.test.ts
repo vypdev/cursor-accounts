@@ -107,6 +107,65 @@ describe('EfficiencyDatabase', () => {
     assert.ok(end.avgEfficiency < EFFICIENCY_SCORE_THRESHOLD);
   });
 
+  it('reads repository, branch, quota-phase, and trend projections', async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'eff-db-'));
+    const dbPath = path.join(tempDir, 'efficiency.db');
+    const db = new EfficiencyDatabase(dbPath, extensionPath);
+    await db.initialize();
+
+    const now = Math.floor(Date.now() / 1000);
+    await db.insertEvent(
+      makeEvent('profile-1', {
+        timestamp: (now - 3) * 1000,
+        scoredAt: (now - 3) * 1000,
+        quotaPercentUsed: 10,
+      })
+    );
+    await db.insertEvent(
+      makeEvent('profile-1', {
+        timestamp: (now - 2) * 1000,
+        scoredAt: (now - 2) * 1000,
+        quotaPercentUsed: 50,
+        branchName: 'feature/auth',
+      })
+    );
+    await db.insertEvent(
+      makeEvent('profile-1', {
+        timestamp: (now - 1) * 1000,
+        scoredAt: (now - 1) * 1000,
+        quotaPercentUsed: 80,
+        repositoryPath: '/repo/mobile-app',
+        branchName: 'develop',
+      })
+    );
+
+    assert.equal((await db.getEventsByRepository('profile-1', '/repo/web-app')).length, 2);
+    assert.equal(
+      (await db.getEventsByBranch('profile-1', '/repo/web-app', 'main')).length,
+      1
+    );
+    assert.equal(
+      (
+        await db.getEventsWithQuota('profile-1', {
+          fromTimestamp: now - 3,
+          toTimestamp: now,
+          limit: 2,
+        })
+      ).length,
+      2
+    );
+    assert.equal((await db.getEventsByQuotaPhase('profile-1', 'start')).length, 1);
+    assert.equal((await db.getEventsByQuotaPhase('profile-1', 'mid')).length, 1);
+    assert.equal((await db.getEventsByQuotaPhase('profile-1', 'end')).length, 1);
+
+    const trend = await db.getEfficiencyTrendByQuota('profile-1', 10);
+    assert.deepEqual(
+      trend.map((bucket) => bucket.quotaBucket),
+      [10, 50, 80]
+    );
+    assert.ok(trend.every((bucket) => bucket.count === 1));
+  });
+
   it('deletes old events and vacuums', async () => {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'eff-db-'));
     const dbPath = path.join(tempDir, 'efficiency.db');
