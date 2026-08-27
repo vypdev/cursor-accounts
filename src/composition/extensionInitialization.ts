@@ -7,6 +7,50 @@ import type { ExtensionRuntime } from './createExtensionRuntime';
 
 export type ActivationGuard = () => boolean;
 
+type CurrentWindowInitializationRuntime = Pick<
+  ExtensionRuntime,
+  'profileDetector' | 'proxyManager' | 'accountsPanel'
+>;
+
+async function initializeCurrentWindow(
+  runtime: CurrentWindowInitializationRuntime
+): Promise<void> {
+  const { profileDetector, proxyManager, accountsPanel } = runtime;
+  const currentProfile = await profileDetector.detectCurrentProfile();
+
+  if (currentProfile === null) {
+    // Intentionally disabled: an unassigned window does not imply that no
+    // other profile windows are active; restoring would wipe valid settings.
+  } else if (isProfileProxyEnabled(currentProfile)) {
+    await proxyManager.connectToExistingProxy(currentProfile.id);
+  }
+
+  const workspaceOpen = hasActiveWorkspace();
+  if (shouldAutoOpenAccountsPanel(currentProfile, workspaceOpen)) {
+    accountsPanel.openPanel();
+    if (currentProfile === null) {
+      extensionLog.info('[Extension] Unassigned window - accounts panel opened');
+      lifecycleLog.lifecycle('panel.startup-open.unassigned', {
+        panelOpen: accountsPanel.hasResolvedView(),
+        sinceActivateMs: lifecycleLog.sinceActivateMs(),
+      });
+    } else {
+      extensionLog.info(
+        `[Extension] Profile ${currentProfile.displayName} active with no project - accounts panel opened`
+      );
+      lifecycleLog.lifecycle('panel.startup-open.no-workspace', {
+        profileId: currentProfile.id,
+        panelOpen: accountsPanel.hasResolvedView(),
+        sinceActivateMs: lifecycleLog.sinceActivateMs(),
+      });
+    }
+  } else if (currentProfile) {
+    extensionLog.info(
+      `[Extension] Profile ${currentProfile.displayName} has an open project - panel not auto-opened`
+    );
+  }
+}
+
 /**
  * Initializes profile-dependent services after activation while preventing a
  * stale activation from mutating the current extension-host runtime.
@@ -70,37 +114,5 @@ export async function initializeExtensionRuntime(
     }
   }
 
-  const currentProfile = await profileDetector.detectCurrentProfile();
-
-  if (currentProfile === null) {
-    // Intentionally disabled: an unassigned window does not imply that no
-    // other profile windows are active; restoring would wipe valid settings.
-  } else if (isProfileProxyEnabled(currentProfile)) {
-    await proxyManager.connectToExistingProxy(currentProfile.id);
-  }
-
-  const workspaceOpen = hasActiveWorkspace();
-  if (shouldAutoOpenAccountsPanel(currentProfile, workspaceOpen)) {
-    accountsPanel.openPanel();
-    if (currentProfile === null) {
-      extensionLog.info('[Extension] Unassigned window - accounts panel opened');
-      lifecycleLog.lifecycle('panel.startup-open.unassigned', {
-        panelOpen: accountsPanel.hasResolvedView(),
-        sinceActivateMs: lifecycleLog.sinceActivateMs(),
-      });
-    } else {
-      extensionLog.info(
-        `[Extension] Profile ${currentProfile.displayName} active with no project - accounts panel opened`
-      );
-      lifecycleLog.lifecycle('panel.startup-open.no-workspace', {
-        profileId: currentProfile.id,
-        panelOpen: accountsPanel.hasResolvedView(),
-        sinceActivateMs: lifecycleLog.sinceActivateMs(),
-      });
-    }
-  } else if (currentProfile) {
-    extensionLog.info(
-      `[Extension] Profile ${currentProfile.displayName} has an open project - panel not auto-opened`
-    );
-  }
+  await initializeCurrentWindow({ profileDetector, proxyManager, accountsPanel });
 }
