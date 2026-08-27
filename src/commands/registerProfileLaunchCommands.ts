@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { t } from '../l10n';
+import { buildProfileLaunchQuickPickItems } from './profileLaunchPresentation';
 import type { ProfileCommandDeps } from './profileCommandDeps';
 
 /** Registers profile launch command. */
@@ -26,16 +27,15 @@ export function registerProfileLaunchCommands(
         }
 
         const selected = await vscode.window.showQuickPick(
-          profiles.map((p) => ({
-            label: p.displayName,
-            description: p.email,
-            detail: t('commands.launchProfile.lastLaunched', {
-              date: p.lastLaunched
-                ? new Date(p.lastLaunched).toLocaleString()
-                : t('commands.launchProfile.lastLaunchedNever'),
-            }),
-            profile: p,
-          })),
+          buildProfileLaunchQuickPickItems(
+            profiles,
+            {
+              lastLaunched: (date) =>
+                t('commands.launchProfile.lastLaunched', { date }),
+              lastLaunchedNever: t('commands.launchProfile.lastLaunchedNever'),
+            },
+            (date) => new Date(date).toLocaleString()
+          ),
           {
             placeHolder: t('commands.launchProfile.selectPlaceholder'),
           }
