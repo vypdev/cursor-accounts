@@ -1,18 +1,13 @@
 import * as vscode from 'vscode';
 import * as extensionLog from '../logging/extensionLog';
-import { isEnterpriseUsage } from '../domain';
 import type { QuotaUsage } from '../domain';
 import type { IProfileDetector } from '../domain/ports/IProfileDetector';
 import { getCursorAccountsConfig } from '../config';
-import { t } from '../l10n';
 import type { Profile } from '../profiles/types';
 import {
-  buildQuotaText,
-  buildQuotaTooltip,
-  getProgressPercent,
-  getStatusBarBackground,
-} from './statusBarPresentation';
-import { appendProfileSuffix } from '../utils/statusBarLabel';
+  resolveStatusBarDisplay,
+  type StatusBarDisplay,
+} from './statusBarDisplayPolicy';
 
 const QUOTA_ITEM_PRIORITY = 100;
 
@@ -95,124 +90,42 @@ export class StatusBarManager {
 
   private refreshDisplay(usageOverride?: QuotaUsage): void {
     const cfg = getCursorAccountsConfig();
-    const showProfileName = cfg.showProfileInStatusBar;
-    const profileName = this.activeProfile?.displayName;
+    const display = resolveStatusBarDisplay({
+      activeProfile: this.activeProfile,
+      cachedUsage: usageOverride ?? this.readCache(),
+      quotaLoading: this.quotaLoading,
+      quotaError: this.quotaError,
+      showProfileName: cfg.showProfileInStatusBar,
+      showIncluded: cfg.showIncluded,
+      showTotal: cfg.showTotal,
+      showAccountEmail: cfg.showAccountEmail,
+    });
+    this.renderDisplay(display);
+  }
 
+  private renderDisplay(display: StatusBarDisplay): void {
     this.quotaItem.command = 'cursorAccounts.openAccounts';
 
-    if (!this.activeProfile) {
-      this.showItem(
-        `$(account) ${t('statusBar.selectAccount')}`,
-        t('statusBar.selectAccountTooltip')
-      );
-      return;
-    }
-
-    const cached = usageOverride ?? this.readCache();
-    const isEnterprise = cached ? isEnterpriseUsage(cached) : false;
-    const showQuota = isEnterprise ? cfg.showTotal : cfg.showTotal || cfg.showIncluded;
-
-    if (!showQuota && !showProfileName) {
+    if (display.kind === 'hidden') {
       this.quotaItem.hide();
       return;
     }
 
-    if (!showQuota) {
-      this.showItem(
-        `$(account) ${profileName}`,
-        this.buildProfileTooltip(this.activeProfile)
-      );
-      return;
-    }
-
-    if (this.quotaLoading) {
-      this.showLoadingState(isEnterprise, profileName, showProfileName);
-      return;
-    }
-
-    if (this.quotaError) {
-      this.showErrorState(profileName, showProfileName);
-      return;
-    }
-
-    if (!cached) {
-      this.quotaItem.hide();
-      return;
-    }
-
-    this.showQuota(cached, profileName, showProfileName, cfg.showAccountEmail);
-  }
-
-  private showLoadingState(
-    isEnterprise: boolean,
-    profileName: string | undefined,
-    showProfileName: boolean
-  ): void {
-    const base = isEnterprise
-      ? t('statusBar.loadingMonthlyUsage')
-      : t('statusBar.loadingUsage');
-    const tooltip = isEnterprise
-      ? t('statusBar.loadingMonthlyUsageTooltip')
-      : t('statusBar.loadingUsageTooltip');
-    this.showItem(
-      appendProfileSuffix(base, profileName, showProfileName),
-      tooltip
-    );
-  }
-
-  private showErrorState(
-    profileName: string | undefined,
-    showProfileName: boolean
-  ): void {
-    this.showItem(
-      appendProfileSuffix(
-        t('statusBar.quotaUnavailable'),
-        profileName,
-        showProfileName
-      ),
-      this.quotaError ?? '',
-      new vscode.ThemeColor('statusBarItem.warningBackground')
-    );
-  }
-
-  private showQuota(
-    cached: QuotaUsage,
-    profileName: string | undefined,
-    showProfileName: boolean,
-    showAccountEmail: boolean
-  ): void {
-    this.quotaItem.text = buildQuotaText(cached, profileName, showProfileName);
-    const tooltip = new vscode.MarkdownString(
-      buildQuotaTooltip(cached, showAccountEmail),
-      true
-    );
-    tooltip.isTrusted = true;
-    this.quotaItem.tooltip = tooltip;
-    const background = getStatusBarBackground(
-      getProgressPercent(cached)
-    );
-    this.quotaItem.backgroundColor = background
-      ? new vscode.ThemeColor(`statusBarItem.${background}Background`)
+    this.quotaItem.text = display.text;
+    this.quotaItem.tooltip =
+      display.tooltipKind === 'markdown'
+        ? this.createMarkdownTooltip(display.tooltip)
+        : display.tooltip;
+    this.quotaItem.backgroundColor = display.background
+      ? new vscode.ThemeColor(`statusBarItem.${display.background}Background`)
       : undefined;
     this.quotaItem.show();
   }
 
-  private showItem(
-    text: string,
-    tooltip: string | vscode.MarkdownString,
-    backgroundColor?: vscode.ThemeColor
-  ): void {
-    this.quotaItem.text = text;
-    this.quotaItem.tooltip = tooltip;
-    this.quotaItem.backgroundColor = backgroundColor;
-    this.quotaItem.show();
-  }
-
-  private buildProfileTooltip(profile: Profile): string | vscode.MarkdownString {
-    return t('statusBar.profileActiveTooltip', {
-      name: profile.displayName,
-      email: profile.email,
-    });
+  private createMarkdownTooltip(markdown: string): vscode.MarkdownString {
+    const tooltip = new vscode.MarkdownString(markdown, true);
+    tooltip.isTrusted = true;
+    return tooltip;
   }
 
   private readCache(): QuotaUsage | undefined {
