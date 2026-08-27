@@ -40,6 +40,35 @@ describe('ProxyStateFileStore', () => {
     const read = await store.read(tempDir);
     assert.deepEqual(read, state);
     assert.equal(store.getStatePath(tempDir), path.join(tempDir, 'proxy-state.json'));
+
+    const fileStats = await fs.stat(store.getStatePath(tempDir));
+    assert.equal(fileStats.mode & 0o777, 0o600);
+  });
+
+  it('supports concurrent writes without colliding temporary files', async () => {
+    const states = [
+      {
+        version: 1,
+        profileId: 'profile-a',
+        running: true,
+        port: 8080,
+        lastUpdatedAt: '2026-08-27T00:00:00.000Z',
+      },
+      {
+        version: 1,
+        profileId: 'profile-a',
+        running: false,
+        apiPort: 18_080,
+        lastUpdatedAt: '2026-08-27T00:00:01.000Z',
+      },
+    ];
+
+    await Promise.all(states.map((state) => store.write(tempDir, state)));
+
+    const read = await store.read(tempDir);
+    assert.ok(read);
+    assert.equal(read.profileId, 'profile-a');
+    assert.deepEqual(await fs.readdir(tempDir), ['proxy-state.json']);
   });
 
   it('returns null for corrupted JSON', async () => {

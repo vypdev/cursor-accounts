@@ -1,8 +1,10 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { randomUUID } from 'node:crypto';
 import type { ProxyStateFile } from '@cursor-accounts/types';
 import { z } from 'zod';
 import type { IProxyStateStore } from '../domain/ports/IProxyStateStore';
+import { isNotFoundError } from '../utils/fileSystemErrors';
 import {
   PROXY_STATE_FILE_NAME,
   PROXY_STATE_SCHEMA_VERSION,
@@ -49,14 +51,7 @@ export class ProxyStateFileStore implements IProxyStateStore {
         return null;
       }
       return result.data;
-    } catch (error) {
-      if (
-        error instanceof Error &&
-        'code' in error &&
-        (error as NodeJS.ErrnoException).code === 'ENOENT'
-      ) {
-        return null;
-      }
+    } catch {
       return null;
     }
   }
@@ -68,20 +63,15 @@ export class ProxyStateFileStore implements IProxyStateStore {
     });
 
     const statePath = this.getStatePath(userDataDir);
-    await fs.mkdir(path.dirname(statePath), { recursive: true });
-
-    const tempPath = `${statePath}.${process.pid}.tmp`;
+    const tempPath = createTempStatePath(statePath);
     const content = JSON.stringify(validated, null, 2);
 
     try {
+      await fs.mkdir(path.dirname(statePath), { recursive: true });
       await fs.writeFile(tempPath, content, { encoding: 'utf-8', mode: 0o600 });
       await fs.rename(tempPath, statePath);
     } catch (error) {
-      try {
-        await fs.unlink(tempPath);
-      } catch {
-        // ignore cleanup failure
-      }
+      await removeTempStateFile(tempPath);
       throw new ProxyStateFileStoreError(
         'Failed to write proxy state file',
         error instanceof Error ? error : undefined
@@ -94,11 +84,7 @@ export class ProxyStateFileStore implements IProxyStateStore {
     try {
       await fs.unlink(statePath);
     } catch (error) {
-      if (
-        error instanceof Error &&
-        'code' in error &&
-        (error as NodeJS.ErrnoException).code === 'ENOENT'
-      ) {
+      if (isNotFoundError(error)) {
         return;
       }
       throw new ProxyStateFileStoreError(
@@ -106,5 +92,17 @@ export class ProxyStateFileStore implements IProxyStateStore {
         error instanceof Error ? error : undefined
       );
     }
+  }
+}
+
+function createTempStatePath(statePath: string): string {
+  return `${statePath}.${process.pid}.${randomUUID()}.tmp`;
+}
+
+async function removeTempStateFile(tempPath: string): Promise<void> {
+  try {
+    await fs.unlink(tempPath);
+  } catch {
+    // A failed cleanup must not hide the original persistence error.
   }
 }
