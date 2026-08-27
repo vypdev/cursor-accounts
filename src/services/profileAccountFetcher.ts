@@ -55,12 +55,24 @@ export class ProfileAccountFetcher {
     profileId?: string
   ): Promise<ProfileAccountView | null> {
     const id = profileId ?? '__active__';
+    return this.fetchAccountForUserDataDir(
+      id,
+      userDataDir,
+      'No authentication tokens found.'
+    );
+  }
+
+  private async fetchAccountForUserDataDir(
+    profileId: string,
+    userDataDir: string,
+    missingTokensMessage: string
+  ): Promise<ProfileAccountView> {
 
     try {
       const pathValidation = validateUserDataPath(userDataDir);
       if (!pathValidation.valid) {
         return {
-          profileId: id,
+          profileId,
           error: pathValidation.error ?? 'Invalid profile path',
           fetchedAt: Date.now(),
         };
@@ -70,18 +82,18 @@ export class ProfileAccountFetcher {
 
       if (!tokens?.accessToken) {
         return {
-          profileId: id,
-          error: 'No authentication tokens found.',
+          profileId,
+          error: missingTokensMessage,
           fetchedAt: Date.now(),
         };
       }
 
-      return await this.fetchFromToken(id, tokens.accessToken);
+      return await this.fetchFromToken(profileId, tokens.accessToken);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Unknown error';
       return {
-        profileId: id,
+        profileId,
         error: this.toAuthErrorMessage(message),
         fetchedAt: Date.now(),
       };
@@ -91,36 +103,11 @@ export class ProfileAccountFetcher {
   private async fetchAccountForProfile(
     profile: Profile
   ): Promise<ProfileAccountView> {
-    try {
-      const pathValidation = validateUserDataPath(profile.userDataDir);
-      if (!pathValidation.valid) {
-        return {
-          profileId: profile.id,
-          error: pathValidation.error ?? 'Invalid profile path',
-          fetchedAt: Date.now(),
-        };
-      }
-
-      const tokens = await this.authReader.readTokens(profile.userDataDir);
-
-      if (!tokens?.accessToken) {
-        return {
-          profileId: profile.id,
-          error: 'No authentication tokens found. Launch profile to sign in.',
-          fetchedAt: Date.now(),
-        };
-      }
-
-      return await this.fetchFromToken(profile.id, tokens.accessToken);
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Unknown error';
-      return {
-        profileId: profile.id,
-        error: this.toAuthErrorMessage(message),
-        fetchedAt: Date.now(),
-      };
-    }
+    return this.fetchAccountForUserDataDir(
+      profile.id,
+      profile.userDataDir,
+      'No authentication tokens found. Launch profile to sign in.'
+    );
   }
 
   private async fetchFromToken(
