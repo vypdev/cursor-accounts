@@ -1,18 +1,11 @@
-import * as fs from 'fs/promises';
-import * as path from 'path';
-import { createWriteStream } from 'fs';
-import type { WriteStream } from 'fs';
 import { captureBodyForLog } from './bodyCapture';
+import { ProxyLogStorage } from './proxyLogStorage';
 import { DEFAULT_MAX_BODY_LOG_BYTES, type ProxyLogEntry } from './types';
-import { isNotFoundError } from '../utils/fileSystemErrors';
 import {
   isConnectRpcContentType,
   isCursorHost,
   normalizeHeaders,
 } from './utils/proxyRequestMetadata';
-
-const LOG_FILE_PREFIX = 'proxy-';
-const LOG_FILE_EXT = '.jsonl';
 
 export interface RequestLoggerOptions {
   maxBodyLogBytes?: number;
@@ -23,75 +16,37 @@ export interface RequestLoggerOptions {
  * Append-only JSON Lines logger for intercepted proxy traffic.
  */
 export class RequestLogger {
-  private writeStream: WriteStream | null = null;
-  private currentLogPath: string | null = null;
-  private writeChain: Promise<void> = Promise.resolve();
-  private totalBytesWritten = 0;
+  private readonly storage: ProxyLogStorage;
   private readonly maxBodyLogBytes: number;
   private readonly spillLargeBodies: boolean;
 
   constructor(
     private readonly logDir: string,
-    private readonly maxTotalSizeBytes: number,
+    maxTotalSizeBytes: number,
     options: RequestLoggerOptions = {}
   ) {
+    this.storage = new ProxyLogStorage(logDir, maxTotalSizeBytes);
     this.maxBodyLogBytes = options.maxBodyLogBytes ?? DEFAULT_MAX_BODY_LOG_BYTES;
     this.spillLargeBodies = options.spillLargeBodies !== false;
   }
 
   async initialize(): Promise<void> {
-    await this.writeChain;
-    await fs.mkdir(this.logDir, { recursive: true });
-    await fs.mkdir(path.join(this.logDir, 'bodies'), { recursive: true });
-    await this.rotateIfNeeded();
-    this.openNewLogFile();
+    await this.storage.initialize();
   }
 
   /**
    * Queue a log entry (serialized writes).
    */
   log(entry: ProxyLogEntry): void {
-    const line = `${JSON.stringify(entry)}\n`;
-    this.writeChain = this.writeChain.then(async () => {
-      if (!this.writeStream) {
-        this.openNewLogFile();
-      }
-      await new Promise<void>((resolve, reject) => {
-        if (!this.writeStream) {
-          resolve();
-          return;
-        }
-        this.writeStream.write(line, (err) => {
-          if (err) {
-            reject(err);
-          } else {
-            this.totalBytesWritten += Buffer.byteLength(line, 'utf8');
-            resolve();
-          }
-        });
-      });
-      if (this.totalBytesWritten >= this.maxTotalSizeBytes) {
-        await this.rotateIfNeeded();
-      }
-    });
+    this.storage.append(`${JSON.stringify(entry)}\n`);
   }
 
   async close(): Promise<void> {
-    await this.writeChain;
-    await this.closeStream();
-  }
-
-  private async closeStream(): Promise<void> {
-    if (this.writeStream) {
-      await new Promise<void>((resolve) => {
-        this.writeStream?.end(() => resolve());
-      });
-      this.writeStream = null;
-    }
+    await this.storage.close();
   }
 
   getLogDirectory(): string {
-    return this.logDir;
+    return this.storage.getLogDirectory();
   }
 
   formatBody(
@@ -122,107 +77,4 @@ export class RequestLogger {
   static normalizeHeaders = normalizeHeaders;
   static isConnectRpcContentType = isConnectRpcContentType;
   static isCursorHost = isCursorHost;
-
-  private openNewLogFile(): void {
-    const date = new Date().toISOString().slice(0, 10);
-    const fileName = `${LOG_FILE_PREFIX}${date}-${Date.now()}${LOG_FILE_EXT}`;
-    this.currentLogPath = path.join(this.logDir, fileName);
-    this.writeStream = createWriteStream(this.currentLogPath, { flags: 'a' });
-    this.totalBytesWritten = 0;
-  }
-
-  private async rotateIfNeeded(): Promise<void> {
-    if (this.writeStream) {
-      // This method is also called from the serialized write chain. Calling
-      // close() here would await the chain currently executing and deadlock.
-      await this.closeStream();
-    }
-
-    const files = await this.listLogFiles();
-    let totalSize = await this.totalStorageBytes(files);
-
-    while (totalSize > this.maxTotalSizeBytes && files.length > 0) {
-      const oldest = files.shift();
-      if (!oldest) {
-        break;
-      }
-      const stat = await fs.stat(oldest);
-      await fs.unlink(oldest);
-      totalSize -= stat.size;
-    }
-
-    if (totalSize > this.maxTotalSizeBytes) {
-      await this.pruneOldestBodyFiles(totalSize);
-    }
-  }
-
-  private async totalStorageBytes(jsonlFiles: string[]): Promise<number> {
-    let totalSize = 0;
-    for (const file of jsonlFiles) {
-      totalSize += (await fs.stat(file)).size;
-    }
-    const bodiesDir = path.join(this.logDir, 'bodies');
-    try {
-      const bodyFiles = await fs.readdir(bodiesDir);
-      for (const name of bodyFiles) {
-        totalSize += (await fs.stat(path.join(bodiesDir, name))).size;
-      }
-    } catch (error) {
-      if (!isNotFoundError(error)) {
-        throw error;
-      }
-    }
-    return totalSize;
-  }
-
-  private async pruneOldestBodyFiles(currentTotal: number): Promise<void> {
-    const bodiesDir = path.join(this.logDir, 'bodies');
-    let entries: { path: string; mtime: number; size: number }[];
-    try {
-      const names = await fs.readdir(bodiesDir);
-      entries = await Promise.all(
-        names.map(async (name) => {
-          const p = path.join(bodiesDir, name);
-          const stat = await fs.stat(p);
-          return { path: p, mtime: stat.mtimeMs, size: stat.size };
-        })
-      );
-    } catch (error) {
-      if (!isNotFoundError(error)) {
-        throw error;
-      }
-      return;
-    }
-    entries.sort((a, b) => a.mtime - b.mtime);
-    let total = currentTotal;
-    for (const entry of entries) {
-      if (total <= this.maxTotalSizeBytes) {
-        break;
-      }
-      await fs.unlink(entry.path);
-      total -= entry.size;
-    }
-  }
-
-  private async listLogFiles(): Promise<string[]> {
-    try {
-      const entries = await fs.readdir(this.logDir);
-      const paths = entries
-        .filter((e) => e.startsWith(LOG_FILE_PREFIX) && e.endsWith(LOG_FILE_EXT))
-        .map((e) => path.join(this.logDir, e));
-      const withStats = await Promise.all(
-        paths.map(async (p) => ({
-          path: p,
-          mtime: (await fs.stat(p)).mtimeMs,
-        }))
-      );
-      withStats.sort((a, b) => a.mtime - b.mtime);
-      return withStats.map((x) => x.path);
-    } catch (error) {
-      if (!isNotFoundError(error)) {
-        throw error;
-      }
-      return [];
-    }
-  }
 }
