@@ -9,6 +9,14 @@ const DATA_PREVIEW_MAX = 240;
 /** Reject turn_ended fields above this (guards UTF-8-corrupted JSONL replay). */
 export const MAX_SANE_TURN_TOKENS = 50_000_000;
 
+type TurnEndedUsage = {
+  inputTokens?: number;
+  outputTokens?: number;
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
+  totalCents?: number;
+};
+
 function previewDataField(value: unknown): string | undefined {
   if (typeof value !== 'string' || value.length === 0) {
     return undefined;
@@ -23,74 +31,86 @@ function previewDataField(value: unknown): string | undefined {
   return `${trimmed.slice(0, DATA_PREVIEW_MAX)}…`;
 }
 
-function dataBinaryByteLength(value: unknown): number | undefined {
-  if (value == null) {
-    return undefined;
-  }
-  if (typeof value === 'string') {
-    return value.length;
-  }
-  if (value instanceof Uint8Array || Buffer.isBuffer(value)) {
-    return value.length;
-  }
-  if (Array.isArray(value)) {
-    return value.length;
-  }
-  if (typeof value === 'object' && value !== null && 'length' in value) {
-    const n = Number(value.length);
-    return Number.isFinite(n) ? n : undefined;
-  }
-  return undefined;
+function hasLength(value: unknown): value is { length: number } {
+  return Boolean(
+    typeof value === 'string' ||
+      value instanceof Uint8Array ||
+      Array.isArray(value) ||
+      (typeof value === 'object' && value !== null && 'length' in value)
+  );
 }
 
-function pickTurnEnded(value: unknown): {
-  inputTokens?: number;
-  outputTokens?: number;
-  cacheReadTokens?: number;
-  cacheWriteTokens?: number;
-  totalCents?: number;
-} | null {
+function dataBinaryByteLength(value: unknown): number | undefined {
+  if (!hasLength(value)) {
+    return undefined;
+  }
+  const length = Number(value.length);
+  return Number.isFinite(length) ? length : undefined;
+}
+
+function pickNumericField(
+  record: Record<string, unknown>,
+  camel: string,
+  snake: string
+): number | undefined {
+  return asNumber(record[camel] ?? record[snake]);
+}
+
+function hasSaneTokenCounts(turn: TurnEndedUsage): boolean {
+  return [
+    turn.inputTokens,
+    turn.outputTokens,
+    turn.cacheReadTokens,
+    turn.cacheWriteTokens,
+  ].every(
+    (tokens) => tokens == null || tokens <= MAX_SANE_TURN_TOKENS
+  );
+}
+
+function hasTurnEndedUsage(turn: TurnEndedUsage): boolean {
+  return Object.values(turn).some((value) => value != null);
+}
+
+function pickTurnEnded(value: unknown): TurnEndedUsage | null {
   if (!value || typeof value !== 'object') {
     return null;
   }
   const record = value as Record<string, unknown>;
-  const inputTokens = asNumber(record.inputTokens ?? record.input_tokens);
-  const outputTokens = asNumber(record.outputTokens ?? record.output_tokens);
-  const cacheReadTokens = asNumber(
-    record.cacheReadTokens ?? record.cache_read_tokens
-  );
-  const cacheWriteTokens = asNumber(
-    record.cacheWriteTokens ?? record.cache_write_tokens
-  );
-  const totalCents = asNumber(record.totalCents ?? record.total_cents);
-  if (inputTokens != null && inputTokens > MAX_SANE_TURN_TOKENS) {
-    return null;
-  }
-  if (outputTokens != null && outputTokens > MAX_SANE_TURN_TOKENS) {
-    return null;
-  }
-  if (cacheReadTokens != null && cacheReadTokens > MAX_SANE_TURN_TOKENS) {
-    return null;
-  }
-  if (cacheWriteTokens != null && cacheWriteTokens > MAX_SANE_TURN_TOKENS) {
-    return null;
-  }
-  if (
-    inputTokens == null &&
-    outputTokens == null &&
-    cacheReadTokens == null &&
-    cacheWriteTokens == null &&
-    totalCents == null
-  ) {
-    return null;
-  }
-  return {
-    inputTokens,
-    outputTokens,
-    cacheReadTokens,
-    cacheWriteTokens,
-    totalCents,
+  const turn: TurnEndedUsage = {
+    inputTokens: pickNumericField(record, 'inputTokens', 'input_tokens'),
+    outputTokens: pickNumericField(record, 'outputTokens', 'output_tokens'),
+    cacheReadTokens: pickNumericField(
+      record,
+      'cacheReadTokens',
+      'cache_read_tokens'
+    ),
+    cacheWriteTokens: pickNumericField(
+      record,
+      'cacheWriteTokens',
+      'cache_write_tokens'
+    ),
+    totalCents: pickNumericField(record, 'totalCents', 'total_cents'),
   };
+  if (!hasSaneTokenCounts(turn) || !hasTurnEndedUsage(turn)) {
+    return null;
+  }
+  return turn;
+}
+
+function hasSessionData(
+  fields: Pick<
+    AgentSessionInfo,
+    'requestId' | 'appendSeqno' | 'pollSeqno' | 'eof' | 'dataPreview' | 'dataBytes'
+  >
+): boolean {
+  return Boolean(
+    fields.requestId ||
+      fields.appendSeqno != null ||
+      fields.pollSeqno != null ||
+      fields.eof ||
+      fields.dataPreview ||
+      fields.dataBytes != null
+  );
 }
 
 /** Extract usage from nested AgentServerMessage / AgentClientMessage (Bidi `data`). */
@@ -186,12 +206,14 @@ export function extractAgentSessionInfo(
   );
 
   if (
-    !requestId &&
-    appendSeqno == null &&
-    pollSeqno == null &&
-    !eof &&
-    !dataPreview &&
-    dataBytes == null
+    !hasSessionData({
+      requestId,
+      appendSeqno,
+      pollSeqno,
+      eof,
+      dataPreview,
+      dataBytes,
+    })
   ) {
     return null;
   }
