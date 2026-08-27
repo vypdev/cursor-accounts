@@ -7,6 +7,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import zlib from 'node:zlib';
 import {
+  classifyVerificationEntry,
   connectPayloadCandidates,
   evaluateProtoEntry,
   jsonKeysMatchProto,
@@ -59,6 +60,35 @@ test('connectPayloadCandidates recognizes raw and Connect length-prefixed payloa
   assert.deepEqual(candidates[2], Buffer.alloc(0));
 });
 
+test('classifyVerificationEntry isolates route and body-format decisions', () => {
+  assert.deepEqual(
+    classifyVerificationEntry({ direction: 'metadata', url: `https://api.test${RPC_PATH}` }),
+    { kind: 'ignore' }
+  );
+  assert.deepEqual(
+    classifyVerificationEntry({ direction: 'request', url: 'https://api.test/not-connect' }),
+    { kind: 'non_connect' }
+  );
+  assert.deepEqual(
+    classifyVerificationEntry({
+      direction: 'response',
+      url: `https://api.test${RPC_PATH}`,
+      headers: {
+        'content-type': 'application/proto',
+        'content-encoding': 'gzip',
+      },
+    }),
+    {
+      kind: 'connect',
+      rpcPath: RPC_PATH,
+      rpcMethod: 'TestMethod',
+      key: 'TestMethod:response',
+      contentType: 'application/proto',
+      contentEncoding: 'gzip',
+    }
+  );
+});
+
 test('prepareBody inflates gzip and safely retains invalid gzip', () => {
   const body = Buffer.from('payload');
   assert.deepEqual(prepareBody(zlib.gzipSync(body), 'gzip'), body);
@@ -89,11 +119,13 @@ test('evaluateProtoEntry returns pure success and recovery outcomes', () => {
 
   assert.deepEqual(
     evaluateProtoEntry(
-      { bodyTruncated: true, bodyRawBytes: 12 },
-      Type,
-      file,
-      null,
-      ''
+      {
+        entry: { bodyTruncated: true, bodyRawBytes: 12 },
+        Type,
+        file,
+        body: null,
+        contentEncoding: '',
+      }
     ),
     {
       ok: false,
@@ -102,13 +134,13 @@ test('evaluateProtoEntry returns pure success and recovery outcomes', () => {
     }
   );
 
-  const decoded = evaluateProtoEntry(
-    { bodyDecompressed: true },
+  const decoded = evaluateProtoEntry({
+    entry: { bodyDecompressed: true },
     Type,
     file,
-    framedPayload(payload),
-    ''
-  );
+    body: framedPayload(payload),
+    contentEncoding: '',
+  });
   assert.deepEqual(decoded, {
     ok: true,
     gzip: false,

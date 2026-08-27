@@ -104,6 +104,15 @@ export function jsonKeysMatchProto(obj, Type) {
  */
 
 /**
+ * @typedef ProtoEntryContext
+ * @property {Record<string, unknown>} entry
+ * @property {import('protobufjs').Type} Type
+ * @property {string} file
+ * @property {Buffer | null} body
+ * @property {string} contentEncoding
+ */
+
+/**
  * @typedef VerificationReport
  * @property {string[]} files
  * @property {Map<string, MethodStats>} byMethod
@@ -246,7 +255,13 @@ function verifyJsonEntry({ entry, Type, stats, dashboard, report, file, body }) 
  * @param {string} contentEncoding
  * @returns {ProtoEntryEvaluation}
  */
-export function evaluateProtoEntry(entry, Type, file, body, contentEncoding) {
+export function evaluateProtoEntry({
+  entry,
+  Type,
+  file,
+  body,
+  contentEncoding,
+}) {
   const gzip = contentEncoding.includes('gzip');
   if (entry.bodyTruncated) {
     return {
@@ -296,11 +311,7 @@ function verifyProtoEntry({
   contentEncoding = '',
 }) {
   const evaluation = evaluateProtoEntry(
-    entry,
-    Type,
-    file,
-    body,
-    contentEncoding
+    { entry, Type, file, body, contentEncoding }
   );
   if (evaluation.gzip) stats.gzip++;
   recordResult(stats, dashboard, evaluation.ok);
@@ -315,26 +326,54 @@ function verifyProtoEntry({
   }
 }
 
-/** @param {{ entry: Record<string, unknown>, file: string, runtime: VerificationRuntime }} context */
-function verifyEntry({ entry, file, runtime: { logDir, rpcMap, report } }) {
+/**
+ * Classify the route and body format of one capture entry without side effects.
+ *
+ * @param {Record<string, unknown>} entry
+ * @returns {{ kind: 'ignore' } | { kind: 'non_connect' } | { kind: 'connect', rpcPath: string, rpcMethod: string, key: string, contentType: string, contentEncoding: string }}
+ */
+export function classifyVerificationEntry(entry) {
   if (entry.direction !== 'request' && entry.direction !== 'response') {
-    return;
+    return { kind: 'ignore' };
   }
+
   const rpcPath = parseConnectRpcPath(String(entry.url ?? ''));
   if (!rpcPath) {
+    return { kind: 'non_connect' };
+  }
+
+  const direction = String(entry.direction);
+  const rpcMethod = rpcPath.split('/').pop() ?? rpcPath;
+  return {
+    kind: 'connect',
+    rpcPath,
+    rpcMethod,
+    key: `${rpcMethod}:${direction}`,
+    contentType: String(entry.headers?.['content-type'] ?? '').toLowerCase(),
+    contentEncoding: String(
+      entry.headers?.['content-encoding'] ?? ''
+    ).toLowerCase(),
+  };
+}
+
+/** @param {{ entry: Record<string, unknown>, file: string, runtime: VerificationRuntime }} context */
+function verifyEntry({ entry, file, runtime: { logDir, rpcMap, report } }) {
+  const route = classifyVerificationEntry(entry);
+  if (route.kind === 'ignore') {
+    return;
+  }
+  if (route.kind === 'non_connect') {
     report.skippedNonConnect++;
     return;
   }
 
   report.totalEntries++;
-  const rpcMethod = rpcPath.split('/').pop() ?? rpcPath;
-  const key = `${rpcMethod}:${entry.direction}`;
-  const stats = methodStatsFor(report.byMethod, key);
-  const dashboard = dashboardStatsFor(report.dashboard, rpcMethod);
-  const Type = resolveRpcMessageType(rpcPath, entry.direction, rpcMap);
+  const stats = methodStatsFor(report.byMethod, route.key);
+  const dashboard = dashboardStatsFor(report.dashboard, route.rpcMethod);
+  const Type = resolveRpcMessageType(route.rpcPath, entry.direction, rpcMap);
   if (!Type) {
     recordResult(stats, dashboard, false);
-    addSample(stats.samples, `no proto types for ${rpcPath} (${file})`);
+    addSample(stats.samples, `no proto types for ${route.rpcPath} (${file})`);
     return;
   }
 
@@ -346,19 +385,15 @@ function verifyEntry({ entry, file, runtime: { logDir, rpcMap, report } }) {
     return;
   }
 
-  const contentType = String(entry.headers?.['content-type'] ?? '').toLowerCase();
-  const contentEncoding = String(
-    entry.headers?.['content-encoding'] ?? ''
-  ).toLowerCase();
-  if (contentType.includes('json')) {
+  if (route.contentType.includes('json')) {
     verifyJsonEntry({ entry, Type, stats, dashboard, report, file, body });
     return;
   }
-  if (!contentType.includes('proto')) {
+  if (!route.contentType.includes('proto')) {
     recordResult(stats, dashboard, false);
     addSample(
       stats.samples,
-      `unexpected content-type: ${contentType || '(none)'} (${file})`
+      `unexpected content-type: ${route.contentType || '(none)'} (${file})`
     );
     return;
   }
@@ -371,7 +406,7 @@ function verifyEntry({ entry, file, runtime: { logDir, rpcMap, report } }) {
     report,
     file,
     body,
-    contentEncoding,
+    contentEncoding: route.contentEncoding,
   });
 }
 
