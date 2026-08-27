@@ -1,5 +1,10 @@
 import * as vscode from 'vscode';
 import type { PromptMetadata, ScoringResult } from './types';
+import {
+  buildEfficiencyAnalysisPresentation,
+  buildEfficiencyErrorLines,
+  type EfficiencyOutputLabels,
+} from './efficiencyOutputPresentation';
 import { t } from '../l10n';
 
 export interface ModelEfficiencyConfig {
@@ -16,6 +21,35 @@ export function getModelEfficiencyConfig(): ModelEfficiencyConfig {
     ),
     autoShowOutputChannel: cfg.get<boolean>('autoShowOutputChannel', false),
   };
+}
+
+function getEfficiencyOutputLabels(): EfficiencyOutputLabels {
+  return {
+    errorTitle: t('efficiency.output.errorTitle'),
+    promptLabel: t('efficiency.output.promptLabel'),
+    modelLabel: t('efficiency.output.modelLabel'),
+    errorLabel: t('efficiency.output.errorLabel'),
+    analysisTitle: t('efficiency.output.analysisTitle'),
+    selectedModel: (model) =>
+      t('efficiency.output.selectedModel', { model }),
+    taskType: (type) => t('efficiency.output.taskType', { type }),
+    efficiencyScore: (score) =>
+      t('efficiency.output.efficiencyScore', { score }),
+    severity: (severity) => t('efficiency.output.severity', { severity }),
+    confidence: (confidence) =>
+      t('efficiency.output.confidence', { confidence }),
+    notice: (opinion) => t('efficiency.output.notice', { opinion }),
+    recommendation: (model) =>
+      t('efficiency.output.recommendation', { model }),
+    modelAdequate: t('efficiency.output.modelAdequate'),
+    inefficientNotification: (opinion) =>
+      t('efficiency.output.inefficientNotification', { opinion }),
+    viewDetails: t('efficiency.output.viewDetails'),
+  };
+}
+
+function formatTime(timestamp: number): string {
+  return new Date(timestamp).toLocaleTimeString();
 }
 
 export class OutputPresenter {
@@ -36,99 +70,51 @@ export class OutputPresenter {
   }
 
   appendStatus(message: string): void {
-    this.channel.appendLine(
-      `[${new Date().toLocaleTimeString()}] ${message}`
-    );
+    this.channel.appendLine(`[${formatTime(Date.now())}] ${message}`);
   }
 
   presentError(message: string, metadata?: PromptMetadata): void {
-    this.channel.appendLine('═'.repeat(60));
-    this.channel.appendLine(
-      `[${new Date().toLocaleTimeString()}] ${t('efficiency.output.errorTitle')}`
+    const lines = buildEfficiencyErrorLines(
+      message,
+      metadata,
+      getEfficiencyOutputLabels(),
+      Date.now(),
+      formatTime
     );
-    if (metadata) {
-      this.channel.appendLine(
-        `${t('efficiency.output.promptLabel')} "${metadata.prompt.slice(0, 80)}${metadata.prompt.length > 80 ? '...' : ''}"`
-      );
-      this.channel.appendLine(
-        `${t('efficiency.output.modelLabel')} ${metadata.model}`
-      );
-    }
-    this.channel.appendLine(`${t('efficiency.output.errorLabel')} ${message}`);
-    this.channel.appendLine('═'.repeat(60));
-    this.channel.appendLine('');
+    this.appendLines(lines);
   }
 
   present(result: ScoringResult, _metadata: PromptMetadata): void {
     const settings = getModelEfficiencyConfig();
-    const viewDetailsLabel = t('efficiency.output.viewDetails');
+    const presentation = buildEfficiencyAnalysisPresentation(
+      result,
+      getEfficiencyOutputLabels(),
+      settings,
+      formatTime
+    );
+    this.appendLines(presentation.lines);
 
-    this.channel.appendLine('═'.repeat(60));
-    this.channel.appendLine(
-      `[${new Date(result.scoredAt).toLocaleTimeString()}] ${t('efficiency.output.analysisTitle')}`
-    );
-    this.channel.appendLine('─'.repeat(60));
-    this.channel.appendLine(`${t('efficiency.output.promptLabel')} "${result.promptExcerpt}..."`);
-    this.channel.appendLine(
-      t('efficiency.output.selectedModel', { model: result.selectedModel })
-    );
-    this.channel.appendLine(
-      t('efficiency.output.taskType', { type: result.taskType })
-    );
-    this.channel.appendLine(
-      t('efficiency.output.efficiencyScore', {
-        score: (result.efficiencyScore * 100).toFixed(0),
-      })
-    );
-    this.channel.appendLine(
-      t('efficiency.output.severity', {
-        severity: result.severity.toUpperCase(),
-      })
-    );
-    this.channel.appendLine(
-      t('efficiency.output.confidence', {
-        confidence: (result.confidence * 100).toFixed(0),
-      })
-    );
-
-    if (result.efficiencyScore < 0.7) {
-      this.channel.appendLine('');
-      this.channel.appendLine(
-        t('efficiency.output.notice', { opinion: result.opinion })
-      );
-      this.channel.appendLine(
-        t('efficiency.output.recommendation', {
-          model: result.recommendedModel,
-        })
-      );
-    } else {
-      this.channel.appendLine(t('efficiency.output.modelAdequate'));
-    }
-
-    this.channel.appendLine('═'.repeat(60));
-    this.channel.appendLine('');
-
-    if (settings.autoShowOutputChannel) {
+    if (presentation.shouldShowOutputChannel) {
       this.channel.show(true);
     }
 
-    if (
-      settings.showNotificationOnHigh &&
-      result.severity === 'high' &&
-      result.efficiencyScore < 0.7
-    ) {
+    if (presentation.notification) {
       void vscode.window
         .showInformationMessage(
-          t('efficiency.output.inefficientNotification', {
-            opinion: result.opinion,
-          }),
-          viewDetailsLabel
+          presentation.notification.message,
+          presentation.notification.actionLabel
         )
         .then((action) => {
-          if (action === viewDetailsLabel) {
+          if (action === presentation.notification?.actionLabel) {
             this.channel.show(true);
           }
         });
+    }
+  }
+
+  private appendLines(lines: readonly string[]): void {
+    for (const line of lines) {
+      this.channel.appendLine(line);
     }
   }
 }
