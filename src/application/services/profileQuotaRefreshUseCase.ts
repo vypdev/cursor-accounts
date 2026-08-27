@@ -49,10 +49,6 @@ export class ProfileQuotaRefreshUseCase {
       results,
       this.dependencies.now()
     );
-    if (generation !== this.fetchGeneration) {
-      return this.dependencies.cache.getAllQuotas();
-    }
-
     await this.dependencies.cache.saveQuotas(quotas);
     return quotas;
   }
@@ -77,11 +73,8 @@ function buildQuotaMap(
   const quotaMap = new Map<string, ProfileQuota>();
 
   for (let index = 0; index < profiles.length; index += 1) {
-    const profile = profiles[index];
-    const result = results[index];
-    if (!profile || !result) {
-      continue;
-    }
+    const profile = profiles[index]!;
+    const result = results[index]!;
 
     quotaMap.set(
       profile.id,
