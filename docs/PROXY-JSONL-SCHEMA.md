@@ -179,7 +179,7 @@ Two correlation mechanisms:
 
 Different Agent chat tabs use different `conversation_id` values; each tab may also spawn multiple bidi `request_id`s over time. The extension output shows `agent=<request_id prefix>`, not the chat tab id.
 
-Duration in live UI: [`extractRequestId`](../src/proxy/proxyTrafficFormat.ts) + `requestStartedAt` map in [`mitmProxyServer.ts`](../src/proxy/mitmProxyServer.ts).
+Duration in live UI: [`extractRequestId`](../src/proxy/proxyTrafficSummary.ts) + `requestStartedAt` map in [`mitmProxyServer.ts`](../src/proxy/mitmProxyServer.ts).
 
 ---
 

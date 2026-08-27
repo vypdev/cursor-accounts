@@ -162,7 +162,7 @@ sequenceDiagram
 | 2 | [`src/proxy/bidiAgentDecode.ts`](../src/proxy/bidiAgentDecode.ts) | `bidiDataToBuffer`, `decodeBidiAgentPayload`, `bidiInnerRoleForRpc` |
 | 3 | [`src/proxy/proxyInsightExtractor.ts`](../src/proxy/proxyInsightExtractor.ts) | `extractAgentInnerInsights`, `extractTokenUsage`, `extractAgentSessionInfo`, `estimateTokenCostUsd` |
 | 4 | [`src/proxy/trafficSummaryBuilder.ts`](../src/proxy/trafficSummaryBuilder.ts) | `buildTrafficSummary` |
-| 5 | [`src/proxy/proxyTrafficFormat.ts`](../src/proxy/proxyTrafficFormat.ts) | `formatInsightHint` — `N tok (live)` vs `N tok (turn)` |
+| 5 | [`src/ui/presentation/proxyTrafficLineFormatter.ts`](../src/ui/presentation/proxyTrafficLineFormatter.ts) | `formatInsightHint` — `N tok (live)` vs `N tok (turn)` |
 | 6 | [`src/ui/agentLiveUsageStatusBar.ts`](../src/ui/agentLiveUsageStatusBar.ts) | Live status bar item (separate from quota bar) |
 
 Protobuf sources: [`proto/agent/v1/agent.proto`](../proto/agent/v1/agent.proto), [`proto/aiserver/v1/aiserver.proto`](../proto/aiserver/v1/aiserver.proto). Regeneration and log analysis: [`proto/README.md`](../proto/README.md).
