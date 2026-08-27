@@ -7,9 +7,18 @@ import { DatabaseMigrator } from './databaseMigrations';
 import { escapeSqlString, sqlLiteral, sqlNumber } from './sqliteExecutor';
 import type { SqliteExecutor } from './sqliteExecutor';
 import {
-  EfficiencyDatabaseQueryReader,
+  createEfficiencyEventReader,
   type EfficiencyEventQueryOptions,
-} from './efficiencyDatabaseQueryReader';
+  type EfficiencyEventReader,
+} from './efficiencyEventReader';
+import {
+  createEfficiencyAggregateReader,
+  type EfficiencyAggregateReader,
+} from './efficiencyAggregateReader';
+import {
+  createEfficiencyQuotaReader,
+  type EfficiencyQuotaReader,
+} from './efficiencyQuotaReader';
 import type {
   PromptEventRecord,
   QuotaBucketAggregate,
@@ -26,7 +35,9 @@ function normalizeEpoch(value: number): number {
 export class EfficiencyDatabase {
   private readonly migrator: DatabaseMigrator;
   private readonly executor: SqliteExecutor;
-  private readonly queryReader: EfficiencyDatabaseQueryReader;
+  private readonly eventReader: EfficiencyEventReader;
+  private readonly aggregateReader: EfficiencyAggregateReader;
+  private readonly quotaReader: EfficiencyQuotaReader;
 
   constructor(
     private readonly dbPath: string,
@@ -34,7 +45,9 @@ export class EfficiencyDatabase {
   ) {
     this.migrator = new DatabaseMigrator(dbPath, extensionPath);
     this.executor = this.migrator.getExecutor();
-    this.queryReader = new EfficiencyDatabaseQueryReader(this.executor);
+    this.eventReader = createEfficiencyEventReader(this.executor);
+    this.aggregateReader = createEfficiencyAggregateReader(this.executor);
+    this.quotaReader = createEfficiencyQuotaReader(this.executor);
   }
 
   async initialize(): Promise<void> {
@@ -176,14 +189,14 @@ INSERT INTO prompt_events (
   }
 
   async getAggregatedStats(profileId: string): Promise<EfficiencyStats> {
-    return this.queryReader.getAggregatedStats(profileId);
+    return this.aggregateReader.getAggregatedStats(profileId);
   }
 
   async getEventsByRepository(
     profileId: string,
     repoPath: string
   ): Promise<PromptEventRecord[]> {
-    return this.queryReader.getEventsByRepository(profileId, repoPath);
+    return this.eventReader.getEventsByRepository(profileId, repoPath);
   }
 
   async getEventsByBranch(
@@ -191,21 +204,21 @@ INSERT INTO prompt_events (
     repoPath: string,
     branch: string
   ): Promise<PromptEventRecord[]> {
-    return this.queryReader.getEventsByBranch(profileId, repoPath, branch);
+    return this.eventReader.getEventsByBranch(profileId, repoPath, branch);
   }
 
   async getEventsWithQuota(
     profileId: string,
     options?: EfficiencyEventQueryOptions
   ): Promise<PromptEventRecord[]> {
-    return this.queryReader.getEventsWithQuota(profileId, options);
+    return this.eventReader.getEventsWithQuota(profileId, options);
   }
 
   async getEventsByQuotaPhase(
     profileId: string,
     phase: 'start' | 'mid' | 'end'
   ): Promise<PromptEventRecord[]> {
-    return this.queryReader.getEventsByQuotaPhase(profileId, phase);
+    return this.eventReader.getEventsByQuotaPhase(profileId, phase);
   }
 
   async getEfficiencyByQuotaRange(
@@ -213,7 +226,7 @@ INSERT INTO prompt_events (
     minPercent: number,
     maxPercent: number
   ): Promise<QuotaEfficiencyAggregate> {
-    return this.queryReader.getEfficiencyByQuotaRange(
+    return this.quotaReader.getEfficiencyByQuotaRange(
       profileId,
       minPercent,
       maxPercent
@@ -224,7 +237,7 @@ INSERT INTO prompt_events (
     profileId: string,
     bucketSize = 10
   ): Promise<QuotaBucketAggregate[]> {
-    return this.queryReader.getEfficiencyTrendByQuota(profileId, bucketSize);
+    return this.quotaReader.getEfficiencyTrendByQuota(profileId, bucketSize);
   }
 
   async deleteOldEvents(
