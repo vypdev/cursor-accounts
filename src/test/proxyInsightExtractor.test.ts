@@ -302,6 +302,36 @@ describe('proxyInsightExtractor', () => {
     assert.deepEqual(ids, { conversationId: 'conv-only' });
   });
 
+  it('combines prewarm, subagent-result, and task relationships without overwriting earlier fields', () => {
+    const ids = extractConversationAndSubagentIds({
+      runRequest: { conversationId: 'run-conversation' },
+      prewarmRequest: {
+        conversationId: 'prewarm-conversation',
+        conversationGroupId: 'prewarm-group',
+      },
+      subagentResult: { success: { agentId: 'result-subagent' } },
+      taskToolCallArgs: {
+        parentRequestId: 'task-parent',
+        subagentRequestId: 'task-subagent',
+      },
+    });
+
+    assert.deepEqual(ids, {
+      conversationId: 'run-conversation',
+      conversationGroupId: 'prewarm-group',
+      parentRequestId: 'task-parent',
+      subagentRequestId: 'result-subagent',
+    });
+  });
+
+  it('extracts workspace identifiers from the private workspace shape', () => {
+    const insights = extractInsightsForRpc('/agent.v1.AgentService/RunSSE', {
+      private_workspace_identifier: { workspaceId: 'private-workspace' },
+    });
+
+    assert.equal(insights?.workspace?.workspaceId, 'private-workspace');
+  });
+
   it('extractAgentRunRequestInfo omits undefined requestId key', () => {
     const info = extractAgentRunRequestInfo({
       runRequest: {

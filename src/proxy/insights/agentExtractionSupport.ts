@@ -39,3 +39,17 @@ export function definedAgentFields(
   }
   return out;
 }
+
+/** Fill only missing fields so earlier protocol sources keep precedence. */
+export function fillMissingAgentFields(
+  base: Partial<AgentSessionInfo>,
+  extra: Partial<AgentSessionInfo>
+): Partial<AgentSessionInfo> {
+  const merged = { ...base };
+  for (const [key, value] of Object.entries(extra)) {
+    if (merged[key as keyof AgentSessionInfo] === undefined && value !== undefined) {
+      (merged as Record<string, unknown>)[key] = value;
+    }
+  }
+  return merged;
+}

@@ -3,6 +3,7 @@ import type { WorkspaceInfo } from '../../application/types/proxyInsights';
 import { pickField } from './fieldNormalization';
 import {
   definedAgentFields,
+  fillMissingAgentFields,
   pickRequestId,
   pickStringField,
 } from './agentExtractionSupport';
@@ -98,80 +99,117 @@ export function extractAgentRunRequestInfo(
   });
 }
 
+function extractRunRequestRelationships(
+  value: unknown
+): Partial<AgentSessionInfo> {
+  if (!value || typeof value !== 'object') {
+    return {};
+  }
+  const request = value as Record<string, unknown>;
+  return definedAgentFields({
+    conversationId: pickStringField(
+      request,
+      'conversation_id',
+      'conversationId'
+    ),
+    conversationGroupId: pickStringField(
+      request,
+      'conversation_group_id',
+      'conversationGroupId'
+    ),
+    parentRequestId: pickStringField(
+      request,
+      'parent_request_id',
+      'parentRequestId'
+    ),
+    subagentRequestId: pickStringField(
+      request,
+      'subagent_request_id',
+      'subagentRequestId'
+    ),
+  });
+}
+
+function extractPrewarmRelationships(
+  value: unknown
+): Partial<AgentSessionInfo> {
+  if (!value || typeof value !== 'object') {
+    return {};
+  }
+  const request = value as Record<string, unknown>;
+  return definedAgentFields({
+    conversationId: pickStringField(
+      request,
+      'conversation_id',
+      'conversationId'
+    ),
+    conversationGroupId: pickStringField(
+      request,
+      'conversation_group_id',
+      'conversationGroupId'
+    ),
+  });
+}
+
+function extractSubagentResultRelationships(
+  value: unknown
+): Partial<AgentSessionInfo> {
+  if (!value || typeof value !== 'object') {
+    return {};
+  }
+  const success = pickField(value as Record<string, unknown>, 'success', 'success');
+  if (!success || typeof success !== 'object') {
+    return {};
+  }
+  return definedAgentFields({
+    subagentRequestId: pickStringField(
+      success as Record<string, unknown>,
+      'agent_id',
+      'agentId'
+    ),
+  });
+}
+
+function extractTaskRelationships(value: unknown): Partial<AgentSessionInfo> {
+  if (!value || typeof value !== 'object') {
+    return {};
+  }
+  const args = value as Record<string, unknown>;
+  return definedAgentFields({
+    parentRequestId: pickStringField(
+      args,
+      'parent_request_id',
+      'parentRequestId'
+    ),
+    subagentRequestId: pickStringField(
+      args,
+      'subagent_request_id',
+      'subagentRequestId'
+    ),
+  });
+}
+
 /** Extract conversation and subagent linkage from nested Agent bidi messages. */
 export function extractConversationAndSubagentIds(
   decoded: Record<string, unknown>
 ): Partial<AgentSessionInfo> {
-  const result: Partial<AgentSessionInfo> = {};
-
-  const runRequest = pickField(decoded, 'run_request', 'runRequest');
-  if (runRequest && typeof runRequest === 'object') {
-    const req = runRequest as Record<string, unknown>;
-    const conversationId = pickStringField(req, 'conversation_id', 'conversationId');
-    if (conversationId) {
-      result.conversationId = conversationId;
-    }
-    const conversationGroupId = pickStringField(
-      req,
-      'conversation_group_id',
-      'conversationGroupId'
-    );
-    if (conversationGroupId) {
-      result.conversationGroupId = conversationGroupId;
-    }
-    const parentRequestId = pickStringField(
-      req,
-      'parent_request_id',
-      'parentRequestId'
-    );
-    if (parentRequestId) {
-      result.parentRequestId = parentRequestId;
-    }
-    const subagentRequestId = pickStringField(
-      req,
-      'subagent_request_id',
-      'subagentRequestId'
-    );
-    if (subagentRequestId) {
-      result.subagentRequestId = subagentRequestId;
-    }
-  }
-
-  const prewarmRequest = pickField(decoded, 'prewarm_request', 'prewarmRequest');
-  if (prewarmRequest && typeof prewarmRequest === 'object') {
-    const req = prewarmRequest as Record<string, unknown>;
-    result.conversationId ??= pickStringField(req, 'conversation_id', 'conversationId');
-    result.conversationGroupId ??= pickStringField(
-      req,
-      'conversation_group_id',
-      'conversationGroupId'
-    );
-  }
-
-  const subagentResult = pickField(decoded, 'subagent_result', 'subagentResult');
-  if (subagentResult && typeof subagentResult === 'object') {
-    const resultObj = subagentResult as Record<string, unknown>;
-    const success = pickField(resultObj, 'success', 'success');
-    if (success && typeof success === 'object') {
-      const successObj = success as Record<string, unknown>;
-      result.subagentRequestId ??= pickStringField(successObj, 'agent_id', 'agentId');
-    }
-  }
-
-  const taskArgs = pickField(decoded, 'task_tool_call_args', 'taskToolCallArgs');
-  if (taskArgs && typeof taskArgs === 'object') {
-    const args = taskArgs as Record<string, unknown>;
-    result.parentRequestId ??= pickStringField(
-      args,
-      'parent_request_id',
-      'parentRequestId'
-    );
-    result.subagentRequestId ??= pickStringField(
-      args,
-      'subagent_request_id',
-      'subagentRequestId'
-    );
-  }
-
-  return result;
+  let result = extractRunRequestRelationships(
+    pickField(decoded, 'run_request', 'runRequest')
+  );
+  result = fillMissingAgentFields(
+    result,
+    extractPrewarmRelationships(pickField(decoded, 'prewarm_request', 'prewarmRequest'))
+  );
+  result = fillMissingAgentFields(
+    result,
+    extractSubagentResultRelationships(
+      pickField(decoded, 'subagent_result', 'subagentResult')
+    )
+  );
+  return fillMissingAgentFields(
+    result,
+    extractTaskRelationships(
+      pickField(decoded, 'task_tool_call_args', 'taskToolCallArgs')
+    )
+  );
 }
