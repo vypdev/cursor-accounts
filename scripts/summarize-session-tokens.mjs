@@ -30,7 +30,6 @@ import { connectPayloadCandidates } from './lib/connect-payload.mjs';
 import {
   DEFAULT_DOLLARS_PER_M,
   buildSessionReport,
-  centsToUsd,
   createSessionSummaryState,
   planSpend,
   recordAgentInsight,
@@ -38,6 +37,7 @@ import {
   recordRequestId,
   recordSessionTimestamp,
 } from './lib/session-token-summary.mjs';
+import { renderSessionReport } from './lib/session-token-report.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -160,94 +160,6 @@ async function analyzeFile(filePath, root, rpcMap) {
   return buildSessionReport(path.basename(filePath), summary, dollarsPerM);
 }
 
-function printReport(report) {
-  console.log('\n=== Session token & cost report ===\n');
-  console.log(`Log: ${report.file}`);
-  if (report.window.firstTs) {
-    console.log(`Window: ${report.window.firstTs} → ${report.window.lastTs}`);
-  }
-  console.log(`Agent Bidi request_id(s): ${report.agentSessions}`);
-  if (report.requestIds.length) {
-    console.log(`  ${report.requestIds.join(', ')}`);
-  }
-
-  console.log('\n--- Proxy: token_delta (streaming counter, NOT billed tokens) ---');
-  console.log(`Events: ${report.tokenDeltaEvents}`);
-  console.log(`Max single counter value: ${report.maxSinglePeak}`);
-  console.log(`Major turns (peak≥300 then reset≤150): ${report.majorTurns.length}`);
-  for (const [i, s] of report.majorTurns.entries()) {
-    console.log(`  turn ${i + 1}: peak ${s.max} (${s.count} delta events)`);
-  }
-  console.log(`Sum of major-turn peaks: ${report.sumMajorTurnPeaks}`);
-  console.log(
-    `Naive estimate @ $${report.dollarsPerM}/M on sum of peaks: $${report.naiveEstUsd.toFixed(4)} USD`
-  );
-  console.log(
-    '(This is a progress counter during generation; do not compare 1:1 to dashboard spend.)'
-  );
-
-  console.log('\n--- Proxy: turn_ended (actual per-turn breakdown when present) ---');
-  console.log(`Events: ${report.turnEndedCount}`);
-  if (report.turnEndedCount > 0) {
-    const t = report.turnEndedTotals;
-    console.log(
-      `Totals: in=${t.input} out=${t.output} cacheR=${t.cacheRead} cacheW=${t.cacheWrite}`
-    );
-  } else {
-    console.log('(None in this log — billing breakdown may only arrive server-side.)');
-  }
-
-  console.log('\n--- Server: GetCurrentPeriodUsage (period spend, cents) ---');
-  console.log(`Samples in log: ${report.billing.samples}`);
-  if (report.billing.first) {
-    const f = report.billing.first;
-    const l = report.billing.last;
-    console.log(
-      `Start totalSpend: ${f.total} cents ($${centsToUsd(f.total)}) @ ${f.ts}`
-    );
-    console.log(
-      `End   totalSpend: ${l.total} cents ($${centsToUsd(l.total)}) @ ${l.ts}`
-    );
-    console.log(
-      `Delta in session window: ${report.billing.deltaCents} cents ($${report.billing.deltaUsd} USD)`
-    );
-    if (l.included != null) {
-      console.log(
-        `End plan: included=${l.included} bonus=${l.bonus} limit=${l.limit} cents`
-      );
-    }
-  } else {
-    console.log('(No decoded billing responses in log.)');
-  }
-
-  console.log('\n--- Reasonableness ---');
-  if (report.billing.deltaCents != null) {
-    const serverUsd = Number(report.billing.deltaUsd);
-    const ratio =
-      report.naiveEstUsd > 0 ? serverUsd / report.naiveEstUsd : null;
-    console.log(
-      `Server period spend moved $${serverUsd.toFixed(2)} during this capture.`
-    );
-    console.log(
-      `That includes all Cursor usage in the period counter, not only this agent chat.`
-    );
-    if (report.turnEndedCount === 0 && report.tokenDeltaEvents > 0) {
-      console.log(
-        'token_delta peaks are UI/progress signals; $6–8 in ~15–20 min of heavy Agent is plausible.'
-      );
-      console.log(
-        'For per-request tokens+cost, use dashboard get-filtered-usage-events (see docs/USAGE-EVENTS-API.md).'
-      );
-    }
-    if (ratio != null && ratio > 10) {
-      console.log(
-        `Ratio serverΔ / naiveProxyEst ≈ ${ratio.toFixed(0)}× — expected; counters ≠ billed tokens.`
-      );
-    }
-  }
-  console.log('');
-}
-
 async function main() {
   const arg = process.argv[2];
   const target = path.resolve(arg ?? DEFAULT_LOG_DIR);
@@ -275,7 +187,7 @@ async function main() {
 
   for (const filePath of files) {
     const report = await analyzeFile(filePath, root, rpcMap);
-    printReport(report);
+    process.stdout.write(renderSessionReport(report));
   }
 }
 

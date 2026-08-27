@@ -16,6 +16,7 @@ import {
   recordRequestId,
   recordSessionTimestamp,
 } from './lib/session-token-summary.mjs';
+import { renderSessionReport } from './lib/session-token-report.mjs';
 
 const SCRIPT_DIRECTORY = path.dirname(fileURLToPath(import.meta.url));
 
@@ -123,6 +124,12 @@ test('session summary state records deduplicated events and final report totals'
     dollarsPerM: 5,
   });
   assert.ok(Math.abs(naiveEstUsd - 0.00205) < Number.EPSILON);
+
+  const rendered = renderSessionReport(report);
+  assert.match(rendered, /Window: 2026-08-27T10:01:00\.000Z/);
+  assert.match(rendered, /Totals: in=10 out=20 cacheR=30 cacheW=40/);
+  assert.match(rendered, /End plan: included=200 bonus=10 limit=500 cents/);
+  assert.match(rendered, /Ratio serverΔ \/ naiveProxyEst/);
 });
 
 test('summarize-session-tokens CLI renders an empty JSONL capture', () => {
