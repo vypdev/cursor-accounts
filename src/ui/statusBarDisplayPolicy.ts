@@ -50,15 +50,16 @@ export function resolveStatusBarDisplay(
   input: StatusBarDisplayInput
 ): StatusBarDisplay {
   if (!input.activeProfile) {
-    return {
-      kind: 'item',
-      text: `$(account) ${t('statusBar.selectAccount')}`,
-      tooltip: t('statusBar.selectAccountTooltip'),
-      tooltipKind: 'plain',
-      background: undefined,
-    };
+    return selectAccountDisplay();
   }
 
+  return resolveActiveProfileDisplay(input, input.activeProfile);
+}
+
+function resolveActiveProfileDisplay(
+  input: StatusBarDisplayInput,
+  profile: StatusBarProfile
+): StatusBarDisplay {
   const isEnterprise = input.cachedUsage
     ? isEnterpriseUsage(input.cachedUsage)
     : false;
@@ -71,51 +72,81 @@ export function resolveStatusBarDisplay(
   }
 
   if (!showQuota) {
-    return {
-      kind: 'item',
-      text: `$(account) ${input.activeProfile.displayName}`,
-      tooltip: profileTooltip(input.activeProfile),
-      tooltipKind: 'plain',
-      background: undefined,
-    };
+    return profileOnlyDisplay(profile);
   }
 
   if (input.quotaLoading) {
     return loadingDisplay(
       isEnterprise,
-      input.activeProfile.displayName,
+      profile.displayName,
       input.showProfileName
     );
   }
 
   if (input.quotaError) {
-    return {
-      kind: 'item',
-      text: appendProfileSuffix(
-        t('statusBar.quotaUnavailable'),
-        input.activeProfile.displayName,
-        input.showProfileName
-      ),
-      tooltip: input.quotaError,
-      tooltipKind: 'plain',
-      background: 'warning',
-    };
+    return errorDisplay(
+      input.quotaError,
+      profile.displayName,
+      input.showProfileName
+    );
   }
 
   if (!input.cachedUsage) {
     return { kind: 'hidden' };
   }
 
+  return quotaDisplay(input.cachedUsage, profile.displayName, input);
+}
+
+function selectAccountDisplay(): StatusBarDisplayItem {
   return {
     kind: 'item',
-    text: buildQuotaText(
-      input.cachedUsage,
-      input.activeProfile.displayName,
-      input.showProfileName
+    text: `$(account) ${t('statusBar.selectAccount')}`,
+    tooltip: t('statusBar.selectAccountTooltip'),
+    tooltipKind: 'plain',
+    background: undefined,
+  };
+}
+
+function profileOnlyDisplay(profile: StatusBarProfile): StatusBarDisplayItem {
+  return {
+    kind: 'item',
+    text: `$(account) ${profile.displayName}`,
+    tooltip: profileTooltip(profile),
+    tooltipKind: 'plain',
+    background: undefined,
+  };
+}
+
+function errorDisplay(
+  error: string,
+  profileName: string,
+  showProfileName: boolean
+): StatusBarDisplayItem {
+  return {
+    kind: 'item',
+    text: appendProfileSuffix(
+      t('statusBar.quotaUnavailable'),
+      profileName,
+      showProfileName
     ),
-    tooltip: buildQuotaTooltip(input.cachedUsage, input.showAccountEmail),
+    tooltip: error,
+    tooltipKind: 'plain',
+    background: 'warning',
+  };
+}
+
+function quotaDisplay(
+  usage: QuotaUsage,
+  profileName: string,
+  input: StatusBarDisplayInput
+): StatusBarDisplayItem {
+  return {
+    kind: 'item',
+    text: buildQuotaText(usage, profileName, input.showProfileName),
+    tooltip: buildQuotaTooltip(usage, input.showAccountEmail),
     tooltipKind: 'markdown',
-    background: getStatusBarBackground(getProgressPercent(input.cachedUsage)),
+    background: getStatusBarBackground(getProgressPercent(usage)),
   };
 }
 
