@@ -40,6 +40,11 @@ import { SqliteActiveConversationRepository } from '../cursor/sqliteActiveConver
 import { WorkspaceStateDbPathResolver } from '../cursor/workspaceStateDbPathResolver';
 import { ActiveConversationTracker } from '../services/activeConversationTracker';
 import { ActiveConversationTotalsLoader } from '../application/services/activeConversationTotalsLoader';
+import { ProxySettingsApplicationService } from '../application/services/proxySettingsApplicationService';
+import { ProxySettingsBackupReader } from '../application/services/proxySettingsBackupReader';
+import { ProxySettingsRestorationService } from '../application/services/proxySettingsRestorationService';
+import { VscodeProxyWindowConfiguration } from '../proxy/vscodeProxyWindowConfiguration';
+import * as extensionLog from '../logging/extensionLog';
 
 /** Composition-root overrides used by deterministic integration tests. */
 export interface ExtensionActivationDependencies {
@@ -85,10 +90,32 @@ export function createExtensionRuntime(
     dependencies.getSharedProxyStorageDir?.() ?? getSharedProxyStorageDir();
   const proxyStateStore = new ProxyStateFileStore();
   const profileSettingsManager = new ProfileSettingsManager();
-  const proxySettingsService = new ProxySettingsService(
-    profileManager,
+  const windowConfiguration = new VscodeProxyWindowConfiguration();
+  const proxySettingsApplicationService =
+    new ProxySettingsApplicationService({
+      profileReader: profileManager,
+      profileSettingsManager,
+      windowConfiguration,
+      instanceDetector,
+      warn: extensionLog.warn,
+    });
+  const proxySettingsRestorationService =
+    new ProxySettingsRestorationService({
+      profileReader: profileManager,
+      profileSettingsManager,
+      windowConfiguration,
+      error: extensionLog.error,
+      debug: extensionLog.debug,
+    });
+  const proxySettingsBackupReader = new ProxySettingsBackupReader({
+    profileReader: profileManager,
     profileSettingsManager,
-    instanceDetector
+    debug: extensionLog.debug,
+  });
+  const proxySettingsService = new ProxySettingsService(
+    proxySettingsApplicationService,
+    proxySettingsRestorationService,
+    proxySettingsBackupReader
   );
   const proxyOutputPresenter = new ProxyOutputPresenter();
   const tokenDetectorPresenter = new TokenDetectorOutputPresenter();
@@ -166,7 +193,7 @@ export function createExtensionRuntime(
       storageCleanupService: storageBundle.storageCleanupService,
       storageAnalyzer: storageBundle.storageAnalyzer,
       proxyManager,
-      proxySettingsService,
+      proxySettingsReader: proxySettingsBackupReader,
       profileSettingsManager,
     }
   );

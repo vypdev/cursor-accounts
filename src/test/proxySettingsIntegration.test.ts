@@ -5,8 +5,24 @@ import * as path from 'path';
 import { after, before, describe, it } from 'node:test';
 import type { IProfileManager } from '../domain/ports/IProfileManager';
 import { ProfileSettingsManager } from '../profiles/profileSettingsManager';
-import { ProxySettingsService } from '../services/proxySettingsService';
+import { ProxySettingsRestorationService } from '../application/services/proxySettingsRestorationService';
 import type { Profile } from '../profiles/types';
+
+function createRestorationService(
+  profileManager: IProfileManager,
+  settingsManager: ProfileSettingsManager
+): ProxySettingsRestorationService {
+  return new ProxySettingsRestorationService({
+    profileReader: profileManager,
+    profileSettingsManager: settingsManager,
+    windowConfiguration: {
+      syncProxy: async () => undefined,
+      clearProxy: async () => undefined,
+    },
+    error: () => undefined,
+    debug: () => undefined,
+  });
+}
 
 describe('Proxy settings integration', () => {
   let tempRoot: string;
@@ -59,8 +75,7 @@ describe('Proxy settings integration', () => {
       getProfiles: async () => [profile],
     } as unknown as IProfileManager;
 
-    const service = new ProxySettingsService(profileManager, settingsManager);
-    await service.restoreAllProfiles();
+    await createRestorationService(profileManager, settingsManager).restoreAllProfiles();
 
     const settings = await settingsManager.readSettings(dir);
     assert.equal(settings?.['http.proxy'], 'http://corporate:3128');
@@ -84,8 +99,10 @@ describe('Proxy settings integration', () => {
       getProfiles: async () => [profile],
     } as unknown as IProfileManager;
 
-    const service = new ProxySettingsService(profileManager, settingsManager);
-    const result = await service.restoreAllProfiles();
+    const result = await createRestorationService(
+      profileManager,
+      settingsManager
+    ).restoreAllProfiles();
     assert.equal(result.restored, 1);
     assert.equal(result.errors.length, 0);
 

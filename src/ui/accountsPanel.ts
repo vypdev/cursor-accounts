@@ -25,7 +25,7 @@ import type { EfficiencyService } from '../modelEfficiency/efficiencyService';
 import { getLocale, isRtlLocale, t } from '../l10n';
 import type { IProfileStorageAnalyzer } from '../domain/ports/IProfileStorageAnalyzer';
 import type { IStorageCleanupService } from '../domain/ports/IStorageCleanupService';
-import type { ProxySettingsService } from '../services/proxySettingsService';
+import type { IProxySettingsBackupReader } from '../domain/ports/IProxySettingsBackupReader';
 import type { IProfileSettingsManager } from '../domain/ports/IProfileSettingsManager';
 import { ProfileGitHubEnrichmentService } from '../github/profileGitHubEnrichmentService';
 import { AccountsPanelHandlers } from './accountsPanelHandlers';
@@ -58,7 +58,7 @@ interface AccountsPanelProviderDependencies {
   storageCleanupService: IStorageCleanupService;
   storageAnalyzer: IProfileStorageAnalyzer;
   proxyManager: IProxyPanelRead & IProxyLifecycle & IProxyCertificate & IProxyOutput;
-  proxySettingsService?: ProxySettingsService;
+  proxySettingsReader?: IProxySettingsBackupReader;
   profileSettingsManager?: IProfileSettingsManager;
 }
 
@@ -101,7 +101,7 @@ export class AccountsPanelProvider {
       storageCleanupService,
       storageAnalyzer,
       proxyManager,
-      proxySettingsService,
+      proxySettingsReader,
       profileSettingsManager,
     } = dependencies;
     this.profileDetector = profileDetector;
@@ -144,7 +144,7 @@ export class AccountsPanelProvider {
       {
         profileDetector,
         proxyManager,
-        proxySettingsReader: proxySettingsService,
+        proxySettingsReader,
       },
       {
         postMessage: (message) => this.postMessage(message),

@@ -1,146 +1,53 @@
-import type { IInstanceDetector } from '../domain/ports/IInstanceDetector';
-import type { IProfileReader } from '../domain/ports/IProfileReader';
 import type { RestoreAllProfilesResult } from '../domain/ports/IProxyLifecycle';
-import type {
-  IProfileSettingsManager,
-  ProxyBackupInfo,
-} from '../domain/ports/IProfileSettingsManager';
 import type { IProxySettingsBackupReader } from '../domain/ports/IProxySettingsBackupReader';
-import * as extensionLog from '../logging/extensionLog';
-import type { Profile } from '../profiles/types';
-import {
-  clearProxyVscodeConfiguration,
-  syncProxyVscodeConfiguration,
-} from '../proxy/syncProxyVscodeConfiguration';
+import type { IProxySettingsRestorer } from '../domain/ports/IProxySettingsRestorer';
+import type { ProxyBackupInfo } from '../domain/ports/IProfileSettingsManager';
+import type { ProxySettingsApplicationService } from '../application/services/proxySettingsApplicationService';
+import type { ProxySettingsBackupReader } from '../application/services/proxySettingsBackupReader';
+import type { ProxySettingsRestorationService } from '../application/services/proxySettingsRestorationService';
 
 export type { RestoreAllProfilesResult };
 
 /**
- * Application service: orchestrate proxy settings across all managed profiles.
+ * Compatibility facade for the proxy-settings application use cases.
  */
-export class ProxySettingsService implements IProxySettingsBackupReader {
+export class ProxySettingsService
+  implements IProxySettingsBackupReader, IProxySettingsRestorer
+{
   constructor(
-    private readonly profileManager: IProfileReader,
-    private readonly profileSettingsManager: IProfileSettingsManager,
-    private readonly instanceDetector?: IInstanceDetector
+    private readonly applicationService: Pick<
+      ProxySettingsApplicationService,
+      'applyProxyForAllProfiles' | 'applyProxyForRunningProfiles'
+    >,
+    private readonly restorationService: Pick<
+      ProxySettingsRestorationService,
+      'restoreAllProfiles'
+    >,
+    private readonly backupReader: Pick<
+      ProxySettingsBackupReader,
+      'getAllProxyBackupInfo'
+    >
   ) {}
 
   /**
    * Write proxy to disk for every managed profile and sync the active window UI.
    */
   async applyProxyForAllProfiles(proxyUrl: string): Promise<void> {
-    const profiles = await this.profileManager.getProfiles();
-    await this.applyProxyToProfiles(profiles, proxyUrl, '');
-    await this.syncProxyConfiguration(proxyUrl);
+    await this.applicationService.applyProxyForAllProfiles(proxyUrl);
   }
 
   /**
    * Apply proxy only to profiles that currently have a running Cursor instance.
    */
   async applyProxyForRunningProfiles(proxyUrl: string): Promise<void> {
-    if (!this.instanceDetector) {
-      return;
-    }
-
-    const running = await this.instanceDetector.detectRunningInstances();
-    const profiles = await this.profileManager.getProfiles();
-    await this.applyProxyToProfiles(
-      profiles.filter((profile) => running.has(profile.id)),
-      proxyUrl,
-      'running profile '
-    );
-    await this.syncProxyConfiguration(proxyUrl);
+    await this.applicationService.applyProxyForRunningProfiles(proxyUrl);
   }
 
   async restoreAllProfiles(): Promise<RestoreAllProfilesResult> {
-    const profiles = await this.profileManager.getProfiles();
-    const result: RestoreAllProfilesResult = {
-      restored: 0,
-      errors: [],
-    };
-
-    for (const profile of profiles) {
-      try {
-        await this.profileSettingsManager.restoreProxySettings(
-          profile.userDataDir
-        );
-        result.restored += 1;
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        extensionLog.error(
-          `[ProxySettings] Failed to restore ${profile.displayName}: ${message}`
-        );
-        result.errors.push({ profileId: profile.id, error: message });
-      }
-    }
-
-    try {
-      await clearProxyVscodeConfiguration();
-    } catch (error) {
-      extensionLog.debug(
-        `[ProxySettings] Failed to clear active window proxy config: ${
-          error instanceof Error ? error.message : String(error)
-        }`
-      );
-    }
-
-    return result;
+    return await this.restorationService.restoreAllProfiles();
   }
 
   async getAllProxyBackupInfo(): Promise<Map<string, ProxyBackupInfo>> {
-    const profiles = await this.profileManager.getProfiles();
-    const infoMap = new Map<string, ProxyBackupInfo>();
-
-    await Promise.all(
-      profiles.map(async (profile) => {
-        try {
-          const info = await this.profileSettingsManager.getProxyBackupInfo(
-            profile.userDataDir
-          );
-          infoMap.set(profile.id, info);
-        } catch (error) {
-          extensionLog.debug(
-            `[ProxySettings] Failed to get backup info for ${profile.id}: ${
-              error instanceof Error ? error.message : String(error)
-            }`
-          );
-        }
-      })
-    );
-
-    return infoMap;
-  }
-
-  private async applyProxyToProfiles(
-    profiles: readonly Profile[],
-    proxyUrl: string,
-    profilePrefix: string
-  ): Promise<void> {
-    for (const profile of profiles) {
-      try {
-        await this.profileSettingsManager.applyProxySettings(
-          profile.userDataDir,
-          proxyUrl
-        );
-      } catch (error) {
-        extensionLog.warn(
-          `[ProxySettings] Failed to apply proxy for ${profilePrefix}${profile.displayName}: ${
-            error instanceof Error ? error.message : String(error)
-          }`
-        );
-      }
-    }
-  }
-
-  private async syncProxyConfiguration(proxyUrl: string): Promise<void> {
-    try {
-      await syncProxyVscodeConfiguration(proxyUrl);
-    } catch (error) {
-      extensionLog.warn(
-        `[ProxySettings] Failed to sync proxy to active window: ${
-          error instanceof Error ? error.message : String(error)
-        }`
-      );
-    }
+    return await this.backupReader.getAllProxyBackupInfo();
   }
 }

@@ -4,10 +4,10 @@ import type { ProxyTrafficSummary } from '../../proxy/types';
 import type { RestoreAllProfilesResult } from '../../domain/ports/IProxyManager';
 import type { IProfileManager } from '../../domain/ports/IProfileManager';
 import type { IProxyStateStore } from '../../domain/ports/IProxyStateStore';
+import type { IProxySettingsRestorer } from '../../domain/ports/IProxySettingsRestorer';
 import { ProxyTrafficBus } from '../../proxy/proxyTrafficBus';
 import { createProxyCostEnricher } from '../../proxy/proxyCostEnricher';
 import { ProxyTrafficIngress } from '../../proxy/proxyTrafficIngress';
-import type { ProxySettingsService } from '../../services/proxySettingsService';
 
 function sampleTraffic(): ProxyTrafficSummary {
   return {
@@ -128,7 +128,7 @@ describe('ProxyManager integration', () => {
     assert.equal(okCount, 1);
   });
 
-  it('restoreAllProfileProxySettings delegates to ProxySettingsService', async () => {
+  it('restoreAllProfileProxySettings delegates to the settings restorer', async () => {
     const { ProxyManager } = await import('../../services/proxyManager.js');
 
     const expected: RestoreAllProfilesResult = {
@@ -136,9 +136,9 @@ describe('ProxyManager integration', () => {
       errors: [{ profileId: 'x', error: 'disk' }],
     };
 
-    const proxySettingsService = {
+    const proxySettingsRestorer: IProxySettingsRestorer = {
       restoreAllProfiles: async () => expected,
-    } as unknown as ProxySettingsService;
+    };
 
     const manager = new ProxyManager(
       {
@@ -152,7 +152,7 @@ describe('ProxyManager integration', () => {
         extensionPath: '/tmp/extension',
       } as never,
       '/tmp/cursor-accounts-proxy-storage-3',
-      proxySettingsService
+      proxySettingsRestorer
     );
 
     const result = await manager.restoreAllProfileProxySettings();

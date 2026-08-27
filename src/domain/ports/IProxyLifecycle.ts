@@ -1,10 +1,7 @@
 import type { Profile } from '@cursor-accounts/types';
+import type { RestoreAllProfilesResult } from './IProxySettingsRestorer';
 
-/** Result of restoring proxy settings across all managed profiles. */
-export interface RestoreAllProfilesResult {
-  restored: number;
-  errors: Array<{ profileId: string; error: string }>;
-}
+export type { RestoreAllProfilesResult } from './IProxySettingsRestorer';
 
 /** Result of attempting to start the MITM proxy. */
 export interface ProxyStartResult {

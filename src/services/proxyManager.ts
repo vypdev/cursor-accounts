@@ -37,7 +37,7 @@ import {
 import {
   type ProxyTrafficTailerOptions,
 } from './proxyTrafficTailerCoordinator';
-import type { ProxySettingsService } from './proxySettingsService';
+import type { IProxySettingsRestorer } from '../domain/ports/IProxySettingsRestorer';
 import {
   ProxyManagerDiagnosticsCoordinator,
 } from './proxyManagerDiagnosticsCoordinator';
@@ -70,7 +70,7 @@ export class ProxyManager implements IProxyManager {
     private readonly profileManager: IProfileReader,
     context: vscode.ExtensionContext,
     storageDir: string = getSharedProxyStorageDir(),
-    private readonly proxySettingsService?: ProxySettingsService,
+    private readonly proxySettingsRestorer?: IProxySettingsRestorer,
     profileSettingsManager?: IProfileSettingsManager,
     outputPresenter?: IProxyOutputPresenter,
     tokenDetectorPresenter?: ITokenDetectorOutputPresenter,
@@ -315,10 +315,10 @@ export class ProxyManager implements IProxyManager {
   }
 
   async restoreAllProfileProxySettings(): Promise<RestoreAllProfilesResult> {
-    if (!this.proxySettingsService) {
+    if (!this.proxySettingsRestorer) {
       return { restored: 0, errors: [] };
     }
-    return await this.proxySettingsService.restoreAllProfiles();
+    return await this.proxySettingsRestorer.restoreAllProfiles();
   }
 
   async ensureProfileProxy(profileId: string): Promise<ProxyStartResult> {
